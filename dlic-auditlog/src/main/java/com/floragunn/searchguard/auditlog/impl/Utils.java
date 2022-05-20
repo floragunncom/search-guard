@@ -17,16 +17,16 @@ package com.floragunn.searchguard.auditlog.impl;
 import java.io.IOException;
 import java.util.Map;
 
-import org.elasticsearch.ElasticsearchParseException;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.DeprecationHandler;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.common.xcontent.json.JsonXContent;
+import org.opensearch.OpenSearchParseException;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.xcontent.DeprecationHandler;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.common.xcontent.XContentParser;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.common.xcontent.json.JsonXContent;
 
 public class Utils {
 
@@ -36,7 +36,7 @@ public class Utils {
             final BytesReference bytes = XContentHelper.toXContent(jsonContent, XContentType.JSON, false);
             map = XContentHelper.convertToMap(bytes, false, XContentType.JSON).v2();
         } catch (IOException e1) {
-            throw ExceptionsHelper.convertToElastic(e1);
+            throw ExceptionsHelper.convertToOpenSearchException(e1);
         }
 
         return map;
@@ -47,7 +47,7 @@ public class Utils {
                 DeprecationHandler.THROW_UNSUPPORTED_OPERATION, jsonContent)) {
             return parser.map();
         } catch (IOException e1) {
-            throw ExceptionsHelper.convertToElastic(e1);
+            throw ExceptionsHelper.convertToOpenSearchException(e1);
         }
     }
 
@@ -55,7 +55,7 @@ public class Utils {
         try {
             return BytesReference.bytes(JsonXContent.contentBuilder().map(structuredMap));
         } catch (IOException e) {
-            throw new ElasticsearchParseException("Failed to convert map", e);
+            throw new OpenSearchParseException("Failed to convert map", e);
         }
     }
 
@@ -63,7 +63,7 @@ public class Utils {
         try {
             return XContentHelper.convertToJson(convertStructuredMapToBytes(structuredMap), false, XContentType.JSON);
         } catch (IOException e) {
-            throw new ElasticsearchParseException("Failed to convert map", e);
+            throw new OpenSearchParseException("Failed to convert map", e);
         }
     }
 

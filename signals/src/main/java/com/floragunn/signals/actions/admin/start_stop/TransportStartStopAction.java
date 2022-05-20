@@ -2,14 +2,14 @@ package com.floragunn.signals.actions.admin.start_stop;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.HandledTransportAction;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportService;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.support.ActionFilters;
+import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.client.Client;
+import org.opensearch.common.inject.Inject;
+import org.opensearch.tasks.Task;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportService;
 
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.settings.SignalsSettings;

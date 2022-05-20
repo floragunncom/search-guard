@@ -3,14 +3,14 @@ package com.floragunn.signals.actions.watch.put;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.DocWriteResponse.Result;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.action.DocWriteResponse.Result;
+import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.rest.RestStatus;
 
 import com.google.common.base.Charsets;
 

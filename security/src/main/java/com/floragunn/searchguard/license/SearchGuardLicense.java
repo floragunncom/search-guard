@@ -34,10 +34,10 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.common.io.stream.Writeable;
 
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ValidationErrors;

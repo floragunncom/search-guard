@@ -17,13 +17,13 @@
 
 package com.floragunn.searchguard;
 
-import org.elasticsearch.common.component.LifecycleComponent;
-import org.elasticsearch.common.component.LifecycleListener;
-import org.elasticsearch.common.component.Lifecycle.State;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.repositories.RepositoriesService;
-import org.elasticsearch.transport.TransportService;
+import org.opensearch.common.component.LifecycleComponent;
+import org.opensearch.common.component.LifecycleListener;
+import org.opensearch.common.component.Lifecycle.State;
+import org.opensearch.common.inject.Inject;
+import org.opensearch.indices.IndicesService;
+import org.opensearch.repositories.RepositoriesService;
+import org.opensearch.transport.TransportService;
 
 /**
  * Very hackish way to get hold to Guice components from Non-Guice components. Was earlier GuiceHolder in SearchGuardPlugin

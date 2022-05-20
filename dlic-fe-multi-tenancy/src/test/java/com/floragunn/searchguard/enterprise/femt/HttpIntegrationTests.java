@@ -19,7 +19,7 @@ package com.floragunn.searchguard.enterprise.femt;
 
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;

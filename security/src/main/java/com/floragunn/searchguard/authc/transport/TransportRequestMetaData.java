@@ -20,7 +20,7 @@ package com.floragunn.searchguard.authc.transport;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.transport.TransportRequest;
+import org.opensearch.transport.TransportRequest;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authc.RequestMetaData;

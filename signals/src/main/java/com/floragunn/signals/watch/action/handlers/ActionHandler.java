@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeSet;
 
-import org.elasticsearch.common.Strings;
+import org.opensearch.common.Strings;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;

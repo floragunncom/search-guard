@@ -1,6 +1,6 @@
 package com.floragunn.searchguard.privileges;
 
-import org.elasticsearch.common.transport.TransportAddress;
+import org.opensearch.common.transport.TransportAddress;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;

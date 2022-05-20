@@ -16,7 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;

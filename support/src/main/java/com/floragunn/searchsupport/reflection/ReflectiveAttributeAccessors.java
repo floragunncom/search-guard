@@ -6,7 +6,7 @@ import java.security.PrivilegedAction;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import org.elasticsearch.SpecialPermission;
+import org.opensearch.SpecialPermission;
 
 public class ReflectiveAttributeAccessors {
     public static <O> Function<O, Object> objectAttr(String name) {

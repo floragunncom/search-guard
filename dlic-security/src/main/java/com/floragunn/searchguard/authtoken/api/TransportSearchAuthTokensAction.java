@@ -14,21 +14,21 @@
 
 package com.floragunn.searchguard.authtoken.api;
 
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.SearchAction;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportService;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.search.SearchAction;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.action.support.ActionFilters;
+import org.opensearch.client.Client;
+import org.opensearch.common.inject.Inject;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.index.query.BoolQueryBuilder;
+import org.opensearch.index.query.QueryBuilder;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.search.builder.SearchSourceBuilder;
+import org.opensearch.tasks.Task;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportService;
 
 import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authtoken.AuthTokenService;

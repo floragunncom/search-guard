@@ -24,8 +24,8 @@ import java.util.concurrent.CompletionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.inject.Inject;
+import org.opensearch.common.Strings;
+import org.opensearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;

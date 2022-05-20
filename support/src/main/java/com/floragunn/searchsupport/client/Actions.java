@@ -19,11 +19,11 @@ package com.floragunn.searchsupport.client;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.ClearScrollRequest;
-import org.elasticsearch.action.search.ClearScrollResponse;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.search.ClearScrollRequest;
+import org.opensearch.action.search.ClearScrollResponse;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.client.Client;
 
 public class Actions {
     private static final Logger log = LogManager.getLogger(Actions.class);

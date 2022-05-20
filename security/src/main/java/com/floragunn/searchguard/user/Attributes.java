@@ -23,8 +23,8 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -83,7 +83,7 @@ public class Attributes {
             try {
                 Attributes.validate(values);
             } catch (IllegalArgumentException e) {
-                throw new ElasticsearchSecurityException(
+                throw new OpenSearchSecurityException(
                         "Error while initializing user attributes. Mapping for " + entry.getKey() + " produced invalid values:\n" + e.getMessage(),
                         e);
             }
@@ -98,7 +98,7 @@ public class Attributes {
             try {
                 Attributes.validate(values);
             } catch (IllegalArgumentException e) {
-                throw new ElasticsearchSecurityException(
+                throw new OpenSearchSecurityException(
                         "Error while initializing user attributes. Mapping for " + entry.getKey() + " produced invalid values:\n" + e.getMessage(),
                         e);
             }

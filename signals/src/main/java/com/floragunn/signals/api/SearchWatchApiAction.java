@@ -1,18 +1,18 @@
 package com.floragunn.signals.api;
 
-import static org.elasticsearch.common.unit.TimeValue.parseTimeValue;
-import static org.elasticsearch.rest.RestRequest.Method.GET;
-import static org.elasticsearch.rest.RestRequest.Method.POST;
+import static org.opensearch.common.unit.TimeValue.parseTimeValue;
+import static org.opensearch.rest.RestRequest.Method.GET;
+import static org.opensearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
 import java.util.List;
 
-import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.action.RestStatusToXContentListener;
-import org.elasticsearch.search.Scroll;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.opensearch.client.node.NodeClient;
+import org.opensearch.rest.BaseRestHandler;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.action.RestStatusToXContentListener;
+import org.opensearch.search.Scroll;
+import org.opensearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.search.SearchWatchAction;

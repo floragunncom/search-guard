@@ -14,7 +14,7 @@ package com.floragunn.searchguard.auditlog.routing;
 
 import java.util.List;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.Test;
 

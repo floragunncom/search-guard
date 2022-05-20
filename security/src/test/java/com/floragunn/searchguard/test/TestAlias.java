@@ -19,9 +19,9 @@ package com.floragunn.searchguard.test;
 
 import java.util.stream.Collectors;
 
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
-import org.elasticsearch.client.Client;
+import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
+import org.opensearch.client.Client;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 

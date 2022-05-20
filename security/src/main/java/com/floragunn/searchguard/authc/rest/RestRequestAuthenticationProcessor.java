@@ -24,9 +24,9 @@ import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.rest.RestHandler;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;

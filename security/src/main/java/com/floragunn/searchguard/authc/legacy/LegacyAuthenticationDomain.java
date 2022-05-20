@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
+import org.opensearch.OpenSearchSecurityException;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -282,7 +282,7 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
         for (LegacyAuthorizationBackend authorizationBackend : authorizationBackends) {
             try {
                 authorizationBackend.fillRoles(user, authCredentials);
-            } catch (ElasticsearchSecurityException e) {
+            } catch (OpenSearchSecurityException e) {
                 if (log.isDebugEnabled()) {
                     log.debug("Authz backend " + authorizationBackend + " did not find roles for " + authCredentials, e);
                 }
@@ -307,7 +307,7 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
         for (LegacyAuthorizationBackend authorizationBackend : authorizationBackends) {
             try {
                 authorizationBackend.fillRoles(user, authCredentials);
-            } catch (ElasticsearchSecurityException e) {
+            } catch (OpenSearchSecurityException e) {
                 if (log.isDebugEnabled()) {
                     log.debug("Authz backend " + authorizationBackend + " did not find roles for " + authCredentials, e);
                 }

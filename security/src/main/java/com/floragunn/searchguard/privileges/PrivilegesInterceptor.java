@@ -19,7 +19,7 @@ package com.floragunn.searchguard.privileges;
 
 import java.util.Map;
 
-import org.elasticsearch.action.ActionRequest;
+import org.opensearch.action.ActionRequest;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;

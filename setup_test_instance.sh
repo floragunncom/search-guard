@@ -4,9 +4,10 @@ set -e
 
 MAIN_DIR=$(echo ~/searchguard-test)
 DOWNLOAD_CACHE="$MAIN_DIR/download-cache"
-INSTALL_DIR="$MAIN_DIR/es"
+INSTALL_DIR="$MAIN_DIR/os"
 REPO_DIR=$(pwd)
 
+rm $REPO_DIR/plugin/target/releases/*
 mvn install -Dmaven.test.skip.exec=true -Pquick
 
 SG_SNAPSHOT=$(echo $REPO_DIR/plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip)
@@ -15,21 +16,21 @@ echo "Search Guard Snapshot: $SG_SNAPSHOT"
 
 mkdir -p $DOWNLOAD_CACHE
 
-ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
+OS_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:opensearch.version" -v . pom.xml)
 
-echo "ES version: $ES_VERSION"
+echo "OpenSearch version: $OS_VERSION"
 
 if [[ "$OSTYPE"  == "linux"* ]]; then
-  ES_ARCHIVE="elasticsearch-$ES_VERSION-linux-x86_64.tar.gz"
+  OS_ARCHIVE="opensearch-min-$OS_VERSION-linux-x64.tar.gz"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-  ES_ARCHIVE="elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz"
+  OS_ARCHIVE="opensearch-min-$OS_VERSION-darwin-x86_64.tar.gz"
 else
   echo "OS type $OSTYPE not supported"
   exit
 fi
 
-if [ ! -f "$DOWNLOAD_CACHE/$ES_ARCHIVE" ]; then
-	wget "https://artifacts.elastic.co/downloads/elasticsearch/$ES_ARCHIVE" -P $DOWNLOAD_CACHE
+if [ ! -f "$DOWNLOAD_CACHE/$OS_ARCHIVE" ]; then
+   wget "https://artifacts.opensearch.org/releases/core/opensearch/$OS_VERSION/$OS_ARCHIVE" -P $DOWNLOAD_CACHE
 fi
 
 if [ -d "$INSTALL_DIR" ]; then
@@ -38,16 +39,16 @@ fi
    
 mkdir -p "$INSTALL_DIR"
 
-echo "Extracting $ES_ARCHIVE to $INSTALL_DIR"
+echo "Extracting $OS_ARCHIVE to $INSTALL_DIR"
 
-tar xfz "$DOWNLOAD_CACHE/$ES_ARCHIVE" -C "$INSTALL_DIR" --strip-components 1
+tar xfz "$DOWNLOAD_CACHE/$OS_ARCHIVE" -C "$INSTALL_DIR" --strip-components 1
 
 cd "$INSTALL_DIR"
 
 echo "-Xms1g" >>config/jvm.options
 echo "-Xmx1g" >>config/jvm.options
 
-bin/elasticsearch-plugin install -v -b file:///$SG_SNAPSHOT
+bin/opensearch-plugin install -b file:///$SG_SNAPSHOT
 
 for param in "$@"
 do
@@ -206,7 +207,7 @@ CiKTtKgPIeYdigor7V3AHcVT
 -----END PRIVATE KEY-----
 EOM
 
-cat >>config/elasticsearch.yml << EOM
+cat >>config/opensearch.yml << EOM
 searchguard.ssl.transport.pemcert_filepath: esnode.pem
 searchguard.ssl.transport.pemkey_filepath: esnode-key.pem
 searchguard.ssl.transport.pemtrustedcas_filepath: root-ca.pem
@@ -222,7 +223,6 @@ searchguard.authcz.admin_dn:
 searchguard.restapi.roles_enabled: ["SGS_ALL_ACCESS"]
 cluster.name: searchguard_demo  
 cluster.routing.allocation.disk.threshold_enabled: false
-xpack.security.enabled: false
 EOM
 
 mkdir -p ~/.searchguard
@@ -243,6 +243,6 @@ echo \""$INSTALL_DIR/plugins/search-guard-flx/tools/sgadmin.sh"\" -cd \""$INSTAL
 chmod u+x $INSTALL_DIR/sgadmin_demo.sh    
 chmod u+x $INSTALL_DIR/plugins/search-guard-flx/tools/sgadmin.sh
   
-echo "Starting ES"
+echo "Starting OS"
 
-bin/elasticsearch
+bin/opensearch

@@ -1,8 +1,8 @@
 package com.floragunn.signals.actions.settings.update;
 
-import org.elasticsearch.action.support.nodes.NodesOperationRequestBuilder;
-import org.elasticsearch.client.ClusterAdminClient;
-import org.elasticsearch.client.ElasticsearchClient;
+import org.opensearch.action.support.nodes.NodesOperationRequestBuilder;
+import org.opensearch.client.ClusterAdminClient;
+import org.opensearch.client.OpenSearchClient;
 
 public class SettingsUpdateRequestBuilder
         extends NodesOperationRequestBuilder<SettingsUpdateRequest, SettingsUpdateResponse, SettingsUpdateRequestBuilder> {
@@ -10,7 +10,7 @@ public class SettingsUpdateRequestBuilder
         this(client, SettingsUpdateAction.INSTANCE);
     }
 
-    public SettingsUpdateRequestBuilder(final ElasticsearchClient client, final SettingsUpdateAction action) {
+    public SettingsUpdateRequestBuilder(final OpenSearchClient client, final SettingsUpdateAction action) {
         super(client, action, new SettingsUpdateRequest());
     }
 }

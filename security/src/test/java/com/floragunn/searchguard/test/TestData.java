@@ -32,13 +32,13 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentType;
+import org.opensearch.action.admin.indices.create.CreateIndexRequest;
+import org.opensearch.action.admin.indices.refresh.RefreshRequest;
+import org.opensearch.action.delete.DeleteRequest;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.client.Client;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.xcontent.XContentType;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.google.common.cache.Cache;

@@ -14,9 +14,9 @@
 
 package com.floragunn.searchguard.sgconf.history;
 
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authz.ActionAuthorization;

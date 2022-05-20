@@ -30,16 +30,16 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestRequest.Method;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest.Method;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -215,7 +215,7 @@ public class RestApiPrivilegesEvaluator {
             final BytesReference bytes = XContentHelper.toXContent(jsonContent, XContentType.JSON, false);
             map = XContentHelper.convertToMap(bytes, false, XContentType.JSON).v2();
         } catch (IOException e1) {
-            throw ExceptionsHelper.convertToElastic(e1);
+            throw ExceptionsHelper.convertToOpenSearchException(e1);
         }
 
         return map;

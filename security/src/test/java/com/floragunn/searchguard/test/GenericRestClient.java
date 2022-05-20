@@ -54,8 +54,8 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.Strings;
+import org.opensearch.common.xcontent.ToXContentObject;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

@@ -22,7 +22,7 @@ import com.floragunn.searchguard.test.helper.certificate.CertificateType;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 
 import java.io.FileNotFoundException;
 import java.util.Optional;

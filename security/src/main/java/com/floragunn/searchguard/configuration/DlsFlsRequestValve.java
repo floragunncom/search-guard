@@ -17,11 +17,11 @@
 
 package com.floragunn.searchguard.configuration;
 
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.search.internal.SearchContext;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.search.internal.SearchContext;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;

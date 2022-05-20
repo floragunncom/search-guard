@@ -2,9 +2,9 @@ package com.floragunn.signals.watch.result;
 
 import java.io.IOException;
 
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
 
 public class ErrorInfo implements ToXContentObject {
 

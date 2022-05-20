@@ -31,7 +31,7 @@ import com.floragunn.searchguard.user.AuthCredentials;
  * 
  * Implementation classes must provide a public constructor
  * <p/>
- * {@code public MyHTTPAuthenticator(org.elasticsearch.common.settings.Settings settings, java.nio.file.Path configPath)}
+ * {@code public MyHTTPAuthenticator(org.opensearch.common.settings.Settings settings, java.nio.file.Path configPath)}
  * <p/>
  * The constructor should not throw any exception in case of an initialization problem.
  * Instead catch all exceptions and log a appropriate error message. A logger can be instantiated like:

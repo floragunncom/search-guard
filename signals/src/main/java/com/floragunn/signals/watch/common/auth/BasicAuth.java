@@ -2,7 +2,7 @@ package com.floragunn.signals.watch.common.auth;
 
 import java.io.IOException;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;

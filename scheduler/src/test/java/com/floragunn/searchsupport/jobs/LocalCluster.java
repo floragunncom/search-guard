@@ -4,9 +4,9 @@ import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.node.PluginAwareNode;
+import org.opensearch.client.Client;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.node.PluginAwareNode;
 import org.junit.rules.ExternalResource;
 
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;

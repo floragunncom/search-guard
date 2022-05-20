@@ -26,9 +26,9 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.xcontent.ToXContent;
+import org.opensearch.common.Strings;
+import org.opensearch.common.inject.Inject;
+import org.opensearch.common.xcontent.ToXContent;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocUtils;

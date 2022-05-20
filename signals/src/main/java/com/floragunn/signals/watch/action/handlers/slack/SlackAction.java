@@ -14,8 +14,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.script.TemplateScript;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.script.TemplateScript;
 
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ConfigValidationException;

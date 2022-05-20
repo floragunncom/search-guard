@@ -27,9 +27,9 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.script.JodaCompatibleZonedDateTime;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.script.JodaCompatibleZonedDateTime;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;

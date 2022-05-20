@@ -20,7 +20,7 @@ package com.floragunn.searchguard.authz;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;

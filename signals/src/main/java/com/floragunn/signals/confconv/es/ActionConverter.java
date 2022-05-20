@@ -7,7 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.opensearch.action.support.WriteRequest.RefreshPolicy;
 
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.documents.DocNode;

@@ -3,9 +3,9 @@ package com.floragunn.searchsupport.jobs.actions;
 import java.util.Arrays;
 import java.util.List;
 
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.plugins.ActionPlugin.ActionHandler;
 
 public class SchedulerActions {
     public static List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {

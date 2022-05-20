@@ -39,9 +39,9 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Setting.Property;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Setting;
+import org.opensearch.common.settings.Setting.Property;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.fluent.collections.ImmutableMap;

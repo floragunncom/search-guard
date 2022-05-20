@@ -18,8 +18,8 @@
 
 package com.floragunn.searchguard.authc;
 
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
@@ -39,7 +39,7 @@ public class AuthInfoService {
         User user = peekCurrentUser();
         
         if (user == null) {
-            throw new ElasticsearchSecurityException("No user information available");
+            throw new OpenSearchSecurityException("No user information available");
         }
         
         return user;

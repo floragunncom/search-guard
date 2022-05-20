@@ -4,17 +4,17 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.mapper.SourceFieldMapper;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.action.get.GetResponse;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.collect.Tuple;
+import org.opensearch.common.io.stream.StreamInput;
+import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.index.mapper.SourceFieldMapper;
 
 import com.floragunn.signals.watch.checks.StaticInput;
 

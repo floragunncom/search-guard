@@ -56,8 +56,8 @@
 		
 		<!-- provided scoped deps -->
 		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch</artifactId>
+			<groupId>org.opensearch</groupId>
+			<artifactId>opensearch</artifactId>
 			<scope>provided</scope>				
 		</dependency>		
 
@@ -122,25 +122,25 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>elasticsearch-rest-high-level-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<groupId>org.opensearch.client</groupId>
+			<artifactId>opensearch-rest-high-level-client</artifactId>
+			<version>${opensearch.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.httpcomponents</groupId>
 					<artifactId>httpclient</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.elasticsearch</groupId>
-					<artifactId>elasticsearch</artifactId>
+					<groupId>org.opensearch</groupId>
+					<artifactId>opensearch</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
 
 		<dependency>
-    		<groupId>org.elasticsearch.client</groupId>
-    		<artifactId>elasticsearch-rest-client</artifactId>
-			<version>${elasticsearch.version}</version>
+    		<groupId>org.opensearch.client</groupId>
+    		<artifactId>opensearch-rest-client</artifactId>
+			<version>${opensearch.version}</version>
 		</dependency>
 
 		<dependency>
@@ -227,29 +227,29 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>reindex-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
-					<groupId>org.elasticsearch</groupId>
-					<artifactId>elasticsearch-ssl-config</artifactId>
+					<groupId>org.opensearch</groupId>
+					<artifactId>opensearch-ssl-config</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch-ssl-config</artifactId>
-			<version>${elasticsearch.version}</version>
+			<groupId>org.opensearch</groupId>
+			<artifactId>opensearch-ssl-config</artifactId>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>percolator-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 

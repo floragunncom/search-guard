@@ -24,9 +24,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.inject.Inject;
+import org.opensearch.action.ActionListener;
+import org.opensearch.client.node.NodeClient;
+import org.opensearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;

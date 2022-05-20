@@ -28,8 +28,8 @@ import java.util.UUID;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
 import org.ldaptive.Connection;
 import org.ldaptive.ConnectionConfig;
 import org.ldaptive.LdapAttribute;
@@ -77,7 +77,7 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
     }
 
     @Override
-    public User authenticate(final AuthCredentials credentials) throws ElasticsearchSecurityException {
+    public User authenticate(final AuthCredentials credentials) throws OpenSearchSecurityException {
 
         Connection ldapConnection = null;
         final String user =credentials.getUsername();
@@ -103,7 +103,7 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
                     password = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_PASSWORD, "fakeLoginPwd123")
                             .getBytes(StandardCharsets.UTF_8);
                 } else if (entry == null) {
-                    throw new ElasticsearchSecurityException("No user " + user + " found");
+                    throw new OpenSearchSecurityException("No user " + user + " found");
                 }
 
                 dn = entry.getDn();
@@ -145,7 +145,7 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
             if (log.isDebugEnabled()) {
                 log.debug("Unable to authenticate user due to ", e);
             }
-            throw new ElasticsearchSecurityException(e.toString(), e);
+            throw new OpenSearchSecurityException(e.toString(), e);
         } finally {
             Arrays.fill(password, (byte) '\0');
             password = null;

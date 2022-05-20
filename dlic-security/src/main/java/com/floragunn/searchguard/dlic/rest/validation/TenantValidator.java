@@ -14,9 +14,9 @@
 
 package com.floragunn.searchguard.dlic.rest.validation;
 
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.rest.RestRequest;
 
 public class TenantValidator extends AbstractConfigurationValidator {
 

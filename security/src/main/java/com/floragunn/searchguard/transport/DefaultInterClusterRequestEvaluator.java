@@ -26,9 +26,9 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.transport.TransportRequest;
+import org.opensearch.OpenSearchException;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
@@ -120,7 +120,7 @@ public final class DefaultInterClusterRequestEvaluator implements InterClusterRe
             if (log.isDebugEnabled()) {
                 log.debug("Exception parsing certificate using {}", e, this.getClass());
             }
-            throw new ElasticsearchException(e);
+            throw new OpenSearchException(e);
         }
         return false;
     }

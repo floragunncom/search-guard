@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.action.licenseinfo;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 @Deprecated
 public class LicenseInfoAction extends ActionType<LicenseInfoResponse> {

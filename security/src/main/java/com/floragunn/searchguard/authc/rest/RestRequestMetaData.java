@@ -20,7 +20,7 @@ package com.floragunn.searchguard.authc.rest;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;

@@ -14,8 +14,8 @@
 
 package com.floragunn.searchguard.dlic.dlsfls;
 
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.client.Client;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;

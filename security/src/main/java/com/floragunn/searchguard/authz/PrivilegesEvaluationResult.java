@@ -21,9 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.action.support.ActionFilter;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.CheckTable;
 import com.floragunn.fluent.collections.ImmutableList;
@@ -300,33 +300,33 @@ public class PrivilegesEvaluationResult {
     }
 
     public Exception toSecurityException(PrivilegesEvaluationContext context) {
-        ElasticsearchSecurityException result = new ElasticsearchSecurityException("Insufficient permissions", RestStatus.FORBIDDEN);
+        OpenSearchSecurityException result = new OpenSearchSecurityException("Insufficient permissions", RestStatus.FORBIDDEN);
 
         if (this.indexToActionPrivilegeTable != null) {
             if (!isRelatedToIndexPermission()) {
-                result.addMetadata("es.missing_permissions",
+                result.addMetadata("opensearch.missing_permissions",
                         this.indexToActionPrivilegeTable.getColumns().stream().map((a) -> a.name()).collect(Collectors.toList()));
 
             } else {
-                result.addMetadata("es.missing_permissions", getFlattenedIndexToActionPrivilegeTable());
+                result.addMetadata("opensearch.missing_permissions", getFlattenedIndexToActionPrivilegeTable());
             }
         }
 
         if (context.isDebugEnabled()) {
             if (reason != null) {
-                result.addMetadata("es.reason_detail", reason);
+                result.addMetadata("opensearch.reason_detail", reason);
             }
 
-            result.addMetadata("es.user", String.valueOf(context.getUser()));
+            result.addMetadata("opensearch.user", String.valueOf(context.getUser()));
 
             if (context.getMappedRoles() != null) {
-                result.addMetadata("es.effective_roles", context.getMappedRoles().stream().collect(Collectors.toList()));
+                result.addMetadata("opensearch.effective_roles", context.getMappedRoles().stream().collect(Collectors.toList()));
             }
 
-            result.addMetadata("es.user_attributes", context.getUser().getStructuredAttributes().keySet().stream().collect(Collectors.toList()));
+            result.addMetadata("opensearch.user_attributes", context.getUser().getStructuredAttributes().keySet().stream().collect(Collectors.toList()));
             
             if (errors != null && !errors.isEmpty()) {
-                result.addMetadata("es.errors", errors.stream().map((e) -> e.toString()).collect(Collectors.toList()));
+                result.addMetadata("opensearch.errors", errors.stream().map((e) -> e.toString()).collect(Collectors.toList()));
             }
         }
 

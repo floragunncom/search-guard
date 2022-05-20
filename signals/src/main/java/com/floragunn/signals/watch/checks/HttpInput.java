@@ -31,7 +31,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;

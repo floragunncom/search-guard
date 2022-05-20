@@ -23,7 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.elasticsearch.action.support.ActionFilter;
+import org.opensearch.action.support.ActionFilter;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;

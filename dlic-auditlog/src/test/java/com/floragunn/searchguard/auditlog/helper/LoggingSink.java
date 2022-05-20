@@ -15,7 +15,7 @@ package com.floragunn.searchguard.auditlog.helper;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.auditlog.sink.AuditLogSink;

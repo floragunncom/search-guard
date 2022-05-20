@@ -32,8 +32,8 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
-import static org.elasticsearch.bootstrap.FilePermissionUtils.addDirectoryPath;
-import static org.elasticsearch.bootstrap.FilePermissionUtils.addSingleFilePath;
+import static org.opensearch.bootstrap.FilePermissionUtils.addDirectoryPath;
+import static org.opensearch.bootstrap.FilePermissionUtils.addSingleFilePath;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -51,11 +51,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import org.elasticsearch.bootstrap.BootstrapInfo;
-import org.elasticsearch.bootstrap.FilePermissionUtils;
-import org.elasticsearch.bootstrap.JarHell;
-import org.elasticsearch.common.SuppressForbidden;
-import org.elasticsearch.common.io.PathUtils;
+import org.opensearch.bootstrap.BootstrapInfo;
+import org.opensearch.bootstrap.FilePermissionUtils;
+import org.opensearch.bootstrap.JarHell;
+import org.opensearch.common.SuppressForbidden;
+import org.opensearch.common.io.PathUtils;
 
 public class EsJavaSecurity {
     static Policy getBaseEsSecurityPolicy() {
@@ -175,13 +175,13 @@ public class EsJavaSecurity {
         // read test-framework permissions
         Map<String, URL> codebases = getCodebaseJarMap(JarHell.parseClassPath());
         // when testing server, the main elasticsearch code is not yet in a jar, so we need to manually add it
-        addClassCodebase(codebases, "elasticsearch", "org.elasticsearch.plugins.PluginsService");
+        addClassCodebase(codebases, "elasticsearch", "org.opensearch.plugins.PluginsService");
         if (System.getProperty("tests.gradle") == null) {
             // intellij and eclipse don't package our internal libs, so we need to set the codebases for them manually
-            addClassCodebase(codebases, "plugin-classloader", "org.elasticsearch.plugins.ExtendedPluginsClassLoader");
-            addClassCodebase(codebases, "elasticsearch-nio", "org.elasticsearch.nio.ChannelFactory");
-            addClassCodebase(codebases, "elasticsearch-secure-sm", "org.elasticsearch.secure_sm.SecureSM");
-            addClassCodebase(codebases, "elasticsearch-rest-client", "org.elasticsearch.client.RestClient");
+            addClassCodebase(codebases, "plugin-classloader", "org.opensearch.plugins.ExtendedPluginsClassLoader");
+            addClassCodebase(codebases, "elasticsearch-nio", "org.opensearch.nio.ChannelFactory");
+            addClassCodebase(codebases, "elasticsearch-secure-sm", "org.opensearch.secure_sm.SecureSM");
+            addClassCodebase(codebases, "elasticsearch-rest-client", "org.opensearch.client.RestClient");
         }
 
         return codebases;

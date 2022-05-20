@@ -17,9 +17,9 @@
 
 package com.floragunn.searchguard.test;
 
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.action.admin.indices.exists.indices.IndicesExistsRequest;
+import org.opensearch.client.Client;
+import org.opensearch.common.settings.Settings;
 
 public class TestIndex {
 

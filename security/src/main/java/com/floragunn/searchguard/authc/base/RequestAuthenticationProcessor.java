@@ -23,9 +23,9 @@ import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -297,7 +297,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
             }
         }, (e) -> {
 
-            if (e instanceof ElasticsearchSecurityException) {
+            if (e instanceof OpenSearchSecurityException) {
                 debug.failure(authenticationDomain.getType(), e.getMessage());
 
                 handleAuthFailure(pendingCredentials, authenticationDomain, e);

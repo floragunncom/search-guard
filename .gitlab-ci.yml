@@ -16,9 +16,9 @@ image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 #  - "sgbuild0/search-guard-suite-enterprise/m2repository" #path look like this because of mv we do below
 #
 before_script:
-  # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
-  - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-  - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
+  # $CI_COMMIT_TAG: sg-flx-1.0.0-os-7.17.3
+  - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-os-.*$/\1/p')
+  - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-os-\(.*\)$/\1/p')
 
 stages:
   - build
@@ -26,11 +26,6 @@ stages:
   - package
   - "Backend Int Tests Core"
   - "Backend Int Tests Features"
-  - "Frontend Int Tests Core"
-  - "Frontend Int Tests Features"
-  - "Frontend Int Tests External Features"
-  - "Frontend Compat Int Tests 1"
-  - "Frontend Compat Int Tests 2"
   - release
 
 workflow:
@@ -71,11 +66,11 @@ build_for_tag_version:
   before_script:
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   script:
-    # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
-    - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-    - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
+    # $CI_COMMIT_TAG: sg-flx-1.0.0-os-7.17.3
+    - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-os-.*$/\1/p')
+    - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-os-\(.*\)$/\1/p')
     - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version" -v $SG_VERSION pom.xml
-    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:elasticsearch.version" -v $ES_VERSION pom.xml
+    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:opensearch.version" -v $ES_VERSION pom.xml
     - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
     when: on_success
@@ -374,9 +369,9 @@ deploy_snapshot:
     - |
       set -x
       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
-      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`
-      ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
+      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-opensearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
+      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-opensearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`
+      ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:opensearch.version pom.xml)
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       if [ -z "$IT_BRANCH" ]; then
         if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]]; then
@@ -388,15 +383,15 @@ deploy_snapshot:
       if [ -z "$KI_VERSION" ]; then
         KI_VERSION=$ES_VERSION
       fi
-      if [[ ! "$SG_KI_PLUGIN" =~ ^https?:.*$ ]]; then
-        if [[ "$SG_KI_PLUGIN" =~ .*SNAPSHOT.* ]]; then
-          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
-          echo "Found: $SG_KI_PLUGIN"
-        else
-          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-release search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
-          echo "Found: $SG_KI_PLUGIN"
-        fi
-      fi
+      #if [[ ! "$SG_KI_PLUGIN" =~ ^https?:.*$ ]]; then
+      #  if [[ "$SG_KI_PLUGIN" =~ .*SNAPSHOT.* ]]; then
+      #    SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
+      #    echo "Found: $SG_KI_PLUGIN"
+      #  else
+      #    SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-release search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
+      #    echo "Found: $SG_KI_PLUGIN"
+      #  fi
+      #fi
       echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
       echo "SG_ADMIN=$SG_ADMIN" >> build.env
       echo "ES_VERSION=$ES_VERSION" >>build.env
@@ -431,15 +426,15 @@ deploy_staging:
       set -x
       set -e
       ./dev/setup_gpg.sh
-      # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
-      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
-      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
+      # $CI_COMMIT_TAG: sg-flx-1.0.0-os-7.17.3      
+      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-os-.*$/\1/p')
+      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-os-\(.*\)$/\1/p')
+      DEPLOY_VERSION="$SG_VERSION-os-$ES_VERSION"
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       echo "Deploying Release to Staging repo"
       mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-flx-staging -DskipTests -B -Penterprise -Prelease -Drevision=$DEPLOY_VERSION | tee deploy.out
-      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
+      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-opensearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
+      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-opensearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
       if [ -z "$IT_BRANCH" ]; then
         if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n "$(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME)" ]; then
           IT_BRANCH="$CI_COMMIT_REF_NAME"
@@ -471,11 +466,6 @@ include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-int-tests.yml'
   - local: 'ci/backend-int-tests-features.yml'
-  - local: 'ci/frontend-int-tests.yml'
-  - local: 'ci/frontend-int-tests-features.yml'
-  - local: 'ci/frontend-int-tests-external-features.yml'
-  - local: 'ci/frontend-int-tests-compat1.yml'
-  - local: 'ci/frontend-int-tests-compat2.yml'
 
 deploy_release:
   stage: release
@@ -488,10 +478,10 @@ deploy_release:
   script:
     - ./dev/setup_gpg.sh
     - |
-      # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
-      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
-      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
+      # $CI_COMMIT_TAG: sg-flx-1.0.0-os-7.17.3      
+      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-os-.*$/\1/p')
+      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-os-\(.*\)$/\1/p')
+      DEPLOY_VERSION="$SG_VERSION-os-$ES_VERSION"
       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
 
       # TODO echo "Removing current release from Staging"
@@ -504,7 +494,7 @@ deploy_release:
       git push --tags || true
       cd ..
       echo "Deploying Release to Production repo."
-      mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
+      mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Dopensearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
   allow_failure: false
 
 

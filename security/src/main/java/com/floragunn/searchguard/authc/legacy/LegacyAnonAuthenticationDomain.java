@@ -19,9 +19,9 @@ package com.floragunn.searchguard.authc.legacy;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
@@ -71,7 +71,7 @@ public class LegacyAnonAuthenticationDomain implements AuthenticationDomain<Http
         }
 
         @Override
-        public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
+        public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws OpenSearchSecurityException {
             if (request.header("authorization") == null) {
                 return AuthCredentials.forUser("sg_anonymous").backendRoles("sg_anonymous_backendrole").complete().build();
             } else {

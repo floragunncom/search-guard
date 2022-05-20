@@ -2,7 +2,7 @@ package com.floragunn.searchsupport.jobs.config;
 
 import java.io.IOException;
 
-import org.elasticsearch.common.bytes.BytesReference;
+import org.opensearch.common.bytes.BytesReference;
 import org.quartz.JobDetail;
 
 import com.floragunn.codova.validation.ConfigValidationException;

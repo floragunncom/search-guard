@@ -32,10 +32,10 @@ import javax.naming.ldap.LdapName;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.Strings;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
@@ -111,7 +111,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
     
     @Override
     public void fillRoles(final User user, final AuthCredentials optionalAuthCreds)
-            throws ElasticsearchSecurityException {
+            throws OpenSearchSecurityException {
         
         final SecurityManager sm = System.getSecurityManager();
 
@@ -128,8 +128,8 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
                 }
             });
         } catch (PrivilegedActionException e) {
-            if (e.getException() instanceof ElasticsearchSecurityException) {
-                throw (ElasticsearchSecurityException) e.getException();
+            if (e.getException() instanceof OpenSearchSecurityException) {
+                throw (OpenSearchSecurityException) e.getException();
             } else if (e.getException() instanceof RuntimeException) {
                 throw (RuntimeException) e.getException();
             } else {
@@ -139,7 +139,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
     }
 
     private void fillRoles0(final User user, final AuthCredentials optionalAuthCreds)
-            throws ElasticsearchSecurityException {
+            throws OpenSearchSecurityException {
 
         if (user == null) {
             return;
@@ -197,7 +197,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
                     entry = lcm.lookup(con, authenticatedUser);
 
                     if (entry == null) {
-                        throw new ElasticsearchSecurityException("No user '" + authenticatedUser + "' found");
+                        throw new OpenSearchSecurityException("No user '" + authenticatedUser + "' found");
                     }
 
                 } else {
@@ -208,7 +208,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
                     }
 
                     if (entry == null || entry.getDN() == null) {
-                        throw new ElasticsearchSecurityException("No user " + authenticatedUser + " found");
+                        throw new OpenSearchSecurityException("No user " + authenticatedUser + " found");
                     }
                 }
 
@@ -395,7 +395,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
             if (log.isDebugEnabled()) {
                 log.debug("Unable to fill user roles due to ", e);
             }
-            throw new ElasticsearchSecurityException(e.toString(), e);
+            throw new OpenSearchSecurityException(e.toString(), e);
         }
 
     }
@@ -403,7 +403,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
     protected Set<LdapName> resolveNestedRoles(final LdapName roleDn, LDAPConnection con,
             String userRoleName, int depth, final boolean rolesearchEnabled,
             Set<Map.Entry<String, Settings>> roleSearchBaseSettingsSet, final List<String> roleFilter)
-            throws ElasticsearchSecurityException, LDAPException {
+            throws OpenSearchSecurityException, LDAPException {
 
         if (!roleFilter.isEmpty() && WildcardMatcher.matchAny(roleFilter, roleDn.toString())) {
 

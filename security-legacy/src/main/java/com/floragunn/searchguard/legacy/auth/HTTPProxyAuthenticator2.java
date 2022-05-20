@@ -23,10 +23,10 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.common.Strings;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;

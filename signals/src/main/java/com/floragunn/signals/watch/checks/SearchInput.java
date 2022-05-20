@@ -5,13 +5,13 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import org.elasticsearch.action.search.SearchType;
-import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptType;
+import org.opensearch.action.search.SearchType;
+import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.common.unit.TimeValue;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.script.Script;
+import org.opensearch.script.ScriptType;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;

@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.authc.rest;
 
-import org.elasticsearch.common.inject.Inject;
+import org.opensearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.searchguard.BaseDependencies;

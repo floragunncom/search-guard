@@ -25,13 +25,13 @@
 	<dependencies>
 		<!-- Netty 4 transport -->
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>transport-netty4-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<exclusions>
 				<exclusion>
 					<artifactId>jna</artifactId>
-					<groupId>org.elasticsearch</groupId>
+					<groupId>org.opensearch</groupId>
 				</exclusion>
 				<exclusion>
 					<artifactId>jts</artifactId>
@@ -84,15 +84,15 @@
 
 		<!-- provided scoped deps -->
 		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch</artifactId>
+			<groupId>org.opensearch</groupId>
+			<artifactId>opensearch</artifactId>
 			<scope>provided</scope>
 		</dependency>
 		
 		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>elasticsearch-rest-high-level-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<groupId>org.opensearch.client</groupId>
+			<artifactId>opensearch-rest-high-level-client</artifactId>
+			<version>${opensearch.version}</version>
 			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
@@ -100,15 +100,15 @@
 					<artifactId>httpclient</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.elasticsearch</groupId>
-					<artifactId>elasticsearch</artifactId>
+					<groupId>org.opensearch</groupId>
+					<artifactId>opensearch</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>		
 		
 		<dependency>
-    		<groupId>org.elasticsearch.plugin</groupId>
-    		<artifactId>elasticsearch-scripting-painless-spi</artifactId>
+    		<groupId>org.opensearch.plugin</groupId>
+    		<artifactId>opensearch-scripting-painless-spi</artifactId>
     		<scope>provided</scope>
 		</dependency>
 
@@ -229,14 +229,14 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>reindex-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
-					<groupId>org.elasticsearch</groupId>
-					<artifactId>elasticsearch-ssl-config</artifactId>
+					<groupId>org.opensearch</groupId>
+					<artifactId>opensearch-ssl-config</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.apache.httpcomponents</groupId>
@@ -269,36 +269,36 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch-ssl-config</artifactId>
-			<version>${elasticsearch.version}</version>
+			<groupId>org.opensearch</groupId>
+			<artifactId>opensearch-ssl-config</artifactId>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>percolator-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>lang-mustache-client</artifactId>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>parent-join-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>aggs-matrix-stats-client</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>${opensearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -310,7 +310,7 @@
 		</dependency>
 		
 		<dependency>
-			<groupId>org.codelibs.elasticsearch.module</groupId>
+			<groupId>org.opensearch.plugin</groupId>
 			<artifactId>lang-painless</artifactId>
 			<scope>provided</scope>
 		</dependency>

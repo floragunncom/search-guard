@@ -23,7 +23,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.function.Supplier;
 
-import org.elasticsearch.SpecialPermission;
+import org.opensearch.SpecialPermission;
 
 public class PrivilegedCode {
 

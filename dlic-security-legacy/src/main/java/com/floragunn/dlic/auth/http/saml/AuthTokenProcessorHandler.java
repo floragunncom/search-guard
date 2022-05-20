@@ -42,16 +42,16 @@ import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestRequest.Method;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.SpecialPermission;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.rest.BytesRestResponse;
+import org.opensearch.rest.RestChannel;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest.Method;
+import org.opensearch.rest.RestStatus;
 import org.joda.time.DateTime;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
@@ -189,13 +189,13 @@ class AuthTokenProcessorHandler {
         try {
 
             if (restRequest.getXContentType() != XContentType.JSON) {
-                throw new ElasticsearchSecurityException("/_searchguard/api/authtoken expects content with type application/json",
+                throw new OpenSearchSecurityException("/_searchguard/api/authtoken expects content with type application/json",
                         RestStatus.UNSUPPORTED_MEDIA_TYPE);
 
             }
 
             if (restRequest.method() != Method.POST) {
-                throw new ElasticsearchSecurityException("/_searchguard/api/authtoken expects POST requests", RestStatus.METHOD_NOT_ALLOWED);
+                throw new OpenSearchSecurityException("/_searchguard/api/authtoken expects POST requests", RestStatus.METHOD_NOT_ALLOWED);
             }
 
             Saml2Settings saml2Settings = this.saml2SettingsProvider.getCached();
@@ -211,7 +211,7 @@ class AuthTokenProcessorHandler {
             if (jsonRoot.get("SAMLResponse") == null) {
                 log.warn("SAMLResponse is missing from request ");
 
-                throw new ElasticsearchSecurityException("SAMLResponse is missing from request", RestStatus.BAD_REQUEST);
+                throw new OpenSearchSecurityException("SAMLResponse is missing from request", RestStatus.BAD_REQUEST);
 
             }
 
@@ -499,20 +499,20 @@ class AuthTokenProcessorHandler {
             DocNode jsonRoot = DocNode.parse(Format.JSON).from(BytesReference.toBytes(bytesReference));
 
             if (!jsonRoot.isMap()) {
-                throw new ElasticsearchSecurityException("Unexpected json format: " + jsonRoot, RestStatus.BAD_REQUEST);
+                throw new OpenSearchSecurityException("Unexpected json format: " + jsonRoot, RestStatus.BAD_REQUEST);
             }
 
             if (jsonRoot.get("SAMLResponse") == null) {
                 log.warn("SAMLResponse is missing from request ");
 
-                throw new ElasticsearchSecurityException("SAMLResponse is missing from request", RestStatus.BAD_REQUEST);
+                throw new OpenSearchSecurityException("SAMLResponse is missing from request", RestStatus.BAD_REQUEST);
 
             }
 
             return jsonRoot.getAsString("SAMLResponse");
 
         } catch (DocumentParseException e) {
-            throw new ElasticsearchSecurityException("Bad Request: " + e, RestStatus.BAD_REQUEST);
+            throw new OpenSearchSecurityException("Bad Request: " + e, RestStatus.BAD_REQUEST);
         }
     }
 

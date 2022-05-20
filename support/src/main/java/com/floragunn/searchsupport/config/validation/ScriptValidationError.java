@@ -21,7 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.logging.log4j.util.Strings;
-import org.elasticsearch.script.ScriptException;
+import org.opensearch.script.ScriptException;
 
 import com.floragunn.codova.validation.errors.ValidationError;
 

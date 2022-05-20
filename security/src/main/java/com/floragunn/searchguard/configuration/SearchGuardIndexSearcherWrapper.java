@@ -22,11 +22,11 @@ import java.io.IOException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
-import org.elasticsearch.common.CheckedFunction;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexService;
+import org.opensearch.common.CheckedFunction;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.index.Index;
+import org.opensearch.index.IndexService;
 
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.support.ConfigConstants;

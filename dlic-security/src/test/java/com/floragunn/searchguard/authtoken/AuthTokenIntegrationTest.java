@@ -20,18 +20,18 @@ import java.util.Map;
 
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.opensearch.OpenSearchStatusException;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.action.support.WriteRequest.RefreshPolicy;
+import org.opensearch.client.Client;
+import org.opensearch.client.RequestOptions;
+import org.opensearch.client.RestHighLevelClient;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.rest.RestStatus;
+import org.opensearch.search.builder.SearchSourceBuilder;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -459,7 +459,7 @@ public class AuthTokenIntegrationTest {
                             .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
                     Assert.fail(searchResponse.toString());
 
-                } catch (ElasticsearchStatusException e) {
+                } catch (OpenSearchStatusException e) {
                     Assert.assertEquals(e.getMessage(), RestStatus.UNAUTHORIZED, e.status());
                 }
             }
@@ -516,7 +516,7 @@ public class AuthTokenIntegrationTest {
                                 .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
                         Assert.fail(searchResponse.toString());
 
-                    } catch (ElasticsearchStatusException e) {
+                    } catch (OpenSearchStatusException e) {
                         Assert.assertEquals(e.getMessage(), RestStatus.UNAUTHORIZED, e.status());
                     }
                 }

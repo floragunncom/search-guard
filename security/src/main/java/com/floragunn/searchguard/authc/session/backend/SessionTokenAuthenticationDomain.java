@@ -25,9 +25,9 @@ import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.Strings;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -178,7 +178,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<Ht
 
             sessionService.getByClaims(credentials.getClaims(), (sessionToken) -> {
                 if (sessionToken.isRevoked()) {
-                    result.completeExceptionally(new ElasticsearchSecurityException(
+                    result.completeExceptionally(new OpenSearchSecurityException(
                             "Session " + sessionToken.getId() + " has been expired or deleted", RestStatus.UNAUTHORIZED));
                 } else {
                     sessionService.checkExpiryAndTrackAccess(sessionToken, (ok) -> {
@@ -190,7 +190,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<Ht
                                     .searchGuardRoles(sessionToken.getBase().getSearchGuardRoles()).specialAuthzConfig(sessionToken.getId())
                                     .attributes(sessionToken.getBase().getAttributes()).authzComplete().build());
                         } else {
-                            result.completeExceptionally(new ElasticsearchSecurityException("Session " + sessionToken.getId() + " has been expired",
+                            result.completeExceptionally(new OpenSearchSecurityException("Session " + sessionToken.getId() + " has been expired",
                                     RestStatus.UNAUTHORIZED));
                         }
                     }, (e) -> {

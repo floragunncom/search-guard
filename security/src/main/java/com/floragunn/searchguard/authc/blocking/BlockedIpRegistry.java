@@ -29,7 +29,7 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.collect.Tuple;
+import org.opensearch.common.collect.Tuple;
 
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;

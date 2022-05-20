@@ -26,9 +26,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.common.time.DateFormatter;
-import org.elasticsearch.common.xcontent.ToXContentObject;
-import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.time.DateFormatter;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.signals.execution.WatchExecutionContextData;

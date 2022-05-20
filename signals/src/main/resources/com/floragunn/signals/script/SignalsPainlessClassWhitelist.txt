@@ -13,22 +13,22 @@ class com.floragunn.signals.watch.severity.SeverityMapping$EvaluationResult {
 }
 
 class com.floragunn.signals.execution.WatchExecutionContextData$TriggerInfo {
-	org.elasticsearch.script.JodaCompatibleZonedDateTime getTriggeredTime()
-	org.elasticsearch.script.JodaCompatibleZonedDateTime getScheduledTime()
-	org.elasticsearch.script.JodaCompatibleZonedDateTime getTriggered_time()
-	org.elasticsearch.script.JodaCompatibleZonedDateTime getScheduled_time()
+    org.opensearch.script.JodaCompatibleZonedDateTime getTriggeredTime()
+    org.opensearch.script.JodaCompatibleZonedDateTime getScheduledTime()
+    org.opensearch.script.JodaCompatibleZonedDateTime getTriggered_time()
+    org.opensearch.script.JodaCompatibleZonedDateTime getScheduled_time()
 }
 
 class com.floragunn.signals.execution.WatchExecutionContextData$WatchInfo {
-	java.lang.String getId()
-	java.lang.String getTenant()
+    java.lang.String getId()
+    java.lang.String getTenant()
 }
 
 class com.floragunn.signals.execution.WatchExecutionContextData {
-	com.floragunn.signals.support.NestedValueMap getData()
+    com.floragunn.signals.support.NestedValueMap getData()
     com.floragunn.signals.watch.severity.SeverityMapping.EvaluationResult getSeverity()
     com.floragunn.signals.execution.WatchExecutionContextData.TriggerInfo getTriggerInfo()
-    org.elasticsearch.script.JodaCompatibleZonedDateTime getExecutionTime()
+    org.opensearch.script.JodaCompatibleZonedDateTime getExecutionTime()
     com.floragunn.signals.execution.WatchExecutionContextData.WatchInfo getWatch()
 }
 

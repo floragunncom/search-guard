@@ -26,14 +26,14 @@ import com.floragunn.searchguard.configuration.CType;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.DocWriteResponse;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.support.WriteRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.bytes.BytesReference;
+import org.opensearch.action.DocWriteResponse;
+import org.opensearch.action.get.GetRequest;
+import org.opensearch.action.get.GetResponse;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.index.IndexResponse;
+import org.opensearch.action.support.WriteRequest;
+import org.opensearch.client.Client;
+import org.opensearch.common.bytes.BytesReference;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.action.configupdate;
 
-import org.elasticsearch.action.ActionType;
+import org.opensearch.action.ActionType;
 
 public class ConfigUpdateAction extends ActionType<ConfigUpdateResponse> {
 

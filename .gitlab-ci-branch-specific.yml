@@ -1,4 +1,2 @@
 variables:
-  IT_BRANCH: "7.10.x"
-  SG_KI_PLUGIN: "b-es-7.10.2-SNAPSHOT"
-  KI_VERSION: "7.10.2"
+  IT_BRANCH: "main-os"

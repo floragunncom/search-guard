@@ -1,6 +1,6 @@
 ---
 
-# This is the main Search Guard configuration file where authentication for the REST interface of Elasticsearch is defined.
+# This is the main Search Guard configuration file where authentication for the REST interface of OpenSearch is defined.
 # 
 # You need to configure at least one authentication domain in this file.
 # An authentication domain is responsible for extracting the user credentials from 

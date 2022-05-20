@@ -34,11 +34,11 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.seqno.SequenceNumbers;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.index.seqno.SequenceNumbers;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;

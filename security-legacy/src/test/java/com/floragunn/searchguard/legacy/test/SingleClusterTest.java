@@ -19,9 +19,9 @@ package com.floragunn.searchguard.legacy.test;
 
 import java.net.InetAddress;
 
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.client.Client;
+import org.opensearch.client.transport.TransportClient;
+import org.opensearch.common.settings.Settings;
 import org.junit.After;
 
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;

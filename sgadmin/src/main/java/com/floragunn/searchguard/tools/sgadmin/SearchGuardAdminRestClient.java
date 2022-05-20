@@ -5,14 +5,14 @@ import java.util.Collections;
 import java.util.Map;
 
 import org.apache.http.client.methods.HttpPost;
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.client.Request;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.Response;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.Validatable;
-import org.elasticsearch.common.CheckedFunction;
+import org.opensearch.OpenSearchStatusException;
+import org.opensearch.client.Request;
+import org.opensearch.client.RequestOptions;
+import org.opensearch.client.Response;
+import org.opensearch.client.RestClientBuilder;
+import org.opensearch.client.RestHighLevelClient;
+import org.opensearch.client.Validatable;
+import org.opensearch.common.CheckedFunction;
 
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocumentParseException;
@@ -24,12 +24,12 @@ public class SearchGuardAdminRestClient extends RestHighLevelClient {
         super(restClientBuilder);
     }
 
-    public GenericResponse reloadHttpCerts() throws ElasticsearchStatusException, IOException {
+    public GenericResponse reloadHttpCerts() throws OpenSearchStatusException, IOException {
         return performRequest(new EmptyRequest(), r -> new Request(HttpPost.METHOD_NAME, "/_searchguard/api/ssl/http/reloadcerts/"),
                 RequestOptions.DEFAULT, ResponseConverters.generic, Collections.emptySet());
     }
 
-    public GenericResponse reloadTransportCerts() throws ElasticsearchStatusException, IOException {
+    public GenericResponse reloadTransportCerts() throws OpenSearchStatusException, IOException {
         return performRequest(new EmptyRequest(), r -> new Request(HttpPost.METHOD_NAME, "/_searchguard/api/ssl/transport/reloadcerts/"),
                 RequestOptions.DEFAULT, ResponseConverters.generic, Collections.emptySet());
     }

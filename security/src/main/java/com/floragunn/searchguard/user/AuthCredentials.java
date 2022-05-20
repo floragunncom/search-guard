@@ -30,7 +30,7 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
+import org.opensearch.OpenSearchSecurityException;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -149,7 +149,7 @@ public final class AuthCredentials implements UserInformation {
                 MessageDigest digester = MessageDigest.getInstance(DIGEST_ALGORITHM);
                 internalPasswordHash = digester.digest(this.password);
             } catch (NoSuchAlgorithmException e) {
-                throw new ElasticsearchSecurityException("Unable to digest password", e);
+                throw new OpenSearchSecurityException("Unable to digest password", e);
             }
         } else {
             internalPasswordHash = null;
@@ -379,7 +379,7 @@ public final class AuthCredentials implements UserInformation {
                 MessageDigest digester = MessageDigest.getInstance(DIGEST_ALGORITHM);
                 internalPasswordHash = digester.digest(this.password);
             } catch (NoSuchAlgorithmException e) {
-                throw new ElasticsearchSecurityException("Unable to digest password", e);
+                throw new OpenSearchSecurityException("Unable to digest password", e);
             }
 
             Arrays.fill(password, (byte) '\0');

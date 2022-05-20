@@ -25,17 +25,17 @@ import java.util.Collections;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.index.IndexService;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.index.IndexService;
+import org.opensearch.rest.RestController;
+import org.opensearch.rest.RestHandler;
+import org.opensearch.script.ScriptService;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;

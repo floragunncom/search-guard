@@ -25,7 +25,7 @@ import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.auditlog.AuditLog;

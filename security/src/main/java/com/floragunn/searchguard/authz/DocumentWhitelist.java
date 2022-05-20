@@ -20,7 +20,7 @@ package com.floragunn.searchguard.authz;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.util.concurrent.ThreadContext;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 

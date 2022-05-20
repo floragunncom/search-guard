@@ -14,10 +14,10 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
-import static org.elasticsearch.rest.RestRequest.Method.DELETE;
-import static org.elasticsearch.rest.RestRequest.Method.GET;
-import static org.elasticsearch.rest.RestRequest.Method.PATCH;
-import static org.elasticsearch.rest.RestRequest.Method.PUT;
+import static org.opensearch.rest.RestRequest.Method.DELETE;
+import static org.opensearch.rest.RestRequest.Method.GET;
+import static org.opensearch.rest.RestRequest.Method.PATCH;
+import static org.opensearch.rest.RestRequest.Method.PUT;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -28,19 +28,19 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestRequest.Method;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.opensearch.action.index.IndexResponse;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.Strings;
+import org.opensearch.common.bytes.BytesArray;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.rest.RestChannel;
+import org.opensearch.rest.RestController;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest.Method;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.documents.DocNode;

@@ -25,9 +25,9 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
+import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;

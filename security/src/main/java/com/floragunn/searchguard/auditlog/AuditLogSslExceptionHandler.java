@@ -17,10 +17,10 @@
 
 package com.floragunn.searchguard.auditlog;
 
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.transport.TransportRequest;
+import org.opensearch.OpenSearchException;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.tasks.Task;
+import org.opensearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 
@@ -60,7 +60,7 @@ public class AuditLogSslExceptionHandler implements SslExceptionHandler{
     public void logError(Throwable t, TransportRequest request, String action, Task task, int type) {
         switch (type) {
         case 0:
-            if(t instanceof ElasticsearchException) {
+            if(t instanceof OpenSearchException) {
                 auditLog.logMissingPrivileges(action, request, task);
             } else {
                 auditLog.logSSLException(request, t, action, task);

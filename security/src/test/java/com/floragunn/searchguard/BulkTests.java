@@ -17,12 +17,12 @@
 
 package com.floragunn.searchguard;
 
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.opensearch.action.bulk.BulkRequest;
+import org.opensearch.action.bulk.BulkResponse;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.support.WriteRequest.RefreshPolicy;
+import org.opensearch.client.RequestOptions;
+import org.opensearch.client.RestHighLevelClient;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;

@@ -30,12 +30,12 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import org.apache.logging.log4j.CloseableThreadContext;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.ContextPreservingActionListener;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.support.ContextPreservingActionListener;
+import org.opensearch.common.util.concurrent.ThreadContext;
 
 /**
- * Restores the given {@link org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext} and the given Log4j thread context
+ * Restores the given {@link org.opensearch.common.util.concurrent.ThreadContext.StoredContext} and the given Log4j thread context
  * once the listener is invoked
  */
 public final class LogContextPreservingActionListener<R> implements ActionListener<R> {

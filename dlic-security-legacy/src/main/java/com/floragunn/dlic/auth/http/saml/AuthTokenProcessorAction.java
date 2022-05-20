@@ -17,11 +17,11 @@ package com.floragunn.dlic.auth.http.saml;
 import java.io.IOException;
 import java.util.List;
 
-import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestRequest.Method;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.client.node.NodeClient;
+import org.opensearch.rest.BaseRestHandler;
+import org.opensearch.rest.RestRequest;
+import org.opensearch.rest.RestRequest.Method;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.codova.documents.Document;
 import com.floragunn.searchsupport.client.rest.Responses;

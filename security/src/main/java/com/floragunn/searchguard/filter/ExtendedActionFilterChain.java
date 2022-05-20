@@ -20,12 +20,12 @@ package com.floragunn.searchguard.filter;
 import java.util.Iterator;
 import java.util.List;
 
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.tasks.Task;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.action.support.ActionFilter;
+import org.opensearch.action.support.ActionFilterChain;
+import org.opensearch.tasks.Task;
 
 public class ExtendedActionFilterChain<Request extends ActionRequest, Response extends ActionResponse>
         implements ActionFilterChain<Request, Response> {

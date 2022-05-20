@@ -20,7 +20,7 @@ package com.floragunn.searchguard.authc.limiting;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 import org.junit.Test;
 
 import com.floragunn.searchguard.authc.limiting.UserNameBasedRateLimiter;

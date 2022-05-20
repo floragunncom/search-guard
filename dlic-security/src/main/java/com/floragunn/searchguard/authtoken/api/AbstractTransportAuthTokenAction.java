@@ -16,13 +16,13 @@ package com.floragunn.searchguard.authtoken.api;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.HandledTransportAction;
-import org.elasticsearch.common.io.stream.Writeable.Reader;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.transport.TransportService;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
+import org.opensearch.action.support.ActionFilters;
+import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.common.io.stream.Writeable.Reader;
+import org.opensearch.common.transport.TransportAddress;
+import org.opensearch.transport.TransportService;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;

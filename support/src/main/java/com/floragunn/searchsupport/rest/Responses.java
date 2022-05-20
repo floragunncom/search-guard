@@ -21,13 +21,13 @@ import java.io.ByteArrayInputStream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestStatus;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.rest.BytesRestResponse;
+import org.opensearch.rest.RestChannel;
+import org.opensearch.rest.RestStatus;
 
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -60,7 +60,7 @@ public class Responses {
             channel.sendResponse(new BytesRestResponse(status, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);
-            throw ExceptionsHelper.convertToElastic(e);
+            throw ExceptionsHelper.convertToOpenSearchException(e);
         }
     }
 
@@ -84,7 +84,7 @@ public class Responses {
             channel.sendResponse(new BytesRestResponse(status, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);
-            throw ExceptionsHelper.convertToElastic(e);
+            throw ExceptionsHelper.convertToOpenSearchException(e);
         }
     }
 
@@ -108,7 +108,7 @@ public class Responses {
             channel.sendResponse(new BytesRestResponse(status, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);
-            throw ExceptionsHelper.convertToElastic(e);
+            throw ExceptionsHelper.convertToOpenSearchException(e);
         }
     }
 
@@ -133,7 +133,7 @@ public class Responses {
             }
         } catch (Exception e) {
             log.error(e.toString(), e);
-            throw ExceptionsHelper.convertToElastic(e);
+            throw ExceptionsHelper.convertToOpenSearchException(e);
         }
     }
 }

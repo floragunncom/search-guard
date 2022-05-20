@@ -27,7 +27,7 @@ import javax.naming.ldap.LdapName;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;

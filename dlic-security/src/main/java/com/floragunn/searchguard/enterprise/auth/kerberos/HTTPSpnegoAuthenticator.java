@@ -32,9 +32,9 @@ import javax.security.auth.login.LoginException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.env.Environment;
+import org.opensearch.ExceptionsHelper;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.env.Environment;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;

@@ -20,7 +20,7 @@ package com.floragunn.searchguard.legacy;
 import java.nio.file.Path;
 import java.util.function.BiFunction;
 
-import org.elasticsearch.common.settings.Settings;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.TypedComponent;
 

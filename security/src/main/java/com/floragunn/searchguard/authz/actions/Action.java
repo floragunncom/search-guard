@@ -28,8 +28,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
+import org.opensearch.action.ActionRequest;
+import org.opensearch.action.ActionResponse;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;

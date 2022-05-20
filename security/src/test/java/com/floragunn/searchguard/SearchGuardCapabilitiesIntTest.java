@@ -19,7 +19,7 @@ package com.floragunn.searchguard;
 
 import java.util.Collections;
 
-import org.elasticsearch.cluster.service.ClusterService;
+import org.opensearch.cluster.service.ClusterService;
 import org.junit.ClassRule;
 import org.junit.Test;
 

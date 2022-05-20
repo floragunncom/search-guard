@@ -4,26 +4,26 @@ import java.io.IOException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.HandledTransportAction;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.common.xcontent.NamedXContentRegistry;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportService;
+import org.opensearch.action.ActionListener;
+import org.opensearch.action.get.GetResponse;
+import org.opensearch.action.support.ActionFilters;
+import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.client.Client;
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.bytes.BytesArray;
+import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.inject.Inject;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.opensearch.common.xcontent.NamedXContentRegistry;
+import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.json.JsonXContent;
+import org.opensearch.script.ScriptService;
+import org.opensearch.tasks.Task;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.TransportService;
 
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
@@ -96,7 +96,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         } catch (NoSuchTenantException e) {
             listener.onResponse(new ExecuteWatchResponse(e.getTenant(), request.getWatchId(), ExecuteWatchResponse.Status.TENANT_NOT_FOUND, null));
         } catch (SignalsUnavailableException e) {
-            listener.onFailure(e.toElasticsearchException());
+            listener.onFailure(e.toOpenSearchException());
         } catch (Exception e) {
             listener.onFailure(e);
         } catch (Throwable t) {

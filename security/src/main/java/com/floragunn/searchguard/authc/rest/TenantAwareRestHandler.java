@@ -16,7 +16,7 @@
 
 package com.floragunn.searchguard.authc.rest;
 
-import org.elasticsearch.rest.RestHandler;
+import org.opensearch.rest.RestHandler;
 
 import com.floragunn.searchguard.authc.RequestMetaData;
 

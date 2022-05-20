@@ -17,8 +17,8 @@
 
 package com.floragunn.searchguard.authc.legacy;
 
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
 import com.floragunn.searchguard.authc.rest.RestRequestMetaData;

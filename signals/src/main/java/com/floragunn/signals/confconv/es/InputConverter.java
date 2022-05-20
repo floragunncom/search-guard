@@ -5,9 +5,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.elasticsearch.action.search.SearchType;
-import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.common.unit.TimeValue;
+import org.opensearch.action.search.SearchType;
+import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.common.unit.TimeValue;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;

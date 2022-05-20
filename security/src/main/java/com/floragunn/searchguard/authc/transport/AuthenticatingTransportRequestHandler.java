@@ -24,11 +24,11 @@ import javax.naming.ldap.LdapName;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.transport.TransportRequest;
+import org.opensearch.OpenSearchSecurityException;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
+import org.opensearch.tasks.Task;
+import org.opensearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
@@ -256,20 +256,20 @@ public class AuthenticatingTransportRequestHandler implements ComponentStateProv
     }
 
     private User impersonate(User origPKIuser, String impersonatedUser, AuthenticationDomain<TransportAuthenticationFrontend> authDomain)
-            throws ElasticsearchSecurityException {
+            throws OpenSearchSecurityException {
 
         if (origPKIuser == null) {
-            throw new ElasticsearchSecurityException("no original PKI user found");
+            throw new OpenSearchSecurityException("no original PKI user found");
         }
 
         if (adminDns.isAdminDN(impersonatedUser)) {
-            throw new ElasticsearchSecurityException(
+            throw new OpenSearchSecurityException(
                     "'" + origPKIuser.getName() + "' is not allowed to impersonate as an adminuser  '" + impersonatedUser + "'");
         }
 
         try {
             if (!adminDns.isTransportImpersonationAllowed(new LdapName(origPKIuser.getName()), impersonatedUser)) {
-                throw new ElasticsearchSecurityException(
+                throw new OpenSearchSecurityException(
                         "'" + origPKIuser.getName() + "' is not allowed to impersonate as transport user '" + impersonatedUser + "'");
             } else {
                 User impersonatedUserObject = checkExistsAndAuthz(origPKIuser,
@@ -288,7 +288,7 @@ public class AuthenticatingTransportRequestHandler implements ComponentStateProv
                 }
             }
         } catch (final InvalidNameException e1) {
-            throw new ElasticsearchSecurityException("PKI does not have a valid name ('" + origPKIuser.getName() + "'), should never happen", e1);
+            throw new OpenSearchSecurityException("PKI does not have a valid name ('" + origPKIuser.getName() + "'), should never happen", e1);
         }
     }
 
