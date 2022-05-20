@@ -345,20 +345,23 @@ class SessionActivityTracker {
                     }
 
                     Meter searchMeter = meter.basic("index_search");
-
+                    
+                    // XXX Kind of a dejavu from another world ;-)
+                    ActionListener<SearchResponse> self = this;
+                    
                     // Continue scrolling
                     privilegedConfigClient.searchScroll(new SearchScrollRequest(response.getScrollId()), new ActionListener<SearchResponse>() {
 
                         @Override
                         public void onResponse(SearchResponse response) {
                             searchMeter.close();
-                            this.onResponse(response);
+                            self.onResponse(response);
                         }
 
                         @Override
                         public void onFailure(Exception e) {
                             searchMeter.close();
-                            this.onFailure(e);
+                            self.onFailure(e);
                         }
                     });
 

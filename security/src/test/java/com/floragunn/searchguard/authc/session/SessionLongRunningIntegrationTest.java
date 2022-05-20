@@ -65,7 +65,6 @@ public class SessionLongRunningIntegrationTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().resources("session").sgConfig(TEST_SG_CONFIG).sslEnabled().build();
 
-    @Ignore
     @Test
     public void singleUser() throws Exception {
         String token;
