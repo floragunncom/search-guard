@@ -17,8 +17,6 @@
 
 package com.floragunn.searchguard.authz.actions;
 
-import static com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors.objectAttr;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -247,19 +245,6 @@ public class Actions {
         cluster(ClearScrollAction.INSTANCE);
         cluster(RecoveryAction.INSTANCE);
         cluster(NodesReloadSecureSettingsAction.INSTANCE);
-
-        cluster("indices:data/read/async_search/submit") //
-                .createsResource("async_search", objectAttr("id"), xContentInstantFromMillis("expiration_time_in_millis"));
-
-        cluster("indices:data/read/async_search/get") //
-                .usesResource("async_search", objectAttr("id"));
-
-        cluster("indices:data/read/async_search/delete") //
-                .deletesResource("async_search", objectAttr("id"));
-
-        cluster("indices:data/read/sql");
-        cluster("indices:data/read/sql/translate");
-        cluster("indices:data/read/sql/close_cursor");
 
         cluster(MainAction.INSTANCE);
         cluster(NodesInfoAction.INSTANCE);
