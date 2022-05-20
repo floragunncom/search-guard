@@ -133,7 +133,7 @@ public class ComponentState implements Document<ComponentState> {
         this.changedAt = docNode.hasNonNull("changed_at") ? Instant.parse(docNode.getAsString("changed_at")) : null;
         this.failedAt = docNode.hasNonNull("failed_at") ? Instant.parse(docNode.getAsString("failed_at")) : null;
         this.nextTryAt = docNode.hasNonNull("next_try_at") ? Instant.parse(docNode.getAsString("next_try_at")) : null;
-        this.mandatory = docNode.get("mandatory") instanceof Boolean ? (Boolean) docNode.get("mandatory") : null;        
+        this.mandatory = docNode.get("mandatory") instanceof Boolean ? (Boolean) docNode.get("mandatory") : false;        
 
         if (docNode.hasNonNull("build")) {
             DocNode build = docNode.getAsNode("build");
