@@ -121,10 +121,10 @@ public class User implements Serializable, UserInformation, AttributeSource {
     }
 
     @Deprecated
-    public User(final String name,  final Collection<String> roles, final AuthCredentials customAttributes) {
+    public User(final String name, final Collection<String> roles, final AuthCredentials customAttributes) {
         this(name, null, roles, customAttributes);
     }
-    
+
     /**
      * Create a new authenticated user without roles and attributes
      * 
@@ -221,7 +221,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
         if (authDomain != null && authDomain.length() > 0) {
             result.append(" <").append(authDomain).append(">");
         }
-        
+
         if (roles != null) {
             result.append(" ").append(roles);
         } else {
@@ -233,7 +233,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
         } else {
             result.append("/[]");
         }
-        
+
         if (structuredAttributes != null) {
             result.append(" ").append(structuredAttributes);
         } else {
@@ -241,7 +241,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
         }
 
         return result.toString();
-        
+
     }
 
     @Override
@@ -357,10 +357,10 @@ public class User implements Serializable, UserInformation, AttributeSource {
     public Map<String, Object> getStructuredAttributes() {
         return structuredAttributes;
     }
-    
+
     public String getAttributeAsString(String key) {
         Object value = this.structuredAttributes.get(key);
-        
+
         if (value != null) {
             return value.toString();
         } else {
@@ -550,7 +550,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
 
         this.authDomain = authDomain;
     }
-    
+
     @Override
     public Object getAttributeValue(String attributeName) {
         if (attributeName.equals("user.name") || attributeName.equals("user_name")) {
@@ -562,11 +562,8 @@ public class User implements Serializable, UserInformation, AttributeSource {
         } else if (attributeName.startsWith("user.attrs.")) {
             return getStructuredAttributes().get(attributeName.substring("user.attrs.".length()));
         } else if (attributeName.startsWith("attr.") || attributeName.startsWith("_")) {
-            log.warn("The attribute ${" + attributeName + "} could not be mapped to a value. "
-                    + "For backwards compatibility, the resulting string will contain the unmapped attribute unchanged. "
-                    + "You should consider changing the configuration to the new Search Guard user attributes which provide default values for this case. "
-                    + "The old attribute syntax will be removed in a future major Search Guard release.\n" + "\nAvailable attributes: "
-                    + getCustomAttributesMap().keySet());
+            log.error("The attribute syntax ${" + attributeName
+                    + "} is no longer supported. Please change to new user attributes. See here for details: https://docs.search-guard.com/latest/document-level-security#user-attributes");
             return "${" + attributeName + "}";
         } else {
             return null;
