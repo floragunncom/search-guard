@@ -32,6 +32,11 @@ public abstract class Measurement<M> implements Document<Measurement<M>> {
     }
 
     public static Measurement<?> parse(DocNode docNode) {
+        if (!docNode.isMap() || docNode.isEmpty()) {
+            log.error("Error while parsing measurement\n" + docNode, docNode);
+            return new UnknownMeasurement("_", docNode);            
+        }
+        
         String type = docNode.keySet().iterator().next();
         DocNode typeNode = docNode.getAsNode(type);
         try {
