@@ -40,6 +40,7 @@ import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
@@ -92,7 +93,8 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         Assert.assertEquals(0, creds.getBackendRoles().size());
         Assert.assertEquals(3, creds.getAttributes().size());
     }
-
+    
+    @Ignore
     @Test
     public void proxyTest() throws Exception {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL)

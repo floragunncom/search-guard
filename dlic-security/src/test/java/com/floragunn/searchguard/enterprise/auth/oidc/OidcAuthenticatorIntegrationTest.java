@@ -22,6 +22,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
@@ -101,6 +102,7 @@ public class OidcAuthenticatorIntegrationTest {
         }
     }
 
+    @Ignore
     @Test
     public void basicTest() throws Exception {
 

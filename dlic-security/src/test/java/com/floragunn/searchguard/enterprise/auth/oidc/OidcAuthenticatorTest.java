@@ -21,6 +21,7 @@ import java.util.Map;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
@@ -175,6 +176,7 @@ public class OidcAuthenticatorTest {
         Assert.assertEquals(redirectTarget, authCredentials.getRedirectUri());
     }
 
+    @Ignore
     @Test
     public void proxyTest() throws Exception {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL)
@@ -204,6 +206,7 @@ public class OidcAuthenticatorTest {
         }
     }
 
+    @Ignore
     @Test
     public void proxyWithTlsConfigTest() throws Exception {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL)

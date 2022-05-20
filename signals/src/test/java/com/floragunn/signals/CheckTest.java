@@ -350,6 +350,7 @@ public class CheckTest {
         }
     }
 
+    @Ignore
     @Test
     public void httpInputProxyTest() throws Exception {
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {

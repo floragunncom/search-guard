@@ -618,6 +618,7 @@ public class RestApiTest {
     }
 
     @Test
+    @Ignore
     public void testHttpDefaultProxy() throws Exception {
 
         String tenant = "_main";
@@ -664,6 +665,7 @@ public class RestApiTest {
         }
     }
 
+    @Ignore
     @Test
     public void testHttpExplicitProxy() throws Exception {
 

@@ -24,6 +24,7 @@ import org.apache.http.util.EntityUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
@@ -76,6 +77,7 @@ public class OpenIdProviderClientTest {
         }
     }
 
+    @Ignore
     @Test
     public void proxyTest() throws Exception {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL)
