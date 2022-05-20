@@ -144,11 +144,35 @@
 			<scope>test</scope>
 		</dependency>		
 		
-		<dependency>
-			<groupId>com.browserup</groupId>
-			<artifactId>browserup-proxy-core</artifactId>
-			<version>2.1.1</version>
-			<scope>test</scope>
-		</dependency>			
+        <dependency>
+            <groupId>com.browserup</groupId>
+            <artifactId>browserup-proxy-core</artifactId>
+            <version>2.1.2</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>xyz.rogfam</groupId>
+                    <artifactId>littleproxy</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>   
+        
+        <dependency>
+            <groupId>xyz.rogfam</groupId>
+            <artifactId>littleproxy</artifactId>
+            <version>2.0.5</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>                           
+        </dependency>   
+        		
 	</dependencies>
 </project>
