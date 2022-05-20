@@ -18,6 +18,7 @@ package com.floragunn.searchguard.authc.rest;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
@@ -124,38 +125,43 @@ public class RestImpersonationProcessor<AuthenticatorType extends Authentication
             if (log.isDebugEnabled()) {
                 log.debug("Checking authdomain " + authenticationDomain + " (total: " + this.authenticationDomains.size() + ")");
             }
-        
-            AuthCredentials impersonatedUser = AuthCredentials.forUser(this.impersonatedUserHeader)
-                    .build();
 
-            authenticationDomain.impersonate(this.originalUser, impersonatedUser).whenComplete((completedUser, e) -> {
-                if (e != null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Impersonation on " + authenticationDomain + " failed", e);
+            AuthCredentials impersonatedUser = AuthCredentials.forUser(this.impersonatedUserHeader).build();
+
+            CompletableFuture<User> completedUserFuture = authenticationDomain.impersonate(this.originalUser, impersonatedUser);
+
+            if (completedUserFuture != null) {
+                completedUserFuture.whenComplete((completedUser, e) -> {
+                    if (e != null) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Impersonation on " + authenticationDomain + " failed", e);
+                        }
+                        onFailure.accept((Exception) e);
+                    } else if (completedUser != null) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Impersonation on " + authenticationDomain + " successful: " + completedUser);
+                        }
+
+                        completedUser.setRequestedTenant(originalUser.getRequestedTenant());
+
+                        if (cacheResult && impersonationCache != null) {
+                            impersonationCache.put(impersonatedUserHeader, completedUser);
+                        }
+
+                        onResult.accept(AuthcResult.pass(completedUser));
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Impersonation on " + authenticationDomain + " did not find user information.");
+                        }
+
+                        checkNextAuthenticationDomains(onResult, onFailure);
                     }
-                    onFailure.accept((Exception) e);
-                } else if (completedUser != null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Impersonation on " + authenticationDomain + " successful: " + completedUser);
-                    }
+                });
 
-                    completedUser.setRequestedTenant(originalUser.getRequestedTenant());
-
-                    if (cacheResult && impersonationCache != null) {
-                        impersonationCache.put(impersonatedUserHeader, completedUser);
-                    }
-
-                    onResult.accept(AuthcResult.pass(completedUser));
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Impersonation on " + authenticationDomain + " did not find user information.");
-                    }
-
-                    checkNextAuthenticationDomains(onResult, onFailure);
-                }
-            });
-
-            return AuthDomainState.PENDING;
+                return AuthDomainState.PENDING;
+            } else {
+                return AuthDomainState.SKIP;
+            }
 
         } catch (Exception e) {
             log.error("Error while handling auth domain " + authenticationDomain, e);
