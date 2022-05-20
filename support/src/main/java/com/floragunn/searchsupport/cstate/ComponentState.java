@@ -588,7 +588,7 @@ public class ComponentState implements Document<ComponentState> {
         }
 
         if (metrics != null && metrics.size() != 0) {
-            result.put("metrics", metrics);
+            result.put("metrics", metrics.mapValues((v) -> OrderedImmutableMap.of(v.getType(), v)));
         }
 
         if (parts.size() > 0) {
