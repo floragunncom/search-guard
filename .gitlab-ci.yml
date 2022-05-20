@@ -117,7 +117,7 @@ test_security_legacy:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+    - aws-runner
   script:
     - find .
     - mvn $MAVEN_CLI_OPTS -pl security-legacy test
@@ -259,7 +259,7 @@ test_dlic_security_legacy:
   stage: test
   interruptible: true
   tags:
-    - openstack-runner
+    - aws-runner
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
   artifacts:
