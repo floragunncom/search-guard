@@ -144,7 +144,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.rolesMappingResolution = getRolesMappingResolution(settings);
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
-            
+
             @Override
             public void onChange(ConfigMap configMap) {
                 SgDynamicConfiguration<AuthorizationConfig> config = configMap.get(CType.AUTHZ);
@@ -156,14 +156,20 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     ignoreUnauthorizedIndices = authzConfig.isIgnoreUnauthorizedIndices();
                     debugEnabled = authzConfig.isDebugEnabled();
                     metricsLevel = authzConfig.getMetricsLevel();
-                    log.info("Got authzConfig: " + authzConfig);
+                    log.info("Updated authz config:\n" + config);
+                    if (log.isDebugEnabled()) {
+                        log.debug(authzConfig);
+                    }
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
                     try {
                         LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
                         AuthorizationConfig authzConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null);
                         ignoreUnauthorizedIndices = authzConfig.isIgnoreUnauthorizedIndices();
                         debugEnabled = false;
-                        log.info("Got legacy authzConfig: " + authzConfig);
+                        log.info("Updated authz config (legacy):\n" + legacyConfig);
+                        if (log.isDebugEnabled()) {
+                            log.debug(authzConfig);
+                        }
                     } catch (ConfigValidationException e) {
                         log.error("Error while parsing sg_config:\n" + e);
                     }

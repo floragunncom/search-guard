@@ -562,7 +562,7 @@ public class ConfigVarService implements ComponentStateProvider {
     }
 
     public void refresh() {
-        log.info("Refreshing secrets");
+        log.info("Refreshing config variables");
         threadPool.generic().submit(() -> refreshSync());
     }
 
@@ -572,13 +572,13 @@ public class ConfigVarService implements ComponentStateProvider {
             Map<String, Object> newValues = readValues();
 
             if (this.values == null || !this.values.equals(newValues)) {
-                log.info("Secrets changed");
+                log.info("Config variables changed");
                 this.values = newValues;
                 componentState.setState(State.INITIALIZED);
                 notifyChangeListeners();
             } else {
                 componentState.setState(State.INITIALIZED);
-                log.debug("Secrets did not change");
+                log.debug("Config variables did not change");
             }
         } catch (Exception e) {
             log.error("Error while refreshing. Trying again.", e);
@@ -618,7 +618,7 @@ public class ConfigVarService implements ComponentStateProvider {
 
         @Override
         public String toString() {
-            return "RequestedValue [valueSupplier=" + valueSupplier + ", scope=" + scope + "]";
+            return "[scope=" + scope + "]";
         }
     }
 

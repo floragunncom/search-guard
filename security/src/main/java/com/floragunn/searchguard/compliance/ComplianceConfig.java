@@ -176,15 +176,21 @@ public class ComplianceConfig implements LicenseChangeListener {
             SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
 
             if (config != null && config.getCEntry("default") != null) {
-                AuthorizationConfig privilegesConfig = config.getCEntry("default");
-                setFieldAnonymizationSalt2(privilegesConfig.getFieldAnonymizationSalt());
-                log.info("Got authz config:\n" + privilegesConfig);
+                AuthorizationConfig authzConfig = config.getCEntry("default");
+                setFieldAnonymizationSalt2(authzConfig.getFieldAnonymizationSalt());
+                log.info("Updated authz config:\n" + config);
+                if (log.isDebugEnabled()) {
+                    log.debug(authzConfig);
+                }
             } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
                 try {
                     LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
                     AuthorizationConfig privilegesConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null);
                     setFieldAnonymizationSalt2(privilegesConfig.getFieldAnonymizationSalt());
-                    log.info("Got legacy authz config:\n" + privilegesConfig);
+                    log.info("Updated authz config (legacy):\n" + legacyConfig);
+                    if (log.isDebugEnabled()) {
+                        log.debug(privilegesConfig);
+                    }
                 } catch (ConfigValidationException e) {
                     log.error("Error while parsing sg_config:\n" + e);
                 }
