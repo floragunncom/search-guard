@@ -157,7 +157,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.rolesMappingResolution = getRolesMappingResolution(settings);
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
-            
+
             @Override
             public void onChange(ConfigMap configMap) {
                 SgDynamicConfiguration<AuthorizationConfig> config = configMap.get(CType.AUTHZ);
@@ -169,14 +169,20 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     ignoreUnauthorizedIndices = authzConfig.isIgnoreUnauthorizedIndices();
                     debugEnabled = authzConfig.isDebugEnabled();
                     metricsLevel = authzConfig.getMetricsLevel();
-                    log.info("Got authzConfig: " + authzConfig);
+                    log.info("Updated authz config:\n" + config);
+                    if (log.isDebugEnabled()) {
+                        log.debug(authzConfig);
+                    }
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
                     try {
                         LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
                         AuthorizationConfig authzConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null);
                         ignoreUnauthorizedIndices = authzConfig.isIgnoreUnauthorizedIndices();
                         debugEnabled = false;
-                        log.info("Got legacy authzConfig: " + authzConfig);
+                        log.info("Updated authz config (legacy):\n" + legacyConfig);
+                        if (log.isDebugEnabled()) {
+                            log.debug(authzConfig);
+                        }
                     } catch (ConfigValidationException e) {
                         log.error("Error while parsing sg_config:\n" + e);
                     }
@@ -523,21 +529,20 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 privilegesEvaluationResult = privilegesEvaluationResult.status(Status.INSUFFICIENT);
             }
         } else if (privilegesEvaluationResult.getStatus() == Status.INSUFFICIENT) {
-            if (dnfofPossible) {                
+            if (dnfofPossible) {
                 if (!actionRequestInfo.getResolvedIndices().getRemoteIndices().isEmpty()) {
-                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action0, request,
-                            ImmutableSet.empty(), actionRequestInfo);
+                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action0, request, ImmutableSet.empty(), actionRequestInfo);
                 } else {
                     if (log.isTraceEnabled()) {
                         log.trace("Changing result from INSUFFICIENT to EMPTY");
                     }
 
-                    privilegesEvaluationResult = privilegesEvaluationResult.status(Status.EMPTY);                    
+                    privilegesEvaluationResult = privilegesEvaluationResult.status(Status.EMPTY);
                 }
             }
         }
 
-        if (privilegesEvaluationResult.getStatus() == Status.EMPTY) {           
+        if (privilegesEvaluationResult.getStatus() == Status.EMPTY) {
             if (actionRequestIntrospector.forceEmptyResult(request)) {
                 if (log.isDebugEnabled()) {
                     log.debug("DNF: Reducing indices to yield an empty result\n" + privilegesEvaluationResult);

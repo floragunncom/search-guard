@@ -255,7 +255,11 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
 
     @Override
     public String toString() {
-        return ctype + "@" + primaryTerm + "." + seqNo + "/v:" + version + "/n:" + centries.size();
+        if (primaryTerm == SequenceNumbers.UNASSIGNED_PRIMARY_TERM) {
+            return ctype + "@[none]";
+        } else {        
+            return ctype + "@" + primaryTerm + "." + seqNo + "/v:" + version + "/n:" + centries.size();
+        }
     }
 
     @Override

@@ -377,7 +377,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             if (discardedConfig != null && !discardedConfig.isEmpty()) {
                 this.threadPool.schedule(() -> {
-                    LOGGER.info("Destroying old configuration: " + discardedConfig);
+                    LOGGER.debug("Destroying old configuration: " + discardedConfig);
                     discardedConfig.destroy();
                 }, TimeValue.timeValueSeconds(10), ThreadPool.Names.GENERIC);
             }

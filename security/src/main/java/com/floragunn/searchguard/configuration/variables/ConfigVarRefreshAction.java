@@ -60,7 +60,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
 
             @Override
             public void onResponse(Response response) {
-                log.info("Result of settings update:\n" + response);
+                log.debug("Result of settings update:\n" + response);
 
             }
 
