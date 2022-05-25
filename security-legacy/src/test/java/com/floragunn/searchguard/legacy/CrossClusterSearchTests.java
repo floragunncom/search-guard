@@ -61,7 +61,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
     }
     
     private void setupCcs() throws Exception {   
-        setupCcs(new DynamicSgConfig());
+        setupCcs(new DynamicSgConfig().setSgConfig("sg_config_dnfof.yml"));
     }
     
     private void setupCcs(DynamicSgConfig dynamicSgConfig) throws Exception {    
@@ -182,7 +182,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         System.out.println("###################### query 1");
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:*/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("twitter","nagilum"));
         System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         
         System.out.println("###################### query 2");
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:twit*/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("twitter","nagilum"));
@@ -231,11 +231,11 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("_all/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("*/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:twitter,twitter/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         System.out.println(ccs.getBody());
@@ -243,15 +243,15 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:*/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("*:*/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("hfghgtdhfhuth/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         System.out.println(ccs.getBody());

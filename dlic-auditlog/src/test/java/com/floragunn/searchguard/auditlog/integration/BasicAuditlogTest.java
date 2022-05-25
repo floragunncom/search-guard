@@ -229,8 +229,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         TestAuditlogImpl.clear();
         testMissingPriv();
         TestAuditlogImpl.clear();
-        testSgIndexAttempt();
-        TestAuditlogImpl.clear();
         testUnauthenticated();
         TestAuditlogImpl.clear();
         testUnknownAuthorization();

@@ -58,6 +58,28 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
         }
     }
 
+    public static Pattern createUnchecked(Collection<String> patterns) {
+        try {
+            return create(patterns);
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
+
+    public static Pattern createUnchecked(String... patterns) {
+        try {
+            if (patterns == null || patterns.length == 0) {
+                return BLANK;
+            } else if (patterns.length == 1) {
+                return create(patterns[0]);
+            } else {
+                return CompoundPattern.create(ImmutableList.ofArray(patterns));
+            }
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
+
     public static Pattern join(Collection<Pattern> patterns) {
         if (patterns.size() == 0) {
             return BLANK;
@@ -87,9 +109,13 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
             return true;
         }
     }
-    
+
     public static Pattern wildcard() {
         return WILDCARD;
+    }
+    
+    public static Pattern blank() {
+        return BLANK;
     }
 
     boolean matches(String string);
@@ -110,6 +136,8 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
 
     boolean isWildcard();
     
+    boolean isBlank();
+
     static class Constant extends AbstractPattern {
         private final String value;
 
@@ -160,11 +188,13 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
         public Object toBasicObject() {
             return value;
         }
-        
+
         @Override
         public String toString() {
             return value;
         }
+
+
 
     }
 
@@ -573,7 +603,7 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
 
             };
         }
-        
+
         @Override
         public boolean isWildcard() {
             return false;
@@ -586,6 +616,11 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
             }
 
             return new ExcludingPattern(exludingPattern, this);
+        }
+        
+        @Override
+        public boolean isBlank() {
+            return false;
         }
     }
 
@@ -654,6 +689,11 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
         public boolean isWildcard() {
             return true;
         }
+
+        @Override
+        public boolean isBlank() {
+            return false;
+        }
     };
 
     static Pattern BLANK = new Pattern() {
@@ -716,6 +756,11 @@ public interface Pattern extends Document<Pattern>, Predicate<String> {
         @Override
         public boolean isWildcard() {
             return false;
+        }
+
+        @Override
+        public boolean isBlank() {
+            return true;
         }
     };
 

@@ -77,9 +77,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
         HttpResponse resc = rh.executePostRequest("_msearch", msearchBody, encodeBasicHeader("worf", "worf"));
         Assert.assertEquals(200, resc.getStatusCode());
         Assert.assertTrue(resc.getBody(), resc.getBody().contains("\"_index\":\"klingonempire\""));
-        Assert.assertTrue(resc.getBody(), resc.getBody().contains("hits"));
-        Assert.assertTrue(resc.getBody(), resc.getBody().contains("Insufficient permissions"));
-        
+        Assert.assertTrue(resc.getBody(), resc.getBody().contains("hits"));        
     }
     
     @Test
@@ -204,11 +202,11 @@ public class IndexIntegrationTests extends SingleClusterTest {
         //nonexistent index with no login
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, (res = rh.executeGetRequest("/logstash-nonex/_search")).getStatusCode());   
         
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executeGetRequest("/_search", encodeBasicHeader("logstash", "nagilum"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/_search", encodeBasicHeader("logstash", "nagilum"))).getStatusCode());
         
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executeGetRequest("/_all/_search", encodeBasicHeader("logstash", "nagilum"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/_all/_search", encodeBasicHeader("logstash", "nagilum"))).getStatusCode());
     
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executeGetRequest("/*/_search", encodeBasicHeader("logstash", "nagilum"))).getStatusCode());        
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/*/_search", encodeBasicHeader("logstash", "nagilum"))).getStatusCode());        
     
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executeGetRequest("/nopermindex,logstash-1,nonexist/_search", encodeBasicHeader("logstash", "nagilum"))).getStatusCode());
         
@@ -272,8 +270,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
         HttpResponse res = null;
         
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executePostRequest("/mysgi/sg", "{}",encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/mysgi/_search?pretty", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
-        assertContains(res, "*\"hits\" : {*\"value\" : 0,*\"hits\" : [ ]*");
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executeGetRequest("/mysgi/_search?pretty", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
         
         System.out.println("#### add alias to allowed index");
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePutRequest("/logstash-1/_alias/alog1", "",encodeBasicHeader("aliasmngt", "nagilum"))).getStatusCode());
@@ -303,11 +300,11 @@ public class IndexIntegrationTests extends SingleClusterTest {
 
         
         System.out.println("#### get alias for all indices");
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executeGetRequest("/_alias/alog1", encodeBasicHeader("aliasmngt", "nagilum"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/_alias/alog1", encodeBasicHeader("aliasmngt", "nagilum"))).getStatusCode());
 
         
         System.out.println("#### get alias no perm");
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executeGetRequest("/_alias/nopermalias", encodeBasicHeader("aliasmngt", "nagilum"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_NOT_FOUND, (res = rh.executeGetRequest("/_alias/nopermalias", encodeBasicHeader("aliasmngt", "nagilum"))).getStatusCode());
         
         String alias =
         "{"+
@@ -428,48 +425,6 @@ public class IndexIntegrationTests extends SingleClusterTest {
         
         resc = rh.executeGetRequest("/foo-alias/_search", encodeBasicHeader("foo_all", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_NOT_FOUND, resc.getStatusCode());
-        
-    }
-    
-    @Test
-    //https://forum.search-guard.com/t/querying-missing-index-causes-security-exception/1531/11?u=hsaly
-    public void testIndexResolveMinus() throws Exception {
-
-        setup(Settings.EMPTY, new DynamicSgConfig(), Settings.EMPTY, true);
-        final RestHelper rh = nonSslRestHelper();
-
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            //create indices and mapping upfront
-            tc.index(new IndexRequest("foo-abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();
-        }
-
-        HttpResponse resc = rh.executeGetRequest("/**/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
-        
-        resc = rh.executeGetRequest("/*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
-        
-        resc = rh.executeGetRequest("/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
-        
-        resc = rh.executeGetRequest("/**,-foo*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
-        
-        resc = rh.executeGetRequest("/*,-foo*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
-        
-        resc = rh.executeGetRequest("/**,-searchg*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-        
-        resc = rh.executeGetRequest("/*,-searchg*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-        
-        resc = rh.executeGetRequest("/*,-searchg*,-foo*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-        
-        resc = rh.executeGetRequest("/_all,-searchg*/_search", encodeBasicHeader("foo_all", "nagilum"));
-        Assert.assertEquals(resc.getBody(), HttpStatus.SC_FORBIDDEN, resc.getStatusCode());
-        
         
     }
 }

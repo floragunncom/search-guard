@@ -1,6 +1,6 @@
 variables:
-  COMPAT_TEST_SG_KI_PLUGIN: "7.16.3-53.0.0"
-  COMPAT_TEST_KI_VERSION: "7.16.3"
+  COMPAT_TEST_SG_KI_PLUGIN: "7.17.3-53.0.0"
+  COMPAT_TEST_KI_VERSION: "7.17.3"
   COMPAT_TEST_IT_BRANCH: "classic-compat-7.16.x"
 
 cfe_anon_user:
