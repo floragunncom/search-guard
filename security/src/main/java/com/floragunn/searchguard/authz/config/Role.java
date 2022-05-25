@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.authz.config;
 
 import com.floragunn.codova.config.templates.Template;
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
@@ -28,7 +29,6 @@ import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.configuration.Hideable;
 import com.floragunn.searchguard.configuration.StaticDefinable;
-import com.floragunn.searchguard.support.Pattern;
 
 public class Role implements Document<Role>, Hideable, StaticDefinable {
 

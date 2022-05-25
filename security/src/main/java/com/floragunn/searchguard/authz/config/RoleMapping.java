@@ -25,6 +25,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.transport.TransportAddress;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.config.text.PatternMap;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
@@ -39,8 +41,6 @@ import com.floragunn.searchguard.configuration.Hideable;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.IPAddressCollection;
-import com.floragunn.searchguard.support.Pattern;
-import com.floragunn.searchguard.support.PatternMap;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;

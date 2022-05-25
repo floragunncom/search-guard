@@ -108,6 +108,8 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
@@ -1286,8 +1288,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
     public static final class ProtectedIndices {
         final Set<String> protectedPatterns;
-
-
+        Pattern protectedPatternsPattern = Pattern.blank();
+        
         public ProtectedIndices() {
             protectedPatterns = new HashSet<>();
         }
@@ -1298,18 +1300,28 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             if (patterns != null && patterns.length > 0) {
                 protectedPatterns.addAll(Arrays.asList(patterns));
             }
+            try {
+                protectedPatternsPattern = Pattern.createWithoutExclusions(protectedPatterns);
+            } catch (ConfigValidationException e) {
+                throw new RuntimeException("Invalid index pattern", e);
+            }
         }
 
         public void add(String pattern) {
             protectedPatterns.add(pattern);
+            try {
+                protectedPatternsPattern = Pattern.createWithoutExclusions(protectedPatterns);
+            } catch (ConfigValidationException e) {
+                throw new RuntimeException("Invalid index pattern", e);
+            }
         }
 
         public boolean isProtected(String index) {
-            return protectedPatterns == null ? false : WildcardMatcher.matchAny(protectedPatterns, index);
+            return protectedPatternsPattern.matches(index);
         }
 
         public boolean containsProtected(Collection<String> indices) {
-            return protectedPatterns == null ? false : WildcardMatcher.matchAny(protectedPatterns, indices);
+            return protectedPatternsPattern.matches(indices);
         }
 
         public String printProtectedIndices() {
