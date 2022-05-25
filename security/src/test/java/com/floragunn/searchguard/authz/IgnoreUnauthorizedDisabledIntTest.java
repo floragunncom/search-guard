@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
@@ -23,31 +23,25 @@ import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.is;
 
 import java.util.Arrays;
 
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestData.TestDocument;
-import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
-public class IgnoreUnauthorizedIntTest {
+public class IgnoreUnauthorizedDisabledIntTest {
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
@@ -82,7 +76,7 @@ public class IgnoreUnauthorizedIntTest {
     static TestAlias xalias_ab1 = new TestAlias("xalias_ab1", index_a1, index_a2, index_a3, index_b1);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().filterSgIndex()
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().ignoreUnauthorizedIndices(false)
             .users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_C, LIMITED_USER_D, LIMITED_USER_A_B1, UNLIMITED_USER)//
             .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1)//
             .aliases(xalias_ab1)//
@@ -93,30 +87,13 @@ public class IgnoreUnauthorizedIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get("/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
-                    json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
+            Assert.assertThat(httpResponse, isForbidden());
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
             HttpResponse httpResponse = restClient.get("/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_B)) {
-            HttpResponse httpResponse = restClient.get("/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("b1", "b2", "b3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A_B1)) {
-            HttpResponse httpResponse = restClient.get("/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1"))));
+            Assert.assertThat(httpResponse, isForbidden());
         }
     }
 
@@ -135,34 +112,16 @@ public class IgnoreUnauthorizedIntTest {
             Assert.assertThat(httpResponse, isForbidden());
         }
 
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
+            HttpResponse httpResponse = restClient.get("a1,a2/_search?size=1000");
+
+            Assert.assertThat(httpResponse, isOk());
+        }
+
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
             HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000");
 
             Assert.assertThat(httpResponse, isForbidden());
-        }
-    }
-
-    @Test
-    public void search_staticIndicies_ignoreUnavailable() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000&ignore_unavailable=true");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "b1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000&ignore_unavailable=true");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000&ignore_unavailable=true");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", empty())));
         }
     }
 
@@ -178,6 +137,12 @@ public class IgnoreUnauthorizedIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
             HttpResponse httpResponse = restClient.get("a*,b*/_search?size=1000");
 
+            Assert.assertThat(httpResponse, isForbidden());
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
+            HttpResponse httpResponse = restClient.get("a*/_search?size=1000");
+
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
         }
@@ -185,8 +150,7 @@ public class IgnoreUnauthorizedIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
             HttpResponse httpResponse = restClient.get("a*,b*/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", empty())));
+            Assert.assertThat(httpResponse, isForbidden());
         }
     }
 
@@ -195,23 +159,19 @@ public class IgnoreUnauthorizedIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get("_all/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
-                    json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
+            Assert.assertThat(httpResponse, isForbidden());
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
             HttpResponse httpResponse = restClient.get("_all/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
+            Assert.assertThat(httpResponse, isForbidden());
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
             HttpResponse httpResponse = restClient.get("_all/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("c1"))));
+            Assert.assertThat(httpResponse, isForbidden());
         }
     }
 
@@ -220,6 +180,12 @@ public class IgnoreUnauthorizedIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get("*/_search?size=1000");
 
+            Assert.assertThat(httpResponse, isForbidden());
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
+            HttpResponse httpResponse = restClient.get("*,-searchguard/_search?size=1000");
+
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse,
                     json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
@@ -228,15 +194,13 @@ public class IgnoreUnauthorizedIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
             HttpResponse httpResponse = restClient.get("*/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
+            Assert.assertThat(httpResponse, isForbidden());
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
             HttpResponse httpResponse = restClient.get("*/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("c1"))));
+            Assert.assertThat(httpResponse, isForbidden());
         }
     }
 
@@ -279,45 +243,7 @@ public class IgnoreUnauthorizedIntTest {
     }
 
     @Test
-    public void msearch_staticIndices_ignoreUnavailable() throws Exception {
-        String msearchBody = "{\"index\":\"a1\", \"ignore_unavailable\": true}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
-                + "{\"index\":\"a2\", \"ignore_unavailable\": true}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
-                + "{\"index\":\"b1\", \"ignore_unavailable\": true}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n";
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits[*]._index", containsInAnyOrder("a1", "a2", "b1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits[*]._index", containsInAnyOrder("a1", "a2"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_B)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits[*]._index", containsInAnyOrder("b1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits[*]._index", empty())));
-        }
-    }
-
-    @Test
-    public void msearch_staticIndices_noIgnoreUnavailable() throws Exception {
+    public void msearch_staticIndices() throws Exception {
         String msearchBody = "{\"index\":\"a1\"}\n" //
                 + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
                 + "{\"index\":\"a2\"}\n" //
@@ -367,35 +293,19 @@ public class IgnoreUnauthorizedIntTest {
     }
 
     @Test
-    public void deleteByQuery() throws Exception {
-        // TODO: Moved over from IntegrationTests.testDeleteByQueryDnfof; however the purpose of this is a bit unclear, as no behaviour specific to DNFOF is tested here
-
-        try (Client client = cluster.getInternalNodeClient()) {
-            for (int i = 0; i < 3; i++) {
-                client.index(new IndexRequest("d1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
-                        .actionGet();
-            }
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_D)) {
-            HttpResponse httpResponse = restClient.postJson("/d*/_delete_by_query?refresh=true&wait_for_completion=true",
-                    "{\"query\" : {\"match_all\" : {}}}");
-
-            System.out.println(httpResponse.getBody());
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("deleted", is(3))));
-        }
-
-    }
-    
-    @Test
     public void search_termsAggregation_index() throws Exception {
-        
+
         String aggregationBody = "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}";
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
             HttpResponse httpResponse = restClient.postJson("/_search", aggregationBody);
-            
+
+            Assert.assertThat(httpResponse, isForbidden());
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
+            HttpResponse httpResponse = restClient.postJson("a*/_search", aggregationBody);
+
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("aggregations.indices.buckets[*].key", containsInAnyOrder("a1", "a2", "a3"))));
         }

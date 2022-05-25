@@ -109,7 +109,6 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.watcher.ResourceWatcherService;
 
 import com.floragunn.codova.validation.VariableResolvers;
-import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
 import com.floragunn.searchguard.action.whoami.TransportWhoAmIAction;
@@ -999,9 +998,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DISABLED, false, Property.NodeScope, Property.Filtered));
 
             settings.add(Setting.intSetting(ConfigConstants.SEARCHGUARD_CACHE_TTL_MINUTES, 60, 0, Property.NodeScope, Property.Filtered, Property.Deprecated));
-            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY, Collections.emptyList(), Function.identity(),
+            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ADMIN_ONLY_ACTIONS, Collections.emptyList(), Function.identity(),
                     Property.NodeScope));
-            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS, Collections.emptyList(), Function.identity(),
+            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ADMIN_ONLY_INDICES, Collections.emptyList(), Function.identity(),
                     Property.NodeScope));
 
             //SG6
@@ -1168,9 +1167,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED, false, Property.NodeScope, Property.Filtered));
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_COMPLIANCE_MASK_PREFIX, Property.NodeScope, Property.Filtered));
 
-            settings.add(
-                    Setting.boolSetting(ConfigConstants.SEARCHGUARD_FILTER_SGINDEX_FROM_ALL_REQUESTS, false, Property.NodeScope, Property.Filtered));
-
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, Collections.emptyList(), Function.identity(),
                     Property.NodeScope));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, false, Property.NodeScope, Property.Filtered, Property.Deprecated));
@@ -1320,25 +1316,5 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         public String printProtectedIndices() {
             return protectedPatterns == null ? "" : Joiner.on(',').join(protectedPatterns);
         }
-
-        public ImmutableSet<String> getProtectedIndicesAsMinusPattern() {
-            if (protectedPatterns == null) {
-                return ImmutableSet.empty();
-            }
-
-            Set<String> result = new HashSet<>();
-            
-            for (String p : protectedPatterns) {
-                result.add( "-" + p);
-            }
-
-            return ImmutableSet.of(result);
-        }
-        
-
-        public Set<String> getProtectedPatterns() {
-            return protectedPatterns;
-        }
-
     }
 }

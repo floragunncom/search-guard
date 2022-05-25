@@ -170,7 +170,7 @@ public class ActionRequestIntrospector {
                 final List<String> renamedTargetIndices = renamedIndices(restoreRequest, requestedResolvedIndices);
 
                 if (log.isDebugEnabled()) {
-                    log.debug("snapshot: {} contains this indices: {}", snapshotInfo.snapshotId().getName(), renamedTargetIndices);
+                    log.debug("snapshot {} contains {}", snapshotInfo.snapshotId().getName(), renamedTargetIndices);
                 }
 
                 return new ActionRequestInfo(renamedTargetIndices, EXACT);

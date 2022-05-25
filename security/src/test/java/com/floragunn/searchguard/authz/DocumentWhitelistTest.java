@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 import org.junit.Assert;
 import org.junit.Test;
