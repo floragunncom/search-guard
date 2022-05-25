@@ -59,7 +59,6 @@ import org.elasticsearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.UserInformation;
 
 public final class RequestResolver {
@@ -352,12 +351,7 @@ public final class RequestResolver {
         if(resolveIndices) {
             final String[] resolvedIndices = (resolver==null)?new String[0]:resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indices);
             msg.addResolvedIndices(resolvedIndices);
-            allIndices = new HashSet<String>(resolvedIndices.length+_indices.length);
-            allIndices.addAll(Arrays.asList(_indices));
-            allIndices.addAll(Arrays.asList(resolvedIndices));
-            if(allIndices.contains("_all")) {
-                allIndices.add("*");
-            }
+            allIndices = new HashSet<String>(Arrays.asList(resolvedIndices));
         } else {
             allIndices = new HashSet<String>(_indices.length);
             allIndices.addAll(Arrays.asList(_indices));
@@ -368,7 +362,7 @@ public final class RequestResolver {
 
         if(addSource) {
             if(sourceIsSensitive && source != null) {   
-                if(!WildcardMatcher.matchAny(allIndices.toArray(new String[0]), searchguardIndex)) {
+                if(!allIndices.contains(searchguardIndex)) {
                     if(source instanceof BytesReference) {
                        msg.addTupleToRequestBody(convertSource(xContentType, (BytesReference) source));
                     } else {

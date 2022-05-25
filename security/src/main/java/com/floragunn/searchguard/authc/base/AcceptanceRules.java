@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.authc.base;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Metadata;
@@ -27,7 +28,6 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.support.IPAddressCollection;
-import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.user.AuthCredentials;
 
 import inet.ipaddr.IPAddress;
