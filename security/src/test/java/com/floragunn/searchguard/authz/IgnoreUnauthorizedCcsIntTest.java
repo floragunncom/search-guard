@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;

@@ -48,6 +48,11 @@ public interface Action {
 
     boolean isOpen();
 
+    ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request);
+
+    /**
+     * Same as getAdditionalPrivileges(), with the difference that the original action is included in the result
+     */
     ImmutableSet<Action> expandPrivileges(ActionRequest request);
 
     boolean requiresSpecialProcessing();
@@ -142,6 +147,25 @@ public interface Action {
         @Override
         public boolean requiresSpecialProcessing() {
             return resources != null && (resources.createsResource != null || !resources.usesResources.isEmpty());
+        }
+
+        @Override
+        public ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request) {
+            RequestType typedRequest = cast(request);
+
+            ImmutableSet<Action> result = ImmutableSet.empty();
+
+            for (AdditionalPrivileges<RequestType, RequestItem> additionalPrivilegeSpec : this.additionalPrivileges) {
+                if (additionalPrivilegeSpec.getCondition().test(typedRequest)) {
+                    result = result.with(additionalPrivilegeSpec.getPrivilegesAsActions(actions));
+                }
+            }
+
+            if (requestItems != null) {
+                result = result.with(requestItems.evaluateItemTypePrivileges(typedRequest));
+            }
+
+            return result;
         }
 
         @Override
@@ -420,6 +444,11 @@ public interface Action {
         @Override
         public boolean isOpen() {
             return scope == Scope.OPEN;
+        }
+
+        @Override
+        public ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request) {
+            return ImmutableSet.empty();
         }
 
         @Override

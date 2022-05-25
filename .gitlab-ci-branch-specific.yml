@@ -1,2 +1,2 @@
 variables:
-  IT_BRANCH: "main-os"
+  IT_BRANCH: "remove-index-access-evaluator"

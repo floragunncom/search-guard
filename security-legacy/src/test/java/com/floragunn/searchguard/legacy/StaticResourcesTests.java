@@ -18,14 +18,12 @@
 package com.floragunn.searchguard.legacy;
 
 import org.apache.http.HttpStatus;
-import org.opensearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class StaticResourcesTests extends SingleClusterTest {
@@ -39,14 +37,5 @@ public class StaticResourcesTests extends SingleClusterTest {
         
         RestHelper rh = nonSslRestHelper();
         Assert.assertEquals(HttpStatus.SC_OK, (rh.executeGetRequest("_search", encodeBasicHeader("static_role_user", "nagilum"))).getStatusCode());
-    }
-    
-    @Test
-    public void testNoStaticResources() throws Exception {
-        Settings settings = Settings.builder().put(ConfigConstants.SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES, false).build();
-        setup(settings);
-        
-        RestHelper rh = nonSslRestHelper();
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (rh.executeGetRequest("_search", encodeBasicHeader("static_role_user", "nagilum"))).getStatusCode());
     }
 }

@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.privileges;
+package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
@@ -82,7 +82,7 @@ public class IgnoreUnauthorizedIntTest {
     static TestAlias xalias_ab1 = new TestAlias("xalias_ab1", index_a1, index_a2, index_a3, index_b1);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().filterSgIndex()
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_C, LIMITED_USER_D, LIMITED_USER_A_B1, UNLIMITED_USER)//
             .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1)//
             .aliases(xalias_ab1)//
@@ -387,15 +387,15 @@ public class IgnoreUnauthorizedIntTest {
         }
 
     }
-    
+
     @Test
     public void search_termsAggregation_index() throws Exception {
-        
+
         String aggregationBody = "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}";
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
             HttpResponse httpResponse = restClient.postJson("/_search", aggregationBody);
-            
+
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("aggregations.indices.buckets[*].key", containsInAnyOrder("a1", "a2", "a3"))));
         }

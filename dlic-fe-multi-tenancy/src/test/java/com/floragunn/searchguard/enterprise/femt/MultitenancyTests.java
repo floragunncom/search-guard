@@ -160,7 +160,7 @@ public class MultitenancyTests {
             Assert.assertTrue(res.getBody().contains("\"result\" : \"created\""));
 
             Assert.assertEquals(HttpStatus.SC_OK, (res = client.get("_cat/indices")).getStatusCode());
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
+            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));            
         }
     }
 

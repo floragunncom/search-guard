@@ -37,42 +37,54 @@ import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class AggregationTests extends SingleClusterTest {
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @Test
     public void testBasicAggregations() throws Exception {
-        final Settings settings = Settings.builder()
-                .build();
-        
+        final Settings settings = Settings.builder().build();
+
         setup(settings);
         final RestHelper rh = nonSslRestHelper();
-    
-        try (Client tc = getNodeClient()) {                    
-            tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();         
-            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
-            tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("starfleet_academy").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("starfleet_library").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
+        try (Client tc = getNodeClient()) {
+            tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
+            tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
+            tc.index(new IndexRequest("starfleet_academy").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
+            tc.index(new IndexRequest("starfleet_library").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
+            tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
             tc.index(new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
- 
+
             tc.index(new IndexRequest("spock").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("kirk").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
 
             tc.index(new IndexRequest("xyz").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-            
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
+            tc.admin().indices()
+                    .aliases(new IndicesAliasesRequest()
+                            .addAliasAction(AliasActions.add().indices("starfleet", "starfleet_academy", "starfleet_library").alias("sf")))
+                    .actionGet();
+            tc.admin().indices()
+                    .aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire", "vulcangov").alias("nonsf")))
+                    .actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted")))
+                    .actionGet();
             tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("xyz").alias("alias1"))).actionGet();
 
         }
-        
+
         HttpResponse res;
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("_search?pretty", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK,
+                (res = rh.executePostRequest("_search?pretty", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",
+                        encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
         System.out.println(res.getBody());
         assertNotContains(res, "*xception*");
         assertNotContains(res, "*erial*");
@@ -84,8 +96,10 @@ public class AggregationTests extends SingleClusterTest {
         assertContains(res, "*xyz*");
         assertContains(res, "*role01_role02*");
         assertContains(res, "*\"failed\" : 0*");
-        
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("*/_search?pretty", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
+
+        Assert.assertEquals(HttpStatus.SC_OK,
+                (res = rh.executePostRequest("*/_search?pretty", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",
+                        encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
         System.out.println(res.getBody());
         assertNotContains(res, "*xception*");
         assertNotContains(res, "*erial*");
@@ -97,13 +111,7 @@ public class AggregationTests extends SingleClusterTest {
         assertContains(res, "*xyz*");
         assertContains(res, "*role01_role02*");
         assertContains(res, "*\"failed\" : 0*");
-                
-        res = rh.executePostRequest("_search?pretty&ignore_unavailable=true", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",encodeBasicHeader("worf", "worf"));
-        
-        Assert.assertEquals(res.getBody(), HttpStatus.SC_FORBIDDEN, res.getStatusCode());
-        
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executePostRequest("_search?pretty", "{\"size\":0,\"aggs\":{\"myindices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",encodeBasicHeader("worf", "worf"))).getStatusCode());
-        
+
     }
-    
+
 }

@@ -68,6 +68,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     private final TenantPermissions tenant;
     private final ComponentState componentState;
 
+    private final Pattern universallyDeniedIndices;
+
     private final MetricsLevel metricsLevel;
     private final Measurement<?> indexActionChecks;
     private final CountAggregation indexActionCheckResults;
@@ -86,11 +88,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
             Set<String> indices, Set<String> tenants) {
-        this(roles, actionGroups, actions, indices, tenants, MetricsLevel.NONE);
+        this(roles, actionGroups, actions, indices, tenants, Pattern.blank(), MetricsLevel.NONE);
     }
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-            Set<String> indices, Set<String> tenants, MetricsLevel metricsLevel) {
+            Set<String> indices, Set<String> tenants, Pattern universallyDeniedIndices, MetricsLevel metricsLevel) {
         this.roles = roles;
         this.actionGroups = actionGroups;
         this.actions = actions;
@@ -102,6 +104,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         this.index = new IndexPermissions(roles, actionGroups, actions);
         this.indexExclusions = new IndexPermissionExclusions(roles, actionGroups, actions);
         this.tenant = new TenantPermissions(roles, actionGroups, actions, this.tenants);
+        this.universallyDeniedIndices = universallyDeniedIndices;
 
         this.componentState = new ComponentState("role_based_action_authorization");
         this.componentState.addParts(cluster.getComponentState(), clusterExclusions.getComponentState(), index.getComponentState(),
@@ -109,7 +112,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         if (indices != null) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
-                this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices, statefulIndexState);
+                this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices, universallyDeniedIndices, statefulIndexState);
             }
         } else {
             this.statefulIndexState.setState(State.SUSPENDED, "no_index_information");
@@ -174,7 +177,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 log.trace("hasIndexPermission()\nuser: " + user + "\nactions: " + actions + "\nresolved: " + resolved);
             }
 
-            if (resolved.isLocalAll()) {
+            // TODO this isBlank() creates a performance penalty, because we always skip the following block
+            if (resolved.isLocalAll() && universallyDeniedIndices.isBlank()) {
                 // If we have a query on all indices, first check for roles which give privileges for *. Thus, we avoid costly index resolutions
 
                 try (Meter subMeter = meter.basic("local_all")) {
@@ -315,6 +319,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             if (log.isTraceEnabled()) {
                 log.trace("Permissions before exclusions:\n" + checkTable);
             }
+            
+            checkTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i));
+            
+            if (log.isTraceEnabled()) {
+                log.trace("Permissions after universallyDeniedIndices exclusions:\n" + checkTable);
+            }
 
             indexExclusions.uncheckExclusions(checkTable, user, mappedRoles, actions, resolved, context, meter);
 
@@ -411,7 +421,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
 
         try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
-            this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices, statefulIndexState);
+            this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices, universallyDeniedIndices, statefulIndexState);
             this.componentState.updateStateFromParts();
         }
     }
@@ -919,9 +929,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
         private final ComponentState componentState;
+        private final Pattern universallyDeniedIndices;
 
         StatefulIndexPermssions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Set<String> indexNames,
-                ComponentState componentState) {
+                Pattern universallyDeniedIndices, ComponentState componentState) {
             ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToIndexToRoles = //
                     new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
                             .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
@@ -1038,6 +1049,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.rolesWithTemplatedExclusions = rolesWithTemplatedExclusions.build();
             this.indices = ImmutableSet.of(indexNames);
 
+            this.universallyDeniedIndices = universallyDeniedIndices;
+
             this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
             this.componentState = componentState;
             this.componentState.setConfigVersion(roles.getDocVersion());
@@ -1094,6 +1107,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
 
         private boolean isExcluded(Action action, String index, User user, ImmutableSet<String> mappedRoles, PrivilegesEvaluationContext context) {
+            if (universallyDeniedIndices.matches(index)) {
+                return true;
+            }
+
             ImmutableMap<String, ImmutableSet<String>> indexToRoles = excludedActionToIndexToRoles.get(action);
 
             if (indexToRoles == null) {

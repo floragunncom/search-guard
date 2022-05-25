@@ -1093,7 +1093,7 @@ public class TestSgConfig {
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.of("default", ImmutableMap.of("ignore_unauthorized_indices", ignoreUnauthorizedIndices));
+            return ImmutableMap.of("default", ImmutableMap.of("ignore_unauthorized_indices.enabled", ignoreUnauthorizedIndices));
         }
     }
 
