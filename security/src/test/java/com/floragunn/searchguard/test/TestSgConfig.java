@@ -77,13 +77,18 @@ public class TestSgConfig {
     private Authc authc;
     private Privileges privileges;
     private Sessions sessions;
-    private String indexName = "searchguard";
+    private String indexName = ".searchguard";
     private Map<String, Supplier<Object>> variableSuppliers = new HashMap<>();
 
     public TestSgConfig() {
 
     }
 
+    public TestSgConfig configIndexName(String configIndexName) {
+        this.indexName = configIndexName;
+        return this;
+    }
+    
     public TestSgConfig resources(String resourceFolder) {
         this.resourceFolder = resourceFolder;
         return this;
@@ -301,7 +306,7 @@ public class TestSgConfig {
     }
 
     public void initIndex(Client client) {
-        client.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
+        client.admin().indices().create(new CreateIndexRequest(indexName)).actionGet();
 
         writeOptionalConfigToIndex(client, CType.CONFIG, "sg_config.yml", overrideSgConfigSettings);
         writeOptionalConfigToIndex(client, CType.ROLES, "sg_roles.yml", overrideRoleSettings);
