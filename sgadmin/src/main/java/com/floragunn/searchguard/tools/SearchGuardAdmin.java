@@ -68,6 +68,7 @@ import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest.Feature;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
@@ -123,7 +124,6 @@ import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.ssl.util.config.ClientAuthCredentials;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.ssl.util.config.TrustStore;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient;
 import com.floragunn.searchguard.tools.sgadmin.SearchGuardAdminRestClient.GenericResponse;
 import com.google.common.io.CharStreams;
@@ -272,7 +272,7 @@ public class SearchGuardAdmin {
         String[] enabledProtocols = new String[0];
         String[] enabledCiphers = new String[0];
         Integer updateSettings = null;
-        String index = ConfigConstants.SG_DEFAULT_CONFIG_INDEX;
+        String index = "searchguard";
         Boolean replicaAutoExpand = null;
         boolean reload = false;
         boolean failFast = false;
@@ -614,6 +614,14 @@ public class SearchGuardAdmin {
             } catch (Exception e1) {
                 System.out.println("Unable to check whether cluster is sane");
                 throw e1;
+            }
+            
+            if ("searchguard".equals(index)) {
+                boolean newStyleIndexExists = tc.admin().indices().exists(new IndicesExistsRequest(".searchguard")).get().isExists();
+                
+                if (newStyleIndexExists) {
+                    index = ".searchguard";
+                }
             }
 
             if(updateSettings != null) { 

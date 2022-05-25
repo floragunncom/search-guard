@@ -98,9 +98,6 @@ public class ConfigConstants {
 
     public static final String SSO_LOGOUT_URL = SG_CONFIG_PREFIX+"sso_logout_url";
 
-    
-    public static final String SG_DEFAULT_CONFIG_INDEX = "searchguard";
-
     public static final String SEARCHGUARD_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE = "searchguard.enable_snapshot_restore_privilege";
     public static final boolean SG_DEFAULT_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE = true;
 
@@ -118,7 +115,14 @@ public class ConfigConstants {
 
 
     public static final String SEARCHGUARD_AUTHCZ_ADMIN_DN = "searchguard.authcz.admin_dn";
+    
+    /**
+     * @deprecated This is superseded by searchguard.internal_indices.main_config.name. This index configuration is only used if an index with the name configured in searchguard.internal_indices.main_config.name does not exist.
+     */
     public static final String SEARCHGUARD_CONFIG_INDEX_NAME = "searchguard.config_index_name";
+    
+    public static final String SEARCHGUARD_INTERNAL_INDICIES_MAIN_CONFIG_NAME = "searchguard.internal_indices.main_config.name";
+
     
     public static final String SEARCHGUARD_ADMIN_ONLY_ACTIONS = "searchguard.admin_only_actions";
     public static final String SEARCHGUARD_ADMIN_ONLY_INDICES = "searchguard.admin_only_indices";

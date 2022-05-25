@@ -840,11 +840,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         this.cs.addListener(cih);
 
         actionRequestIntrospector = new ActionRequestIntrospector(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
-        auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService);
-        
-
-        sslExceptionHandler = new AuditLogSslExceptionHandler(auditLog);
-
+    
         final String DEFAULT_INTERCLUSTER_REQUEST_EVALUATOR_CLASS = DefaultInterClusterRequestEvaluator.class.getName();
         InterClusterRequestEvaluator interClusterRequestEvaluator = new DefaultInterClusterRequestEvaluator(settings);
 
@@ -864,7 +860,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         moduleRegistry.addComponentStateProvider(cr);
         
         licenseRepository = new LicenseRepository(settings, localClient, clusterService, cr);
-        
+
+        auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService, cr);
+       
+        sslExceptionHandler = new AuditLogSslExceptionHandler(auditLog);
+
         complianceConfig = dlsFlsAvailable ? new ComplianceConfig(environment, actionRequestIntrospector, auditLog, localClient, cr) : null;
         log.debug("Compliance config is " + complianceConfig + " because of dlsFlsAvailable: " + dlsFlsAvailable + " and auditLog="
                 + auditLog.getClass());
@@ -1296,7 +1296,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         private ProtectedIndices(Settings settings, String... patterns) {
             protectedPatterns = new HashSet<>();
-            protectedPatterns.add(settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX));
+            protectedPatterns.addAll(ConfigurationRepository.getConfiguredSearchguardIndices(settings));
             if (patterns != null && patterns.length > 0) {
                 protectedPatterns.addAll(Arrays.asList(patterns));
             }
