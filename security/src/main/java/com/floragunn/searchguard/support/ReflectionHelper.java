@@ -232,7 +232,7 @@ public class ReflectionHelper {
     }
 
     public static AuditLog instantiateAuditLog(final Settings settings, final Path configPath, final Client localClient, final ThreadPool threadPool,
-            final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
+            final IndexNameExpressionResolver resolver, final ClusterService clusterService, ConfigurationRepository configurationRepository) {
 
         if (enterpriseModulesDisabled()) {
             return new NullAuditLog();
@@ -241,8 +241,8 @@ public class ReflectionHelper {
         try {
             final Class<?> clazz = Class.forName("com.floragunn.searchguard.auditlog.impl.AuditLogImpl");
             final AuditLog impl = (AuditLog) clazz.getConstructor(Settings.class, Path.class, Client.class, ThreadPool.class,
-                    IndexNameExpressionResolver.class, ClusterService.class)
-                    .newInstance(settings, configPath, localClient, threadPool, resolver, clusterService);
+                    IndexNameExpressionResolver.class, ClusterService.class, ConfigurationRepository.class)
+                    .newInstance(settings, configPath, localClient, threadPool, resolver, clusterService, configurationRepository);
             return impl;
         } catch (final Throwable e) {
             log.warn("Unable to enable Auditlog Module due to {}", e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
