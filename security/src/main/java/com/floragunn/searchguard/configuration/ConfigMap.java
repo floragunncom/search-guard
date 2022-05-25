@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.configuration;
 
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Set;
 
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -26,9 +27,11 @@ import com.floragunn.fluent.collections.ImmutableSet;
 public class ConfigMap implements Destroyable {
 
     private final ImmutableMap<CType<?>, SgDynamicConfiguration<?>> map;
+    private final String sourceIndex;
 
-    private ConfigMap(ImmutableMap<CType<?>, SgDynamicConfiguration<?>> map) {
+    private ConfigMap(ImmutableMap<CType<?>, SgDynamicConfiguration<?>> map, String sourceIndex) {
         this.map = map;
+        this.sourceIndex = sourceIndex;
     }
 
     public <T> SgDynamicConfiguration<T> get(CType<T> ctype) {
@@ -55,11 +58,12 @@ public class ConfigMap implements Destroyable {
     }
 
     public ConfigMap with(ConfigMap newConfigs) {
-        return new ConfigMap(this.map.with(newConfigs.map));
+        return new ConfigMap(this.map.with(newConfigs.map),
+                Objects.equals(this.sourceIndex, newConfigs.sourceIndex) ? this.sourceIndex : this.sourceIndex + "," + newConfigs.sourceIndex);
     }
 
     public ConfigMap only(Set<CType<?>> types) {
-        return new ConfigMap(this.map.matching((k) -> types.contains(k)));
+        return new ConfigMap(this.map.matching((k) -> types.contains(k)), this.sourceIndex);
     }
 
     public String getVersionsAsString() {
@@ -69,13 +73,18 @@ public class ConfigMap implements Destroyable {
     public ImmutableSet<CType<?>> getTypes() {
         return this.map.keySet();
     }
-    
+
     public boolean isEmpty() {
         return this.map.isEmpty();
     }
 
     public static class Builder {
-        private final ImmutableMap.Builder<CType<?>, SgDynamicConfiguration<?>> map = new ImmutableMap.Builder<>();
+        private ImmutableMap.Builder<CType<?>, SgDynamicConfiguration<?>> map = new ImmutableMap.Builder<>();
+        private String sourceIndex;
+
+        public Builder(String sourceIndex) {
+            this.sourceIndex = sourceIndex;
+        }
 
         public <T> Builder with(SgDynamicConfiguration<T> config) {
             map.put(config.getCType(), config);
@@ -84,7 +93,7 @@ public class ConfigMap implements Destroyable {
         }
 
         public ConfigMap build() {
-            return new ConfigMap(this.map.build());
+            return new ConfigMap(this.map.build(), sourceIndex);
         }
     }
 
@@ -94,9 +103,13 @@ public class ConfigMap implements Destroyable {
             config.destroy();
         }
     }
-    
+
     @Override
     public String toString() {
         return map.values().toString();
+    }
+
+    public String getSourceIndex() {
+        return sourceIndex;
     }
 }

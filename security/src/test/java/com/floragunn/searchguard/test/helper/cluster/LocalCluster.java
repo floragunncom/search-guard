@@ -18,9 +18,12 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -28,21 +31,34 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
 import org.junit.rules.ExternalResource;
 
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestIndex;
@@ -163,7 +179,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     public InetSocketAddress getTransportAddress() {
         return localEsCluster.clientNode().getTransportAddress();
     }
-    
+
     public Client getInternalNodeClient() {
         return localEsCluster.clientNode().getInternalNodeClient();
     }
@@ -171,7 +187,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     public Client getPrivilegedInternalNodeClient() {
         return PrivilegedConfigClient.adapt(getInternalNodeClient());
     }
-    
+
     public <X> X getInjectable(Class<X> clazz) {
         return this.localEsCluster.masterNode().getInjectable(clazz);
     }
@@ -187,19 +203,52 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     public LocalEsCluster.Node getNodeByName(String name) {
         return this.localEsCluster.getNodeByName(name);
     }
-    
+
     public LocalEsCluster.Node getRandomClientNode() {
         return this.localEsCluster.randomClientNode();
     }
 
     public void updateSgConfig(CType<?> configType, String key, Map<String, Object> value) {
-        SgConfigUpdater.updateSgConfig(this::getAdminCertClient, configType, key, value);
+        try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
+            log.info("Updating config {}.{}:{}", configType, key, value);
+            ConfigurationRepository configRepository = getInjectable(ConfigurationRepository.class);            
+            String searchGuardIndex = configRepository.getEffectiveSearchGuardIndex();
+
+            GetResponse getResponse = client.get(new GetRequest(searchGuardIndex, configType.toLCString())).actionGet();
+            String jsonDoc = new String(Base64.getDecoder().decode(String.valueOf(getResponse.getSource().get(configType.toLCString()))));
+            NestedValueMap config = NestedValueMap.fromJsonString(jsonDoc);
+
+            config.put(key, value);
+
+            if (log.isTraceEnabled()) {
+                log.trace("Updated config: " + config);
+            }
+
+            IndexResponse response = client
+                    .index(new IndexRequest(searchGuardIndex).id(configType.toLCString()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                            .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
+                    .actionGet();
+
+            if (response.getResult() != DocWriteResponse.Result.UPDATED) {
+                throw new RuntimeException("Updated failed " + response);
+            }
+
+            ConfigUpdateResponse configUpdateResponse = client
+                    .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
+
+            if (configUpdateResponse.hasFailures()) {
+                throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
+            }
+
+        } catch (IOException | DocumentParseException | UnexpectedDocumentStructureException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public boolean isStarted() {
         return localEsCluster != null;
     }
-    
+
     public Random getRandom() {
         return localEsCluster.getRandom();
     }
@@ -224,7 +273,15 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         if (testSgConfig != null) {
-            SearchGuardIndexInitializer.initSearchGuardIndex(this::getAdminCertClient, testSgConfig);
+            initSearchGuardIndex(testSgConfig);
+        }
+    }
+
+    private void initSearchGuardIndex(TestSgConfig testSgConfig) {
+        log.info("Initializing Search Guard index");
+
+        try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
+            testSgConfig.initIndex(client);
         }
     }
 
@@ -398,6 +455,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         public Builder clusterName(String clusterName) {
             this.clusterName = clusterName;
+            return this;
+        }
+        
+        public Builder configIndexName(String configIndexName) {
+            testSgConfig.configIndexName(configIndexName);
             return this;
         }
 
