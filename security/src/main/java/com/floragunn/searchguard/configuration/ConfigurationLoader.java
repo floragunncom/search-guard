@@ -167,7 +167,7 @@ public class ConfigurationLoader {
                     }
 
                     List<Failure> failures = new ArrayList<>();
-                    ConfigMap.Builder configMapBuilder = new ConfigMap.Builder();
+                    ConfigMap.Builder configMapBuilder = new ConfigMap.Builder(searchguardIndex);
 
                     for (MultiGetItemResponse item : response.getResponses()) {
                         CType<?> type = item.getId() != null ? CType.fromString(item.getId()) : null;

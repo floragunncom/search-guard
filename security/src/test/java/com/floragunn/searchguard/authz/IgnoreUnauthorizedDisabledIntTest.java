@@ -87,7 +87,7 @@ public class IgnoreUnauthorizedDisabledIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get("/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse, isOk());
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
@@ -159,7 +159,7 @@ public class IgnoreUnauthorizedDisabledIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get("_all/_search?size=1000");
 
-            Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse, isOk());
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
@@ -179,12 +179,6 @@ public class IgnoreUnauthorizedDisabledIntTest {
     public void search_wildcard() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get("*/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isForbidden());
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("*,-searchguard/_search?size=1000");
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse,

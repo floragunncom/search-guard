@@ -418,6 +418,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
         try {
             ConfigMap loadedConfig = mainConfigLoader.load(configTypes, reason).get();
             ConfigMap discardedConfig;
+            
+            componentState.setConfigProperty("effective_main_config_index", loadedConfig.getSourceIndex());
+
 
             if (this.currentConfig == null) {
                 this.currentConfig = loadedConfig;
