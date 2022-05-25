@@ -45,7 +45,7 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.support.WildcardMatcher;
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -74,11 +74,11 @@ public class MultitenancyTests {
 
             response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "human_resources"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
-            Assert.assertTrue(response.getBody(), WildcardMatcher.match("*.kibana_*_humanresources*", response.getBody()));
+            Assert.assertTrue(response.getBody(), Pattern.create("*.kibana_*_humanresources*").matches(response.getBody()));
 
             response = client.get(".kibana/_doc/5.6.0?pretty", new BasicHeader("sgtenant", "human_resources"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            Assert.assertTrue(response.getBody(), WildcardMatcher.match("*human_resources*", response.getBody()));
+            Assert.assertTrue(response.getBody(), Pattern.create("*human_resources*").matches(response.getBody()));
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana_1592542611_humanresources")).actionGet();

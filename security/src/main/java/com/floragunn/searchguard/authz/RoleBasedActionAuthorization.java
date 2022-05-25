@@ -30,6 +30,7 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver.DateMathEx
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.CheckTable;
 import com.floragunn.fluent.collections.ImmutableList;
@@ -42,11 +43,10 @@ import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Count;
 import com.floragunn.searchsupport.cstate.metrics.CountAggregation;
 import com.floragunn.searchsupport.cstate.metrics.Measurement;
@@ -460,7 +460,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     Role role = entry.getValue();
                     ImmutableSet<String> permissions = actionGroups.resolve(role.getClusterPermissions());
                     ImmutableSet<String> excludedPermissions = actionGroups.resolve(role.getExcludeClusterPermissions());
-                    Pattern excludedPattern = Pattern.create(excludedPermissions);
+                    Pattern excludedPattern = Pattern.createWithoutExclusions(excludedPermissions);
                     List<Pattern> patterns = new ArrayList<>();
 
                     if (permissions.contains("*") && excludedPermissions.isEmpty()) {
