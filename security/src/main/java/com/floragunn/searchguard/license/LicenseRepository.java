@@ -38,6 +38,7 @@ import org.elasticsearch.index.engine.VersionConflictEngineException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -52,7 +53,7 @@ public class LicenseRepository implements ComponentStateProvider {
     private final ClusterService clusterService;
     private final List<LicenseChangeListener> licenseChangeListeners = new ArrayList<LicenseChangeListener>();
     private final PrivilegedConfigClient privilegedClient;
-    private final String searchguardIndex;
+    private final ConfigurationRepository configurationRepository;
     private final ComponentState componentState = new ComponentState(2, null, "license_repository", LicenseRepository.class);
 
     private volatile SearchGuardLicense effectiveLicense;
@@ -60,7 +61,7 @@ public class LicenseRepository implements ComponentStateProvider {
     private volatile ValidationErrors validationErrors;
 
     public LicenseRepository(Settings settings, Client client, ClusterService clusterService, ConfigurationRepository configurationRepository) {
-        this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
+        this.configurationRepository = configurationRepository;
         this.clusterService = clusterService;
         this.privilegedClient = PrivilegedConfigClient.adapt(client);
 
@@ -106,6 +107,13 @@ public class LicenseRepository implements ComponentStateProvider {
     }
 
     private SearchGuardLicense createOrGetTrial(String msg) {
+        
+        String searchguardIndex;
+        try {
+            searchguardIndex = this.configurationRepository.getEffectiveSearchGuardIndexAndCreateIfNecessary();
+        } catch (ConfigUpdateException e1) {
+            throw new RuntimeException(e1);
+        }
 
         final IndexMetadata sgIndexMetaData = clusterService.state().getMetadata().index(searchguardIndex);
         if (sgIndexMetaData == null) {

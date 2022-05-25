@@ -57,6 +57,7 @@ import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.user.UserInformation;
@@ -83,7 +84,7 @@ public final class RequestResolver {
             final boolean logRequestBody, 
             final boolean resolveIndices, 
             final boolean resolveBulk,
-            final String searchguardIndex,
+            final Pattern searchguardIndex,
             final boolean excludeSensitiveHeaders,
             final Throwable exception)  {
         
@@ -170,7 +171,7 @@ public final class RequestResolver {
             final Settings settings,
             final boolean logRequestBody, 
             final boolean resolveIndices,
-            final String searchguardIndex,
+            final Pattern searchguardIndex,
             final boolean excludeSensitiveHeaders,
             final Throwable exception)  {
 
@@ -337,7 +338,7 @@ public final class RequestResolver {
             boolean resolveIndices,
             final boolean addSource,
             final boolean sourceIsSensitive,
-            final String searchguardIndex) {
+            final Pattern searchguardIndex) {
         
         if(addSource) {
             resolveIndices = true;
@@ -362,7 +363,7 @@ public final class RequestResolver {
 
         if(addSource) {
             if(sourceIsSensitive && source != null) {   
-                if(!allIndices.contains(searchguardIndex)) {
+                if(!searchguardIndex.matches(allIndices)) {
                     if(source instanceof BytesReference) {
                        msg.addTupleToRequestBody(convertSource(xContentType, (BytesReference) source));
                     } else {

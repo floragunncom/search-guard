@@ -48,7 +48,6 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
@@ -57,7 +56,6 @@ public class ConfigurationLoader {
     private static final Logger log = LogManager.getLogger(ConfigurationLoader.class);
 
     private final PrivilegedConfigClient client;
-    private final String searchguardIndex;
     private final Settings settings;
     private final Map<CType<?>, ComponentState> typeToStateMap;
     private final ConfigurationRepository configRepository;
@@ -71,7 +69,6 @@ public class ConfigurationLoader {
             StaticSgConfig staticSgConfig) {
         this.client = PrivilegedConfigClient.adapt(client);
         this.settings = settings;
-        this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         this.configRepository = configRepository;
         this.staticSgConfig = staticSgConfig;
 
@@ -127,6 +124,15 @@ public class ConfigurationLoader {
     }
 
     public CompletableFuture<ConfigMap> load(Set<CType<?>> types, String reason) {
+        CompletableFuture<ConfigMap> resultFuture = new CompletableFuture<>();
+
+        String searchguardIndex = configRepository.getEffectiveSearchGuardIndex();
+        
+        if (searchguardIndex == null) {
+            resultFuture.completeExceptionally(new ConfigUnavailableException("Search Guard index does not exist"));
+            return resultFuture;
+        }
+        
         MultiGetRequest mget = new MultiGetRequest().refresh(true).realtime(true);
 
         Set<CType<?>> expectedTypes = new HashSet<>();
@@ -146,8 +152,6 @@ public class ConfigurationLoader {
         if (log.isTraceEnabled()) {
             log.trace("Issuing " + mget);
         }
-
-        CompletableFuture<ConfigMap> resultFuture = new CompletableFuture<>();
 
         client.multiGet(mget, new ActionListener<MultiGetResponse>() {
             @Override
