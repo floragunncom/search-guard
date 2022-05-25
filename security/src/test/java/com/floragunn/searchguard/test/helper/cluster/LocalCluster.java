@@ -339,11 +339,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
-        public Builder filterSgIndex() {
-            nodeOverrideSettingsBuilder.put("searchguard.filter_sgindex_from_all_requests", true);
-            return this;
-        }
-
         public Builder indices(TestIndex... indices) {
             this.testIndices.addAll(Arrays.asList(indices));
             return this;

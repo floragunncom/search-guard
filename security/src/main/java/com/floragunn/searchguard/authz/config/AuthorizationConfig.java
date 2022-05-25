@@ -27,19 +27,40 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class AuthorizationConfig implements PatchableDocument<AuthorizationConfig> {
+
+    static final Pattern DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS = Pattern.createUnchecked("indices:data/read/*",
+            "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/resolve/index", "indices:admin/delete",
+            "indices:admin/mapping/put", "indices:admin/settings/update", "indices:monitor/settings/get", "indices:monitor/stats",
+            "indices:admin/upgrade", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get");
+
+    static final Pattern DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT = Pattern.createUnchecked("indices:data/read/*",
+            "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/resolve/index", "indices:monitor/settings/get",
+            "indices:monitor/stats", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get");
+
+    public static final AuthorizationConfig DEFAULT = new AuthorizationConfig(DocNode.EMPTY, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
+            DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, null, false, MetricsLevel.BASIC);
+
     private final DocNode source;
     private final boolean ignoreUnauthorizedIndices;
+    private final Pattern ignoreUnauthorizedIndicesActions;
+    private final Pattern ignoreUnauthorizedIndicesActionsAllowingEmptyResult;
+
     private final String fieldAnonymizationSalt;
     private final boolean debugEnabled;
     private final MetricsLevel metricsLevel;
 
-    AuthorizationConfig(DocNode source, boolean ignoreUnauthorizedIndices, String fieldAnonymizationSalt, boolean debugEnabled,
+    AuthorizationConfig(DocNode source, boolean ignoreUnauthorizedIndices, Pattern ignoreUnauthorizedIndicesActions,
+            Pattern ignoreUnauthorizedIndicesActionsAllowingEmptyResult, String fieldAnonymizationSalt, boolean debugEnabled,
             MetricsLevel metricsLevel) {
-        this.ignoreUnauthorizedIndices = ignoreUnauthorizedIndices;
         this.source = source;
+
+        this.ignoreUnauthorizedIndices = ignoreUnauthorizedIndices;
+        this.ignoreUnauthorizedIndicesActions = ignoreUnauthorizedIndicesActions;
+        this.ignoreUnauthorizedIndicesActionsAllowingEmptyResult = ignoreUnauthorizedIndicesActionsAllowingEmptyResult;
         this.fieldAnonymizationSalt = fieldAnonymizationSalt;
         this.debugEnabled = debugEnabled;
         this.metricsLevel = metricsLevel;
@@ -54,14 +75,19 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
             return new ValidationResult<AuthorizationConfig>(e.getValidationErrors());
         }
 
-        boolean ignoreUnauthorizedIndices = vNode.get("ignore_unauthorized_indices").withDefault(true).asBoolean();
+        boolean ignoreUnauthorizedIndices = vNode.get("ignore_unauthorized_indices.enabled").withDefault(true).asBoolean();
+        Pattern ignoreUnauthorizedIndicesActions = vNode.get("ignore_unauthorized_indices.affected_actions")
+                .withDefault(DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS).by(Pattern::parse);
+        Pattern ignoreUnauthorizedIndicesActionsAllowingEmptyResult = vNode.get("ignore_unauthorized_indices.empty_result_allowed_for_actions")
+                .withDefault(DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS).by(Pattern::parse);
         String fieldAnonymizationSalt = vNode.get("field_anonymization.salt").asString();
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
         MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
 
         if (!validationErrors.hasErrors()) {
             return new ValidationResult<AuthorizationConfig>(
-                    new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, debugEnabled, metricsLevel));
+                    new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, ignoreUnauthorizedIndicesActions,
+                            ignoreUnauthorizedIndicesActionsAllowingEmptyResult, fieldAnonymizationSalt, debugEnabled, metricsLevel));
         } else {
             return new ValidationResult<AuthorizationConfig>(validationErrors);
         }
@@ -71,11 +97,17 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode.splitDottedAttributeNamesToTree(), validationErrors);
 
-        boolean ignoreUnauthorizedIndices = vNode.get("dynamic.do_not_fail_on_forbidden").withDefault(true).asBoolean();
         String fieldAnonymizationSalt = vNode.get("dynamic.field_anonymization_salt2").asString();
+
+        // Note: We do not convert dynamic.do_not_fail_on_forbidden to ignoreUnauthorizedIndices any more. 
+        // It is now VERY strongly recommended to turn ignoreUnauthorizedIndices on in any case. Turning it off may have cause many 
+        // operations fail due to insufficient permissions, and may even break existing systems. As using sg_config with FLX
+        // shall be only a transitive state, it is okay to force this setting to users during this time. Users still may switch it off
+        // when having migrated to sg_authz.yml
         validationErrors.throwExceptionForPresentErrors();
 
-        return new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, fieldAnonymizationSalt, false, MetricsLevel.BASIC);
+        return new AuthorizationConfig(docNode, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
+                DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, fieldAnonymizationSalt, false, MetricsLevel.BASIC);
     }
 
     public boolean isIgnoreUnauthorizedIndices() {
@@ -107,5 +139,13 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
 
     public MetricsLevel getMetricsLevel() {
         return metricsLevel;
+    }
+
+    public Pattern getIgnoreUnauthorizedIndicesActions() {
+        return ignoreUnauthorizedIndicesActions;
+    }
+
+    public Pattern getIgnoreUnauthorizedIndicesActionsAllowingEmptyResult() {
+        return ignoreUnauthorizedIndicesActionsAllowingEmptyResult;
     }
 }

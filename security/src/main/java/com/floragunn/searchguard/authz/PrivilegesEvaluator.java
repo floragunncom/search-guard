@@ -35,7 +35,6 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -50,6 +49,7 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.settings.SettingsException;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
@@ -84,10 +84,10 @@ import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.base.Strings;
 
 public class PrivilegesEvaluator implements ComponentStateProvider {
@@ -108,17 +108,15 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final ClusterInfoHolder clusterInfoHolder;
     private final ActionRequestIntrospector actionRequestIntrospector;
     private final SnapshotRestoreEvaluator snapshotRestoreEvaluator;
-    private final SearchGuardIndexAccessEvaluator sgIndexAccessEvaluator;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
-    private final List<String> adminOnlyActions;
-    private final List<String> adminOnlyActionExceptions;
     private final Client localClient;
+    private final Pattern adminOnlyActions;
+    private final Pattern adminOnlyIndices;
     private final Actions actions;
     private final ConfigConstants.RolesMappingResolution rolesMappingResolution;
     private final ComponentState componentState = new ComponentState(10, null, "privileges_evaluator");
 
-    private volatile boolean ignoreUnauthorizedIndices = true;
-    private volatile boolean debugEnabled = false;
+    private volatile AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
     private volatile RoleBasedActionAuthorization actionAuthorization = null;
     private volatile LegacyRoleBasedDocumentAuthorization documentAuthorization = null;
     private volatile RoleMapping.InvertedIndex roleMapping;
@@ -150,10 +148,11 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.actions = actions;
         this.actionRequestIntrospector = actionRequestIntrospector;
         snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog, guiceDependencies);
-        sgIndexAccessEvaluator = new SearchGuardIndexAccessEvaluator(settings, auditLog, actionRequestIntrospector);
-        this.adminOnlyActions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY,
-                ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_DEFAULT);
-        this.adminOnlyActionExceptions = settings.getAsList(ConfigConstants.SEARCHGUARD_ACTIONS_ADMIN_ONLY_EXCEPTIONS, Collections.emptyList());
+        this.adminOnlyActions = getPatternFromSettings(settings, ConfigConstants.SEARCHGUARD_ADMIN_ONLY_ACTIONS,
+                ImmutableList.of("cluster:admin:searchguard:config/*"));
+        this.adminOnlyIndices = getPatternFromSettings(settings, ConfigConstants.SEARCHGUARD_ADMIN_ONLY_INDICES,
+                ImmutableList.of("searchguard", ".searchguard_*", ".signals_watches*", ".signals_accounts", ".signals_settings"));
+
         this.rolesMappingResolution = getRolesMappingResolution(settings);
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
@@ -162,13 +161,11 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             public void onChange(ConfigMap configMap) {
                 SgDynamicConfiguration<AuthorizationConfig> config = configMap.get(CType.AUTHZ);
                 SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
-                MetricsLevel metricsLevel = MetricsLevel.BASIC;
+                AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
 
                 if (config != null && config.getCEntry("default") != null) {
-                    AuthorizationConfig authzConfig = config.getCEntry("default");
-                    ignoreUnauthorizedIndices = authzConfig.isIgnoreUnauthorizedIndices();
-                    debugEnabled = authzConfig.isDebugEnabled();
-                    metricsLevel = authzConfig.getMetricsLevel();
+                    PrivilegesEvaluator.this.authzConfig = authzConfig = config.getCEntry("default");
+
                     log.info("Updated authz config:\n" + config);
                     if (log.isDebugEnabled()) {
                         log.debug(authzConfig);
@@ -176,9 +173,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
                     try {
                         LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
-                        AuthorizationConfig authzConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null);
-                        ignoreUnauthorizedIndices = authzConfig.isIgnoreUnauthorizedIndices();
-                        debugEnabled = false;
+                        PrivilegesEvaluator.this.authzConfig = authzConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null);
+
                         log.info("Updated authz config (legacy):\n" + legacyConfig);
                         if (log.isDebugEnabled()) {
                             log.debug(authzConfig);
@@ -196,7 +192,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         : ActionGroup.FlattenedIndex.EMPTY;
 
                 actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions,
-                        clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet(), metricsLevel);
+                        clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet(), adminOnlyIndices,
+                        authzConfig.getMetricsLevel());
 
                 documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
 
@@ -258,7 +255,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         Action action = actions.get(action0);
 
-        if (isAdminOnlyAction(action0)) {
+        if (adminOnlyActions.matches(action0)) {
             log.info("Action " + action0 + " is reserved for users authenticating with an admin certificate");
             return PrivilegesEvaluationResult.INSUFFICIENT.reason("Action is reserved for users authenticating with an admin certificate")
                     .missingPrivileges(action);
@@ -273,6 +270,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             return PrivilegesEvaluationResult.OK;
         }
 
+        AuthorizationConfig authzConfig = this.authzConfig;
         ActionAuthorization actionAuthorization;
 
         if (specialPrivilegesEvaluationContext == null) {
@@ -314,18 +312,12 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     log.debug("### evaluate " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user
                             + "\nspecialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext + "\nResolved: "
                             + requestInfo.getResolvedIndices() + "\nUresolved: " + requestInfo.getUnresolved() + "\nIgnoreUnauthorizedIndices: "
-                            + ignoreUnauthorizedIndices);
+                            + authzConfig.isIgnoreUnauthorizedIndices());
                 }
             }
 
             // check snapshot/restore requests 
             PrivilegesEvaluationResult result = snapshotRestoreEvaluator.evaluate(request, task, action, clusterInfoHolder);
-            if (!result.isPending()) {
-                return result;
-            }
-
-            // SG index access
-            result = sgIndexAccessEvaluator.evaluate(request, task, action, requestInfo);
             if (!result.isPending()) {
                 return result;
             }
@@ -342,7 +334,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 if (request instanceof RestoreSnapshotRequest && checkSnapshotRestoreWritePrivileges) {
                     // Evaluate additional index privileges                
                     return evaluateIndexPrivileges(user, action0, action.expandPrivileges(request), request, task, requestInfo, mappedRoles,
-                            actionAuthorization, specialPrivilegesEvaluationContext, context);
+                            authzConfig, actionAuthorization, specialPrivilegesEvaluationContext, context);
                 }
 
                 if (privilegesInterceptor != null) {
@@ -361,10 +353,21 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     }
                 }
 
-                if (log.isTraceEnabled()) {
-                    log.trace("Allowing as cluster privilege: " + action0);
+                ImmutableSet<Action> additionalPrivileges = action.getAdditionalPrivileges(request);
+
+                if (additionalPrivileges.isEmpty()) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("Allowing as cluster privilege: " + action0);
+                    }
+                    return PrivilegesEvaluationResult.OK;
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Additional privileges required: " + additionalPrivileges);
+                    }
+
+                    return evaluateAdditionalPrivileges(user, action0, additionalPrivileges, request, task, requestInfo, mappedRoles, authzConfig,
+                            actionAuthorization, specialPrivilegesEvaluationContext, context);
                 }
-                return PrivilegesEvaluationResult.OK;
             }
 
             if (action.isTenantPrivilege()) {
@@ -397,8 +400,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 }
             }
 
-            return evaluateIndexPrivileges(user, action0, allIndexPermsRequired, request, task, requestInfo, mappedRoles, actionAuthorization,
-                    specialPrivilegesEvaluationContext, context);
+            return evaluateIndexPrivileges(user, action0, allIndexPermsRequired, request, task, requestInfo, mappedRoles, authzConfig,
+                    actionAuthorization, specialPrivilegesEvaluationContext, context);
         } catch (Exception e) {
             log.error("Error while evaluating " + action0 + " (" + request.getClass().getName() + ")", e);
             return PrivilegesEvaluationResult.INSUFFICIENT.with(ImmutableList.of(new PrivilegesEvaluationResult.Error(e.getMessage(), e)));
@@ -406,7 +409,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     private PrivilegesEvaluationResult evaluateIndexPrivileges(User user, String action0, ImmutableSet<Action> requiredPermissions,
-            ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles,
+            ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
@@ -481,9 +484,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             }
         }
 
-        boolean dnfofPossible = ignoreUnauthorizedIndices
-                && (action0.startsWith("indices:data/read/") || action0.startsWith("indices:admin/mappings/fields/get")
-                        || action0.equals("indices:admin/shards/search_shards") || action0.equals(ResolveIndexAction.NAME))
+        boolean dnfofPossible = authzConfig.isIgnoreUnauthorizedIndices() && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action0)
                 && (actionRequestInfo.ignoreUnavailable() || actionRequestInfo.containsWildcards());
 
         if (!dnfofPossible) {
@@ -532,7 +533,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             if (dnfofPossible) {
                 if (!actionRequestInfo.getResolvedIndices().getRemoteIndices().isEmpty()) {
                     privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action0, request, ImmutableSet.empty(), actionRequestInfo);
-                } else {
+                } else if (authzConfig.getIgnoreUnauthorizedIndicesActionsAllowingEmptyResult().matches(action0)) {
                     if (log.isTraceEnabled()) {
                         log.trace("Changing result from INSUFFICIENT to EMPTY");
                     }
@@ -588,6 +589,50 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         return PrivilegesEvaluationResult.OK;
     }
 
+    private PrivilegesEvaluationResult evaluateAdditionalPrivileges(User user, String action0, ImmutableSet<Action> additionalPrivileges,
+            ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
+            ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
+            PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
+
+        if (additionalPrivileges.forAllApplies((a) -> a.isIndexPrivilege())) {
+            return evaluateIndexPrivileges(user, action0, additionalPrivileges, request, task, actionRequestInfo, mappedRoles, authzConfig,
+                    actionAuthorization, specialPrivilegesEvaluationContext, context);
+        }
+
+        ImmutableSet<Action> indexPrivileges = ImmutableSet.empty();
+
+        for (Action action : additionalPrivileges) {
+            if (action.isClusterPrivilege()) {
+                PrivilegesEvaluationResult result = actionAuthorization.hasClusterPermission(context, action);
+
+                if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
+                    log.info("Additional privilege missing: " + result);
+                    return result;
+                }
+            } else if (action.isTenantPrivilege()) {
+                PrivilegesEvaluationResult result = hasTenantPermission(user, mappedRoles, action, actionAuthorization, context);
+
+                if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
+                    log.info("Additional privilege missing: " + result);
+                    return result;
+                }
+            } else if (action.isIndexPrivilege()) {
+                indexPrivileges = indexPrivileges.with(action);
+            }
+        }
+
+        if (!indexPrivileges.isEmpty()) {
+            return evaluateIndexPrivileges(user, action0, indexPrivileges, request, task, actionRequestInfo, mappedRoles, authzConfig,
+                    actionAuthorization, specialPrivilegesEvaluationContext, context);
+        } else {
+            if (log.isTraceEnabled()) {
+                log.trace("Allowing: " + action0);
+            }
+            return PrivilegesEvaluationResult.OK;
+        }
+
+    }
+
     public ImmutableSet<String> mapSgRoles(final User user, final TransportAddress caller) {
         if (roleMapping == null) {
             throw new ElasticsearchSecurityException("SearchGuard is not yet initialized");
@@ -619,31 +664,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     public boolean notFailOnForbiddenEnabled() {
-        return ignoreUnauthorizedIndices;
-    }
-
-    private boolean isAdminOnlyAction(String action) {
-        if (adminOnlyActions.isEmpty()) {
-            return false;
-        }
-
-        for (String adminOnlyAction : adminOnlyActions) {
-            if (action.startsWith(adminOnlyAction)) {
-                if (adminOnlyActionExceptions.isEmpty()) {
-                    return true;
-                } else {
-                    for (String exception : adminOnlyActionExceptions) {
-                        if (action.startsWith(exception)) {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return authzConfig.isIgnoreUnauthorizedIndices();
     }
 
     public static boolean isTenantPerm(String action0) {
@@ -668,7 +689,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         // this does not really matter        
         ImmutableSet<String> mappedRoles = mapSgRoles(user, caller);
         String requestedTenant = getRequestedTenant(user);
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, debugEnabled, actionRequestIntrospector);
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),
+                actionRequestIntrospector);
 
         Map<String, Boolean> result = new HashMap<>();
 
@@ -758,8 +780,9 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         Action action = this.actions.get(actionName);
 
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, action, null, debugEnabled,
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, action, null, authzConfig.isDebugEnabled(),
                 actionRequestIntrospector);
+
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(context, action);
 
         return privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.OK;
@@ -789,7 +812,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
         }
 
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, debugEnabled, actionRequestIntrospector);
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),
+                actionRequestIntrospector);
 
         for (String permission : permissions) {
             PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(context, actions.get(permission));
@@ -886,6 +910,15 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     public boolean isDebugEnabled() {
-        return debugEnabled;
+        return authzConfig.isDebugEnabled();
+    }
+
+    private static Pattern getPatternFromSettings(Settings settings, String key, List<String> defaultValue) {
+        try {
+            return Pattern.create(settings.getAsList(key, defaultValue));
+        } catch (ConfigValidationException | SettingsException e) {
+            log.error("Invalid settings option " + key, e);
+            return Pattern.createUnchecked(defaultValue);
+        }
     }
 }

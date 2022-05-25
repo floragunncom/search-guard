@@ -30,6 +30,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -62,6 +63,7 @@ public class SnapshotRestoreTests extends SingleClusterTest {
     @Parameter
     public ClusterConfiguration currentClusterConfig;
 
+    @Ignore // TODO
     @Test
     public void testSnapshotEnableSgIndexRestore() throws Exception {
     

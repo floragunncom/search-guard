@@ -197,7 +197,7 @@ public class BulkConfigApiTest {
     @Test
     public void getTestWithoutAdminCertWithAllowedAction() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().user(ADMIN_USER)
-                .nodeSettings("searchguard.actions.admin_only", Collections.emptyList()).start()) {
+                .nodeSettings("searchguard.admin_only_actions", Collections.emptyList()).start()) {
             try (GenericRestClient client = cluster.getRestClient(ADMIN_USER)) {
 
                 HttpResponse updateResponse = client.get("/_searchguard/config");
