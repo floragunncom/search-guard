@@ -63,15 +63,17 @@ import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportRequest;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.patch.JsonPatch;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserInformation;
 import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
@@ -91,10 +93,10 @@ public abstract class AbstractAuditLog implements AuditLog {
     protected final boolean logRequestBody;
     protected final boolean resolveIndices;
 
-    private List<String> ignoredAuditUsers;
-    private List<String> ignoredComplianceUsersForRead;
-    private List<String> ignoredComplianceUsersForWrite;
-    private final List<String> ignoreAuditRequests;
+    private Pattern ignoredAuditUsers;
+    private Pattern ignoredComplianceUsersForRead;
+    private Pattern ignoredComplianceUsersForWrite;
+    private Pattern ignoreAuditRequests;
     private final List<String> disabledRestCategories;
     private final List<String> disabledTransportCategories;
     private final List<String> defaultDisabledCategories = Arrays.asList(Category.AUTHENTICATED.toString(), Category.GRANTED_PRIVILEGES.toString());
@@ -116,6 +118,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     protected AbstractAuditLog(Settings settings, final ThreadPool threadPool, final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
         super();
+        ValidationErrors validationErrors = new ValidationErrors();
         this.threadPool = threadPool;
 
         this.settings = settings;
@@ -155,41 +158,57 @@ public abstract class AbstractAuditLog implements AuditLog {
         logRequestBody = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_LOG_REQUEST_BODY, true);
         resolveIndices = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_INDICES, true);
 
-        ignoredAuditUsers = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, defaultIgnoredUsers));
+        List<String> ignoredAuditUsers = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, defaultIgnoredUsers));
 
-        if(ignoredAuditUsers.size() == 1 && "NONE".equals(ignoredAuditUsers.get(0))) {
-            ignoredAuditUsers.clear();
-        }
-
-        if (ignoredAuditUsers.size() > 0) {
+        if(ignoredAuditUsers.size() == 0 || (ignoredAuditUsers.size() == 1 && "NONE".equals(ignoredAuditUsers.get(0)))) {
+            this.ignoredAuditUsers = Pattern.blank();
+        } else {
             log.info("Configured Users to ignore: {}", ignoredAuditUsers);
+            try {
+                this.ignoredAuditUsers = Pattern.create(ignoredAuditUsers);
+            } catch (ConfigValidationException e) {
+                validationErrors.add(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, e);
+                this.ignoredAuditUsers = Pattern.blank();
+            }
         }
 
-        ignoredComplianceUsersForRead = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_IGNORE_USERS, defaultIgnoredUsers));
+        List<String> ignoredComplianceUsersForRead = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_IGNORE_USERS, defaultIgnoredUsers));
 
-        if(ignoredComplianceUsersForRead.size() == 1 && "NONE".equals(ignoredComplianceUsersForRead.get(0))) {
-            ignoredComplianceUsersForRead.clear();
-        }
-
-        if (ignoredComplianceUsersForRead.size() > 0) {
+        if(ignoredComplianceUsersForRead.size() == 0 || (ignoredComplianceUsersForRead.size() == 1 && "NONE".equals(ignoredComplianceUsersForRead.get(0)))) {
+            this.ignoredComplianceUsersForRead = Pattern.blank();
+        } else {
             log.info("Configured Users to ignore for read compliance events: {}", ignoredComplianceUsersForRead);
+            try {
+                this.ignoredComplianceUsersForRead = Pattern.create(ignoredComplianceUsersForRead);
+            } catch (ConfigValidationException e) {
+                validationErrors.add(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_IGNORE_USERS, e);
+                this.ignoredComplianceUsersForRead = Pattern.blank();
+            }
         }
 
-        ignoredComplianceUsersForWrite = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_IGNORE_USERS, defaultIgnoredUsers));
+        List<String> ignoredComplianceUsersForWrite = new ArrayList<>(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_IGNORE_USERS, defaultIgnoredUsers));
 
-        if(ignoredComplianceUsersForWrite.size() == 1 && "NONE".equals(ignoredComplianceUsersForWrite.get(0))) {
-            ignoredComplianceUsersForWrite.clear();
-        }
-
-        if (ignoredComplianceUsersForWrite.size() > 0) {
+        if(ignoredComplianceUsersForRead.size() == 0 || (ignoredComplianceUsersForWrite.size() == 1 && "NONE".equals(ignoredComplianceUsersForWrite.get(0)))) {
+            this.ignoredComplianceUsersForWrite = Pattern.blank();
+        } else {
             log.info("Configured Users to ignore for write compliance events: {}", ignoredComplianceUsersForWrite);
+            try {
+                this.ignoredComplianceUsersForWrite = Pattern.create(ignoredComplianceUsersForWrite);
+            } catch (ConfigValidationException e) {
+               validationErrors.add(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_IGNORE_USERS, e);
+               this.ignoredComplianceUsersForWrite = Pattern.blank();
+            }
         }
 
 
 
-        ignoreAuditRequests = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUESTS, Collections.emptyList());
-        if (ignoreAuditRequests.size() > 0) {
-            log.info("Configured Requests to ignore: {}", ignoreAuditRequests);
+
+        List<String> ignoreAuditRequests = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUESTS, Collections.emptyList());
+        try {
+            this.ignoreAuditRequests = Pattern.create(ignoreAuditRequests);
+        } catch (ConfigValidationException e) {
+            validationErrors.add(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUESTS, e);
+            this.ignoreAuditRequests = Pattern.blank();
         }
 
         // check if some categories are invalid
@@ -211,6 +230,10 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         
         this.excludeSensitiveHeaders = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_EXCLUDE_SENSITIVE_HEADERS, true);
+        
+        if (validationErrors.size() != 0) {
+            log.error("The audit log configuration contains errors:\n" + validationErrors.toString());
+        }
     }
     
     @Override
@@ -858,7 +881,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
 
-        if (ignoredAuditUsers.size() > 0 && effectiveUser != null && WildcardMatcher.matchAny(ignoredAuditUsers, effectiveUser.getName())) {
+        if (effectiveUser != null && ignoredAuditUsers.matches(effectiveUser.getName())) {
 
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
@@ -867,8 +890,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
 
-        if (request != null && ignoreAuditRequests.size() > 0
-                && (WildcardMatcher.matchAny(ignoreAuditRequests, action) || WildcardMatcher.matchAny(ignoreAuditRequests, request.getClass().getSimpleName()))) {
+        if (request != null && (ignoreAuditRequests.matches(action) || ignoreAuditRequests.matches(request.getClass().getSimpleName()))) {
 
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because request {} is ignored", action+"#"+request.getClass().getSimpleName());
@@ -908,8 +930,8 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         
         if(category == Category.COMPLIANCE_DOC_READ || category == Category.COMPLIANCE_INTERNAL_CONFIG_READ) {
-            if (ignoredComplianceUsersForRead.size() > 0 && effectiveUser != null && effectiveUser.getName() != null
-                    && WildcardMatcher.matchAny(ignoredComplianceUsersForRead, effectiveUser.getName())) {
+            if (effectiveUser != null && effectiveUser.getName() != null
+                    && ignoredComplianceUsersForRead.matches(effectiveUser.getName())) {
 
                 if(log.isTraceEnabled()) {
                     log.trace("Skipped compliance log message because of user {} is ignored", effectiveUser);
@@ -920,8 +942,8 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         if(category == Category.COMPLIANCE_DOC_WRITE || category == Category.COMPLIANCE_INTERNAL_CONFIG_WRITE) {
-            if (ignoredComplianceUsersForWrite.size() > 0 && effectiveUser != null && effectiveUser.getName() != null
-                    && WildcardMatcher.matchAny(ignoredComplianceUsersForWrite, effectiveUser.getName())) {
+            if (effectiveUser != null && effectiveUser.getName() != null
+                    && ignoredComplianceUsersForWrite.matches(effectiveUser.getName())) {
 
                 if(log.isTraceEnabled()) {
                     log.trace("Skipped compliance log message because of user {} is ignored", effectiveUser);
@@ -951,7 +973,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         }
 
-        if (ignoredAuditUsers.size() > 0 && effectiveUser != null && WildcardMatcher.matchAny(ignoredAuditUsers, effectiveUser.getName())) {
+        if (effectiveUser != null && ignoredAuditUsers.matches(effectiveUser.getName())) {
 
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because of user {} is ignored", effectiveUser);
@@ -960,8 +982,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             return false;
         }
 
-        if (request != null && ignoreAuditRequests.size() > 0
-                && (WildcardMatcher.matchAny(ignoreAuditRequests, request.path()))) {
+        if (request != null && ignoreAuditRequests.matches(request.path())) {
 
             if(log.isTraceEnabled()) {
                 log.trace("Skipped audit log message because request {} is ignored", request.path());

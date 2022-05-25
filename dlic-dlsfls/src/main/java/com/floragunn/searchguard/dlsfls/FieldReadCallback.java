@@ -34,13 +34,14 @@ import org.opensearch.index.IndexService;
 import org.opensearch.index.mapper.Uid;
 import org.opensearch.index.shard.ShardId;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SourceFieldsContext;
-import com.floragunn.searchguard.support.WildcardMatcher;
 import com.github.wnameless.json.flattener.JsonFlattener;
 
 //TODO  We need to deal with caching!!
@@ -56,7 +57,7 @@ public final class FieldReadCallback {
     //private final ClusterService clusterService;
     private final Index index;
     private final ComplianceConfig complianceConfig;
-    private final Set<String> maskedFields;
+    private Pattern maskedFields;
     private final AuditLog auditLog;
     private Function<Map<String, ?>, Map<String, Object>> filterFunction;
     private SourceFieldsContext sfc;
@@ -72,7 +73,12 @@ public final class FieldReadCallback {
         this.index = Objects.requireNonNull(indexService).index();
         this.complianceConfig = complianceConfig;
         this.auditLog = auditLog;
-        this.maskedFields = maskedFields;
+        try {
+            this.maskedFields = maskedFields != null ? Pattern.createWithoutExclusions(maskedFields) : Pattern.blank();
+        } catch (ConfigValidationException e1) {
+            log.error("Invalid pattern for maskedFields", e1);
+            this.maskedFields = Pattern.blank();
+        }
         this.shardId = shardId;
         try {
             sfc = (SourceFieldsContext) HeaderHelper.deserializeSafeFromHeader(threadContext, "_sg_source_field_context");
@@ -91,10 +97,7 @@ public final class FieldReadCallback {
     }
 
     private boolean recordField(final String fieldName, boolean isStringField) {
-        boolean masked = false;
-        if(isStringField && maskedFields != null && maskedFields.size() > 0) {
-            masked = WildcardMatcher.matchAny(maskedFields, fieldName);
-        }
+        boolean masked = isStringField && maskedFields.matches(fieldName);
         return !masked && complianceConfig.readHistoryEnabledForField(index.getName(), fieldName);
     }
 

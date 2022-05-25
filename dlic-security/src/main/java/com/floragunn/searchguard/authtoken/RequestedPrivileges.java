@@ -27,6 +27,7 @@ import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
 
 import com.floragunn.codova.config.templates.Template;
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -38,14 +39,13 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.support.Pattern;
 
 public class RequestedPrivileges implements Writeable, ToXContentObject, Serializable {
     static final String RESTRICTION_ROLE = "_requested_privileges";
     static final ImmutableSet<String> RESTRICTION_ROLES = ImmutableSet.of(RESTRICTION_ROLE);
     private static final long serialVersionUID = 5862219250642101795L;
     private static final ImmutableList<String> WILDCARD_LIST = ImmutableList.of("*");
-    private static final ImmutableList<Template<Pattern>> WILDCARD_TEMPLATE_PATTERN_LIST = ImmutableList.of(Template.constant(Pattern.WILDCARD, "*"));
+    private static final ImmutableList<Template<Pattern>> WILDCARD_TEMPLATE_PATTERN_LIST = ImmutableList.of(Template.constant(Pattern.wildcard(), "*"));
     
     public static final RequestedPrivileges ALL = new RequestedPrivileges(WILDCARD_LIST, IndexPermissions.ALL, TenantPermissions.ALL);
     private static final Logger log = LogManager.getLogger(AuthTokenService.class);

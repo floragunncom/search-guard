@@ -30,6 +30,10 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
@@ -37,12 +41,10 @@ import org.opensearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse
 import org.opensearch.client.Client;
 import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.settings.SettingsException;
 import org.opensearch.env.Environment;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
@@ -66,7 +68,7 @@ public class ComplianceConfig implements LicenseChangeListener {
 
     private final Logger log = LogManager.getLogger(getClass());
     private final Settings settings;
-    private final Map<String, Set<String>> readEnabledFields = new HashMap<>(100);
+    private final Map<Pattern, Set<String>> readEnabledFields = new HashMap<>(100);
     private final List<String> watchedWriteIndices;
     private DateTimeFormatter auditLogPattern = null;
     private String auditLogIndex = null;
@@ -76,7 +78,7 @@ public class ComplianceConfig implements LicenseChangeListener {
     private final boolean logExternalConfig;
     private final boolean logInternalConfig;
     private final LoadingCache<String, Set<String>> cache;
-    private final Set<String> immutableIndicesPatterns;
+    private final Pattern immutableIndicesPatterns;
     private final byte[] salt16;
     private final String searchguardIndex;
     private final ActionRequestIntrospector actionRequestIntrospector;
@@ -106,7 +108,11 @@ public class ComplianceConfig implements LicenseChangeListener {
         logReadMetadataOnly = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_METADATA_ONLY, false);
         logExternalConfig = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false);
         logInternalConfig = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, false);
-        immutableIndicesPatterns = new HashSet<String>(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, Collections.emptyList()));
+        try {
+            immutableIndicesPatterns = Pattern.create(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, Collections.emptyList()));
+        } catch (SettingsException | ConfigValidationException e1) {
+            throw new RuntimeException("Invalid setting " + ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, e1);
+        }
         final String saltAsString = settings.get(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT, ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT_DEFAULT);
         final byte[] saltAsBytes = saltAsString.getBytes(StandardCharsets.UTF_8);
 
@@ -129,13 +135,17 @@ public class ComplianceConfig implements LicenseChangeListener {
         //  - indexpattern,fieldpattern,fieldpattern,....
         for(String watchedReadField: watchedReadFields) {
             final List<String> split = new ArrayList<>(Arrays.asList(watchedReadField.split(",")));
-            if(split.isEmpty()) {
-                continue;
-            } else if(split.size() == 1) {
-                readEnabledFields.put(split.get(0), Collections.singleton("*"));
-            } else {
-                Set<String> _fields = new HashSet<String>(split.subList(1, split.size()));
-                readEnabledFields.put(split.get(0), _fields);
+            try {
+                if (split.isEmpty()) {
+                    continue;
+                } else if (split.size() == 1) {
+                    readEnabledFields.put(Pattern.create(split.get(0)), Collections.singleton("*"));
+                } else {
+                    Set<String> _fields = new HashSet<String>(split.subList(1, split.size()));
+                    readEnabledFields.put(Pattern.create(split.get(0)), _fields);
+                }
+            } catch (ConfigValidationException e) {
+                throw new RuntimeException("Invalid index pattern in " + ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, e);
             }
         }
 
@@ -243,8 +253,8 @@ public class ComplianceConfig implements LicenseChangeListener {
         }
 
         final Set<String> tmp = new HashSet<String>(100);
-        for(String indexPattern: readEnabledFields.keySet()) {
-            if(indexPattern != null && !indexPattern.isEmpty() && WildcardMatcher.match(indexPattern, index)) {
+        for(Pattern indexPattern: readEnabledFields.keySet()) {
+            if(indexPattern.matches(index)) {
                 tmp.addAll(readEnabledFields.get(indexPattern));
             }
         }
@@ -346,7 +356,7 @@ public class ComplianceConfig implements LicenseChangeListener {
             return false;
         }
         
-        if(immutableIndicesPatterns.isEmpty()) {
+        if(immutableIndicesPatterns.isBlank()) {
             return false;
         }
         
@@ -357,7 +367,7 @@ public class ComplianceConfig implements LicenseChangeListener {
         } else {        
             final Set<String> allIndices = resolved.getLocalIndices();
 
-            return WildcardMatcher.matchAny(immutableIndicesPatterns, allIndices);
+            return immutableIndicesPatterns.matches(allIndices);
         }
     }
 

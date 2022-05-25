@@ -31,11 +31,11 @@ import org.opensearch.cluster.service.ClusterService;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;

@@ -24,11 +24,11 @@ import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
-import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchguard.user.User;
 
 /**

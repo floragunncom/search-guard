@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.authz.config;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.Parser.Context;
@@ -27,7 +28,6 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.support.Pattern;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class AuthorizationConfig implements PatchableDocument<AuthorizationConfig> {
