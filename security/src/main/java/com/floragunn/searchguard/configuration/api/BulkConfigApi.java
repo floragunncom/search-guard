@@ -178,7 +178,7 @@ public class BulkConfigApi {
                     fields.put(config.getCType().toLCString(), Strings.toString(config));
                 }
 
-                auditLog.logDocumentRead(configurationRepository.getSearchguardIndex(), "*", null, fields);
+                auditLog.logDocumentRead(configurationRepository.getEffectiveSearchGuardIndex(), "*", null, fields);
             }
         }
     }

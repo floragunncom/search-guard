@@ -80,7 +80,7 @@ public class ComplianceConfig implements LicenseChangeListener {
     private final LoadingCache<String, Set<String>> cache;
     private final Pattern immutableIndicesPatterns;
     private final byte[] salt16;
-    private final String searchguardIndex;
+    private final Pattern searchguardIndexPattern;
     private final ActionRequestIntrospector actionRequestIntrospector;
     private final Environment environment;
     private final AuditLog auditLog;
@@ -91,13 +91,14 @@ public class ComplianceConfig implements LicenseChangeListener {
     private final Client client;
     private final byte[] maskPrefix;
     
-    public ComplianceConfig(final Environment environment, ActionRequestIntrospector actionRequestIntrospector, final AuditLog auditLog, final Client client, ConfigurationRepository configRepository) {
+    public ComplianceConfig(Environment environment, ActionRequestIntrospector actionRequestIntrospector, AuditLog auditLog, Client client, ConfigurationRepository configRepository) {
         super();
         this.settings = environment.settings();
         this.environment = environment;
         this.actionRequestIntrospector = actionRequestIntrospector;
         this.auditLog = auditLog;
         this.client = client;
+        this.searchguardIndexPattern = configRepository.getConfiguredSearchguardIndices();
         this.localHashingEnabled = this.settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED, false);
         final List<String> watchedReadFields = this.settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS,
                 Collections.emptyList(), false);
@@ -129,7 +130,6 @@ public class ComplianceConfig implements LicenseChangeListener {
         }
         
         salt16 = Arrays.copyOf(saltAsBytes, 16);
-        this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
         
         //searchguard.compliance.pii_fields:
         //  - indexpattern,fieldpattern,fieldpattern,....
@@ -275,7 +275,7 @@ public class ComplianceConfig implements LicenseChangeListener {
             return false;
         }
         
-        if(searchguardIndex.equals(index)) {
+        if(searchguardIndexPattern.matches(index)) {
             return logInternalConfig;
         }
 
@@ -300,7 +300,7 @@ public class ComplianceConfig implements LicenseChangeListener {
             return false;
         }
         
-        if(searchguardIndex.equals(index)) {
+        if(searchguardIndexPattern.matches(index)) {
             return logInternalConfig;
         }
         
@@ -320,7 +320,7 @@ public class ComplianceConfig implements LicenseChangeListener {
             return false;
         }
         
-        if(searchguardIndex.equals(index)) {
+        if(searchguardIndexPattern.matches(index)) {
             return logInternalConfig;
         }
         

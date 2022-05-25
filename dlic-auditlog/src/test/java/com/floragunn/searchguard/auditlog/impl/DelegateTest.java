@@ -39,7 +39,7 @@ public class DelegateTest {
 		Builder settingsBuilder  = Settings.builder();
 		settingsBuilder.put("searchguard.audit.type", type);
 		settingsBuilder.put("path.home", ".");
-		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null, null, null);
+		AuditLogImpl auditLog = new AuditLogImpl(settingsBuilder.build(), null, null, null, null, null, null);
 		auditLog.close();
 //		if (expectedClass != null) {
 //		    Assert.assertNotNull("delegate is null for type: "+type,auditLog.delegate);

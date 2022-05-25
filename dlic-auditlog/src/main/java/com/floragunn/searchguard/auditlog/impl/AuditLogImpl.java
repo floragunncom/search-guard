@@ -37,6 +37,7 @@ import org.opensearch.transport.TransportRequest;
 
 import com.floragunn.searchguard.auditlog.routing.AuditMessageRouter;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.UserInformation;
 
 public final class AuditLogImpl extends AbstractAuditLog {
@@ -45,8 +46,8 @@ public final class AuditLogImpl extends AbstractAuditLog {
     private final boolean enabled;
 
     public AuditLogImpl(final Settings settings, final Path configPath, Client clientProvider, ThreadPool threadPool,
-            final IndexNameExpressionResolver resolver, final ClusterService clusterService) {
-        super(settings, threadPool, resolver, clusterService);
+            final IndexNameExpressionResolver resolver, final ClusterService clusterService, ConfigurationRepository configurationRepository) {
+        super(settings, threadPool, resolver, clusterService, configurationRepository);
 
         this.messageRouter = new AuditMessageRouter(settings, clientProvider, threadPool, configPath);
         this.enabled = messageRouter.isEnabled();

@@ -134,7 +134,7 @@ public abstract class TypeLevelConfigApi {
 
                 fields.put(config.getCType().toLCString(), Strings.toString(config));
 
-                auditLog.logDocumentRead(configurationRepository.getSearchguardIndex(), configType.getName(), null, fields);
+                auditLog.logDocumentRead(configurationRepository.getEffectiveSearchGuardIndex(), configType.getName(), null, fields);
             }
         }
     }

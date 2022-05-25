@@ -80,7 +80,6 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected final ConfigurationRepository cl;
 	protected final ClusterService cs;
 	final ThreadPool threadPool;
-	private String searchguardIndex;
 	private final RestApiPrivilegesEvaluator restApiPrivilegesEvaluator;
 	protected final Boolean acceptInvalidLicense;
 	protected final AuditLog auditLog;
@@ -95,8 +94,6 @@ public abstract class AbstractApiAction extends BaseRestHandler {
             AuditLog auditLog) {
 		super();
 		this.settings = settings;
-		this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME,
-				ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
 		this.acceptInvalidLicense = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE, Boolean.FALSE);
 
 		this.cl = cl;
@@ -302,10 +299,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	}
 
 	protected boolean ensureIndexExists() {
-		if (!cs.state().getMetadata().hasConcreteIndex(this.searchguardIndex)) {
-			return false;
-		}
-		return true;
+		return cl.isIndexInitialized();
 	}
 
 	protected void filter(SgDynamicConfiguration<?> builder) {
@@ -331,7 +325,13 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 	protected void saveAnUpdateConfigs(final Client client, final RestRequest request, final CType<?> cType,
 	        final SgDynamicConfiguration<?> configuration, OnSucessActionListener<IndexResponse> actionListener) {
-		final IndexRequest ir = new IndexRequest(this.searchguardIndex);
+	    String searchGuardIndex = cl.getEffectiveSearchGuardIndex();
+	    
+	    if (searchGuardIndex == null) {
+	        throw new RuntimeException("The Search Guard index has not yet been created");
+	    }
+	    
+		final IndexRequest ir = new IndexRequest(searchGuardIndex);
 
 		//final String type = "_doc";
 		final String id = cType.toLCString();
@@ -584,7 +584,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	
     private <T> void logComplianceEvent(SgDynamicConfiguration<T> result) {
         Map<String, String> fields = ImmutableMap.of(result.getCType().toLCString(), Strings.toString(result));
-        auditLog.logDocumentRead(this.searchguardIndex, result.getCType().toLCString(), null, fields);
+        auditLog.logDocumentRead(cl.getEffectiveSearchGuardIndex(), result.getCType().toLCString(), null, fields);
     }
 
 }

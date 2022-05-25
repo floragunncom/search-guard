@@ -31,6 +31,7 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.helper.RetrySink;
 import com.floragunn.searchguard.auditlog.integration.TestAuditlogImpl;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.legacy.test.AbstractSGUnitTest;
 import com.floragunn.searchguard.support.ConfigConstants;
 
@@ -38,6 +39,7 @@ public class AuditlogTest {
 
     ClusterService cs = mock(ClusterService.class);
     DiscoveryNode dn = mock(DiscoveryNode.class);
+    ConfigurationRepository configurationRepository = mock(ConfigurationRepository.class);
 
     @Before
     public void setup() {
@@ -55,7 +57,7 @@ public class AuditlogTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs)) {
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
             al.logGrantedPrivileges("indices:data/read/search", new ClusterHealthRequest(), null);
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -73,7 +75,7 @@ public class AuditlogTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs)) {
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
             al.logGrantedPrivileges("indices:data/read/search", sr, null);
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -90,7 +92,7 @@ public class AuditlogTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs)) {
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
             al.logSSLException(null, new Exception("test rest"));
             al.logSSLException(null, new Exception("test rest"), null, null);
@@ -113,7 +115,7 @@ public class AuditlogTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RETRY_DELAY_MS, 500)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs)) {
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             al.logSSLException(null, new Exception("test retry"));
             Assert.assertNotNull(RetrySink.getMsg());
             Assert.assertTrue(RetrySink.getMsg().toJson().contains("test retry"));
@@ -135,7 +137,7 @@ public class AuditlogTest {
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
         
-        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs)) {
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             al.logSSLException(null, new Exception("test retry"));
             Assert.assertNull(RetrySink.getMsg());
         }

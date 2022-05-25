@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -54,14 +53,13 @@ import org.opensearch.common.Strings;
 import org.opensearch.common.bytes.BytesArray;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
-import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.opensearch.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.env.Environment;
 import org.opensearch.index.engine.VersionConflictEngineException;
 import org.opensearch.threadpool.ThreadPool;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocUpdateException;
 import com.floragunn.codova.documents.Document;
@@ -76,6 +74,7 @@ import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -87,14 +86,20 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
 public class ConfigurationRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(ConfigurationRepository.class);
 
-    private final String searchguardIndex;
+    private static final String OLD_INDEX_NAME_DEFAULT = "searchguard";
+    private static final String NEW_INDEX_NAME_DEFAULT = ".searchguard";
+
+    private final String configuredSearchguardIndexOld;
+    private final String configuredSearchguardIndexNew;
+    private final Pattern configuredSearchguardIndices;
     private final Client client;
+
     private volatile ConfigMap currentConfig;
     private final List<ConfigurationChangeListener> configurationChangedListener;
 
@@ -111,25 +116,28 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final ConfigurationLoader externalUseConfigLoader;
 
     private final Settings settings;
+    private final Path configPath;
     private final ClusterService clusterService;
-    private final Thread bgThread;
-    private final AtomicBoolean installDefaultConfig = new AtomicBoolean();
     private final ComponentState componentState = new ComponentState(-1000, null, "config_repository", ConfigurationRepository.class);
     private final PrivilegedConfigClient privilegedConfigClient;
     private final ThreadPool threadPool;
 
-    public final static Map<String, ?> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap.of("encoded_config",
-            ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
+    public final static ImmutableMap<String, Object> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap
+            .of("encoded_config", ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
 
-    private final static Map<String, ?> SG_INDEX_SETTINGS = ImmutableMap.of("index.number_of_shards", 1, "index.auto_expand_replicas", "0-all");
+    private final static ImmutableMap<String, Object> SG_INDEX_SETTINGS = ImmutableMap.of("index.number_of_shards", 1, "index.auto_expand_replicas",
+            "0-all");
 
     private final VariableResolvers variableResolvers;
     private final Context parserContext;
 
     public ConfigurationRepository(Settings settings, Path configPath, ThreadPool threadPool, Client client, ClusterService clusterService,
             ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig) {
-        this.searchguardIndex = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, ConfigConstants.SG_DEFAULT_CONFIG_INDEX);
+        this.configuredSearchguardIndexOld = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, OLD_INDEX_NAME_DEFAULT);
+        this.configuredSearchguardIndexNew = settings.get(ConfigConstants.SEARCHGUARD_INTERNAL_INDICIES_MAIN_CONFIG_NAME, NEW_INDEX_NAME_DEFAULT);
+        this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
         this.settings = settings;
+        this.configPath = configPath;
         this.client = client;
         this.clusterService = clusterService;
         this.configurationChangedListener = new ArrayList<>();
@@ -150,174 +158,42 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 }
             }
         });
-
-        bgThread = new Thread(new Runnable() {
-
-            @Override
-            public void run() {
-                try {
-                    LOGGER.info("Background init thread started. Install default config?: " + installDefaultConfig.get());
-
-                    if (installDefaultConfig.get()) {
-                        componentState.setState(State.INITIALIZING, "install_default_config");
-
-                        try {
-                            String lookupDir = System.getProperty("sg.default_init.dir");
-                            final String cd = lookupDir != null ? (lookupDir + "/")
-                                    : new Environment(settings, configPath).pluginsFile().toAbsolutePath().toString() + "/search-guard-flx/sgconfig/";
-                            File confFile = new File(cd + "sg_authc.yml");
-                            File legacyConfFile = new File(cd + "sg_config.yml");
-
-                            if (confFile.exists() || legacyConfFile.exists()) {
-                                final ThreadContext threadContext = threadPool.getThreadContext();
-                                try (StoredContext ctx = threadContext.stashContext()) {
-                                    threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-                                    LOGGER.info("Will create {} index so we can apply default config", searchguardIndex);
-
-                                    boolean ok = client.admin().indices().create(
-                                            new CreateIndexRequest(searchguardIndex).settings(SG_INDEX_SETTINGS).mapping("_doc", SG_INDEX_MAPPING))
-                                            .actionGet().isAcknowledged();
-
-                                    LOGGER.info("Index {} created?: {}", searchguardIndex, ok);
-                                    if (ok) {
-                                        if (new File(cd + "sg_authc.yml").exists()) {
-                                            uploadFile(client, cd + "sg_authc.yml", searchguardIndex, CType.AUTHC, parserContext);
-                                        } else if (new File(cd + "sg_config.yml").exists()) {
-                                            uploadFile(client, cd + "sg_config.yml", searchguardIndex, CType.CONFIG, parserContext);
-                                        }
-
-                                        uploadFile(client, cd + "sg_roles.yml", searchguardIndex, CType.ROLES, parserContext);
-                                        uploadFile(client, cd + "sg_roles_mapping.yml", searchguardIndex, CType.ROLESMAPPING, parserContext);
-                                        uploadFile(client, cd + "sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, parserContext);
-                                        uploadFile(client, cd + "sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, parserContext);
-                                        uploadFile(client, cd + "sg_tenants.yml", searchguardIndex, CType.TENANTS, parserContext);
-                                        uploadFile(client, cd + "sg_blocks.yml", searchguardIndex, CType.BLOCKS, parserContext);
-                                        uploadFile(client, cd + "sg_frontend_authc.yml", searchguardIndex, CType.FRONTEND_AUTHC, parserContext);
-
-                                        if (new File(cd + "sg_authc_transport.yml").exists()) {
-                                            uploadFile(client, cd + "sg_authc_transport.yml", searchguardIndex, CType.AUTHC_TRANSPORT, parserContext);
-                                        }
-
-                                        if (new File(cd + "sg_authz.yml").exists()) {
-                                            uploadFile(client, cd + "sg_authz.yml", searchguardIndex, CType.AUTHZ, parserContext);
-                                        }
-
-                                        if (new File(cd + "sg_license_key.yml").exists()) {
-                                            uploadFile(client, cd + "sg_license_key.yml", searchguardIndex, CType.LICENSE_KEY, parserContext);
-                                        }
-
-                                        LOGGER.info("Default config applied");
-                                    } else {
-                                        LOGGER.error("Can not create {} index", searchguardIndex);
-                                        componentState.setFailed("Index creation was not acknowledged");
-                                    }
-                                }
-                            } else {
-                                LOGGER.error("{} does not exist", confFile.getAbsolutePath());
-                                componentState.setFailed(confFile.getAbsolutePath() + " does not exist");
-
-                            }
-                        } catch (ResourceAlreadyExistsException e) {
-                            LOGGER.debug("Cannot apply default config (this is maybe not an error!) due to {}", e.getMessage());
-                        } catch (Exception e) {
-                            LOGGER.error("Cannot apply default config (this is maybe not an error!) due to {}", e.getMessage(), e);
-                            // TODO find out when this is not an error o.O
-                            componentState.setFailed(e);
-                        }
-                    }
-
-                    LOGGER.debug("Node started, try to initialize it. Wait for at least yellow cluster state....");
-
-                    componentState.setState(State.INITIALIZING, "waiting_for_yellow_index");
-
-                    ClusterHealthResponse response = null;
-                    try {
-                        response = client.admin().cluster()
-                                .health(new ClusterHealthRequest(searchguardIndex).waitForActiveShards(1).waitForYellowStatus()).actionGet();
-                    } catch (Exception e1) {
-                        LOGGER.debug("Catched a {} but we just try again ...", e1.toString());
-                    }
-
-                    while (response == null || response.isTimedOut() || response.getStatus() == ClusterHealthStatus.RED) {
-                        LOGGER.debug("index '{}' not healthy yet, we try again ... (Reason: {})", searchguardIndex,
-                                response == null ? "no response" : (response.isTimedOut() ? "timeout" : "other, maybe red cluster"));
-                        try {
-                            Thread.sleep(500);
-                        } catch (InterruptedException e1) {
-                            //ignore
-                            Thread.currentThread().interrupt();
-                        }
-                        componentState.startNextTry();
-                        try {
-                            response = client.admin().cluster()
-                                    .health(new ClusterHealthRequest(searchguardIndex).waitForActiveShards(1).waitForYellowStatus()).actionGet();
-                        } catch (Exception e1) {
-                            LOGGER.debug("Catched again a {} but we just try again ...", e1.toString());
-                        }
-                        continue;
-                    }
-
-                    componentState.setState(State.INITIALIZING, "loading");
-
-                    while (ConfigurationRepository.this.currentConfig == null) {
-                        componentState.startNextTry();
-                        try {
-                            LOGGER.debug("Try to load config ...");
-                            reloadConfiguration(CType.all(), "Initialization");
-                            break;
-                        } catch (Exception e) {
-                            LOGGER.debug("Unable to load configuration due to {}", String.valueOf(ExceptionUtils.getRootCause(e)));
-                            try {
-                                Thread.sleep(3000);
-                            } catch (InterruptedException e1) {
-                                Thread.currentThread().interrupt();
-                                LOGGER.debug("Thread was interrupted so we cancel initialization");
-                                break;
-                            }
-                        }
-                    }
-
-                    LOGGER.info("Node '{}' initialized", clusterService.localNode().getName());
-
-                    componentState.setInitialized();
-
-                } catch (Exception e) {
-                    LOGGER.error("Unexpected exception while initializing node " + e, e);
-                    componentState.setFailed(e);
-                }
-            }
-        });
-
     }
 
     public void initOnNodeStart() {
 
-        LOGGER.info("Check if " + searchguardIndex + " index exists ...");
+        LOGGER.debug("Check if one of the indices " + configuredSearchguardIndexNew + " or " + configuredSearchguardIndexOld + " does exist ...");
 
         try {
-
-            if (clusterService.state().getMetadata().hasConcreteIndex(searchguardIndex)) {
-                LOGGER.info("{} index does already exist, so we try to load the config from it", searchguardIndex);
-                bgThread.start();
+            if (clusterService.state().getMetadata().hasConcreteIndex(configuredSearchguardIndexNew)) {
+                LOGGER.info("{} index does exist. Loading configuration.", configuredSearchguardIndexNew);
+                threadPool.generic().submit(() -> loadConfigurationOnStartup(configuredSearchguardIndexNew));
+            } else if (clusterService.state().getMetadata().hasConcreteIndex(configuredSearchguardIndexOld)) {
+                LOGGER.info("Legacy {} index does exist. Loading configuration.", configuredSearchguardIndexOld);
+                threadPool.generic().submit(() -> loadConfigurationOnStartup(configuredSearchguardIndexOld));
+            } else if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_DEFAULT_INIT_SGINDEX, false)) {
+                LOGGER.info("{} index does not exist yet, so we create a default config", configuredSearchguardIndexNew);
+                threadPool.generic().submit(() -> {
+                    try {
+                        installDefaultConfiguration(configuredSearchguardIndexNew);
+                        loadConfigurationOnStartup(configuredSearchguardIndexNew);
+                    } catch (Exception e) {
+                        LOGGER.error("An error occurred while initializing default config. Initialisation halted.", e);
+                    }
+                });
+            } else if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, true)) {
+                LOGGER.info("{} index does not exist yet, so no need to load config on node startup. Use sgadmin to initialize cluster",
+                        configuredSearchguardIndexNew);
+                threadPool.generic().submit(() -> waitForConfigIndex());
             } else {
-                if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_DEFAULT_INIT_SGINDEX, false)) {
-                    LOGGER.info("{} index does not exist yet, so we create a default config", searchguardIndex);
-                    installDefaultConfig.set(true);
-                    bgThread.start();
-                } else if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, true)) {
-                    LOGGER.info("{} index does not exist yet, so no need to load config on node startup. Use sgadmin to initialize cluster",
-                            searchguardIndex);
-                    bgThread.start();
-                } else {
-                    LOGGER.info("{} index does not exist yet, use sgadmin to initialize the cluster. We will not perform background initialization",
-                            searchguardIndex);
-                }
+                LOGGER.info("{} index does not exist yet, use sgadmin to initialize the cluster. We will not perform background initialization",
+                        configuredSearchguardIndexNew);
+                componentState.setState(State.SUSPENDED, "waiting_for_config_update");
             }
-
         } catch (Throwable e2) {
-            LOGGER.error("Error during node initialization: {}", e2, e2);
-            bgThread.start();
+            LOGGER.error("Error during node initialization", e2);
             componentState.addLastException("initOnNodeStart", e2);
+            componentState.setFailed(e2);
         }
     }
 
@@ -338,6 +214,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
         return currentConfig != null;
     }
 
+    public boolean isIndexInitialized() {
+        return getEffectiveSearchGuardIndex() != null;
+    }
+
     private final Lock LOCK = new ReentrantLock();
 
     public void reloadConfiguration(Set<CType<?>> configTypes, String reason)
@@ -354,6 +234,183 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
         } catch (InterruptedException e) {
             throw new ConfigUpdateAlreadyInProgressException("Interrupted config update", e);
+        }
+    }
+
+    private void waitForConfigIndex() {
+        try {
+            componentState.setState(State.INITIALIZING, "waiting_for_config_index");
+            do {
+                Thread.sleep(500);
+            } while (!clusterService.state().getMetadata().hasIndex(this.configuredSearchguardIndexNew)
+                    && !clusterService.state().getMetadata().hasIndex(this.configuredSearchguardIndexOld));
+
+            if (clusterService.state().getMetadata().hasIndex(this.configuredSearchguardIndexNew)) {
+                loadConfigurationOnStartup(configuredSearchguardIndexNew);
+            } else {
+                loadConfigurationOnStartup(configuredSearchguardIndexOld);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error while waiting for the configuration index to be created", e);
+            componentState.setFailed(e);
+        }
+    }
+
+    private void loadConfigurationOnStartup(String searchguardIndex) {
+        try {
+            LOGGER.debug("Node started, try to initialize it. Wait for at least yellow state on index " + searchguardIndex);
+
+            componentState.setState(State.INITIALIZING, "waiting_for_yellow_index");
+            componentState.setConfigProperty("effective_main_config_index", searchguardIndex);
+
+            ClusterHealthResponse response = null;
+            try {
+                response = client.admin().cluster().health(new ClusterHealthRequest(searchguardIndex).waitForActiveShards(1).waitForYellowStatus())
+                        .actionGet();
+            } catch (Exception e1) {
+                LOGGER.debug("Catched a {} but we just try again ...", e1.toString());
+            }
+
+            while (response == null || response.isTimedOut() || response.getStatus() == ClusterHealthStatus.RED) {
+                LOGGER.debug("index '{}' not healthy yet, we try again ... (Reason: {})", searchguardIndex,
+                        response == null ? "no response" : (response.isTimedOut() ? "timeout" : "other, maybe red cluster"));
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e1) {
+                    //ignore
+                }
+                componentState.startNextTry();
+                try {
+                    response = client.admin().cluster()
+                            .health(new ClusterHealthRequest(searchguardIndex).waitForActiveShards(1).waitForYellowStatus()).actionGet();
+                } catch (Exception e1) {
+                    LOGGER.debug("Catched again a {} but we just try again ...", e1.toString());
+                }
+                continue;
+            }
+
+            componentState.setState(State.INITIALIZING, "loading");
+
+            while (ConfigurationRepository.this.currentConfig == null) {
+                componentState.startNextTry();
+                try {
+                    LOGGER.debug("Try to load config ...");
+                    reloadConfiguration(CType.all(), "Initialization");
+                    break;
+                } catch (Exception e) {
+                    LOGGER.debug("Unable to load configuration due to {}", String.valueOf(ExceptionUtils.getRootCause(e)));
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e1) {
+                        Thread.currentThread().interrupt();
+                        LOGGER.debug("Thread was interrupted so we cancel initialization");
+                        break;
+                    }
+                }
+            }
+
+            LOGGER.info("Node '{}' initialized", clusterService.localNode().getName());
+
+            componentState.setInitialized();
+
+        } catch (Exception e) {
+            LOGGER.error("Unexpected exception while initializing node " + e, e);
+            componentState.setFailed(e);
+        }
+    }
+
+    private void installDefaultConfiguration(String searchguardIndex) throws ConfigUpdateException {
+        try {
+            componentState.setState(State.INITIALIZING, "install_default_config");
+
+            String lookupDir = System.getProperty("sg.default_init.dir");
+            final String cd = lookupDir != null ? (lookupDir + "/")
+                    : new Environment(settings, configPath).pluginsFile().toAbsolutePath().toString() + "/search-guard-flx/sgconfig/";
+            File confFile = new File(cd + "sg_authc.yml");
+            File legacyConfFile = new File(cd + "sg_config.yml");
+
+            if (confFile.exists() || legacyConfFile.exists()) {
+                LOGGER.info("Will create {} index so we can apply default config", searchguardIndex);
+
+                try {
+                    createConfigIndex(searchguardIndex);
+                } catch (ResourceAlreadyExistsException e) {
+                    LOGGER.debug(
+                            "Search Guard index was created in the meantime. Possibly by some other node in the cluster. Not applying default config",
+                            e);
+                }
+                if (new File(cd + "sg_authc.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd + "sg_authc.yml", searchguardIndex, CType.AUTHC, parserContext);
+                } else if (new File(cd + "sg_config.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd + "sg_config.yml", searchguardIndex, CType.CONFIG, parserContext);
+                }
+
+                uploadFile(privilegedConfigClient, cd + "sg_roles.yml", searchguardIndex, CType.ROLES, parserContext);
+                uploadFile(privilegedConfigClient, cd + "sg_roles_mapping.yml", searchguardIndex, CType.ROLESMAPPING, parserContext);
+                uploadFile(privilegedConfigClient, cd + "sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, parserContext);
+                uploadFile(privilegedConfigClient, cd + "sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, parserContext);
+                uploadFile(privilegedConfigClient, cd + "sg_tenants.yml", searchguardIndex, CType.TENANTS, parserContext);
+                uploadFile(privilegedConfigClient, cd + "sg_blocks.yml", searchguardIndex, CType.BLOCKS, parserContext);
+                uploadFile(privilegedConfigClient, cd + "sg_frontend_authc.yml", searchguardIndex, CType.FRONTEND_AUTHC, parserContext);
+
+                if (new File(cd + "sg_authc_transport.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd + "sg_authc_transport.yml", searchguardIndex, CType.AUTHC_TRANSPORT, parserContext);
+                }
+
+                if (new File(cd + "sg_authz.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd + "sg_authz.yml", searchguardIndex, CType.AUTHZ, parserContext);
+                }
+
+                if (new File(cd + "sg_license_key.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd + "sg_license_key.yml", searchguardIndex, CType.LICENSE_KEY, parserContext);
+                }
+
+                LOGGER.info("Default config applied");
+            }
+        } catch (ConfigUpdateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ConfigUpdateException("Error while installing default configuration: " + e.getMessage(), e);
+        }
+    }
+
+    private void createConfigIndex(String searchguardIndex) throws ConfigUpdateException {
+
+        ImmutableMap<String, Object> indexSettings = SG_INDEX_SETTINGS;
+
+        if (searchguardIndex.startsWith(".")) {
+            indexSettings = indexSettings.with("index.hidden", true);
+        }
+
+        boolean ok = client.admin().indices()
+                .create(new CreateIndexRequest(searchguardIndex).settings(indexSettings).mapping("_doc", SG_INDEX_MAPPING)).actionGet()
+                .isAcknowledged();
+
+        if (!ok) {
+            LOGGER.error("Can not create {} index", searchguardIndex);
+            componentState.setFailed("Index creation was not acknowledged");
+            throw new ConfigUpdateException("Creation of " + searchguardIndex + " was not acknowledged");
+        }
+    }
+
+    public String getEffectiveSearchGuardIndex() {
+        if (clusterService.state().getMetadata().hasIndex(configuredSearchguardIndexNew)) {
+            return configuredSearchguardIndexNew;
+        } else if (clusterService.state().getMetadata().hasIndex(configuredSearchguardIndexOld)) {
+            return configuredSearchguardIndexOld;
+        } else {
+            return null;
+        }
+    }
+
+    public String getEffectiveSearchGuardIndexAndCreateIfNecessary() throws ConfigUpdateException {
+        String searchGuardIndex = getEffectiveSearchGuardIndex();
+
+        if (searchGuardIndex != null) {
+            return searchGuardIndex;
+        } else {
+            createConfigIndex(configuredSearchguardIndexNew);
+            return configuredSearchguardIndexNew;
         }
     }
 
@@ -597,7 +654,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public <T> void update(CType<T> ctype, SgDynamicConfiguration<T> configInstance, String matchETag)
             throws ConfigUpdateException, ConcurrentConfigUpdateException {
 
-        IndexRequest indexRequest = new IndexRequest(this.searchguardIndex);
+        IndexRequest indexRequest = new IndexRequest(getEffectiveSearchGuardIndexAndCreateIfNecessary());
 
         try {
             configInstance.removeStatic();
@@ -626,16 +683,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
         } else if (configInstance.getPrimaryTerm() != -1 && configInstance.getSeqNo() != -1) {
             indexRequest.setIfPrimaryTerm(configInstance.getPrimaryTerm());
             indexRequest.setIfSeqNo(configInstance.getSeqNo());
-        }
-
-        if (!clusterService.state().getMetadata().hasIndex(searchguardIndex)) {
-            boolean ok = privilegedConfigClient.admin().indices()
-                    .create(new CreateIndexRequest(searchguardIndex).settings(SG_INDEX_SETTINGS).mapping("_doc", SG_INDEX_MAPPING)).actionGet()
-                    .isAcknowledged();
-
-            if (!ok) {
-                throw new ConfigUpdateException("The creation of the Search Guard index was not acknowledged");
-            }
         }
 
         try {
@@ -672,6 +719,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
 
         List<String> configTypesWithConcurrentModifications = new ArrayList<>();
+        String searchGuardIndex = getEffectiveSearchGuardIndexAndCreateIfNecessary();
 
         for (Map.Entry<CType<?>, ConfigWithMetadata> entry : configTypeToConfigMap.entrySet()) {
             CType<?> ctype = entry.getKey();
@@ -708,7 +756,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
                 String id = ctype.toLCString();
 
-                IndexRequest indexRequest = new IndexRequest(this.searchguardIndex).id(id).source(id,
+                IndexRequest indexRequest = new IndexRequest(searchGuardIndex).id(id).source(id,
                         XContentHelper.toXContent(configInstance, XContentType.JSON, false));
 
                 if (matchETag != null) {
@@ -760,16 +808,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
         validationErrors.throwExceptionForPresentErrors();
 
-        if (!clusterService.state().getMetadata().hasIndex(searchguardIndex)) {
-            boolean ok = client.admin().indices()
-                    .create(new CreateIndexRequest(searchguardIndex).settings(SG_INDEX_SETTINGS).mapping("_doc", SG_INDEX_MAPPING)).actionGet()
-                    .isAcknowledged();
-
-            if (!ok) {
-                throw new ConfigUpdateException("The creation of the Search Guard index was not acknowledged");
-            }
-        }
-
         try {
             BulkResponse bulkResponse = privilegedConfigClient.bulk(bulkRequest).actionGet();
             Map<CType<?>, ConfigUpdateResult> result = new LinkedHashMap<>(configTypeToConfigMap.size());
@@ -798,7 +836,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 if (!documentIdsWithVersionConflictEngineException.isEmpty()) {
                     if (documentIdsWithVersionConflictEngineException.size() == 1) {
                         throw new ConcurrentConfigUpdateException(
-                                "The configuration " + documentIdsWithVersionConflictEngineException.get(0) + " has been concurrently modified.").updateResult(result);
+                                "The configuration " + documentIdsWithVersionConflictEngineException.get(0) + " has been concurrently modified.")
+                                        .updateResult(result);
                     } else {
                         throw new ConcurrentConfigUpdateException(
                                 "The configurations " + (documentIdsWithVersionConflictEngineException.stream().collect(Collectors.joining(", ")))
@@ -809,11 +848,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 }
             } else {
                 LOGGER.info("Index update done:\n" + Strings.toString(bulkResponse));
-                
+
                 try {
                     ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]));
 
-                    ConfigUpdateResponse configUpdateResponse = privilegedConfigClient.execute(ConfigUpdateAction.INSTANCE, configUpdateRequest).actionGet();
+                    ConfigUpdateResponse configUpdateResponse = privilegedConfigClient.execute(ConfigUpdateAction.INSTANCE, configUpdateRequest)
+                            .actionGet();
 
                     if (configUpdateResponse.hasFailures()) {
                         throw new ConfigUpdateException("Configuration index was updated; however, some nodes reported failures while refreshing.",
@@ -822,24 +862,20 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 } catch (Exception e) {
                     throw new ConfigUpdateException("Configuration index was updated; however, the refresh failed", e).updateResult(result);
                 }
-                
+
                 return result;
             }
         } catch (ConfigUpdateException | ConcurrentConfigUpdateException e) {
             throw e;
         } catch (Exception e) {
             throw new ConfigUpdateException("Updating the configuration failed", e);
-        }        
+        }
     }
 
     @Override
     public ComponentState getComponentState() {
         componentState.updateStateFromParts();
         return componentState;
-    }
-
-    public String getSearchguardIndex() {
-        return searchguardIndex;
     }
 
     public Context getParserContext() {
@@ -892,7 +928,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     private static <T> void uploadFile(Client tc, String filepath, String index, CType<T> cType, ConfigurationRepository.Context parserContext)
-            throws Exception {
+            throws ConfigUpdateException {
         LOGGER.info("Will update '" + cType + "' with " + filepath);
 
         try (Reader reader = new FileReader(filepath)) {
@@ -911,11 +947,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
                     new BytesArray(docNode.toJsonString()))).actionGet().getId();
 
             if (!cType.toLCString().equals(res)) {
-                throw new Exception(
+                throw new ConfigUpdateException(
                         "   FAIL: Configuration for '" + cType.toLCString() + "' failed for unknown reasons. Pls. consult logfile of elasticsearch");
             }
         } catch (Exception e) {
-            throw e;
+            throw new ConfigUpdateException(
+                    "Error while initializing configuration " + cType + " with defaults from " + filepath + ": " + e.getMessage(), e);
         }
     }
 
@@ -958,5 +995,15 @@ public class ConfigurationRepository implements ComponentStateProvider {
         public Object toBasicObject() {
             return OrderedImmutableMap.ofNonNull("message", message, "etag", etag, "error", error);
         }
+    }
+
+    public Pattern getConfiguredSearchguardIndices() {
+        return configuredSearchguardIndices;
+    }
+    
+    public static ImmutableSet<String> getConfiguredSearchguardIndices(Settings settings) {
+        String configuredSearchguardIndexOld = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, OLD_INDEX_NAME_DEFAULT);
+        String configuredSearchguardIndexNew = settings.get(ConfigConstants.SEARCHGUARD_INTERNAL_INDICIES_MAIN_CONFIG_NAME, NEW_INDEX_NAME_DEFAULT);
+        return ImmutableSet.of(configuredSearchguardIndexOld, configuredSearchguardIndexNew);
     }
 }
