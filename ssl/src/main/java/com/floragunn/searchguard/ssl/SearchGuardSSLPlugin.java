@@ -79,6 +79,7 @@ import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLTransportInterceptor;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchsupport.StaticSettings;
 
 import io.netty.util.internal.PlatformDependent;
 
@@ -91,6 +92,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     protected final boolean httpSSLEnabled;
     protected final boolean transportSSLEnabled;
     protected final Settings settings;
+    protected final StaticSettings staticSettings;
     protected final SearchGuardKeyStore sgks;
     protected PrincipalExtractor principalExtractor;
     protected final Path configPath;
@@ -105,6 +107,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         if (disabled) {
             this.settings = null;
+            this.staticSettings = null;
             this.client = false;
             this.httpSSLEnabled = false;
             this.transportSSLEnabled = false;
@@ -194,6 +197,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         });
 
         this.settings = settings;
+        this.staticSettings = new StaticSettings(settings, configPath);
         client = !"node".equals(this.settings.get(SearchGuardSSLPlugin.CLIENT_TYPE));
 
         httpSSLEnabled = settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED,

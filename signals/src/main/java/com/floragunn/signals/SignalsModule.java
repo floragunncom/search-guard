@@ -12,7 +12,6 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
-import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
@@ -29,6 +28,7 @@ import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
@@ -194,8 +194,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     }
 
     @Override
-    public List<Setting<?>> getSettings() {
-        return SignalsSettings.StaticSettings.getAvailableSettings();
+    public StaticSettings.AttributeSet getSettings() {
+        return SignalsSettings.SignalsStaticSettings.getAvailableSettings();
     }
 
     @Override

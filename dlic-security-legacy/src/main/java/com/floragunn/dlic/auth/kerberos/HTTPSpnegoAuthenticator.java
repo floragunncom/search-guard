@@ -478,11 +478,11 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
             return (config, context) -> {
                 Settings.Builder settings = Settings.builder().loadFromMap(config.toMap());
 
-                if (context.getEsSettings() != null) {
-                    settings.put(context.getEsSettings());
+                if (context.getStaticSettings() != null) {
+                    settings.put(context.getStaticSettings().getPlatformSettings());
                 }
                 
-                return new HTTPSpnegoAuthenticator(settings.build(), context.getConfigPath());
+                return new HTTPSpnegoAuthenticator(settings.build(), context.getStaticSettings() != null ? context.getStaticSettings().getConfigPath() : null);
             };
         }
     };

@@ -28,7 +28,6 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
-import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
@@ -40,6 +39,7 @@ import org.elasticsearch.script.ScriptService;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
+import com.floragunn.searchsupport.StaticSettings;
 
 public interface SearchGuardModule {
     default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
@@ -60,8 +60,8 @@ public interface SearchGuardModule {
         return Collections.emptyList();
     }
 
-    default List<Setting<?>> getSettings() {
-        return Collections.emptyList();
+    default StaticSettings.AttributeSet getSettings() {
+        return StaticSettings.AttributeSet.empty();
     }
 
     default List<AuthenticationDomain<HttpAuthenticationFrontend>> getImplicitHttpAuthenticationDomains() {

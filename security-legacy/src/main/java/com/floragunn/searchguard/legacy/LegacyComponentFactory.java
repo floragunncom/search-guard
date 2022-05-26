@@ -29,11 +29,11 @@ public class LegacyComponentFactory {
         return (config, context) -> {
             Settings.Builder settings = Settings.builder().loadFromMap(config);
 
-            if (context.getEsSettings() != null) {
-                settings.put(context.getEsSettings());
+            if (context.getStaticSettings() != null) {
+                settings.put(context.getStaticSettings().getPlatformSettings());
             }
 
-            return function.apply(settings.build(), context.getConfigPath());
+            return function.apply(settings.build(), context.getStaticSettings() != null ? context.getStaticSettings().getConfigPath() : null);
         };
     }
 }

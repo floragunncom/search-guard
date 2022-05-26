@@ -42,6 +42,7 @@ import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.StaticSettings;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
@@ -88,8 +89,8 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, Settings.EMPTY,
+                protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
                 threadPool, clusterService, protectedConfigIndexService, actions, config);
         try {
             authTokenService.setSendTokenUpdates(false);
@@ -132,8 +133,8 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, Settings.EMPTY,
+                protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
                 threadPool, clusterService, protectedConfigIndexService, actions, config);
 
         try {
@@ -177,8 +178,8 @@ public class AuthTokenServiceTest {
         config.setMaxTokensPerUser(100);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, Settings.EMPTY,
+                protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
                 threadPool, clusterService, protectedConfigIndexService, actions, config);
 
         try {
@@ -206,10 +207,10 @@ public class AuthTokenServiceTest {
             authTokenService.shutdown();
 
             ConfigHistoryService configHistoryService2 = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                    protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
+                    protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
 
             AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService2,
-                    Settings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
+                    StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
             authTokenService2.setSendTokenUpdates(false);
             authTokenService2.waitForInitComplete(20000);
 
@@ -235,12 +236,12 @@ public class AuthTokenServiceTest {
         config.setJwtAud("_test_aud");
         config.setMaxTokensPerUser(100);
 
-        Settings authTokenServiceSettings = Settings.builder().put(AuthTokenService.CLEANUP_INTERVAL.getKey(), TimeValue.timeValueSeconds(1)).build();
+        Settings authTokenServiceSettings = Settings.builder().put(AuthTokenService.CLEANUP_INTERVAL.name(), TimeValue.timeValueSeconds(1)).build();
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
+                protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
         AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService,
-                authTokenServiceSettings, threadPool, clusterService, protectedConfigIndexService, actions, config);
+               new StaticSettings(authTokenServiceSettings, null), threadPool, clusterService, protectedConfigIndexService, actions, config);
         try {
             authTokenService.setSendTokenUpdates(false);
             authTokenService.waitForInitComplete(10000);
@@ -300,9 +301,9 @@ public class AuthTokenServiceTest {
             config.setExcludeClusterPermissions(Collections.emptyList());
 
             ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
-                    protectedConfigIndexService, actions, Settings.EMPTY, privilegesEvaluator);
+                    protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
             AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService,
-                    Settings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
+                    StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
             try {
                 authTokenService.setSendTokenUpdates(false);
                 authTokenService.waitForInitComplete(10000);

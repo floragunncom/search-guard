@@ -19,7 +19,6 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
@@ -36,6 +35,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.signals.SignalsInitializationException;
 import com.floragunn.signals.actions.settings.update.SettingsUpdateAction;
 import com.floragunn.signals.support.LuckySisyphos;
@@ -45,10 +45,10 @@ public class SignalsSettings {
     private static final Logger log = LogManager.getLogger(SignalsSettings.class);
 
     private final DynamicSettings dynamicSettings;
-    private final StaticSettings staticSettings;
+    private final SignalsStaticSettings staticSettings;
 
     public SignalsSettings(Settings staticSettings) {
-        this.staticSettings = new StaticSettings(staticSettings);
+        this.staticSettings = new SignalsStaticSettings(staticSettings);
         this.dynamicSettings = new DynamicSettings(this.staticSettings.getIndexNames().getSettings(), this.staticSettings);
     }
 
@@ -84,7 +84,7 @@ public class SignalsSettings {
         return dynamicSettings;
     }
 
-    public StaticSettings getStaticSettings() {
+    public SignalsStaticSettings getStaticSettings() {
         return staticSettings;
     }
 
@@ -106,14 +106,14 @@ public class SignalsSettings {
         public static final Setting<String> NODE_FILTER = Setting.simpleString("node_filter");
         
         private final String indexName;
-        private final StaticSettings staticSettings;
+        private final SignalsStaticSettings staticSettings;
 
         private volatile Settings settings = Settings.builder().build();
         private volatile DurationExpression defaultThrottlePeriod;
 
         private Collection<ChangeListener> changeListeners = Collections.newSetFromMap(new ConcurrentHashMap<ChangeListener, Boolean>());
 
-        DynamicSettings(String indexName, StaticSettings staticSettings) {
+        DynamicSettings(String indexName, SignalsStaticSettings staticSettings) {
             this.indexName = indexName;
             this.staticSettings = staticSettings;
         }
@@ -492,92 +492,93 @@ public class SignalsSettings {
         }
     }
 
-    public static class StaticSettings {
-        public static Setting<Boolean> ENABLED = Setting.boolSetting("signals.enabled", true, Property.NodeScope);
-        public static Setting<Boolean> ENTERPRISE_ENABLED = Setting.boolSetting("signals.enterprise.enabled", true, Property.NodeScope);
-        public static Setting<Integer> MAX_THREADS = Setting.intSetting("signals.worker_threads.pool.max_size", 3, Property.NodeScope);
-        public static Setting<TimeValue> THREAD_KEEP_ALIVE = Setting.timeSetting("signals.worker_threads.pool.keep_alive",
-                TimeValue.timeValueMinutes(100), Property.NodeScope);
-        public static Setting<Integer> THREAD_PRIO = Setting.intSetting("signals.worker_threads.prio", Thread.NORM_PRIORITY, Property.NodeScope);
+    public static class SignalsStaticSettings {
+        public static StaticSettings.Attribute<Boolean> ENABLED = StaticSettings.Attribute.define("signals.enabled").withDefault(true).asBoolean();
+        public static StaticSettings.Attribute<Boolean> ENTERPRISE_ENABLED = StaticSettings.Attribute.define("signals.enterprise.enabled")
+                .withDefault(true).asBoolean();
+        public static StaticSettings.Attribute<Integer> MAX_THREADS = StaticSettings.Attribute.define("signals.worker_threads.pool.max_size")
+                .withDefault(3).asInteger();
+        public static StaticSettings.Attribute<TimeValue> THREAD_KEEP_ALIVE = StaticSettings.Attribute
+                .define("signals.worker_threads.pool.keep_alive").withDefault(TimeValue.timeValueMinutes(100)).asTimeValue();
+        public static StaticSettings.Attribute<Integer> THREAD_PRIO =  StaticSettings.Attribute.define("signals.worker_threads.prio").withDefault(Thread.NORM_PRIORITY).asInteger();
 
-        public static Setting<Boolean> ACTIVE_BY_DEFAULT = Setting.boolSetting("signals.all_tenants_active_by_default", true, Property.NodeScope);
-        public static Setting<String> WATCH_LOG_REFRESH_POLICY = Setting.simpleString("signals.watch_log.refresh_policy", Property.NodeScope);
-        public static Setting<Boolean> WATCH_LOG_SYNC_INDEXING = Setting.boolSetting("signals.watch_log.sync_indexing", false, Property.NodeScope);
+        public static StaticSettings.Attribute<Boolean> ACTIVE_BY_DEFAULT =  StaticSettings.Attribute.define("signals.all_tenants_active_by_default").withDefault(true).asBoolean();
+        public static StaticSettings.Attribute<String> WATCH_LOG_REFRESH_POLICY =  StaticSettings.Attribute.define("signals.watch_log.refresh_policy").withDefault((String) null).asString();
+        public static StaticSettings.Attribute<Boolean> WATCH_LOG_SYNC_INDEXING =  StaticSettings.Attribute.define("signals.watch_log.sync_indexing").withDefault(false).asBoolean();
 
         public static class IndexNames {
-            public static Setting<String> WATCHES = Setting.simpleString("signals.index_names.watches", ".signals_watches", Property.NodeScope);
-            public static Setting<String> WATCHES_STATE = Setting.simpleString("signals.index_names.watches_state", ".signals_watches_state",
-                    Property.NodeScope);
-            public static Setting<String> WATCHES_TRIGGER_STATE = Setting.simpleString("signals.index_names.watches_trigger_state",
-                    ".signals_watches_trigger_state", Property.NodeScope);
-            public static Setting<String> ACCOUNTS = Setting.simpleString("signals.index_names.accounts", ".signals_accounts", Property.NodeScope);
-            public static Setting<String> SETTINGS = Setting.simpleString("signals.index_names.settings", ".signals_settings", Property.NodeScope);
-            public static Setting<String> LOG = Setting.simpleString("signals.index_names.log", "<.signals_log_{now/d}>", Property.NodeScope);
+            public static StaticSettings.Attribute<String> WATCHES =  StaticSettings.Attribute.define("signals.index_names.watches").withDefault(".signals_watches").asString();
+            public static StaticSettings.Attribute<String> WATCHES_STATE =  StaticSettings.Attribute.define("signals.index_names.watches_state").withDefault(".signals_watches_state").asString();
+            public static StaticSettings.Attribute<String> WATCHES_TRIGGER_STATE =  StaticSettings.Attribute.define("signals.index_names.watches_trigger_state").withDefault(
+                    ".signals_watches_trigger_state").asString();
+            public static StaticSettings.Attribute<String> ACCOUNTS =  StaticSettings.Attribute.define("signals.index_names.accounts").withDefault(".signals_accounts").asString();
+            public static StaticSettings.Attribute<String> SETTINGS =  StaticSettings.Attribute.define("signals.index_names.settings").withDefault(".signals_settings").asString();
+            public static StaticSettings.Attribute<String> LOG = StaticSettings.Attribute.define("signals.index_names.log").withDefault("<.signals_log_{now/d}>").asString();
 
-            private final Settings settings;
+            private final StaticSettings settings;
 
             public IndexNames(Settings settings) {
-                this.settings = settings;
+                this.settings = new StaticSettings(settings, null);
             }
 
             public String getWatches() {
-                return WATCHES.get(settings);
+                return settings.get(WATCHES);
             }
 
             public String getWatchesState() {
-                return WATCHES_STATE.get(settings);
+                return settings.get(WATCHES_STATE);
             }
 
             public String getWatchesTriggerState() {
-                return WATCHES_TRIGGER_STATE.get(settings);
+                return settings.get(WATCHES_TRIGGER_STATE);
             }
 
             public String getLog() {
-                return LOG.get(settings);
+                return settings.get(LOG);
             }
 
             public String getAccounts() {
-                return ACCOUNTS.get(settings);
+                return settings.get(ACCOUNTS);
             }
 
             public String getSettings() {
-                return SETTINGS.get(settings);
+                return settings.get(SETTINGS);
             }
 
         }
 
-        public static List<Setting<?>> getAvailableSettings() {
-            return Arrays.asList(ENABLED, ENTERPRISE_ENABLED, MAX_THREADS, THREAD_KEEP_ALIVE, THREAD_PRIO, ACTIVE_BY_DEFAULT,
+        public static StaticSettings.AttributeSet  getAvailableSettings() {
+            return StaticSettings.AttributeSet.of(ENABLED, ENTERPRISE_ENABLED, MAX_THREADS, THREAD_KEEP_ALIVE, THREAD_PRIO, ACTIVE_BY_DEFAULT,
                     WATCH_LOG_REFRESH_POLICY, WATCH_LOG_SYNC_INDEXING, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE,
                     IndexNames.ACCOUNTS, IndexNames.LOG);
         }
 
-        private final Settings settings;
+        private final StaticSettings settings;
         private final IndexNames indexNames;
 
-        public StaticSettings(Settings settings) {
-            this.settings = settings;
+        public SignalsStaticSettings(Settings settings) {
+            this.settings = new StaticSettings(settings, null);
             this.indexNames = new IndexNames(settings);
         }
 
         public boolean isEnabled() {
-            return ENABLED.get(settings);
+            return settings.get(ENABLED);
         }
 
         public int getMaxThreads() {
-            return MAX_THREADS.get(settings);
+            return settings.get(MAX_THREADS);
         }
 
         public Duration getThreadKeepAlive() {
-            return Duration.ofMillis(THREAD_KEEP_ALIVE.get(settings).millis());
+            return Duration.ofMillis(settings.get(THREAD_KEEP_ALIVE).millis());
         }
 
         public int getThreadPrio() {
-            return THREAD_PRIO.get(settings);
+            return settings.get(THREAD_PRIO);
         }
 
         public boolean isEnterpriseEnabled() {
-            return ENTERPRISE_ENABLED.get(settings);
+            return settings.get(ENTERPRISE_ENABLED);
         }
 
         public IndexNames getIndexNames() {
@@ -585,15 +586,15 @@ public class SignalsSettings {
         }
 
         public Settings getSettings() {
-            return settings;
+            return settings.getPlatformSettings();
         }
 
         public boolean isActiveByDefault() {
-            return ACTIVE_BY_DEFAULT.get(settings);
+            return settings.get(ACTIVE_BY_DEFAULT);
         }
 
         public RefreshPolicy getWatchLogRefreshPolicy() {
-            String value = WATCH_LOG_REFRESH_POLICY.get(settings);
+            String value = settings.get(WATCH_LOG_REFRESH_POLICY);
 
             if (value == null) {
                 return RefreshPolicy.NONE;
@@ -605,7 +606,7 @@ public class SignalsSettings {
         }
 
         public boolean isWatchLogSyncIndexingEnabled() {
-            return WATCH_LOG_SYNC_INDEXING.get(settings);
+            return settings.get(WATCH_LOG_SYNC_INDEXING);
         }
     }
 

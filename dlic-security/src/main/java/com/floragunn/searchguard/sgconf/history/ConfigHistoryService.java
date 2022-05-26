@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
+ * Copyright 2020-2022 by floragunn GmbH - All rights reserved
  * 
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -37,9 +37,6 @@ import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Setting.Property;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 
 import com.fasterxml.jackson.core.Base64Variants;
@@ -54,28 +51,30 @@ import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
-import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.ExceptionRecord;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
 public class ConfigHistoryService implements ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(ConfigHistoryService.class);
 
-    public static final Setting<String> INDEX_NAME = Setting.simpleString("searchguard.config_history.index.name", ".searchguard_config_history",
-            Property.NodeScope);
-    public static final Setting<Integer> CACHE_TTL = Setting.intSetting("searchguard.config_history.cache.ttl", 60 * 24 * 2, Property.NodeScope);
-    public static final Setting<Integer> CACHE_MAX_SIZE = Setting.intSetting("searchguard.config_history.cache.max_size", 100, Property.NodeScope);
-
-    public static final Setting<Integer> MODEL_CACHE_TTL = Setting.intSetting("searchguard.config_history.model.cache.ttl", 60 * 24 * 2,
-            Property.NodeScope);
-    public static final Setting<Integer> MODEL_CACHE_MAX_SIZE = Setting.intSetting("searchguard.config_history.model.cache.max_size", 100,
-            Property.NodeScope);
+    public static final StaticSettings.Attribute<String> INDEX_NAME = StaticSettings.Attribute.define("searchguard.config_history.index.name")
+            .withDefault(".searchguard_config_history").asString();
+    public static final StaticSettings.Attribute<Integer> CACHE_TTL = StaticSettings.Attribute.define("searchguard.config_history.cache.ttl")
+            .withDefault(60 * 24 * 2).asInteger();
+    public static final StaticSettings.Attribute<Integer> CACHE_MAX_SIZE = StaticSettings.Attribute
+            .define("searchguard.config_history.cache.max_size").withDefault(100).asInteger();
+    public static final StaticSettings.Attribute<Integer> MODEL_CACHE_TTL = StaticSettings.Attribute
+            .define("searchguard.config_history.model.cache.ttl").withDefault(60 * 24 * 2).asInteger();
+    public static final StaticSettings.Attribute<Integer> MODEL_CACHE_MAX_SIZE = StaticSettings.Attribute
+            .define("searchguard.config_history.model.cache.max_size").withDefault(100).asInteger();
 
     private final String indexName;
     private final ConfigurationRepository configurationRepository;
@@ -87,21 +86,19 @@ public class ConfigHistoryService implements ComponentStateProvider {
 
     private final ComponentState componentState = new ComponentState(1000, null, "config_history_service", ConfigHistoryService.class);
 
-    private final Settings settings;
     private final PrivilegesEvaluator privilegesEvaluator;
 
     public ConfigHistoryService(ConfigurationRepository configurationRepository, StaticSgConfig staticSgConfig,
             PrivilegedConfigClient privilegedConfigClient, ProtectedConfigIndexService protectedConfigIndexService, Actions actions,
-            Settings settings, PrivilegesEvaluator privilegesEvaluator) {
-        this.indexName = INDEX_NAME.get(settings);
+            StaticSettings settings, PrivilegesEvaluator privilegesEvaluator) {
+        this.indexName = settings.get(INDEX_NAME);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configurationRepository = configurationRepository;
         this.staticSgConfig = staticSgConfig;
         this.actions = actions;
         this.configCache = CacheBuilder.newBuilder().weakValues().build();
-        this.configModelCache = CacheBuilder.newBuilder().maximumSize(MODEL_CACHE_MAX_SIZE.get(settings))
-                .expireAfterAccess(MODEL_CACHE_TTL.get(settings), TimeUnit.MINUTES).build();
-        this.settings = settings;
+        this.configModelCache = CacheBuilder.newBuilder().maximumSize(settings.get(MODEL_CACHE_MAX_SIZE))
+                .expireAfterAccess(settings.get(MODEL_CACHE_TTL), TimeUnit.MINUTES).build();
         this.privilegesEvaluator = privilegesEvaluator;
 
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexName).onIndexReady((f) -> {
@@ -282,8 +279,8 @@ public class ConfigHistoryService implements ComponentStateProvider {
         staticSgConfig.addTo(actionGroups);
         staticSgConfig.addTo(tenants);
 
-        ConfigModel configModel = new ConfigModel(roles, roleMappings, actionGroups, tenants, blocks, actions, settings,
-                privilegesEvaluator.getResolver(), privilegesEvaluator.getClusterService());
+        ConfigModel configModel = new ConfigModel(roles, roleMappings, actionGroups, tenants, blocks, actions, privilegesEvaluator.getResolver(),
+                privilegesEvaluator.getClusterService());
 
         configModelCache.put(configSnapshot.getConfigVersions(), configModel);
 
@@ -401,7 +398,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
 
         try {
             return SgDynamicConfiguration.fromJson(jsonString, configurationVersion.getConfigurationType(), configurationVersion.getVersion(), 0, 0,
-                    settings, null);
+                    null);
         } catch (Exception e) {
             componentState.addLastException("parseConfig", new ExceptionRecord(e, "Error while parsing config history record"));
             throw new RuntimeException("Error while parsing config history record: " + jsonString + "\n" + singleGetResponse);

@@ -180,6 +180,7 @@ import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.SearchGuardInterceptor;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
@@ -816,7 +817,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
             IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
-
+        
         if (sslOnly) {
             return super.createComponents(localClient, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry,
                     environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier);
@@ -856,7 +857,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         configVarService = new ConfigVarService(localClient, clusterService, threadPool, protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(configVarService);
         
-        cr = new ConfigurationRepository(settings, this.configPath, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig);
+        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig);
         moduleRegistry.addComponentStateProvider(cr);
         
         licenseRepository = new LicenseRepository(settings, localClient, clusterService, cr);
@@ -912,7 +913,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         AuthenticatingTransportRequestHandler authTransportRequestHandler = new AuthenticatingTransportRequestHandler(cr, settings, auditLog,
                 adminDns, blockedIpRegistry, blockedUserRegistry, threadPool.getThreadContext());
 
-        BaseDependencies baseDependencies = new BaseDependencies(settings, localClient, clusterService, threadPool, resourceWatcherService,
+        BaseDependencies baseDependencies = new BaseDependencies(settings, staticSettings, localClient, clusterService, threadPool, resourceWatcherService,
                 scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, staticSgConfig, cr,
                 protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
                 configVariableProviders, diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
@@ -983,7 +984,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_AUTHCZ_ADMIN_DN, Collections.emptyList(), Function.identity(),
                     Property.NodeScope)); //not filtered here
 
-            settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, Property.NodeScope, Property.Filtered));
             settings.add(Setting.groupSetting(ConfigConstants.SEARCHGUARD_AUTHCZ_IMPERSONATION_DN + ".", Property.NodeScope)); //not filtered here
 
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_CERT_OID, Property.NodeScope, Property.Filtered));
@@ -1009,10 +1009,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true, Property.NodeScope, Property.Filtered));
             settings.add(
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false, Property.NodeScope, Property.Filtered));
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_ALLOW_DEFAULT_INIT_SGINDEX, false, Property.NodeScope, Property.Filtered));
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, true, Property.NodeScope,
-                    Property.Filtered));
-
+          
             settings.add(Setting.groupSetting(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS + ".", Property.NodeScope)); //not filtered here
 
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, Property.NodeScope, Property.Filtered));
@@ -1192,8 +1189,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             settings.add(SearchGuardModulesRegistry.DISABLED_MODULES);
             settings.add(EncryptionKeys.ENCRYPTION_KEYS_SETTING);
+            settings.addAll(ConfigurationRepository.OPTIONS.toPlatform());
             settings.addAll(moduleRegistry.getSettings());
             settings.addAll(DiagnosticContext.SETTINGS);
+            
         }
 
         return settings;

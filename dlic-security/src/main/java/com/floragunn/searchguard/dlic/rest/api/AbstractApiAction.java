@@ -103,7 +103,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
                 specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
 		this.auditLog = auditLog;
 		this.staticSgConfig = staticSgConfig;
-		this.configLoader = new ConfigurationLoader(client, settings, cl);
+		this.configLoader = new ConfigurationLoader(client, cl);
 	}
 
 	protected abstract AbstractConfigurationValidator getValidator(RestRequest request, BytesReference ref, Object... params);
