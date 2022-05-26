@@ -28,10 +28,9 @@ import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestStatusToXContentListener;
 
-import com.floragunn.searchsupport.client.rest.Responses;
+import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableList;
 
 public class ComponentStateRestAction extends BaseRestHandler {
@@ -52,7 +51,7 @@ public class ComponentStateRestAction extends BaseRestHandler {
         if (request.method() == GET) {
             return handleGet(request.param("id"), request.paramAsBoolean("verbose", false), client);
         } else {
-            return (RestChannel channel) -> Responses.sendError(channel, RestStatus.METHOD_NOT_ALLOWED, "Method not allowed: " + request.method());
+            return (RestChannel channel) -> new StandardResponse(405, "Method not allowed: " + request.method());
         }
     }
 
@@ -64,7 +63,7 @@ public class ComponentStateRestAction extends BaseRestHandler {
                         new RestStatusToXContentListener<GetComponentStateAction.Response>(channel));
             } catch (Exception e) {
                 log.error(e);
-                Responses.sendError(channel, e);
+                channel.sendResponse(new StandardResponse(e).toRestResponse());
             }
         };
     }

@@ -1,4 +1,4 @@
-package com.floragunn.searchsupport.config.elements;
+package com.floragunn.signals.support;
 
 import java.util.function.Function;
 

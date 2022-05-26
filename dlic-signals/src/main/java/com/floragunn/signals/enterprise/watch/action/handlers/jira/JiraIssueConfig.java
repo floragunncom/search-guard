@@ -11,9 +11,9 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
+import com.floragunn.signals.support.InlineMustacheTemplate;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class JiraIssueConfig implements ToXContentObject {

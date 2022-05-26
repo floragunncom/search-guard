@@ -1,4 +1,4 @@
-package com.floragunn.searchsupport.config.elements;
+package com.floragunn.signals.support;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -8,6 +8,7 @@ import java.util.function.Function;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.ToXContent.Params;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptException;
@@ -20,8 +21,6 @@ import com.floragunn.codova.validation.ValidatingFunction;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ScriptExecutionError;
-import com.floragunn.searchsupport.config.validation.ScriptValidationError;
 import com.google.common.base.Functions;
 
 public class InlineMustacheTemplate<ResultType> implements ToXContent {

@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchsupport.client.rest;
+package com.floragunn.searchsupport.action;
 
 import java.io.ByteArrayInputStream;
 
@@ -29,36 +29,15 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestStatus;
 
-import com.fasterxml.jackson.core.JsonParseException;
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.google.common.base.Charsets;
 
+/**
+ * @deprecated Use StandardResponse
+ */
 public class Responses {
     private static final Logger log = LogManager.getLogger(Responses.class);
-
-    public static void send(RestChannel channel, RestStatus status, ToXContent document) {
-
-        try {
-            final XContentBuilder builder = channel.newBuilder();
-            builder.prettyPrint();
-            builder.humanReadable(true);
-
-            if (document.isFragment()) {
-                builder.startObject();
-            }
-
-            document.toXContent(builder, ToXContent.EMPTY_PARAMS);
-            
-            if (document.isFragment()) {
-                builder.endObject();
-            }
-
-            channel.sendResponse(new BytesRestResponse(status, builder));
-        } catch (Exception e) {
-            log.error(e.toString(), e);
-            throw ExceptionsHelper.convertToElastic(e);
-        }
-    }
 
     public static void sendError(RestChannel channel, RestStatus status, String error) {
         sendError(channel, status, error, (String) null);
@@ -114,9 +93,8 @@ public class Responses {
 
     public static void sendError(RestChannel channel, Exception e) {
         if (e instanceof ConfigValidationException) {
-            sendError(channel, RestStatus.BAD_REQUEST, e.getMessage(), ((ConfigValidationException) e).getValidationErrors().toJsonString());
-        } else if (e instanceof JsonParseException) {
-            sendError(channel, RestStatus.BAD_REQUEST, e.getMessage());
+            channel.sendResponse(RestApi.toRestResponse(new StandardResponse(400,
+                    new StandardResponse.Error(e.getMessage()).details(((ConfigValidationException) e).getValidationErrors()))));
         } else {
             sendError(channel, ExceptionsHelper.status(e), e.getMessage());
         }
@@ -132,6 +110,31 @@ public class Responses {
 
             builder.endObject();
             channel.sendResponse(new BytesRestResponse(status, builder));
+        } catch (Exception e) {
+            log.error(e.toString(), e);
+            throw ExceptionsHelper.convertToElastic(e);
+        }
+    }
+
+    public static void send(RestChannel channel, RestStatus status, Object json) {
+        try {
+            if (json instanceof ToXContent) {
+                ToXContent toxContent = (ToXContent) json;
+
+                XContentBuilder builder = channel.newBuilder();
+
+                if (toxContent.isFragment()) {
+                    builder.startObject();
+                }
+                toxContent.toXContent(builder, ToXContent.EMPTY_PARAMS);
+
+                if (toxContent.isFragment()) {
+                    builder.endObject();
+                }
+                channel.sendResponse(new BytesRestResponse(status, builder));
+            } else {
+                channel.sendResponse(new BytesRestResponse(status, "application/json", DocWriter.json().writeAsString(json)));
+            }
         } catch (Exception e) {
             log.error(e.toString(), e);
             throw ExceptionsHelper.convertToElastic(e);

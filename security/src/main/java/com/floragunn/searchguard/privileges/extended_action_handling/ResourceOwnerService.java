@@ -49,7 +49,7 @@ import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResourc
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
+import com.floragunn.searchsupport.indices.IndexCleanupAgent;
 import com.google.common.base.Objects;
 
 public class ResourceOwnerService {

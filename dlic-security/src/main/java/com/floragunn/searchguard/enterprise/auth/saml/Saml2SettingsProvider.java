@@ -43,7 +43,7 @@ import org.opensaml.xmlsec.signature.X509Certificate;
 import org.opensaml.xmlsec.signature.X509Data;
 
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
+import com.floragunn.searchsupport.PrivilegedCode;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.onelogin.saml2.settings.Saml2Settings;

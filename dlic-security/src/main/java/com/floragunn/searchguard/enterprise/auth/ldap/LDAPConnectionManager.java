@@ -33,7 +33,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
+import com.floragunn.searchsupport.PrivilegedCode;
 import com.google.common.primitives.Ints;
 import com.unboundid.ldap.sdk.AggregateLDAPConnectionPoolHealthCheck;
 import com.unboundid.ldap.sdk.BindRequest;

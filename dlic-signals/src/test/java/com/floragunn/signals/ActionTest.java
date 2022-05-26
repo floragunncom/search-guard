@@ -19,7 +19,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.enterprise.watch.action.handlers.jira.JiraAccount;
 import com.floragunn.signals.enterprise.watch.action.handlers.jira.JiraAction;
@@ -30,6 +29,7 @@ import com.floragunn.signals.enterprise.watch.action.handlers.pagerduty.PagerDut
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;
+import com.floragunn.signals.support.InlineMustacheTemplate;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.init.WatchInitializationService;
