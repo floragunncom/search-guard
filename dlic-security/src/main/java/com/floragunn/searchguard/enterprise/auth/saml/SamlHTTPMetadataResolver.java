@@ -22,7 +22,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.opensaml.saml.metadata.resolver.impl.HTTPMetadataResolver;
 
 import com.floragunn.codova.config.net.TLSConfig;
-import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
+import com.floragunn.searchsupport.PrivilegedCode;
 
 import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
 import net.shibboleth.utilities.java.support.resolver.ResolverException;

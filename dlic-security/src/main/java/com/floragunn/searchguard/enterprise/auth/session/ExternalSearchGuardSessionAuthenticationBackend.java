@@ -56,10 +56,10 @@ import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.PrivilegedCode;
+import com.floragunn.searchsupport.PrivilegedCode.PrivilegedSupplierThrowing2;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
-import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
-import com.floragunn.searchsupport.privileged_code.PrivilegedCode.PrivilegedSupplierThrowing2;
 
 public class ExternalSearchGuardSessionAuthenticationBackend implements AuthenticationBackend, Destroyable {
     private final static Logger log = LogManager.getLogger(ExternalSearchGuardSessionAuthenticationBackend.class);

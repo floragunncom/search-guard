@@ -57,7 +57,6 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchsupport.client.rest.Responses;
 
 public class RestApi extends BaseRestHandler {
     private static final Logger log = LogManager.getLogger(RestApi.class);
@@ -125,6 +124,29 @@ public class RestApi extends BaseRestHandler {
         return this;
     }
 
+    public static RestResponse toRestResponse(Action.Response response) {
+        return toRestResponse(response, true, ImmutableMap.empty());
+    }
+
+    public static RestResponse toRestResponse(Action.Response response, boolean prettyPrintResponse, Map<String, String> responseHeaders) {
+        Format responseDocType = Format.JSON;
+
+        RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
+                DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
+
+        if (response.getConcurrencyControlEntityTag() != null) {
+            restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
+        }
+
+        if (!responseHeaders.isEmpty()) {
+            responseHeaders.forEach((k, v) -> {
+                restResponse.addHeader(k, v);
+            });
+        }
+
+        return restResponse;
+    }
+
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         Endpoint endpoint = chooseEndpoint(methodToEndpointMap.get(request.method()), request.path(), request.params());
@@ -132,7 +154,8 @@ public class RestApi extends BaseRestHandler {
         if (endpoint != null) {
             return endpoint.handler.apply(request, client);
         } else {
-            return (RestChannel channel) -> Responses.sendError(channel, RestStatus.METHOD_NOT_ALLOWED, "Method not allowed: " + request.method());
+            return (RestChannel channel) -> channel
+                    .sendResponse(new StandardResponse(405, "Method not allowed: " + request.method()).toRestResponse());
         }
     }
 
@@ -215,7 +238,7 @@ public class RestApi extends BaseRestHandler {
                         ContentType contentType = ContentType.parseHeader(restRequest.header("Content-Type"));
 
                         if (contentType == null) {
-                            return channel -> Responses.sendError(channel, RestStatus.BAD_REQUEST, "Content-Type header is missing");
+                            return channel -> channel.sendResponse(new StandardResponse(400, "Content-Type header is missing").toRestResponse());
                         }
 
                         unparsedDoc = UnparsedDocument.from(BytesReference.toBytes(restRequest.content()), contentType);
@@ -239,28 +262,13 @@ public class RestApi extends BaseRestHandler {
 
                         @Override
                         public RestResponse buildResponse(ResponseType response) throws Exception {
-                            Format responseDocType = Format.JSON;
-
-                            RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
-                                    DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
-
-                            if (response.getConcurrencyControlEntityTag() != null) {
-                                restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
-                            }
-
-                            if (!staticResponseHeaders.isEmpty()) {
-                                staticResponseHeaders.forEach((k, v) -> {
-                                    restResponse.addHeader(k, v);
-                                });
-                            }
-
-                            return restResponse;
+                            return toRestResponse(response, prettyPrintResponse, staticResponseHeaders);
                         }
 
                     });
                 } catch (Exception e) {
                     log.warn("Error while handling request", e);
-                    return channel -> Responses.sendError(channel, e);
+                    return channel -> channel.sendResponse(new StandardResponse(e).toRestResponse());
                 }
             });
 
@@ -291,7 +299,7 @@ public class RestApi extends BaseRestHandler {
                                         : restRequest.header("Content-Type"));
 
                         if (contentType == null) {
-                            return channel -> Responses.sendError(channel, RestStatus.BAD_REQUEST, "Content-Type header is missing");
+                            return channel -> channel.sendResponse(new StandardResponse(400, "Content-Type header is missing").toRestResponse());
                         }
 
                         unparsedDoc = UnparsedDocument.from(BytesReference.toBytes(restRequest.content()), contentType);
@@ -319,28 +327,13 @@ public class RestApi extends BaseRestHandler {
 
                         @Override
                         public RestResponse buildResponse(ResponseType response) throws Exception {
-                            Format responseDocType = Format.JSON;
-
-                            RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
-                                    DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
-
-                            if (response.getConcurrencyControlEntityTag() != null) {
-                                restResponse.addHeader("ETag", response.getConcurrencyControlEntityTag());
-                            }
-
-                            if (!staticResponseHeaders.isEmpty()) {
-                                staticResponseHeaders.forEach((k, v) -> {
-                                    restResponse.addHeader(k, v);
-                                });
-                            }
-
-                            return restResponse;
+                            return toRestResponse(response, prettyPrintResponse, staticResponseHeaders);
                         }
 
                     });
                 } catch (Exception e) {
                     log.warn("Error while handling request", e);
-                    return channel -> Responses.sendError(channel, e);
+                    return channel -> channel.sendResponse(new StandardResponse(e).toRestResponse());
                 }
             });
         }
@@ -366,7 +359,7 @@ public class RestApi extends BaseRestHandler {
                                         : restRequest.header("Content-Type"));
 
                         if (contentType == null) {
-                            return channel -> Responses.sendError(channel, RestStatus.BAD_REQUEST, "Content-Type header is missing");
+                            return channel -> channel.sendResponse(new StandardResponse(400, "Content-Type header is missing").toRestResponse());
                         }
 
                         unparsedDoc = UnparsedDocument.from(BytesReference.toBytes(restRequest.content()), contentType);
@@ -405,7 +398,7 @@ public class RestApi extends BaseRestHandler {
                     });
                 } catch (Exception e) {
                     log.warn("Error while handling request", e);
-                    return channel -> Responses.sendError(channel, e);
+                    return channel -> channel.sendResponse(new StandardResponse(e).toRestResponse());
                 }
             });
 
