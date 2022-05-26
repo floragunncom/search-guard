@@ -145,6 +145,7 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.SearchGuardIndexSearcherWrapper;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
+import com.floragunn.searchguard.configuration.api.MigrateConfigIndexApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
@@ -515,9 +516,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(FrontendAuthcConfigApi.DocumentLevel.REST_API);
                 handlers.add(SearchGuardLicenseKeyApi.REST_API);
                 handlers.add(SearchGuardLicenseInfoAction.REST_API);
-                handlers.add(SearchGuardCapabilities.GetCapabilitiesAction.REST_API);
-                
+                handlers.add(SearchGuardCapabilities.GetCapabilitiesAction.REST_API);                
                 handlers.add(GetActivatedFrontendConfigAction.REST_API);
+                handlers.add(MigrateConfigIndexApi.REST_API);
                 handlers.add(new AuthenticatingRestFilter.DebugApi());
 
             }
@@ -570,6 +571,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PutAction.Handler.class));
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PatchAction.Handler.class));
             actions.add(new ActionHandler<>(SearchGuardCapabilities.GetCapabilitiesAction.INSTANCE, SearchGuardCapabilities.GetCapabilitiesAction.TransportAction.class));
+            actions.add(new ActionHandler<>(MigrateConfigIndexApi.INSTANCE, MigrateConfigIndexApi.Handler.class));
+
         }
 
         actions.addAll(moduleRegistry.getActions());
