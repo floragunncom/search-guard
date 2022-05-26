@@ -31,7 +31,6 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
-import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
@@ -50,9 +49,10 @@ import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
 public class SessionModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(SessionModule.class);
@@ -87,7 +87,7 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
 
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(baseDependencies.getLocalClient());
 
-        sessionService = new SessionService(baseDependencies.getConfigurationRepository(), privilegedConfigClient, baseDependencies.getSettings(),
+        sessionService = new SessionService(baseDependencies.getConfigurationRepository(), privilegedConfigClient, baseDependencies.getStaticSettings(),
                 baseDependencies.getPrivilegesEvaluator(), baseDependencies.getAuditLog(), baseDependencies.getThreadPool(),
                 baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(), new SessionServiceConfig(),
                 baseDependencies.getBlockedIpRegistry(), baseDependencies.getBlockedUserRegistry(), componentState);
@@ -129,8 +129,8 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
     }
 
     @Override
-    public List<Setting<?>> getSettings() {
-        return Arrays.asList(SessionService.INDEX_NAME, SessionService.CLEANUP_INTERVAL);
+    public StaticSettings.AttributeSet getSettings() {
+        return StaticSettings.AttributeSet.of(SessionService.INDEX_NAME, SessionService.CLEANUP_INTERVAL);
     }
 
     @Override

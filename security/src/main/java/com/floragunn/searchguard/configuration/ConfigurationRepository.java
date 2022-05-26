@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -54,7 +53,6 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
@@ -82,8 +80,9 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.StaticSettings;
+import com.floragunn.searchsupport.StaticSettings.AttributeSet;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
@@ -94,6 +93,25 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     private static final String OLD_INDEX_NAME_DEFAULT = "searchguard";
     private static final String NEW_INDEX_NAME_DEFAULT = ".searchguard";
+
+    /**
+     * @deprecated This is superseded by searchguard.internal_indices.main_config.name. This index configuration is only used if an index with the name configured in searchguard.internal_indices.main_config.name does not exist.
+     */
+    private static final StaticSettings.Attribute<String> OLD_INDEX_NAME = StaticSettings.Attribute.define("searchguard.config_index_name")
+            .withDefault(OLD_INDEX_NAME_DEFAULT).asString();
+    private static final StaticSettings.Attribute<String> NEW_INDEX_NAME = StaticSettings.Attribute.define("searchguard.config_repository.index_name")
+            .withDefault(NEW_INDEX_NAME_DEFAULT).asString();
+    private static final StaticSettings.Attribute<Boolean> ALLOW_DEFAULT_INIT_SGINDEX = StaticSettings.Attribute
+            .define("searchguard.allow_default_init_sgindex").withDefault(false).asBoolean();
+
+    /**
+     * If false, Search Guard does not start the background thread which polls for the creation of the config index, but just waits for config update requests. This, some log entries are avoided. Used by the JUnit tests.
+     */
+    private static final StaticSettings.Attribute<Boolean> BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST = StaticSettings.Attribute
+            .define("searchguard.background_init_if_sgindex_not_exist").withDefault(true).asBoolean();
+
+    public static final AttributeSet OPTIONS = AttributeSet.of(OLD_INDEX_NAME, NEW_INDEX_NAME, ALLOW_DEFAULT_INIT_SGINDEX,
+            BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST);
 
     private final String configuredSearchguardIndexOld;
     private final String configuredSearchguardIndexNew;
@@ -115,8 +133,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
      */
     private final ConfigurationLoader externalUseConfigLoader;
 
-    private final Settings settings;
-    private final Path configPath;
+    private final StaticSettings settings;
     private final ClusterService clusterService;
     private final ComponentState componentState = new ComponentState(-1000, null, "config_repository", ConfigurationRepository.class);
     private final PrivilegedConfigClient privilegedConfigClient;
@@ -131,22 +148,21 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final VariableResolvers variableResolvers;
     private final Context parserContext;
 
-    public ConfigurationRepository(Settings settings, Path configPath, ThreadPool threadPool, Client client, ClusterService clusterService,
+    public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
             ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig) {
-        this.configuredSearchguardIndexOld = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, OLD_INDEX_NAME_DEFAULT);
-        this.configuredSearchguardIndexNew = settings.get(ConfigConstants.SEARCHGUARD_INTERNAL_INDICIES_MAIN_CONFIG_NAME, NEW_INDEX_NAME_DEFAULT);
+        this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
+        this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
-        this.settings = settings;
-        this.configPath = configPath;
         this.client = client;
+        this.settings = settings;
         this.clusterService = clusterService;
         this.configurationChangedListener = new ArrayList<>();
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.componentState.setMandatory(true);
-        this.mainConfigLoader = new ConfigurationLoader(client, settings, componentState, this, staticSgConfig);
-        this.externalUseConfigLoader = new ConfigurationLoader(client, settings, null, this, null);
+        this.mainConfigLoader = new ConfigurationLoader(client, componentState, this, staticSgConfig);
+        this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
         this.variableResolvers = VariableResolvers.ALL_PRIVILEGED.with("var", (key) -> configVarService.get(key));
-        this.parserContext = new Context(variableResolvers, modulesRegistry, settings, configPath);
+        this.parserContext = new Context(variableResolvers, modulesRegistry, settings);
         this.threadPool = threadPool;
 
         configVarService.addChangeListener(() -> {
@@ -171,7 +187,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             } else if (clusterService.state().getMetadata().hasIndex(configuredSearchguardIndexOld)) {
                 LOGGER.info("Legacy {} index does exist. Loading configuration.", configuredSearchguardIndexOld);
                 threadPool.generic().submit(() -> loadConfigurationOnStartup(configuredSearchguardIndexOld));
-            } else if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_DEFAULT_INIT_SGINDEX, false)) {
+            } else if (settings.get(ALLOW_DEFAULT_INIT_SGINDEX)) {
                 LOGGER.info("{} index does not exist yet, so we create a default config", configuredSearchguardIndexNew);
                 threadPool.generic().submit(() -> {
                     try {
@@ -181,7 +197,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         LOGGER.error("An error occurred while initializing default config. Initialisation halted.", e);
                     }
                 });
-            } else if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, true)) {
+            } else if (settings.get(BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST)) {
                 LOGGER.info("{} index does not exist yet, so no need to load config on node startup. Use sgadmin to initialize cluster",
                         configuredSearchguardIndexNew);
                 threadPool.generic().submit(() -> waitForConfigIndex());
@@ -325,7 +341,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             String lookupDir = System.getProperty("sg.default_init.dir");
             final String cd = lookupDir != null ? (lookupDir + "/")
-                    : new Environment(settings, configPath).pluginsFile().toAbsolutePath().toString() + "/search-guard-flx/sgconfig/";
+                    : settings.getPlatformPluginsDirectory().resolve("search-guard-flx/sgconfig/").toAbsolutePath().toString();
             File confFile = new File(cd + "sg_authc.yml");
             File legacyConfFile = new File(cd + "sg_config.yml");
 
@@ -418,9 +434,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
         try {
             ConfigMap loadedConfig = mainConfigLoader.load(configTypes, reason).get();
             ConfigMap discardedConfig;
-            
-            componentState.setConfigProperty("effective_main_config_index", loadedConfig.getSourceIndex());
 
+            componentState.setConfigProperty("effective_main_config_index", loadedConfig.getSourceIndex());
 
             if (this.currentConfig == null) {
                 this.currentConfig = loadedConfig;
@@ -900,15 +915,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public static class Context implements Parser.Context {
         private final VariableResolvers variableResolvers;
         private final SearchGuardModulesRegistry searchGuardModulesRegistry;
-        private final Settings esSettings;
-        private final Path configPath;
+        private final StaticSettings staticSettings;
 
-        public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, Settings esSettings,
-                Path configPath) {
+        public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings) {
             this.variableResolvers = variableResolvers;
             this.searchGuardModulesRegistry = searchGuardModulesRegistry;
-            this.esSettings = esSettings;
-            this.configPath = configPath;
+            this.staticSettings = staticSettings;
         }
 
         @Override
@@ -920,14 +932,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
             return searchGuardModulesRegistry;
         }
 
-        public Settings getEsSettings() {
-            return esSettings;
+        public StaticSettings getStaticSettings() {
+            return staticSettings;
         }
-
-        public Path getConfigPath() {
-            return configPath;
-        }
-
     }
 
     private static <T> void uploadFile(Client tc, String filepath, String index, CType<T> cType, ConfigurationRepository.Context parserContext)
@@ -1003,10 +1010,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public Pattern getConfiguredSearchguardIndices() {
         return configuredSearchguardIndices;
     }
-    
+
     public static ImmutableSet<String> getConfiguredSearchguardIndices(Settings settings) {
-        String configuredSearchguardIndexOld = settings.get(ConfigConstants.SEARCHGUARD_CONFIG_INDEX_NAME, OLD_INDEX_NAME_DEFAULT);
-        String configuredSearchguardIndexNew = settings.get(ConfigConstants.SEARCHGUARD_INTERNAL_INDICIES_MAIN_CONFIG_NAME, NEW_INDEX_NAME_DEFAULT);
+        StaticSettings staticSettings = new StaticSettings(settings, null);
+        String configuredSearchguardIndexOld = staticSettings.get(NEW_INDEX_NAME);
+        String configuredSearchguardIndexNew = staticSettings.get(OLD_INDEX_NAME);
         return ImmutableSet.of(configuredSearchguardIndexOld, configuredSearchguardIndexNew);
     }
 }
