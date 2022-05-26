@@ -40,7 +40,6 @@ import org.opensearch.action.get.MultiGetResponse.Failure;
 import org.opensearch.client.Client;
 import org.opensearch.common.Strings;
 import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.DeprecationHandler;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContentHelper;
@@ -56,19 +55,17 @@ public class ConfigurationLoader {
     private static final Logger log = LogManager.getLogger(ConfigurationLoader.class);
 
     private final PrivilegedConfigClient client;
-    private final Settings settings;
     private final Map<CType<?>, ComponentState> typeToStateMap;
     private final ConfigurationRepository configRepository;
     private final StaticSgConfig staticSgConfig;
 
-    public ConfigurationLoader(Client client, Settings settings, ConfigurationRepository configRepository) {
-        this(client, settings, null, configRepository, null);
+    public ConfigurationLoader(Client client, ConfigurationRepository configRepository) {
+        this(client, null, configRepository, null);
     }
 
-    public ConfigurationLoader(Client client, Settings settings, ComponentState componentState, ConfigurationRepository configRepository,
+    public ConfigurationLoader(Client client, ComponentState componentState, ConfigurationRepository configRepository,
             StaticSgConfig staticSgConfig) {
         this.client = PrivilegedConfigClient.adapt(client);
-        this.settings = settings;
         this.configRepository = configRepository;
         this.staticSgConfig = staticSgConfig;
 
@@ -258,7 +255,7 @@ public class ConfigurationLoader {
             parser.nextToken();
 
             return SgDynamicConfiguration.fromJson(new String(parser.binaryValue()), type, getResponse.getVersion(), getResponse.getSeqNo(),
-                    getResponse.getPrimaryTerm(), settings, configRepository.getParserContext());
+                    getResponse.getPrimaryTerm(), configRepository.getParserContext());
         }
     }
 

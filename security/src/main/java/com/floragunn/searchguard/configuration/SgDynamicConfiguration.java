@@ -78,11 +78,11 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     }
 
     public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm,
-            Settings settings, ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
+            ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
         String jsonString;
         
         if (ctype.isReplaceLegacyEnvVars()) {
-            jsonString = replaceEnvVars(uninterpolatedJson, settings, ctype);
+            jsonString = replaceEnvVars(uninterpolatedJson, ctype);
         } else {
             jsonString = uninterpolatedJson;
         }
@@ -459,7 +459,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     private static final Pattern ENVBASE64_PATTERN = Pattern.compile("\\$\\{envbase64\\.([\\w]+)((\\:\\-)?[\\w]*)\\}");
     
     @Deprecated
-    private static String replaceEnvVars(String in, Settings settings, CType<?> ctype) {
+    private static String replaceEnvVars(String in, CType<?> ctype) {
         if(in == null || in.isEmpty()) {
             return in;
         }

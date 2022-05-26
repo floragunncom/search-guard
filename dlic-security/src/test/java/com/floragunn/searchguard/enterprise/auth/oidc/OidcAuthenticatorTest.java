@@ -43,7 +43,7 @@ public class OidcAuthenticatorTest {
 
     protected static BrowserUpProxy httpProxy;
 
-    private static ConfigurationRepository.Context testContext = new ConfigurationRepository.Context(null, null, null, null);
+    private static ConfigurationRepository.Context testContext = new ConfigurationRepository.Context(null, null, null);
     private static Map<String, Object> basicAuthenticatorSettings;
     private static String FRONTEND_BASE_URL = "http://whereever";
     private static final TLSConfig IDP_TLS_CONFIG;

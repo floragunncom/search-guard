@@ -55,7 +55,6 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
@@ -221,7 +220,7 @@ public abstract class AbstractSGUnitTest {
 
             if (!sslOnly) {
                 builder.putList(SEARCHGUARD_AUTHCZ_ADMIN_DN, "CN=kirk,OU=client,O=client,l=tEst, C=De");
-                builder.put(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, false);
+                builder.put("searchguard.background_init_if_sgindex_not_exist", false);
             }
 
             return builder;

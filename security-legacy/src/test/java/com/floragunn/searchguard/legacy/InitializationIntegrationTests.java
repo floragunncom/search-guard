@@ -43,10 +43,9 @@ import com.floragunn.searchguard.action.whoami.WhoAmIRequest;
 import com.floragunn.searchguard.action.whoami.WhoAmIResponse;
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
-import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchsupport.junit.AsyncAssert;
@@ -167,7 +166,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
     @Test
     public void testDefaultConfig() throws Exception {
         final Settings settings = Settings.builder()
-                .put(ConfigConstants.SEARCHGUARD_ALLOW_DEFAULT_INIT_SGINDEX, true)
+                .put("searchguard.allow_default_init_sgindex", true)
                 .build();
         setup(Settings.EMPTY, null, settings, false);
         RestHelper rh = nonSslRestHelper();
@@ -199,7 +198,7 @@ public class InitializationIntegrationTests extends SingleClusterTest {
     @Test
     public void testDefaultInit() throws Exception {
         
-        Settings b = Settings.builder().put(ConfigConstants.SEARCHGUARD_ALLOW_DEFAULT_INIT_SGINDEX, true).build();
+        Settings b = Settings.builder().put("searchguard.allow_default_init_sgindex", true).build();
         setup(Settings.EMPTY, new DynamicSgConfig(), b, false);
         
         RestHelper rh = nonSslRestHelper();

@@ -36,7 +36,7 @@ import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.settings.SignalsSettings;
-import com.floragunn.signals.settings.SignalsSettings.StaticSettings.IndexNames;
+import com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.state.WatchState;
 import com.google.common.io.BaseEncoding;

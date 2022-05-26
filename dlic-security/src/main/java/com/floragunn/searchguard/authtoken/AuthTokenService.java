@@ -55,9 +55,6 @@ import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.WriteRequest.RefreshPolicy;
 import org.opensearch.cluster.service.ClusterService;
-import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Setting.Property;
-import org.opensearch.common.settings.Settings;
 import org.opensearch.common.transport.TransportAddress;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.util.concurrent.ThreadContext;
@@ -97,6 +94,7 @@ import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.ExceptionRecord;
@@ -110,10 +108,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     private static final Logger log = LogManager.getLogger(AuthTokenService.class);
 
-    public static final Setting<String> INDEX_NAME = Setting.simpleString("searchguard.authtokens.index.name", ".searchguard_authtokens",
-            Property.NodeScope);
-    public static final Setting<TimeValue> CLEANUP_INTERVAL = Setting.timeSetting("searchguard.authtokens.cleanup_interval",
-            TimeValue.timeValueHours(1), TimeValue.timeValueSeconds(1), Property.NodeScope, Property.Filtered);
+    public static final StaticSettings.Attribute<String> INDEX_NAME = StaticSettings.Attribute.define("searchguard.authtokens.index.name").withDefault(".searchguard_authtokens").asString();
+    public static final StaticSettings.Attribute<TimeValue> CLEANUP_INTERVAL = StaticSettings.Attribute.define("searchguard.authtokens.cleanup_interval").withDefault(TimeValue.timeValueHours(1)).asTimeValue();
 
     public static final String USER_TYPE = "sg_auth_token";
     public static final String USER_TYPE_FULL_CURRENT_PERMISSIONS = "sg_auth_token_full_current_permissions";
@@ -140,9 +136,9 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private long maxTokensPerUser = 100;
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, PrivilegesEvaluator privilegesEvaluator,
-            ConfigHistoryService configHistoryService, Settings settings, ThreadPool threadPool, ClusterService clusterService,
+            ConfigHistoryService configHistoryService, StaticSettings settings, ThreadPool threadPool, ClusterService clusterService,
             ProtectedConfigIndexService protectedConfigIndexService, Actions actions, AuthTokenServiceConfig config, ComponentState componentState) {
-        this.indexName = INDEX_NAME.get(settings);
+        this.indexName = settings.get(INDEX_NAME);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
         this.componentState = componentState;
@@ -160,12 +156,12 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         componentState.addPart(protectedConfigIndexService.createIndex(configIndex));
 
-        this.indexCleanupAgent = new IndexCleanupAgent(indexName, AuthToken.EXPIRES_AT, CLEANUP_INTERVAL.get(settings), privilegedConfigClient,
+        this.indexCleanupAgent = new IndexCleanupAgent(indexName, AuthToken.EXPIRES_AT, settings.get(CLEANUP_INTERVAL), privilegedConfigClient,
                 clusterService, threadPool);
     }
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, PrivilegesEvaluator privilegesEvaluator,
-            ConfigHistoryService configHistoryService, Settings settings, ThreadPool threadPool, ClusterService clusterService,
+            ConfigHistoryService configHistoryService, StaticSettings settings, ThreadPool threadPool, ClusterService clusterService,
             ProtectedConfigIndexService protectedConfigIndexService,  Actions actions, AuthTokenServiceConfig config) {
         this(privilegedConfigClient, privilegesEvaluator, configHistoryService, settings, threadPool, clusterService, protectedConfigIndexService,
                 actions, config, new ComponentState(1000, null, "auth_token_service"));

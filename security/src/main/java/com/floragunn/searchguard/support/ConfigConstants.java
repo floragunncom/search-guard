@@ -116,14 +116,6 @@ public class ConfigConstants {
 
     public static final String SEARCHGUARD_AUTHCZ_ADMIN_DN = "searchguard.authcz.admin_dn";
     
-    /**
-     * @deprecated This is superseded by searchguard.internal_indices.main_config.name. This index configuration is only used if an index with the name configured in searchguard.internal_indices.main_config.name does not exist.
-     */
-    public static final String SEARCHGUARD_CONFIG_INDEX_NAME = "searchguard.config_index_name";
-    
-    public static final String SEARCHGUARD_INTERNAL_INDICIES_MAIN_CONFIG_NAME = "searchguard.internal_indices.main_config.name";
-
-    
     public static final String SEARCHGUARD_ADMIN_ONLY_ACTIONS = "searchguard.admin_only_actions";
     public static final String SEARCHGUARD_ADMIN_ONLY_INDICES = "searchguard.admin_only_indices";
     
@@ -201,8 +193,6 @@ public class ConfigConstants {
     @Deprecated
     public static final String SEARCHGUARD_CACHE_TTL_MINUTES = "searchguard.cache.ttl_minutes";
     public static final String SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES = "searchguard.allow_unsafe_democertificates";
-    public static final String SEARCHGUARD_ALLOW_DEFAULT_INIT_SGINDEX = "searchguard.allow_default_init_sgindex";
-    public static final String SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST = "searchguard.background_init_if_sgindex_not_exist";
 
     public static final String SEARCHGUARD_ROLES_MAPPING_RESOLUTION = "searchguard.roles_mapping_resolution";
 

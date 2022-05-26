@@ -183,7 +183,7 @@ public class SearchGuardModulesRegistry {
         List<Setting<?>> result = new ArrayList<>();
 
         for (SearchGuardModule module : modules) {
-            result.addAll(module.getSettings());
+            result.addAll(module.getSettings().toPlatform());
         }
 
         return result;

@@ -41,11 +41,13 @@ import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 
 public class BaseDependencies {
 
     private final Settings settings;
+    private final StaticSettings staticSettings;
     private final Client localClient;
     private final ClusterService clusterService;
     private final ThreadPool threadPool;
@@ -71,8 +73,8 @@ public class BaseDependencies {
     private final InternalUsersDatabase internalUsersDatabase;
     private final Actions actions;
 
-    public BaseDependencies(Settings settings, Client localClient, ClusterService clusterService, ThreadPool threadPool,
-            ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
+    public BaseDependencies(Settings settings, StaticSettings staticSettings, Client localClient, ClusterService clusterService,
+            ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
             StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository, ProtectedConfigIndexService protectedConfigIndexService,
             InternalAuthTokenProvider internalAuthTokenProvider,
@@ -82,6 +84,7 @@ public class BaseDependencies {
             SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase, Actions actions) {
         super();
         this.settings = settings;
+        this.staticSettings = staticSettings;
         this.localClient = localClient;
         this.clusterService = clusterService;
         this.threadPool = threadPool;
@@ -206,6 +209,10 @@ public class BaseDependencies {
 
     public Actions getActions() {
         return actions;
+    }
+
+    public StaticSettings getStaticSettings() {
+        return staticSettings;
     }
 
 }

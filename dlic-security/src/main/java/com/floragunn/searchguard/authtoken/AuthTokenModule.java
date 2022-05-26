@@ -28,7 +28,6 @@ import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
-import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.plugins.ActionPlugin.ActionHandler;
@@ -67,9 +66,10 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
 public class AuthTokenModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(AuthTokenModule.class);
@@ -109,12 +109,12 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(baseDependencies.getConfigurationRepository(),
                 baseDependencies.getStaticSgConfig(), privilegedConfigClient, baseDependencies.getProtectedConfigIndexService(),
-                baseDependencies.getActions(), baseDependencies.getSettings(), baseDependencies.getPrivilegesEvaluator());
+                baseDependencies.getActions(), baseDependencies.getStaticSettings(), baseDependencies.getPrivilegesEvaluator());
 
         componentState.addPart(configHistoryService.getComponentState());
 
         authTokenService = new AuthTokenService(privilegedConfigClient, baseDependencies.getPrivilegesEvaluator(), configHistoryService,
-                baseDependencies.getSettings(), baseDependencies.getThreadPool(), baseDependencies.getClusterService(),
+                baseDependencies.getStaticSettings(), baseDependencies.getThreadPool(), baseDependencies.getClusterService(),
                 baseDependencies.getProtectedConfigIndexService(), baseDependencies.getActions(), null, componentState);
 
         AuthTokenAuthenticationDomain authenticationBackend = new AuthTokenAuthenticationDomain(authTokenService);
@@ -158,8 +158,8 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
     }
 
     @Override
-    public List<Setting<?>> getSettings() {
-        return Arrays.asList(AuthTokenService.INDEX_NAME, AuthTokenService.CLEANUP_INTERVAL, ConfigHistoryService.CACHE_MAX_SIZE,
+    public StaticSettings.AttributeSet getSettings() {
+        return StaticSettings.AttributeSet.of(AuthTokenService.INDEX_NAME, AuthTokenService.CLEANUP_INTERVAL, ConfigHistoryService.CACHE_MAX_SIZE,
                 ConfigHistoryService.CACHE_TTL, ConfigHistoryService.INDEX_NAME, ConfigHistoryService.MODEL_CACHE_MAX_SIZE,
                 ConfigHistoryService.MODEL_CACHE_TTL);
     }
