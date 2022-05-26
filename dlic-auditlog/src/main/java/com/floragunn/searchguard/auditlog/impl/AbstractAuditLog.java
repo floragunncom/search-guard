@@ -77,7 +77,7 @@ import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserInformation;
-import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
+import com.floragunn.searchsupport.PrivilegedCode;
 import com.google.common.io.BaseEncoding;
 
 public abstract class AbstractAuditLog implements AuditLog {

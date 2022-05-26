@@ -15,14 +15,14 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.searchsupport.config.elements.EnumValueParser;
-import com.floragunn.searchsupport.config.elements.InlineMustacheTemplate;
-import com.floragunn.searchsupport.config.validation.ScriptExecutionError;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
+import com.floragunn.signals.support.EnumValueParser;
+import com.floragunn.signals.support.InlineMustacheTemplate;
 import com.floragunn.signals.support.InlinePainlessScript;
 import com.floragunn.signals.support.NestedValueMap;
+import com.floragunn.signals.support.ScriptExecutionError;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class PagerDutyEventConfig implements ToXContent {

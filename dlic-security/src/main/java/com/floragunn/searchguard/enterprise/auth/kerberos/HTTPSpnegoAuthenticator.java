@@ -48,8 +48,8 @@ import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.PrivilegedCode;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
 import com.google.common.base.Strings;
 
 public class HTTPSpnegoAuthenticator implements HttpAuthenticationFrontend {

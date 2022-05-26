@@ -59,7 +59,7 @@ import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.floragunn.searchsupport.privileged_code.PrivilegedCode;
+import com.floragunn.searchsupport.PrivilegedCode;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(KeySetRetriever.class);

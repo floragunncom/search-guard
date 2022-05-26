@@ -25,7 +25,7 @@ import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchsupport.rest.Responses;
+import com.floragunn.searchsupport.action.Responses;
 import com.google.common.collect.ImmutableList;
 
 @Deprecated

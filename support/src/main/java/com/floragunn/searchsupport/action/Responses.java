@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchsupport.rest;
+package com.floragunn.searchsupport.action;
 
 import java.io.ByteArrayInputStream;
 
@@ -33,6 +33,9 @@ import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.google.common.base.Charsets;
 
+/**
+ * @deprecated Use StandardResponse
+ */
 public class Responses {
     private static final Logger log = LogManager.getLogger(Responses.class);
 
@@ -90,7 +93,8 @@ public class Responses {
 
     public static void sendError(RestChannel channel, Exception e) {
         if (e instanceof ConfigValidationException) {
-            sendError(channel, RestStatus.BAD_REQUEST, e.getMessage(), ((ConfigValidationException) e).getValidationErrors().toJsonString());
+            channel.sendResponse(RestApi.toRestResponse(new StandardResponse(400,
+                    new StandardResponse.Error(e.getMessage()).details(((ConfigValidationException) e).getValidationErrors()))));
         } else {
             sendError(channel, ExceptionsHelper.status(e), e.getMessage());
         }

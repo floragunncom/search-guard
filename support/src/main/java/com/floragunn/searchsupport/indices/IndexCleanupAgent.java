@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchsupport.cleanup;
+package com.floragunn.searchsupport.indices;
 
 import java.util.function.Supplier;
 

@@ -36,6 +36,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.StatusToXContentObject;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -230,6 +231,9 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             return builder;
         }
 
+        public RestResponse toRestResponse() {
+            return RestApi.toRestResponse(this);
+        }
     }
 
     public static abstract class Handler<RequestType extends Request, ResponseType extends Response>
