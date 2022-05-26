@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchsupport.privileged_code;
+package com.floragunn.searchsupport;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;

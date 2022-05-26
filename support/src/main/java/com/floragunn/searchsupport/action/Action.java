@@ -37,15 +37,16 @@ import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.xcontent.StatusToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
+import org.opensearch.rest.RestResponse;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.transport.TransportService;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
@@ -230,6 +231,9 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             return builder;
         }
 
+        public RestResponse toRestResponse() {
+            return RestApi.toRestResponse(this);
+        }
     }
 
     public static abstract class Handler<RequestType extends Request, ResponseType extends Response>

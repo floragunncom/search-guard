@@ -16,10 +16,10 @@ import org.opensearch.script.TemplateScript;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchsupport.config.validation.ScriptValidationError;
 import com.floragunn.signals.accounts.Account;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.accounts.NoSuchAccountException;
+import com.floragunn.signals.support.ScriptValidationError;
 
 public class WatchInitializationService {
     private final static Logger log = LogManager.getLogger(WatchInitializationService.class);

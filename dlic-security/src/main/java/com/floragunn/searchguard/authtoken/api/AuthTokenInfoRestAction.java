@@ -23,10 +23,9 @@ import org.opensearch.client.node.NodeClient;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestChannel;
 import org.opensearch.rest.RestRequest;
-import org.opensearch.rest.RestStatus;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 
-import com.floragunn.searchsupport.client.rest.Responses;
+import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableList;
 
 public class AuthTokenInfoRestAction extends BaseRestHandler {
@@ -46,8 +45,8 @@ public class AuthTokenInfoRestAction extends BaseRestHandler {
 
         if (request.method() == GET) {
             return handleGet(request.param("id"), client);
-        } else {
-            return (RestChannel channel) -> Responses.sendError(channel, RestStatus.METHOD_NOT_ALLOWED, "Method not allowed: " + request.method());
+        } else {            
+            return (RestChannel channel) -> channel.sendResponse(new StandardResponse(405, "Method not allowed: " + request.method()).toRestResponse());
         }
     }
 
@@ -58,7 +57,7 @@ public class AuthTokenInfoRestAction extends BaseRestHandler {
                 client.execute(AuthTokenInfoAction.INSTANCE, new AuthTokenInfoRequest(),
                         new RestStatusToXContentListener<AuthTokenInfoResponse>(channel));
             } catch (Exception e) {
-                Responses.sendError(channel, e);
+                channel.sendResponse(new StandardResponse(e).toRestResponse());
             }
         };
     }

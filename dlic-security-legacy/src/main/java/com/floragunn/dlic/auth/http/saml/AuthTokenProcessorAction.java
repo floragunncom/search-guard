@@ -24,7 +24,7 @@ import org.opensearch.rest.RestRequest.Method;
 import org.opensearch.rest.RestStatus;
 
 import com.floragunn.codova.documents.Document;
-import com.floragunn.searchsupport.client.rest.Responses;
+import com.floragunn.searchsupport.action.Responses;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 

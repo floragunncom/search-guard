@@ -60,11 +60,11 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.RestApi;
+import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
-import com.floragunn.searchsupport.rest.Responses;
 
 public class AuthenticatingRestFilter implements ComponentStateProvider {
 
@@ -293,7 +293,9 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             name(PATH);
             handlesGet(PATH).with((r, c) -> {
                 return (RestChannel channel) -> {
-                    Responses.send(channel, RestStatus.NOT_FOUND, "The /_searchguard/auth/debug API is not enabled. See the sg_authc configuration.");
+                    channel.sendResponse(new StandardResponse(404,
+                            new StandardResponse.Error("The /_searchguard/auth/debug API is not enabled. See the sg_authc configuration."))
+                                    .toRestResponse());
                 };
             });
         }

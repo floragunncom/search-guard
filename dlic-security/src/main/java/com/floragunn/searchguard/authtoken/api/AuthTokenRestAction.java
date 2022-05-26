@@ -31,7 +31,7 @@ import org.opensearch.rest.RestStatus;
 import org.opensearch.rest.action.RestStatusToXContentListener;
 import org.opensearch.rest.action.RestToXContentListener;
 
-import com.floragunn.searchsupport.client.rest.Responses;
+import com.floragunn.searchsupport.action.Responses;
 import com.google.common.collect.ImmutableList;
 
 public class AuthTokenRestAction extends BaseRestHandler {

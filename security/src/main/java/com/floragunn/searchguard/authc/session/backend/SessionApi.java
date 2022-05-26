@@ -42,12 +42,12 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.Action;
+import com.floragunn.searchsupport.action.Responses;
 import com.floragunn.searchsupport.action.Action.UnparsedMessage;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.action.StandardResponse;
-import com.floragunn.searchsupport.rest.Responses;
 
 public class SessionApi {
 
@@ -292,7 +292,7 @@ public class SessionApi {
                     if (user != null) {
                         Responses.send(channel, RestStatus.OK, DocNode.of("sso_logout_url", sessionService.getSsoLogoutUrl(user)));
                     } else {
-                        Responses.sendError(channel, RestStatus.NOT_FOUND, "No session");
+                        channel.sendResponse(new StandardResponse(404, new StandardResponse.Error("No session")).toRestResponse());
                     }
                 } catch (Exception e) {
                     log.warn("Error while handling request", e);

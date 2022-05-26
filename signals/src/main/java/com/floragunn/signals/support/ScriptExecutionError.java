@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchsupport.config.validation;
+package com.floragunn.signals.support;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -25,11 +25,11 @@ import org.opensearch.script.ScriptException;
 
 import com.floragunn.codova.validation.errors.ValidationError;
 
-public class ScriptValidationError extends ValidationError {
+public class ScriptExecutionError extends ValidationError {
 
     private String context;
 
-    public ScriptValidationError(String attribute, ScriptException scriptException) {
+    public ScriptExecutionError(String attribute, ScriptException scriptException) {
         super(attribute, getMessage(scriptException));
         cause(scriptException);
 
@@ -41,6 +41,7 @@ public class ScriptValidationError extends ValidationError {
     @Override
     public Map<String, Object> toBasicObject() {
         Map<String, Object> result = new LinkedHashMap<>();
+        
         result.put("error", getMessage());
 
         if (context != null) {
@@ -51,14 +52,43 @@ public class ScriptValidationError extends ValidationError {
     }
 
     private static String getMessage(ScriptException scriptException) {
-        if ("compile error".equals(scriptException.getMessage())) {
+        if ("runtime error".equals(scriptException.getMessage())) {
             if (scriptException.getCause() != null) {
-                return scriptException.getCause().getMessage();
+                return constructMessage(scriptException.getCause());
             } else {
-                return "Compilation Error";
+                return "Runtime Error";
             }
         } else {
-            return scriptException.getMessage();
+            return constructMessage(scriptException);
         }
     }
+
+    private static String constructMessage(Throwable throwable) {
+        StringBuilder result = new StringBuilder();
+
+        for (int i = 0; i < 10; i++) {
+            String message = throwable.getMessage();
+
+            if (message == null) {
+                message = throwable.toString();
+            }
+
+            if (result.indexOf(message) == -1) {
+                if (result.length() != 0) {
+                    result.append(":\n");
+                }
+
+                result.append(message);
+            }
+
+            if (throwable.getCause() == throwable || throwable.getCause() == null) {
+                break;
+            }
+
+            throwable = throwable.getCause();
+        }
+
+        return result.toString();
+    }
+
 }

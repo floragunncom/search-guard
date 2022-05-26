@@ -59,7 +59,9 @@ import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchsupport.rest.Responses;
+import com.floragunn.searchsupport.action.Responses;
+import com.floragunn.searchsupport.action.RestApi;
+import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableList;
 
 public abstract class PatchableResourceApiAction extends AbstractApiAction {
@@ -113,7 +115,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 handleSinglePatch(channel, request, client, name, existingConfiguration, jsonPatch);
             }
         } catch (ConfigValidationException e) {
-            Responses.sendError(channel, e);
+            channel.sendResponse(new StandardResponse(e).toRestResponse());
         }
     }
 

@@ -25,7 +25,7 @@ import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestStatus;
 
-import com.floragunn.searchsupport.rest.Responses;
+import com.floragunn.searchsupport.action.Responses;
 import com.google.common.collect.ImmutableList;
 
 @Deprecated

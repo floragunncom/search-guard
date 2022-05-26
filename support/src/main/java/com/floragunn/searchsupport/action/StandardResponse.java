@@ -20,6 +20,8 @@ package com.floragunn.searchsupport.action;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.opensearch.ExceptionsHelper;
+
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -48,6 +50,21 @@ public class StandardResponse extends Action.Response {
     public StandardResponse(int status, Error error) {
         status(status);
         this.error = error;
+    }
+    
+    public StandardResponse(ConfigValidationException e) {
+        status(400);
+        this.error = new Error(e.getMessage()).details(e.getValidationErrors().toBasicObject());
+    }
+    
+    public StandardResponse(Exception e) {
+        if (e instanceof ConfigValidationException) {
+            status(400);
+            this.error = new Error(e.getMessage()).details(((ConfigValidationException) e).getValidationErrors().toBasicObject());            
+        } else {
+            status(ExceptionsHelper.status(e).getStatus());
+            this.error = new Error(e.getMessage());
+        }
     }
 
     public StandardResponse(UnparsedMessage message) throws ConfigValidationException {
