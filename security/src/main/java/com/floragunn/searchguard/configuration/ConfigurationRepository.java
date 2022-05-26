@@ -296,6 +296,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
             while (response == null || response.isTimedOut() || response.getStatus() == ClusterHealthStatus.RED) {
                 LOGGER.debug("index '{}' not healthy yet, we try again ... (Reason: {})", searchguardIndex,
                         response == null ? "no response" : (response.isTimedOut() ? "timeout" : "other, maybe red cluster"));
+                
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace(Strings.toString(response));
+                }
+                
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e1) {
@@ -346,10 +351,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
             componentState.setState(State.INITIALIZING, "install_default_config");
 
             String lookupDir = System.getProperty("sg.default_init.dir");
-            final String cd = lookupDir != null ? (lookupDir + "/")
-                    : settings.getPlatformPluginsDirectory().resolve("search-guard-flx/sgconfig/").toAbsolutePath().toString();
-            File confFile = new File(cd + "sg_authc.yml");
-            File legacyConfFile = new File(cd + "sg_config.yml");
+            File cd = lookupDir != null ? new File(lookupDir) 
+                    : settings.getPlatformPluginsDirectory().resolve("search-guard-flx/sgconfig/").toAbsolutePath().toFile();
+            File confFile =   new File(cd, "sg_authc.yml");
+            File legacyConfFile = new File(cd, "sg_config.yml");
 
             if (confFile.exists() || legacyConfFile.exists()) {
                 LOGGER.info("Will create {} index so we can apply default config", searchguardIndex);
@@ -361,30 +366,30 @@ public class ConfigurationRepository implements ComponentStateProvider {
                             "Search Guard index was created in the meantime. Possibly by some other node in the cluster. Not applying default config",
                             e);
                 }
-                if (new File(cd + "sg_authc.yml").exists()) {
-                    uploadFile(privilegedConfigClient, cd + "sg_authc.yml", searchguardIndex, CType.AUTHC, parserContext);
-                } else if (new File(cd + "sg_config.yml").exists()) {
-                    uploadFile(privilegedConfigClient, cd + "sg_config.yml", searchguardIndex, CType.CONFIG, parserContext);
+                if (new File(cd, "sg_authc.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd, "sg_authc.yml", searchguardIndex, CType.AUTHC, parserContext);
+                } else if (new File(cd, "sg_config.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd, "sg_config.yml", searchguardIndex, CType.CONFIG, parserContext);
                 }
 
-                uploadFile(privilegedConfigClient, cd + "sg_roles.yml", searchguardIndex, CType.ROLES, parserContext);
-                uploadFile(privilegedConfigClient, cd + "sg_roles_mapping.yml", searchguardIndex, CType.ROLESMAPPING, parserContext);
-                uploadFile(privilegedConfigClient, cd + "sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, parserContext);
-                uploadFile(privilegedConfigClient, cd + "sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, parserContext);
-                uploadFile(privilegedConfigClient, cd + "sg_tenants.yml", searchguardIndex, CType.TENANTS, parserContext);
-                uploadFile(privilegedConfigClient, cd + "sg_blocks.yml", searchguardIndex, CType.BLOCKS, parserContext);
-                uploadFile(privilegedConfigClient, cd + "sg_frontend_authc.yml", searchguardIndex, CType.FRONTEND_AUTHC, parserContext);
+                uploadFile(privilegedConfigClient, cd, "sg_roles.yml", searchguardIndex, CType.ROLES, parserContext);
+                uploadFile(privilegedConfigClient, cd, "sg_roles_mapping.yml", searchguardIndex, CType.ROLESMAPPING, parserContext);
+                uploadFile(privilegedConfigClient, cd, "sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, parserContext);
+                uploadFile(privilegedConfigClient, cd, "sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, parserContext);
+                uploadFile(privilegedConfigClient, cd, "sg_tenants.yml", searchguardIndex, CType.TENANTS, parserContext);
+                uploadFile(privilegedConfigClient, cd, "sg_blocks.yml", searchguardIndex, CType.BLOCKS, parserContext);
+                uploadFile(privilegedConfigClient, cd, "sg_frontend_authc.yml", searchguardIndex, CType.FRONTEND_AUTHC, parserContext);
 
-                if (new File(cd + "sg_authc_transport.yml").exists()) {
-                    uploadFile(privilegedConfigClient, cd + "sg_authc_transport.yml", searchguardIndex, CType.AUTHC_TRANSPORT, parserContext);
+                if (new File(cd, "sg_authc_transport.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd, "sg_authc_transport.yml", searchguardIndex, CType.AUTHC_TRANSPORT, parserContext);
                 }
 
-                if (new File(cd + "sg_authz.yml").exists()) {
-                    uploadFile(privilegedConfigClient, cd + "sg_authz.yml", searchguardIndex, CType.AUTHZ, parserContext);
+                if (new File(cd, "sg_authz.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd, "sg_authz.yml", searchguardIndex, CType.AUTHZ, parserContext);
                 }
 
-                if (new File(cd + "sg_license_key.yml").exists()) {
-                    uploadFile(privilegedConfigClient, cd + "sg_license_key.yml", searchguardIndex, CType.LICENSE_KEY, parserContext);
+                if (new File(cd, "sg_license_key.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd, "sg_license_key.yml", searchguardIndex, CType.LICENSE_KEY, parserContext);
                 }
 
                 LOGGER.info("Default config applied");
@@ -1026,8 +1031,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-    private static <T> void uploadFile(Client tc, String filepath, String index, CType<T> cType, ConfigurationRepository.Context parserContext)
+    private static <T> void uploadFile(Client tc, File configDirectory, String fileName, String index, CType<T> cType, ConfigurationRepository.Context parserContext)
             throws ConfigUpdateException {
+        File filepath = new File(configDirectory, fileName);
+        
         LOGGER.info("Will update '" + cType + "' with " + filepath);
 
         try (Reader reader = new FileReader(filepath)) {
