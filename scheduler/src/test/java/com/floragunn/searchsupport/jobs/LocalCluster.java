@@ -123,7 +123,7 @@ public class LocalCluster extends ExternalResource {
 
             if (!sslOnly) {
                 builder.putList("searchguard.authcz.admin_dn", "CN=kirk,OU=client,O=client,l=tEst, C=De");
-                builder.put(ConfigConstants.SEARCHGUARD_BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST, false);
+                builder.put("searchguard.background_init_if_sgindex_not_exist", false);
             }
 
             return builder;

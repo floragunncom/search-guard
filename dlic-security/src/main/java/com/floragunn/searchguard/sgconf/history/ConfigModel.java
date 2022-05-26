@@ -16,7 +16,6 @@ package com.floragunn.searchguard.sgconf.history;
 
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authz.ActionAuthorization;
@@ -43,9 +42,8 @@ public class ConfigModel {
     private final RoleMapping.InvertedIndex roleMapping;
 
     public ConfigModel(SgDynamicConfiguration<Role> roles, SgDynamicConfiguration<RoleMapping> roleMappingConfig,
-            SgDynamicConfiguration<ActionGroup> actionGroupsConfig, SgDynamicConfiguration<Tenant> tenants,
-            SgDynamicConfiguration<Blocks> blocks, Actions actions, Settings esSettings, IndexNameExpressionResolver resolver,
-            ClusterService clusterService) {
+            SgDynamicConfiguration<ActionGroup> actionGroupsConfig, SgDynamicConfiguration<Tenant> tenants, SgDynamicConfiguration<Blocks> blocks,
+            Actions actions, IndexNameExpressionResolver resolver, ClusterService clusterService) {
         this.rolesConfig = roles;
         this.roleMappingConfig = roleMappingConfig;
         this.actionGroupsConfig = actionGroupsConfig;

@@ -61,9 +61,6 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Setting.Property;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
@@ -114,6 +111,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cleanup.IndexCleanupAgent;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
@@ -129,10 +127,8 @@ public class SessionService {
 
     private static final Logger log = LogManager.getLogger(SessionService.class);
 
-    public static final Setting<String> INDEX_NAME = Setting.simpleString("searchguard.sessions.index.name", ".searchguard_sessions",
-            Property.NodeScope);
-    public static final Setting<TimeValue> CLEANUP_INTERVAL = Setting.timeSetting("searchguard.sessions.cleanup_interval",
-            TimeValue.timeValueHours(1), TimeValue.timeValueSeconds(1), Property.NodeScope, Property.Filtered);
+    public static final StaticSettings.Attribute<String> INDEX_NAME = StaticSettings.Attribute.define("searchguard.sessions.index.name").withDefault(".searchguard_sessions").asString();
+    public static final StaticSettings.Attribute<TimeValue> CLEANUP_INTERVAL = StaticSettings.Attribute.define("searchguard.sessions.cleanup_interval").withDefault(TimeValue.timeValueHours(1)).asTimeValue();
 
     public static final String USER_TYPE = "session";
 
@@ -174,17 +170,17 @@ public class SessionService {
     private volatile ClientAddressAscertainer clientAddressAscertainer;
     private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
 
-    public SessionService(ConfigurationRepository configurationRepository, PrivilegedConfigClient privilegedConfigClient, Settings settings,
+    public SessionService(ConfigurationRepository configurationRepository, PrivilegedConfigClient privilegedConfigClient, StaticSettings settings,
             PrivilegesEvaluator privilegesEvaluator, AuditLog auditLog, ThreadPool threadPool, ClusterService clusterService,
             ProtectedConfigIndexService protectedConfigIndexService, SessionServiceConfig config, BlockedIpRegistry blockedIpRegistry,
             BlockedUserRegistry blockedUserRegistry, ComponentState componentState) {
-        this.indexName = INDEX_NAME.get(settings);
+        this.indexName = settings.get(INDEX_NAME);
         this.privilegedConfigClient = privilegedConfigClient;
         this.threadPool = threadPool;
         this.componentState = componentState;
         this.configComponentState = componentState.getOrCreatePart("config", "sg_config");
         this.threadContext = threadPool.getThreadContext();
-        this.adminDns = new AdminDNs(settings);
+        this.adminDns = new AdminDNs(settings.getPlatformSettings());
         this.privilegesEvaluator = privilegesEvaluator;
         this.auditLog = auditLog;
         this.blockedIpRegistry = blockedIpRegistry;
@@ -209,9 +205,9 @@ public class SessionService {
             this.indexCleanupAgent = new IndexCleanupAgent(indexName,
                     () -> QueryBuilders.boolQuery().should(QueryBuilders.rangeQuery(SessionToken.DYNAMIC_EXPIRES_AT).lt(System.currentTimeMillis()))
                             .should(QueryBuilders.rangeQuery(SessionToken.EXPIRES_AT).lt(System.currentTimeMillis())),
-                    CLEANUP_INTERVAL.get(settings), privilegedConfigClient, clusterService, threadPool);
+                    settings.get(CLEANUP_INTERVAL), privilegedConfigClient, clusterService, threadPool);
         } else {
-            this.indexCleanupAgent = new IndexCleanupAgent(indexName, SessionToken.EXPIRES_AT, CLEANUP_INTERVAL.get(settings), privilegedConfigClient,
+            this.indexCleanupAgent = new IndexCleanupAgent(indexName, SessionToken.EXPIRES_AT, settings.get(CLEANUP_INTERVAL), privilegedConfigClient,
                     clusterService, threadPool);
         }
         
