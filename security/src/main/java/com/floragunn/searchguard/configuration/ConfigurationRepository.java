@@ -40,10 +40,13 @@ import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
@@ -55,6 +58,9 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.config.text.Pattern;
@@ -417,6 +423,89 @@ public class ConfigurationRepository implements ComponentStateProvider {
         } else {
             return null;
         }
+    }
+
+    public StandardResponse migrateIndex() {
+        String effectiveSearchGuardIndex = getEffectiveSearchGuardIndex();
+
+        if (effectiveSearchGuardIndex == null) {
+            return new StandardResponse(503, "Search Guard is not initialized; the config index does not exist.");
+        }
+
+        if (configuredSearchguardIndexNew.equals(effectiveSearchGuardIndex)) {
+            return new StandardResponse(412, "Search Guard already uses the new-style index: " + effectiveSearchGuardIndex);
+        }
+
+        PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
+
+        SearchResponse searchResponse = null;
+
+        try {
+            searchResponse = privilegedConfigClient.search(
+                    new SearchRequest(effectiveSearchGuardIndex).source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(1000)))
+                    .actionGet();
+
+            if (searchResponse.getHits().getHits().length == 0) {
+                throw new Exception("Search request returned too few entries: " + Strings.toString(searchResponse));
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error while reading data from existing index for migration", e);
+            return new StandardResponse(500, "Error while reading data from old index: " + e.getMessage());
+        }
+
+        try {
+            createConfigIndex(configuredSearchguardIndexNew);
+        } catch (Exception e) {
+            LOGGER.error("Error while creating new index for migration", e);
+            return new StandardResponse(500, e.getMessage());
+        }
+
+        BulkRequest bulkRequest = new BulkRequest(configuredSearchguardIndexNew).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+
+        for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+            bulkRequest
+                    .add(new IndexRequest(configuredSearchguardIndexNew).id(searchHit.getId()).source(searchHit.getSourceRef(), XContentType.JSON));
+        }
+
+        try {
+            BulkResponse bulkResponse = privilegedConfigClient.bulk(bulkRequest).actionGet();
+
+            if (bulkResponse.hasFailures()) {
+                throw new ConfigUpdateException("Update failed: " + bulkResponse.buildFailureMessage());
+            }
+
+            ConfigMap configMap = getConfigurationsFromIndex(CType.all(), "Testing configuration after migration");
+
+            LOGGER.info("Configuration after migration: " + configMap);
+
+            if (!configMap.getTypes().equals(currentConfig.getTypes())) {
+                throw new Exception("Validation of migrated configuration failed");
+            }
+
+            ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]));
+            ConfigUpdateResponse configUpdateResponse = privilegedConfigClient.execute(ConfigUpdateAction.INSTANCE, configUpdateRequest).actionGet();
+
+            if (!configUpdateResponse.hasFailures()) {
+                return new StandardResponse(200, "Index migration and configuration update was successful")
+                        .data(ImmutableMap.of("new_config", configMap.toString()));
+            } else {
+                return new StandardResponse(500, "Index migration was successful; however, some nodes reported failures. Please check these nodes.")
+                        .data(ImmutableMap.of("failures", configUpdateResponse.failures().toString()));
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error while doing builk write for migration. Deleting index again", e);
+            try {
+                privilegedConfigClient.admin().indices().delete(new DeleteIndexRequest(configuredSearchguardIndexNew)).actionGet();
+            } catch (Exception e2) {
+                LOGGER.error("Error while deleting new search guard index due to previous error", e2);
+            }
+            return new StandardResponse(500, e.getMessage());
+        }
+
+    }
+
+    public boolean usesLegacySearchGuardIndex() {
+        return configuredSearchguardIndexOld.equals(getEffectiveSearchGuardIndex());
     }
 
     public String getEffectiveSearchGuardIndexAndCreateIfNecessary() throws ConfigUpdateException {
