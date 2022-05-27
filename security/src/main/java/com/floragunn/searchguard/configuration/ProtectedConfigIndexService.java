@@ -17,44 +17,71 @@
 
 package com.floragunn.searchguard.configuration;
 
+import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.support.nodes.BaseNodeRequest;
+import org.elasticsearch.action.support.nodes.BaseNodeResponse;
+import org.elasticsearch.action.support.nodes.BaseNodesRequest;
+import org.elasticsearch.action.support.nodes.BaseNodesResponse;
+import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
+import com.floragunn.searchguard.SearchGuardVersion;
+import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.CountAggregation;
 import com.floragunn.searchsupport.indices.IndexMapping;
 import com.google.common.collect.ImmutableMap;
 
-public class ProtectedConfigIndexService {
+public class ProtectedConfigIndexService implements ComponentStateProvider {
     private final static Logger log = LogManager.getLogger(ProtectedConfigIndexService.class);
 
     private final Client client;
@@ -62,10 +89,16 @@ public class ProtectedConfigIndexService {
     private final ThreadPool threadPool;
     private final ProtectedIndices protectedIndices;
 
+    private final ComponentState componentState = new ComponentState(100, null, "protected_config_index_service");
+    private final CountAggregation flushPendingIndicesCount = new CountAggregation();
+
     private final Set<ConfigIndexState> pendingIndices = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<ConfigIndexState> completedIndices = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    private volatile boolean ready = false;
+    private final AtomicBoolean ready = new AtomicBoolean(false);
+
+    private final static ImmutableMap<String, Object> INDEX_SETTINGS = ImmutableMap.of("index.number_of_shards", 1, "index.auto_expand_replicas",
+            "0-all", "index.hidden", true);
 
     public ProtectedConfigIndexService(Client client, ClusterService clusterService, ThreadPool threadPool, ProtectedIndices protectedIndices) {
         this.client = client;
@@ -74,14 +107,20 @@ public class ProtectedConfigIndexService {
         this.protectedIndices = protectedIndices;
 
         clusterService.addListener(clusterStateListener);
+
+        this.componentState.addMetrics("flush_pending_indices", flushPendingIndicesCount);
     }
 
     public ComponentState createIndex(ConfigIndex configIndex) {
         ConfigIndexState configIndexState = new ConfigIndexState(configIndex);
 
+        synchronized (componentState) {
+            componentState.addPart(configIndexState.moduleState);
+        }
+
         protectedIndices.add(configIndex.getName());
 
-        if (!ready) {
+        if (!ready.get()) {
             pendingIndices.add(configIndexState);
         } else {
             createIndexNow(configIndexState, clusterService.state());
@@ -90,41 +129,61 @@ public class ProtectedConfigIndexService {
         return configIndexState.moduleState;
     }
 
-    public void flushPendingIndices(ClusterState clusterState) {
+    public DocNode flushPendingIndices() {
+        return flushPendingIndices(this.clusterService.state());
+    }
+
+    public DocNode flushPendingIndices(ClusterState clusterState) {
         try {
             if (this.pendingIndices.isEmpty()) {
-                return;
+                componentState.setInitialized();
+                return DocNode.of("info", "completed");
             }
+
+            flushPendingIndicesCount.increment();
 
             Set<ConfigIndexState> pendingIndices = new HashSet<>(this.pendingIndices);
 
             this.pendingIndices.removeAll(pendingIndices);
+            Map<String, String> result = new HashMap<>();
 
             for (ConfigIndexState configIndex : pendingIndices) {
-                createIndexNow(configIndex, clusterState);
+                String configIndexResult = createIndexNow(configIndex, clusterState);
+                result.put(configIndex.getName(), configIndexResult);
             }
+
+            return DocNode.wrap(result);
         } catch (Exception e) {
             log.error("Error in flushPendingIndices()", e);
+            componentState.addLastException("flushPendingIndices", e);
+            componentState.setFailed(e);
+            return DocNode.of("error", e.getMessage());
         }
     }
 
     public void onNodeStart() {
-        ready = true;
+        ready.set(true);
 
-        checkClusterState(clusterService.state());
+        threadPool.generic().execute(() -> checkClusterState(clusterService.state()));
     }
 
     private void checkClusterState(ClusterState clusterState) {
-        if (!ready) {
-            return;
-        }
+        try {
+            if (!ready.get()) {
+                return;
+            }
 
-        if (log.isTraceEnabled()) {
-            log.trace("checkClusterState()\npendingIndices: " + pendingIndices);
-        }
+            if (log.isTraceEnabled()) {
+                log.trace("checkClusterState()\npendingIndices: " + pendingIndices);
+            }
 
-        if (clusterState.nodes().isLocalNodeElectedMaster() || clusterState.nodes().getMasterNode() != null) {
-            flushPendingIndices(clusterState);
+            if (clusterState.nodes().isLocalNodeElectedMaster() || clusterState.nodes().getMasterNode() != null) {
+                flushPendingIndices(clusterState);
+            }
+        } catch (Exception e) {
+            log.error("Error in checkClusterState()", e);
+            componentState.addLastException("checkClusterState", e);
+            componentState.setFailed(e);
         }
 
         if (!this.pendingIndices.isEmpty()) {
@@ -133,80 +192,133 @@ public class ProtectedConfigIndexService {
         }
     }
 
-    private void createIndexNow(ConfigIndexState configIndex, ClusterState clusterState) {
+    private String createIndexNow(ConfigIndexState configIndex, ClusterState clusterState) {
 
-        if (log.isTraceEnabled()) {
-            log.trace("createIndexNow(" + configIndex + ")");
-        }
-
-        if (completedIndices.contains(configIndex)) {
+        try {
             if (log.isTraceEnabled()) {
-                log.trace(configIndex + " is already completed");
-            }
-            return;
-        }
-
-        if (clusterState.getMetadata().getIndices().containsKey(configIndex.getName())) {
-            if (log.isTraceEnabled()) {
-                log.trace(configIndex + " does already exist.");
+                log.trace("createIndexNow(" + configIndex + ")");
             }
 
-            if (configIndex.mappingUpdates.size() != 0) {
-                int mappingVersion = getMappingVersion(configIndex, clusterState);
-
+            if (completedIndices.contains(configIndex)) {
                 if (log.isTraceEnabled()) {
-                    log.trace("Mapping version of index: " + mappingVersion);
+                    log.trace(configIndex + " is already completed");
+                }
+                return "completed";
+            }
+
+            if (clusterState.getMetadata().getIndices().containsKey(configIndex.getName())) {
+                if (log.isTraceEnabled()) {
+                    log.trace(configIndex + " does already exist.");
                 }
 
-                SortedMap<Integer, Map<String, Object>> availableUpdates = configIndex.mappingUpdates.tailMap(mappingVersion);
+                if (configIndex.mappingUpdates.size() != 0) {
+                    int mappingVersion = getMappingVersion(configIndex, clusterState);
 
-                if (availableUpdates.size() != 0) {
-                    Integer patchFrom = availableUpdates.firstKey();
-
-                    Map<String, Object> patch = configIndex.mappingUpdates.get(patchFrom);
-
-                    if (log.isInfoEnabled()) {
-                        log.info("Updating mapping of index " + configIndex.getName() + " from version " + mappingVersion + " to version "
-                                + configIndex.mappingVersion);
+                    if (log.isTraceEnabled()) {
+                        log.trace("Mapping version of index: " + mappingVersion);
                     }
 
-                    configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "mapping_update");
+                    SortedMap<Integer, Map<String, Object>> availableUpdates = configIndex.mappingUpdates.tailMap(mappingVersion);
 
-                    PutMappingRequest putMappingRequest = new PutMappingRequest(configIndex.getName()).type("_doc").source(patch);
+                    if (availableUpdates.size() != 0) {
+                        Integer patchFrom = availableUpdates.firstKey();
 
-                    if (log.isDebugEnabled()) {
-                        log.debug(Strings.toString(putMappingRequest));
-                    }
+                        Map<String, Object> patch = configIndex.mappingUpdates.get(patchFrom);
 
-                    client.admin().indices().putMapping(putMappingRequest, new ActionListener<AcknowledgedResponse>() {
+                        if (log.isInfoEnabled()) {
+                            log.info("Updating mapping of index " + configIndex.getName() + " from version " + mappingVersion + " to version "
+                                    + configIndex.mappingVersion);
+                        }
 
-                        @Override
-                        public void onResponse(AcknowledgedResponse response) {
-                            configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "mapping_updated");
-                            completedIndices.add(configIndex);
-                            configIndex.setCreated(true);
+                        configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "mapping_update");
 
-                            if (configIndex.getListener() != null) {
-                                configIndex.waitForYellowStatus();
-                            } else {
-                                configIndex.moduleState.setInitialized();
+                        PutMappingRequest putMappingRequest = new PutMappingRequest(configIndex.getName()).type("_doc").source(patch);
+
+                        if (log.isDebugEnabled()) {
+                            log.debug(Strings.toString(putMappingRequest));
+                        }
+
+                        client.admin().indices().putMapping(putMappingRequest, new ActionListener<AcknowledgedResponse>() {
+
+                            @Override
+                            public void onResponse(AcknowledgedResponse response) {
+                                configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "mapping_updated");
+                                completedIndices.add(configIndex);
+                                configIndex.setCreated(true);
+
+                                if (configIndex.getListener() != null) {
+                                    configIndex.waitForYellowStatus();
+                                } else {
+                                    configIndex.moduleState.setInitialized();
+                                }
                             }
-                        }
 
-                        @Override
-                        public void onFailure(Exception e) {
-                            log.error("Mapping update failed for " + configIndex, e);
-                            configIndex.moduleState.setFailed(e);
-                            configIndex.moduleState.setState(ComponentState.State.FAILED, "mapping_update_failed");
+                            @Override
+                            public void onFailure(Exception e) {
+                                log.error("Mapping update failed for " + configIndex, e);
+                                configIndex.setFailed(e);
+                                configIndex.moduleState.setState(ComponentState.State.FAILED, "mapping_update_failed");
 
-                        }
-                    });
+                            }
+                        });
 
-                    return;
+                        return "mapping_updated";
+                    }
                 }
+
+                completedIndices.add(configIndex);
+                configIndex.setCreated(true);
+
+                if (configIndex.getListener() != null) {
+                    configIndex.waitForYellowStatus();
+                } else {
+                    configIndex.moduleState.setInitialized();
+                }
+
+                return "exists";
+            }
+
+            if (!clusterState.nodes().isLocalNodeElectedMaster()) {
+                pendingIndices.add(configIndex);
+                configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "waiting_for_master");
+                return "waiting_for_master";
+            }
+
+            CreateIndexRequest request = new CreateIndexRequest(configIndex.getName());
+
+            if (configIndex.getMapping() != null) {
+                request.mapping("_doc", configIndex.getMapping());
+            }
+
+            request.settings(INDEX_SETTINGS);
+
+            if (log.isDebugEnabled()) {
+                log.debug("Creating index " + request.index() + ":\n" + Strings.toString(request, true, true));
             }
 
             completedIndices.add(configIndex);
+            configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "creating");
+
+            CreateIndexResponse createIndexResponse = client.admin().indices().create(request).actionGet();
+            configIndex.setCreated(true);
+
+            if (createIndexResponse.isAcknowledged()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Created " + configIndex + ": " + Strings.toString(createIndexResponse));
+                }
+
+                if (configIndex.getListener() != null) {
+                    configIndex.waitForYellowStatus();
+                } else {
+                    configIndex.moduleState.setInitialized();
+                }
+
+                return "created";
+            } else {
+                throw new Exception("Index creation was not acknowledged");
+            }
+
+        } catch (ResourceAlreadyExistsException e) {
             configIndex.setCreated(true);
 
             if (configIndex.getListener() != null) {
@@ -215,64 +327,13 @@ public class ProtectedConfigIndexService {
                 configIndex.moduleState.setInitialized();
             }
 
-            return;
-        }
-
-        if (!clusterState.nodes().isLocalNodeElectedMaster()) {
+            return "created_by_other_node";
+        } catch (Exception e) {
             pendingIndices.add(configIndex);
-            configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "waiting_for_master");
-            return;
+            log.error("Error while creating index " + configIndex, e);
+            configIndex.moduleState.addLastException("createIndexNow", e);
+            return "error";
         }
-
-        CreateIndexRequest request = new CreateIndexRequest(configIndex.getName());
-
-        if (configIndex.getMapping() != null) {
-            request.mapping("_doc", configIndex.getMapping());
-        }
-
-        request.settings(Settings.builder().put("index.hidden", true));
-
-        if (log.isDebugEnabled()) {
-            log.debug("Creating index " + request.index() + ":\n" + Strings.toString(request, true, true));
-        }
-
-        completedIndices.add(configIndex);
-        configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "creating");
-
-        client.admin().indices().create(request, new ActionListener<CreateIndexResponse>() {
-
-            @Override
-            public void onResponse(CreateIndexResponse response) {
-                configIndex.setCreated(true);
-
-                if (log.isDebugEnabled()) {
-                    log.debug("Created " + configIndex + ": " + Strings.toString(response));
-                }
-
-                if (configIndex.getListener() != null) {
-                    configIndex.waitForYellowStatus();
-                } else {
-                    configIndex.moduleState.setInitialized();
-                }
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                if (e instanceof ResourceAlreadyExistsException) {
-                    configIndex.setCreated(true);
-
-                    if (configIndex.getListener() != null) {
-                        configIndex.waitForYellowStatus();
-                    } else {
-                        configIndex.moduleState.setInitialized();
-                    }
-                } else {
-                    log.error("Error while creating index " + configIndex, e);
-                    configIndex.setFailed(e);
-                }
-            }
-        });
-
     }
 
     private int getMappingVersion(ConfigIndexState configIndex, ClusterState clusterState) {
@@ -555,6 +616,170 @@ public class ProtectedConfigIndexService {
         void onSuccess();
 
         void onFailure(Exception e);
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
+
+    public static class TriggerConfigIndexCreationAction extends ActionType<TriggerConfigIndexCreationAction.Response> {
+
+        public static final TriggerConfigIndexCreationAction INSTANCE = new TriggerConfigIndexCreationAction();
+        public static final String NAME = "cluster:admin:searchguard:internal/indices/create";
+
+        public static final RestApi REST_API = new RestApi()//
+                .responseHeaders(SearchGuardVersion.header())//
+                .handlesPost("/_searchguard/internal/indices/create").with(TriggerConfigIndexCreationAction.INSTANCE, (params, body) -> new Request())//
+                .name("/_searchguard/internal/indices/create");
+
+        protected TriggerConfigIndexCreationAction() {
+            super(NAME, Response::new);
+        }
+
+        public static class Request extends BaseNodesRequest<Request> {
+
+            Request() {
+                super(new String[0]);
+            }
+
+            Request(StreamInput in) throws IOException {
+                super(in);
+            }
+
+            Request(Collection<DiscoveryNode> concreteNodes) {
+                super(concreteNodes.toArray(new DiscoveryNode[concreteNodes.size()]));
+            }
+
+            @Override
+            public void writeTo(final StreamOutput out) throws IOException {
+                super.writeTo(out);
+            }
+        }
+
+        public static class Response extends BaseNodesResponse<NodeResponse> implements StatusToXContentObject {
+
+            public Response(StreamInput in) throws IOException {
+                super(in);
+            }
+
+            public Response(ClusterName clusterName, List<NodeResponse> nodes, List<FailedNodeException> failures) {
+                super(clusterName, nodes, failures);
+            }
+
+            @Override
+            public List<NodeResponse> readNodesFrom(StreamInput in) throws IOException {
+                return in.readList(NodeResponse::new);
+            }
+
+            @Override
+            public void writeNodesTo(StreamOutput out, List<NodeResponse> nodes) throws IOException {
+                out.writeList(nodes);
+            }
+
+            @Override
+            public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+                builder.startObject();
+                builder.field("nodes", getNodesMap());
+
+                if (hasFailures()) {
+                    builder.field("failures");
+                    builder.startArray();
+                    for (FailedNodeException failure : failures()) {
+                        builder.startObject();
+                        failure.toXContent(builder, params);
+                        builder.endObject();
+                    }
+                    builder.endArray();
+                }
+
+                builder.endObject();
+                return builder;
+            }
+
+            @Override
+            public RestStatus status() {
+                return RestStatus.OK;
+            }
+        }
+
+        public static class NodeRequest extends BaseNodeRequest {
+
+            public NodeRequest(StreamInput in) throws IOException {
+                super(in);
+            }
+
+            public NodeRequest() {
+            }
+
+            @Override
+            public void writeTo(StreamOutput out) throws IOException {
+                super.writeTo(out);
+            }
+        }
+
+        public static class NodeResponse extends BaseNodeResponse implements ToXContentObject {
+
+            private final DocNode result;
+
+            public NodeResponse(StreamInput in) throws IOException {
+                super(in);
+                this.result = DocNode.wrap(in.readMap());
+            }
+
+            public NodeResponse(DiscoveryNode node, DocNode result) {
+                super(node);
+                this.result = result;
+            }
+
+            @Override
+            public void writeTo(StreamOutput out) throws IOException {
+                super.writeTo(out);
+                out.writeMap(result.toMap());
+            }
+
+            @Override
+            public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+                builder.map(result.toMap());
+                return builder;
+            }
+
+        }
+
+        public static class TransportAction extends TransportNodesAction<Request, Response, NodeRequest, NodeResponse> {
+
+            private final ProtectedConfigIndexService protectedConfigIndexService;
+
+            @Inject
+            public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
+                    ActionFilters actionFilters, ProtectedConfigIndexService protectedConfigIndexService) {
+                super(TriggerConfigIndexCreationAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
+                        NodeRequest::new, ThreadPool.Names.MANAGEMENT, NodeResponse.class);
+
+                this.protectedConfigIndexService = protectedConfigIndexService;
+            }
+
+            @Override
+            protected NodeResponse newNodeResponse(StreamInput in, DiscoveryNode node) throws IOException {
+                return new NodeResponse(in);
+            }
+
+            @Override
+            protected Response newResponse(Request request, List<NodeResponse> responses, List<FailedNodeException> failures) {
+                return new Response(this.clusterService.getClusterName(), responses, failures);
+            }
+
+            @Override
+            protected NodeResponse nodeOperation(NodeRequest request) {
+                return new NodeResponse(clusterService.localNode(), protectedConfigIndexService.flushPendingIndices());
+            }
+
+            @Override
+            protected NodeRequest newNodeRequest(Request request) {
+                return new NodeRequest();
+            }
+        }
+
     }
 
 }

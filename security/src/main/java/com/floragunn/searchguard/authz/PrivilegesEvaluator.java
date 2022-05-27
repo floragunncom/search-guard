@@ -149,7 +149,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.actionRequestIntrospector = actionRequestIntrospector;
         snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog, guiceDependencies);
         this.adminOnlyActions = getPatternFromSettings(settings, ConfigConstants.SEARCHGUARD_ADMIN_ONLY_ACTIONS,
-                ImmutableList.of("cluster:admin:searchguard:config/*"));
+                ImmutableList.of("cluster:admin:searchguard:config/*", "cluster:admin:searchguard:internal/*"));
         this.adminOnlyIndices = getPatternFromSettings(settings, ConfigConstants.SEARCHGUARD_ADMIN_ONLY_INDICES,
                 ImmutableList.of("searchguard", ".searchguard_*", ".signals_watches*", ".signals_accounts", ".signals_settings"));
 

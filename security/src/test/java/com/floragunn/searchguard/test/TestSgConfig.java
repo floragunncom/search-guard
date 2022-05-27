@@ -306,7 +306,11 @@ public class TestSgConfig {
     }
 
     public void initIndex(Client client) {
-        client.admin().indices().create(new CreateIndexRequest(indexName)).actionGet();
+        Map<String, Object> settings = new HashMap<>();
+        if (indexName.startsWith(".")) {
+            settings.put("index.hidden", true);
+        }
+        client.admin().indices().create(new CreateIndexRequest(indexName).settings(settings)).actionGet();
 
         writeOptionalConfigToIndex(client, CType.CONFIG, "sg_config.yml", overrideSgConfigSettings);
         writeOptionalConfigToIndex(client, CType.ROLES, "sg_roles.yml", overrideRoleSettings);
