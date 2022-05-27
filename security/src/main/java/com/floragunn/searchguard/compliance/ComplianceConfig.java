@@ -195,7 +195,7 @@ public class ComplianceConfig implements LicenseChangeListener {
             } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
                 try {
                     LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
-                    AuthorizationConfig privilegesConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null);
+                    AuthorizationConfig privilegesConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null, settings);
                     setFieldAnonymizationSalt2(privilegesConfig.getFieldAnonymizationSalt());
                     log.info("Updated authz config (legacy):\n" + legacyConfig);
                     if (log.isDebugEnabled()) {

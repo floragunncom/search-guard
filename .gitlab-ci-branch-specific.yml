@@ -1,2 +1,4 @@
 variables:
-  IT_BRANCH: "remove-index-access-evaluator"
+  IT_BRANCH: "main-os"
+  SG_KI_PLUGIN: "b-master-SNAPSHOT"
+  # KI_VERSION: "7.16.3"

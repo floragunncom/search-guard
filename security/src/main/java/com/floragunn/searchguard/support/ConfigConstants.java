@@ -98,27 +98,12 @@ public class ConfigConstants {
 
     public static final String SSO_LOGOUT_URL = SG_CONFIG_PREFIX+"sso_logout_url";
 
-    public static final String SEARCHGUARD_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE = "searchguard.enable_snapshot_restore_privilege";
-    public static final boolean SG_DEFAULT_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE = true;
-
-    public static final String SEARCHGUARD_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES = "searchguard.check_snapshot_restore_write_privileges";
-    public static final boolean SG_DEFAULT_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES = true;
-    public static final Set<String> SG_SNAPSHOT_RESTORE_NEEDED_WRITE_PRIVILEGES = Collections.unmodifiableSet(
-            new HashSet<String>(Arrays.asList(
-                    "indices:admin/create",
-                    "indices:data/write/index"
-                    // "indices:data/write/bulk"
-              )));
-
     public static final String SG_INTERCLUSTER_REQUEST_EVALUATOR_CLASS = "searchguard.cert.intercluster_request_evaluator_class";
     public static final String SG_ACTION_NAME = SG_CONFIG_PREFIX+"action_name";
 
 
     public static final String SEARCHGUARD_AUTHCZ_ADMIN_DN = "searchguard.authcz.admin_dn";
-    
-    public static final String SEARCHGUARD_ADMIN_ONLY_ACTIONS = "searchguard.admin_only_actions";
-    public static final String SEARCHGUARD_ADMIN_ONLY_INDICES = "searchguard.admin_only_indices";
-    
+       
     public static final String SEARCHGUARD_AUTHCZ_IMPERSONATION_DN = "searchguard.authcz.impersonation_dn";
     public static final String SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS="searchguard.authcz.rest_impersonation_user";
     
@@ -194,6 +179,7 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_CACHE_TTL_MINUTES = "searchguard.cache.ttl_minutes";
     public static final String SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES = "searchguard.allow_unsafe_democertificates";
 
+    @Deprecated
     public static final String SEARCHGUARD_ROLES_MAPPING_RESOLUTION = "searchguard.roles_mapping_resolution";
 
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_METADATA_ONLY = "searchguard.compliance.history.write.metadata_only";
@@ -217,11 +203,7 @@ public class ConfigConstants {
     
     public static final String SEARCHGUARD_SSL_CERT_RELOAD_ENABLED = "searchguard.ssl.cert_reload_enabled";
 
-    public enum RolesMappingResolution {
-        MAPPING_ONLY,
-        BACKENDROLES_ONLY,
-        BOTH
-    }
+   
 
     // REST API
     public static final String SEARCHGUARD_RESTAPI_ROLES_ENABLED = "searchguard.restapi.roles_enabled";
@@ -238,10 +220,8 @@ public class ConfigConstants {
     
     // Illegal Opcodes from here on
     public static final String SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE = "searchguard.unsupported.restapi.accept_invalid_license";
-    public static final String SEARCHGUARD_UNSUPPORTED_RESTORE_SGINDEX_ENABLED = "searchguard.unsupported.restore.sgindex.enabled";
     public static final String SEARCHGUARD_UNSUPPORTED_ALLOW_NOW_IN_DLS = "searchguard.unsupported.allow_now_in_dls";
     public static final String SEARCHGUARD_UNSUPPORTED_RESTAPI_ALLOW_SGCONFIG_MODIFICATION = "searchguard.unsupported.restapi.allow_sgconfig_modification";
-
     public static final String SEARCHGUARD_UNSUPPORTED_LOAD_STATIC_RESOURCES = "searchguard.unsupported.load_static_resources";
     
 }
