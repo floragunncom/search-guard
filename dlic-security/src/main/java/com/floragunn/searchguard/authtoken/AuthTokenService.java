@@ -118,7 +118,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private final PrivilegedConfigClient privilegedConfigClient;
     private final ConfigHistoryService configHistoryService;
     private final ComponentState componentState;
-    private final ComponentState configComponentState;
     private final PrivilegesEvaluator privilegesEvaluator;
     private final Actions actions;
 
@@ -142,7 +141,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
         this.componentState = componentState;
-        this.configComponentState = componentState.getOrCreatePart("config", "sg_config");
         this.privilegesEvaluator = privilegesEvaluator;
         this.actions = actions;
 
@@ -729,7 +727,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             }
 
         } catch (Exception e) {
-            this.configComponentState.setFailed(e);
+            this.componentState.setFailed(e);
+            this.componentState.setSubState("jwt_producer_not_initialized");
             this.jwtProducer = null;
             log.error("Error while initializing JWT producer in AuthTokenProvider", e);
         }
@@ -946,6 +945,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     }
 
     public ComponentState getComponentState() {
+        componentState.updateStateFromParts();
         return componentState;
     }
 
