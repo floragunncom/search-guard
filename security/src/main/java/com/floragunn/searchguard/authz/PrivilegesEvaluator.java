@@ -653,7 +653,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         ImmutableSet<String> mappedRoles = mapSgRoles(user, caller);
         String requestedTenant = getRequestedTenant(user);
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),
-                actionRequestIntrospector, resolver);
+                actionRequestIntrospector, resolver, null);
 
         Map<String, Boolean> result = new HashMap<>();
 
@@ -744,7 +744,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         Action action = this.actions.get(actionName);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, action, null, authzConfig.isDebugEnabled(),
-                actionRequestIntrospector, resolver);
+                actionRequestIntrospector, resolver, specialPrivilegesEvaluationContext);
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(context, action);
 
         return privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.OK;
@@ -775,7 +775,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         }
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),
-                actionRequestIntrospector, resolver);
+                actionRequestIntrospector, resolver, null);
 
         for (String permission : permissions) {
             PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(context, actions.get(permission));
@@ -788,6 +788,21 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         return true;
     }
 
+    public boolean hasClusterPermissions(String permission, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
+        ActionAuthorization actionAuthorization;
+
+        if (context.getSpecialPrivilegesEvaluationContext() == null) {
+            actionAuthorization = this.actionAuthorization;
+        } else {
+            actionAuthorization = context.getSpecialPrivilegesEvaluationContext().getActionAuthorization();
+        }
+        
+        PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(context, actions.get(permission));
+        
+        return privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.OK;
+
+    }
+    
     private boolean checkDocWhitelistHeader(User user, String action, ActionRequest request) {
         String docWhitelistHeader = threadContext.getHeader(ConfigConstants.SG_DOC_WHITELST_HEADER);
 

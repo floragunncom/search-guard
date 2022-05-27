@@ -461,7 +461,6 @@ public class Actions {
     private <RequestType extends ActionRequest> ActionBuilder<RequestType, Void, Void> open(ActionType<?> actionType) {
         return builder.open(actionType);
     }
-    
 
     private ActionBuilder<?, ?, ?> open(String action) {
         return builder.open(action);
@@ -657,13 +656,13 @@ public class Actions {
             return this;
         }
 
-        ActionBuilder<RequestType, RequestItem, RequestItemType> usesResource(String type, Function<ActionRequest, Object> id) {
-            usesResources.add(new Resource(type, id, false));
+        ActionBuilder<RequestType, RequestItem, RequestItemType> uses(Resource resource) {
+            usesResources.add(resource);
             return this;
         }
 
-        ActionBuilder<RequestType, RequestItem, RequestItemType> deletesResource(String type, Function<ActionRequest, Object> id) {
-            usesResources.add(new Resource(type, id, true));
+        ActionBuilder<RequestType, RequestItem, RequestItemType> deletes(Resource resource) {
+            usesResources.add(resource.deleteAction(true));
             return this;
         }
 

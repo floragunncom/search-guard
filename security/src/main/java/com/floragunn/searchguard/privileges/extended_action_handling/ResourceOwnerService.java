@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,9 @@ import org.opensearch.tasks.Task;
 import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
@@ -74,6 +77,7 @@ public class ResourceOwnerService {
     private final String index = ".searchguard_resource_owner";
     private final PrivilegedConfigClient privilegedConfigClient;
     private IndexCleanupAgent indexCleanupAgent;
+    private final PrivilegesEvaluator privilegesEvaluator;
 
     private final int maxCheckRetries;
     private final long checkRetryDelay;
@@ -81,13 +85,13 @@ public class ResourceOwnerService {
     private final WriteRequest.RefreshPolicy refreshPolicy;
 
     public ResourceOwnerService(Client client, ClusterService clusterService, ThreadPool threadPool, ProtectedIndices protectedIndices,
-            Settings settings) {
+            PrivilegesEvaluator privilegesEvaluator, Settings settings) {
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.maxCheckRetries = MAX_CHECK_RETRIES.get(settings);
         this.checkRetryDelay = CHECK_RETRY_DELAY.get(settings);
         this.defaultResourceLifetime = DEFAULT_RESOURCE_LIFETIME.get(settings);
         this.refreshPolicy = WriteRequest.RefreshPolicy.parse(REFRESH_POLICY.get(settings));
-
+        this.privilegesEvaluator = privilegesEvaluator;
         this.indexCleanupAgent = new IndexCleanupAgent(index, CLEANUP_INTERVAL.get(settings), privilegedConfigClient, clusterService, threadPool);
 
         protectedIndices.add(index);
@@ -145,7 +149,6 @@ public class ResourceOwnerService {
                         actionListener.onFailure(new OpenSearchSecurityException(
                                 "Resource " + resourceType + ":" + id + " is not owned by user " + currentUser.getName(), RestStatus.FORBIDDEN));
                     }
-
                 } else if (retry < maxCheckRetries) {
                     if (log.isDebugEnabled()) {
                         log.debug("Retrying checkOwner(" + resourceType + ":" + id + ")");
@@ -195,15 +198,25 @@ public class ResourceOwnerService {
     }
 
     public <Request extends ActionRequest, Response extends ActionResponse> ActionFilterChain<Request, Response> applyOwnerCheckPreAction(
-            WellKnownAction<Request, ?, ?> actionConfig, User currentUser, Task task, final String action, Request actionRequest,
+            WellKnownAction<Request, ?, ?> actionConfig, PrivilegesEvaluationContext context, Request actionRequest,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
 
         ActionFilterChain<Request, Response> extendedChain = chain;
 
         for (Resource usesResource : actionConfig.getResources().getUsesResources()) {
+            if (usesResource.getOwnerCheckBypassPermission() != null) {
+                try {
+                    if (this.privilegesEvaluator.hasClusterPermissions(usesResource.getOwnerCheckBypassPermission(), context)) {
+                        continue;
+                    }
+                } catch (PrivilegesEvaluationException e) {
+                    log.error("Error while evaluating owner check bypass permission of " + usesResource, e);
+                }
+            }
+
             Object resourceId = usesResource.getId().apply(actionRequest);
 
-            extendedChain = new OwnerCheckPreAction<Request, Response>(usesResource, resourceId, currentUser, extendedChain);
+            extendedChain = new OwnerCheckPreAction<Request, Response>(usesResource, resourceId, context.getUser(), extendedChain);
         }
 
         return extendedChain;
@@ -263,7 +276,7 @@ public class ResourceOwnerService {
     }
 
     public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyDeletePostAction(WellKnownAction<?, ?, ?> actionConfig,
-            Resource resource, User currentUser, Task task, final String action, Request actionRequest, ActionListener<R> actionListener) {
+            Resource resource, User currentUser, Request actionRequest, ActionListener<R> actionListener) {
 
         return new ActionListener<R>() {
 

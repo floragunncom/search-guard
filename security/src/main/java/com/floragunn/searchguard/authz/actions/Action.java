@@ -264,22 +264,21 @@ public interface Action {
 
         public static class Resources {
             private final NewResource createsResource;
-            private final List<Resource> usesResources;
+            private final ImmutableList<Resource> usesResources;
 
             public Resources(NewResource createsResource, List<Resource> usesResources) {
                 super();
                 this.createsResource = createsResource;
-                this.usesResources = usesResources;
+                this.usesResources = ImmutableList.of(usesResources);
             }
 
             public NewResource getCreatesResource() {
                 return createsResource;
             }
 
-            public List<Resource> getUsesResources() {
+            public ImmutableList<Resource> getUsesResources() {
                 return usesResources;
             }
-
         }
 
         public static class AdditionalPrivileges<RequestType extends ActionRequest, RequestItemType> {
@@ -316,11 +315,17 @@ public interface Action {
             private final String type;
             private final Function<ActionRequest, Object> id;
             private final boolean deleteAction;
+            private final String ownerCheckBypassPermission;
 
-            public Resource(String type, Function<ActionRequest, Object> id, boolean deleteAction) {
+            public Resource(String type, Function<ActionRequest, Object> id) {
+                this(type, id, false, null);
+            }
+            
+            public Resource(String type, Function<ActionRequest, Object> id, boolean deleteAction, String ownerCheckBypassPermission) {
                 this.type = type;
                 this.id = id;
                 this.deleteAction = deleteAction;
+                this.ownerCheckBypassPermission = ownerCheckBypassPermission;
             }
 
             public String getType() {
@@ -333,6 +338,18 @@ public interface Action {
 
             public boolean isDeleteAction() {
                 return deleteAction;
+            }
+            
+            public Resource deleteAction(boolean deleteAction) {
+                return new Resource(this.type, this.id, deleteAction, this.ownerCheckBypassPermission);
+            }
+            
+            public Resource ownerCheckBypassPermission(String permission) {
+                return new Resource(this.type, this.id, this.deleteAction, permission);
+            }
+
+            public String getOwnerCheckBypassPermission() {
+                return ownerCheckBypassPermission;
             }
         }
 

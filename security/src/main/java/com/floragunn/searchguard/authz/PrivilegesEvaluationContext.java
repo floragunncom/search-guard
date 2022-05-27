@@ -29,6 +29,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.user.User;
 
 /**
@@ -44,12 +45,14 @@ public class PrivilegesEvaluationContext {
     private final Map<Template<Pattern>, Pattern> renderedPatternTemplateCache = new HashMap<>();
     private final ImmutableSet<String> mappedRoles;
     private final ActionRequestIntrospector actionRequestIntrospector;
+    private final SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext;
     private final IndexNameExpressionResolver resolver;
     private final boolean debugEnabled;
     private ActionRequestInfo requestInfo;
 
     public PrivilegesEvaluationContext(User user, ImmutableSet<String> mappedRoles, Action action, Object request, boolean debugEnabled,
-            ActionRequestIntrospector actionRequestIntrospector, IndexNameExpressionResolver resolver) {
+            ActionRequestIntrospector actionRequestIntrospector, IndexNameExpressionResolver resolver,
+            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
         this.user = user;
         this.mappedRoles = mappedRoles;
         this.action = action;
@@ -57,6 +60,7 @@ public class PrivilegesEvaluationContext {
         this.actionRequestIntrospector = actionRequestIntrospector;
         this.debugEnabled = debugEnabled;
         this.resolver = resolver;
+        this.specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContext;
     }
 
     public User getUser() {
@@ -116,11 +120,16 @@ public class PrivilegesEvaluationContext {
         if (this.mappedRoles != null && this.mappedRoles.equals(mappedRoles)) {
             return this;
         } else {
-            return new PrivilegesEvaluationContext(user, mappedRoles, action, mappedRoles, debugEnabled, actionRequestIntrospector, resolver);
+            return new PrivilegesEvaluationContext(user, mappedRoles, action, mappedRoles, debugEnabled, actionRequestIntrospector, resolver,
+                    specialPrivilegesEvaluationContext);
         }
     }
 
     public IndexNameExpressionResolver getResolver() {
         return resolver;
+    }
+
+    public SpecialPrivilegesEvaluationContext getSpecialPrivilegesEvaluationContext() {
+        return specialPrivilegesEvaluationContext;
     }
 }
