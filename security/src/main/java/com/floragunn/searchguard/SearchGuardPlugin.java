@@ -882,7 +882,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         
         Actions actions = new Actions(moduleRegistry);
 
-        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, settings, cih,
+        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, staticSettings, cih,
                 actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
                 enterpriseModulesEnabled);
         moduleRegistry.addComponentStateProvider(evaluator);
@@ -999,19 +999,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     Property.Filtered));
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_NODES_DN, Collections.emptyList(), Function.identity(), Property.NodeScope));//not filtered here
 
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE,
-                    ConfigConstants.SG_DEFAULT_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE, Property.NodeScope, Property.Filtered));
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
-                    ConfigConstants.SG_DEFAULT_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES, Property.NodeScope, Property.Filtered));
-
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DISABLED, false, Property.NodeScope, Property.Filtered));
 
             settings.add(Setting.intSetting(ConfigConstants.SEARCHGUARD_CACHE_TTL_MINUTES, 60, 0, Property.NodeScope, Property.Filtered, Property.Deprecated));
-            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ADMIN_ONLY_ACTIONS, Collections.emptyList(), Function.identity(),
-                    Property.NodeScope));
-            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ADMIN_ONLY_INDICES, Collections.emptyList(), Function.identity(),
-                    Property.NodeScope));
-
+           
             //SG6
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true, Property.NodeScope, Property.Filtered));
             settings.add(
@@ -1178,8 +1169,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, false, Property.NodeScope, Property.Filtered, Property.Deprecated));
             
             // system integration
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTORE_SGINDEX_ENABLED, false, Property.NodeScope,
-                    Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_ALLOW_NOW_IN_DLS, false, Property.NodeScope, Property.Filtered));
 
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ALLOW_SGCONFIG_MODIFICATION, false, Property.NodeScope,
@@ -1196,9 +1185,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             settings.add(SearchGuardModulesRegistry.DISABLED_MODULES);
             settings.add(EncryptionKeys.ENCRYPTION_KEYS_SETTING);
-            settings.addAll(ConfigurationRepository.OPTIONS.toPlatform());
+            settings.addAll(ConfigurationRepository.STATIC_SETTINGS.toPlatform());
             settings.addAll(moduleRegistry.getSettings());
             settings.addAll(DiagnosticContext.SETTINGS);
+            settings.addAll(PrivilegesEvaluator.STATIC_SETTINGS.toPlatform());
             
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2018 floragunn GmbH
+ * Copyright 2015-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 
 import com.floragunn.searchguard.GuiceDependencies;
@@ -30,35 +29,26 @@ import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.SnapshotRestoreHelper;
 
 public class SnapshotRestoreEvaluator {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
-    private final boolean enableSnapshotRestorePrivilege;
     private final AuditLog auditLog;
     private final boolean restoreSgIndexEnabled;
     private final GuiceDependencies guiceDependencies;
-    
-    public SnapshotRestoreEvaluator(final Settings settings, AuditLog auditLog, GuiceDependencies guiceDependencies) {
-        this.enableSnapshotRestorePrivilege = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE,
-                ConfigConstants.SG_DEFAULT_ENABLE_SNAPSHOT_RESTORE_PRIVILEGE);
-        this.restoreSgIndexEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTORE_SGINDEX_ENABLED, false);
+
+    public SnapshotRestoreEvaluator(AuditLog auditLog, GuiceDependencies guiceDependencies, boolean restoreSgIndexEnabled) {
+        this.restoreSgIndexEnabled = restoreSgIndexEnabled;
         this.auditLog = auditLog;
         this.guiceDependencies = guiceDependencies;
     }
 
-    public PrivilegesEvaluationResult evaluate(final ActionRequest request, final Task task, final Action action, final ClusterInfoHolder clusterInfoHolder) {
+    public PrivilegesEvaluationResult evaluate(final ActionRequest request, final Task task, final Action action,
+            final ClusterInfoHolder clusterInfoHolder) {
 
         if (!(request instanceof RestoreSnapshotRequest)) {
             return PrivilegesEvaluationResult.PENDING;
-        }
-        
-        // snapshot restore for regular users not enabled
-        if (!enableSnapshotRestorePrivilege) {
-            log.warn(action + " is not allowed for a regular user");
-            return PrivilegesEvaluationResult.INSUFFICIENT.reason("Action is not allowed for a non-admin user").missingPrivileges(action);
         }
 
         // if this feature is enabled, users can also snapshot and restore
@@ -66,18 +56,19 @@ public class SnapshotRestoreEvaluator {
         if (restoreSgIndexEnabled) {
             return PrivilegesEvaluationResult.PENDING;
         }
-        
+
         if (clusterInfoHolder.isLocalNodeElectedMaster() == Boolean.FALSE) {
             return PrivilegesEvaluationResult.OK;
         }
-        
+
         final RestoreSnapshotRequest restoreRequest = (RestoreSnapshotRequest) request;
 
         // Do not allow restore of global state
         if (restoreRequest.includeGlobalState()) {
             auditLog.logSgIndexAttempt(request, action.name(), task);
             log.warn(action + " with 'include_global_state' enabled is not allowed");
-            return PrivilegesEvaluationResult.INSUFFICIENT.reason("Action with 'include_global_state' enabled is not allowed").missingPrivileges(action);
+            return PrivilegesEvaluationResult.INSUFFICIENT.reason("Action with 'include_global_state' enabled is not allowed")
+                    .missingPrivileges(action);
         }
 
         final List<String> rs = SnapshotRestoreHelper.resolveOriginalIndices(restoreRequest, guiceDependencies.getRepositoriesService());
@@ -87,7 +78,7 @@ public class SnapshotRestoreEvaluator {
             log.warn(action + " for '{}' as source index is not allowed", SearchGuardPlugin.getProtectedIndices().printProtectedIndices());
             return PrivilegesEvaluationResult.INSUFFICIENT.reason("Source index is protected").missingPrivileges(action);
         }
-        
+
         return PrivilegesEvaluationResult.PENDING;
     }
 }

@@ -20,12 +20,17 @@ package com.floragunn.searchsupport;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.env.Environment;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 
 /**
@@ -33,7 +38,8 @@ import com.floragunn.fluent.collections.ImmutableList;
  */
 public class StaticSettings {
     public static final StaticSettings EMPTY = new StaticSettings(Settings.EMPTY, null);
-    
+    private static final Logger log = LogManager.getLogger(StaticSettings.class);
+
     private final org.elasticsearch.common.settings.Settings settings;
     private final org.elasticsearch.env.Environment environment;
     private final Path configPath;
@@ -68,7 +74,7 @@ public class StaticSettings {
         protected final String name;
         protected final V defaultValue;
         protected final boolean filtered;
-        protected final org.elasticsearch.common.settings.Setting<V> platformInstance;
+        protected final org.elasticsearch.common.settings.Setting<?> platformInstance;
 
         Attribute(String name, V defaultValue, boolean filtered) {
             this.name = name;
@@ -77,15 +83,16 @@ public class StaticSettings {
             this.platformInstance = toPlatformInstance();
         }
 
+        @SuppressWarnings("unchecked")
         V getFrom(org.elasticsearch.common.settings.Settings settings) {
-            return platformInstance.get(settings);
+            return (V) platformInstance.get(settings);
         }
 
         public String name() {
             return name;
         }
-        
-        protected abstract org.elasticsearch.common.settings.Setting<V> toPlatformInstance();
+
+        protected abstract org.elasticsearch.common.settings.Setting<?> toPlatformInstance();
 
         protected org.elasticsearch.common.settings.Setting.Property[] toPlatformProperties() {
             List<Property> result = new ArrayList<>(3);
@@ -119,7 +126,6 @@ public class StaticSettings {
                 castedBuilder.defaultValue = defaultValue;
                 return new StringBuilder(castedBuilder);
             }
-            
 
             public IntegerBuilder withDefault(int defaultValue) {
                 @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -140,6 +146,13 @@ public class StaticSettings {
                 Builder<TimeValue> castedBuilder = (Builder<TimeValue>) (Builder) this;
                 castedBuilder.defaultValue = defaultValue;
                 return new TimeValueBuilder(castedBuilder);
+            }
+
+            public PatternBuilder withDefault(Pattern defaultValue) {
+                @SuppressWarnings({ "unchecked", "rawtypes" })
+                Builder<Pattern> castedBuilder = (Builder<Pattern>) (Builder) this;
+                castedBuilder.defaultValue = defaultValue;
+                return new PatternBuilder(castedBuilder);
             }
 
         }
@@ -192,6 +205,18 @@ public class StaticSettings {
             }
         }
 
+        public static class PatternBuilder {
+            private final Builder<Pattern> parent;
+
+            PatternBuilder(Builder<Pattern> parent) {
+                this.parent = parent;
+            }
+
+            public Attribute<Pattern> asPattern() {
+                return new PatternAttribute(parent.name, parent.defaultValue, parent.filtered);
+            }
+        }
+
     }
 
     static class StringAttribute extends Attribute<String> {
@@ -240,7 +265,35 @@ public class StaticSettings {
         protected org.elasticsearch.common.settings.Setting<TimeValue> toPlatformInstance() {
             return org.elasticsearch.common.settings.Setting.timeSetting(name, defaultValue, TimeValue.timeValueSeconds(1), toPlatformProperties());
         }
+    }
 
+    static class PatternAttribute extends Attribute<Pattern> {
+        private static final List<String> EMPTY_DEFAULT = ImmutableList.of("___empty");
+
+        PatternAttribute(String name, Pattern defaultValue, boolean filtered) {
+            super(name, defaultValue, filtered);
+        }
+
+        @Override
+        protected org.elasticsearch.common.settings.Setting<?> toPlatformInstance() {
+            return org.elasticsearch.common.settings.Setting.listSetting(name, EMPTY_DEFAULT, Function.identity(), toPlatformProperties());
+        }
+
+        @Override
+        Pattern getFrom(Settings settings) {
+            @SuppressWarnings("unchecked")
+            List<String> value = (List<String>) platformInstance.get(settings);
+            if (value.equals(EMPTY_DEFAULT)) {
+                return defaultValue;
+            } else {
+                try {
+                    return Pattern.create(value);
+                } catch (ConfigValidationException e) {
+                    log.error("Invalid pattern value for setting " + name(), e);
+                    return defaultValue;
+                }
+            }
+        }
     }
 
     public static class AttributeSet {

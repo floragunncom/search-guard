@@ -116,7 +116,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private static final StaticSettings.Attribute<Boolean> BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST = StaticSettings.Attribute
             .define("searchguard.background_init_if_sgindex_not_exist").withDefault(true).asBoolean();
 
-    public static final AttributeSet OPTIONS = AttributeSet.of(OLD_INDEX_NAME, NEW_INDEX_NAME, ALLOW_DEFAULT_INIT_SGINDEX,
+    public static final AttributeSet STATIC_SETTINGS = AttributeSet.of(OLD_INDEX_NAME, NEW_INDEX_NAME, ALLOW_DEFAULT_INIT_SGINDEX,
             BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST);
 
     private final String configuredSearchguardIndexOld;

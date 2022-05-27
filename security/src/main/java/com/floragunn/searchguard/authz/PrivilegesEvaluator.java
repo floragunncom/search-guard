@@ -42,8 +42,6 @@ import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsException;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
@@ -80,11 +78,29 @@ import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.google.common.base.Strings;
 
 public class PrivilegesEvaluator implements ComponentStateProvider {
+    static final StaticSettings.Attribute<Pattern> ADMIN_ONLY_ACTIONS = //
+            StaticSettings.Attribute.define("searchguard.admin_only_actions")
+                    .withDefault(Pattern.createUnchecked("cluster:admin:searchguard:config/*", "cluster:admin:searchguard:internal/*")).asPattern();
+    static final StaticSettings.Attribute<Pattern> ADMIN_ONLY_INDICES = //
+            StaticSettings.Attribute.define("searchguard.admin_only_indices")
+                    .withDefault(
+                            Pattern.createUnchecked("searchguard", ".searchguard_*", ".signals_watches*", ".signals_accounts", ".signals_settings"))
+                    .asPattern();
+    static final StaticSettings.Attribute<Boolean> CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES = //
+            StaticSettings.Attribute.define("searchguard.check_snapshot_restore_write_privileges").withDefault(true).asBoolean();
+
+    static final StaticSettings.Attribute<Boolean> UNSUPPORTED_RESTORE_SGINDEX_ENABLED = //
+            StaticSettings.Attribute.define("searchguard.unsupported.restore.sgindex.enabled").withDefault(false).asBoolean();
+    
+    public static final StaticSettings.AttributeSet STATIC_SETTINGS = //
+            StaticSettings.AttributeSet.of(ADMIN_ONLY_ACTIONS, ADMIN_ONLY_INDICES, CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES, UNSUPPORTED_RESTORE_SGINDEX_ENABLED);
+
     private static final String USER_TENANT = "__user__";
     private static final Logger log = LogManager.getLogger(PrivilegesEvaluator.class);
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
@@ -106,7 +122,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final Pattern adminOnlyActions;
     private final Pattern adminOnlyIndices;
     private final Actions actions;
-    private final ConfigConstants.RolesMappingResolution rolesMappingResolution;
     private final ComponentState componentState = new ComponentState(10, null, "privileges_evaluator");
 
     private volatile AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
@@ -115,7 +130,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private volatile RoleMapping.InvertedIndex roleMapping;
 
     public PrivilegesEvaluator(Client localClient, ClusterService clusterService, ThreadPool threadPool,
-            ConfigurationRepository configurationRepository, IndexNameExpressionResolver resolver, AuditLog auditLog, Settings settings,
+            ConfigurationRepository configurationRepository, IndexNameExpressionResolver resolver, AuditLog auditLog, StaticSettings settings,
             ClusterInfoHolder clusterInfoHolder, Actions actions, ActionRequestIntrospector actionRequestIntrospector,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
             GuiceDependencies guiceDependencies, NamedXContentRegistry namedXContentRegistry, boolean enterpriseModulesEnabled) {
@@ -126,21 +141,16 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         this.threadContext = threadPool.getThreadContext();
 
-        this.checkSnapshotRestoreWritePrivileges = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
-                ConfigConstants.SG_DEFAULT_CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES);
+        this.checkSnapshotRestoreWritePrivileges = settings.get(CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES);
 
         this.clusterInfoHolder = clusterInfoHolder;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
 
         this.actions = actions;
         this.actionRequestIntrospector = actionRequestIntrospector;
-        snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(settings, auditLog, guiceDependencies);
-        this.adminOnlyActions = getPatternFromSettings(settings, ConfigConstants.SEARCHGUARD_ADMIN_ONLY_ACTIONS,
-                ImmutableList.of("cluster:admin:searchguard:config/*", "cluster:admin:searchguard:internal/*"));
-        this.adminOnlyIndices = getPatternFromSettings(settings, ConfigConstants.SEARCHGUARD_ADMIN_ONLY_INDICES,
-                ImmutableList.of("searchguard", ".searchguard_*", ".signals_watches*", ".signals_accounts", ".signals_settings"));
-
-        this.rolesMappingResolution = getRolesMappingResolution(settings);
+        this.snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(auditLog, guiceDependencies, settings.get(UNSUPPORTED_RESTORE_SGINDEX_ENABLED));
+        this.adminOnlyActions = settings.get(ADMIN_ONLY_ACTIONS);
+        this.adminOnlyIndices = settings.get(ADMIN_ONLY_INDICES);
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
 
@@ -160,7 +170,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
                     try {
                         LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
-                        PrivilegesEvaluator.this.authzConfig = authzConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null);
+                        PrivilegesEvaluator.this.authzConfig = authzConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null,
+                                settings.getPlatformSettings());
 
                         log.info("Updated authz config (legacy):\n" + legacyConfig);
                         if (log.isDebugEnabled()) {
@@ -583,7 +594,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             throw new ElasticsearchSecurityException("SearchGuard is not yet initialized");
         }
 
-        return roleMapping.evaluate(user, caller, rolesMappingResolution);
+        return roleMapping.evaluate(user, caller, authzConfig.getRoleMappingResolution());
     }
 
     public Set<String> getAllConfiguredTenantNames() {
@@ -810,17 +821,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.privilegesInterceptor = privilegesInterceptor;
     }
 
-    private static ConfigConstants.RolesMappingResolution getRolesMappingResolution(Settings settings) {
-        try {
-            return ConfigConstants.RolesMappingResolution.valueOf(
-                    settings.get(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, ConfigConstants.RolesMappingResolution.MAPPING_ONLY.toString())
-                            .toUpperCase());
-        } catch (Exception e) {
-            log.error("Cannot apply roles mapping resolution", e);
-            return ConfigConstants.RolesMappingResolution.MAPPING_ONLY;
-        }
-    }
-
     public RoleBasedActionAuthorization getActionAuthorization() {
         return actionAuthorization;
     }
@@ -833,8 +833,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         return roleMapping;
     }
 
-    public ConfigConstants.RolesMappingResolution getRolesMappingResolution() {
-        return rolesMappingResolution;
+    public RoleMapping.ResolutionMode getRolesMappingResolution() {
+        return authzConfig.getRoleMappingResolution();
     }
 
     public ActionGroup.FlattenedIndex getActionGroups() {
@@ -856,14 +856,5 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     public boolean isDebugEnabled() {
         return authzConfig.isDebugEnabled();
-    }
-
-    private static Pattern getPatternFromSettings(Settings settings, String key, List<String> defaultValue) {
-        try {
-            return Pattern.create(settings.getAsList(key, defaultValue));
-        } catch (ConfigValidationException | SettingsException e) {
-            log.error("Invalid settings option " + key, e);
-            return Pattern.createUnchecked(defaultValue);
-        }
     }
 }
