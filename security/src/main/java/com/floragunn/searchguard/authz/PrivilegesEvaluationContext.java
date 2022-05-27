@@ -27,6 +27,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.user.User;
 
 /**
@@ -42,17 +43,19 @@ public class PrivilegesEvaluationContext {
     private final Map<Template<Pattern>, Pattern> renderedPatternTemplateCache = new HashMap<>();
     private final ImmutableSet<String> mappedRoles;
     private final ActionRequestIntrospector actionRequestIntrospector;
+    private final SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext;
     private final boolean debugEnabled;
     private ActionRequestInfo requestInfo;
 
     public PrivilegesEvaluationContext(User user, ImmutableSet<String> mappedRoles, Action action, Object request, boolean debugEnabled,
-            ActionRequestIntrospector actionRequestIntrospector) {
+            ActionRequestIntrospector actionRequestIntrospector, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
         this.user = user;
         this.mappedRoles = mappedRoles;
         this.action = action;
         this.request = request;
         this.actionRequestIntrospector = actionRequestIntrospector;
         this.debugEnabled = debugEnabled;
+        this.specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContext;
     }
 
     public User getUser() {
@@ -112,7 +115,12 @@ public class PrivilegesEvaluationContext {
         if (this.mappedRoles != null && this.mappedRoles.equals(mappedRoles)) {
             return this;
         } else {
-            return new PrivilegesEvaluationContext(user, mappedRoles, action, mappedRoles, debugEnabled, actionRequestIntrospector);
+            return new PrivilegesEvaluationContext(user, mappedRoles, action, mappedRoles, debugEnabled, actionRequestIntrospector,
+                    specialPrivilegesEvaluationContext);
         }
+    }
+
+    public SpecialPrivilegesEvaluationContext getSpecialPrivilegesEvaluationContext() {
+        return specialPrivilegesEvaluationContext;
     }
 }

@@ -24,9 +24,9 @@ import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
-import com.floragunn.searchguard.user.User;
 
 public class ExtendedActionHandlingService {
     private final ResourceOwnerService resourceOwnerService;
@@ -35,42 +35,40 @@ public class ExtendedActionHandlingService {
         this.resourceOwnerService = resourceOwnerService;
     }
 
-    public <Request extends ActionRequest, Response extends ActionResponse> void apply(WellKnownAction<Request, ?, ?> actionConfig, User currentUser,
-            Task task, final String action, Request actionRequest, ActionListener<Response> actionListener,
+    public <Request extends ActionRequest, Response extends ActionResponse> void apply(WellKnownAction<Request, ?, ?> actionConfig, Task task,
+            String action, PrivilegesEvaluationContext context, Request actionRequest, ActionListener<Response> actionListener,
             ActionFilterChain<Request, Response> chain) {
 
-        actionListener = applyPostAction(actionConfig, currentUser, task, action, actionRequest, actionListener);
+        actionListener = applyPostAction(actionConfig, context, actionRequest, actionListener);
 
-        applyPreAction(actionConfig, currentUser, task, action, actionRequest, actionListener, chain);
+        applyPreAction(actionConfig, task, action, context, actionRequest, actionListener, chain);
     }
 
     public <Request extends ActionRequest, Response extends ActionResponse> void applyPreAction(WellKnownAction<Request, ?, ?> actionConfig,
-            User currentUser, Task task, final String action, Request actionRequest, ActionListener<Response> listener,
+            Task task, String action, PrivilegesEvaluationContext context, Request actionRequest, ActionListener<Response> listener,
             ActionFilterChain<Request, Response> chain) {
 
         ActionFilterChain<Request, Response> extendedChain = chain;
 
-        extendedChain = resourceOwnerService.applyOwnerCheckPreAction(actionConfig, currentUser, task, action, actionRequest, listener,
-                extendedChain);
+        extendedChain = resourceOwnerService.applyOwnerCheckPreAction(actionConfig, context, actionRequest, listener, extendedChain);
 
         extendedChain.proceed(task, action, actionRequest, listener);
     }
 
     public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyPostAction(WellKnownAction<Request, ?, ?> actionConfig,
-            User currentUser, Task task, final String action, Request actionRequest, ActionListener<R> actionListener) {
+            PrivilegesEvaluationContext context, Request actionRequest, ActionListener<R> actionListener) {
 
         if (actionConfig.getResources() != null) {
 
             if (actionConfig.getResources().getCreatesResource() != null) {
-                actionListener = resourceOwnerService.applyCreatePostAction(actionConfig, currentUser, actionListener);
+                actionListener = resourceOwnerService.applyCreatePostAction(actionConfig, context.getUser(), actionListener);
             }
 
             for (Resource resource : actionConfig.getResources().getUsesResources()) {
                 if (resource.isDeleteAction()) {
-                    actionListener = resourceOwnerService.applyDeletePostAction(actionConfig, resource, currentUser, task, action, actionRequest,
+                    actionListener = resourceOwnerService.applyDeletePostAction(actionConfig, resource, context.getUser(), actionRequest,
                             actionListener);
                 }
-
             }
         }
 
