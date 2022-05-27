@@ -83,9 +83,12 @@ public class ResourceOwnerServiceTests {
 
     private static TestSgConfig.User EVIL_SULU = new TestSgConfig.User("evil_sulu").roles(ROLE_OWN_INDEX);
 
+    private static TestSgConfig.User ADMIN = new TestSgConfig.User("admin").roles(
+            new TestSgConfig.Role("admin_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:searchguard:async_search/_all_owners"));
+
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(SULU, EVIL_SULU).plugin(MockActionPlugin.class)
-            .build();
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(SULU, EVIL_SULU, ADMIN)
+            .plugin(MockActionPlugin.class).build();
 
     @Test
     public void testAsyncSearch() throws Exception {
@@ -126,6 +129,27 @@ public class ResourceOwnerServiceTests {
             client2.asyncSearch().get(new GetAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
 
             Assert.fail();
+        } catch (ElasticsearchStatusException e) {
+            Assert.assertTrue(e.toString(), e.toString().contains("is not owned by user evil_sulu"));
+            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+        }
+    }
+
+    @Test
+    public void testAsyncSearchUserOverride() throws Exception {
+
+        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU);
+                RestHighLevelClient client2 = cluster.getRestHighLevelClient(ADMIN);) {
+            SearchSourceBuilder searchSource = new SearchSourceBuilder().query(QueryBuilders.matchAllQuery());
+            SubmitAsyncSearchRequest request = new SubmitAsyncSearchRequest(searchSource, "test1", "test2");
+            request.setWaitForCompletionTimeout(TimeValue.timeValueMillis(1));
+
+            AsyncSearchResponse response = client.asyncSearch().submit(request, RequestOptions.DEFAULT);
+
+            client2.asyncSearch().get(new GetAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
+
+            client2.asyncSearch().delete(new DeleteAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
+
         } catch (ElasticsearchStatusException e) {
             Assert.assertTrue(e.toString(), e.toString().contains("is not owned by user evil_sulu"));
             Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());

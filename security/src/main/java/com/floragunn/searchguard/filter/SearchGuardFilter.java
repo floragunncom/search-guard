@@ -294,7 +294,7 @@ public class SearchGuardFilter implements ActionFilter {
 
             ImmutableSet<String> mappedRoles = eval.getMappedRoles(user, specialPrivilegesEvaluationContext);
             PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, mappedRoles, action, request,
-                    eval.isDebugEnabled(), this.actionRequestIntrospector, this.resolver);
+                    eval.isDebugEnabled(), this.actionRequestIntrospector, specialPrivilegesEvaluationContext, this.resolver);
             PrivilegesEvaluationResult privilegesEvaluationResult = eval.evaluate(user, mappedRoles, actionName, request, task,
                     privilegesEvaluationContext, specialPrivilegesEvaluationContext);
 
@@ -318,7 +318,7 @@ public class SearchGuardFilter implements ActionFilter {
                 WellKnownAction<Request, ?, ?> wellKnownAction = action.wellKnown(request);
                 
                 if (wellKnownAction != null && wellKnownAction.requiresSpecialProcessing()) {
-                    extendedActionHandlingService.apply(wellKnownAction, user, task, actionName, request, listener, chain);
+                    extendedActionHandlingService.apply(wellKnownAction, task, actionName, privilegesEvaluationContext, request, listener, chain);
                 } else {
                     chain.proceed(task, actionName, request, listener);
                 }

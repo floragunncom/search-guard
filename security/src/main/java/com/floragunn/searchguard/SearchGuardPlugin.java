@@ -894,7 +894,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
         authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
 
-        ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, settings);
+        ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, evaluator, settings);
         ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
         diagnosticContext = new DiagnosticContext(settings, threadPool.getThreadContext());
         sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, diagnosticContext, complianceConfig, actions,
