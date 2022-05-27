@@ -364,7 +364,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
         @Override
         public void clusterChanged(ClusterChangedEvent event) {
-            checkClusterState(event.state());
+            threadPool.generic().execute(() -> checkClusterState(event.state()));
         }
     };
 

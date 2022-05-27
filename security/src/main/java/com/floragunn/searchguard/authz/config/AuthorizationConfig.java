@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.authz.config;
 
+import org.elasticsearch.common.settings.Settings;
+
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
@@ -28,6 +30,7 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class AuthorizationConfig implements PatchableDocument<AuthorizationConfig> {
@@ -42,7 +45,8 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
             "indices:monitor/stats", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get");
 
     public static final AuthorizationConfig DEFAULT = new AuthorizationConfig(DocNode.EMPTY, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
-            DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, null, false, MetricsLevel.BASIC);
+            DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, null, RoleMapping.ResolutionMode.MAPPING_ONLY, false,
+            MetricsLevel.BASIC);
 
     private final DocNode source;
     private final boolean ignoreUnauthorizedIndices;
@@ -52,16 +56,18 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
     private final String fieldAnonymizationSalt;
     private final boolean debugEnabled;
     private final MetricsLevel metricsLevel;
+    private final RoleMapping.ResolutionMode roleMappingResolution;
 
     AuthorizationConfig(DocNode source, boolean ignoreUnauthorizedIndices, Pattern ignoreUnauthorizedIndicesActions,
-            Pattern ignoreUnauthorizedIndicesActionsAllowingEmptyResult, String fieldAnonymizationSalt, boolean debugEnabled,
-            MetricsLevel metricsLevel) {
+            Pattern ignoreUnauthorizedIndicesActionsAllowingEmptyResult, String fieldAnonymizationSalt,
+            RoleMapping.ResolutionMode roleMappingResolution, boolean debugEnabled, MetricsLevel metricsLevel) {
         this.source = source;
 
         this.ignoreUnauthorizedIndices = ignoreUnauthorizedIndices;
         this.ignoreUnauthorizedIndicesActions = ignoreUnauthorizedIndicesActions;
         this.ignoreUnauthorizedIndicesActionsAllowingEmptyResult = ignoreUnauthorizedIndicesActionsAllowingEmptyResult;
         this.fieldAnonymizationSalt = fieldAnonymizationSalt;
+        this.roleMappingResolution = roleMappingResolution;
         this.debugEnabled = debugEnabled;
         this.metricsLevel = metricsLevel;
     }
@@ -81,19 +87,22 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         Pattern ignoreUnauthorizedIndicesActionsAllowingEmptyResult = vNode.get("ignore_unauthorized_indices.empty_result_allowed_for_actions")
                 .withDefault(DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS).by(Pattern::parse);
         String fieldAnonymizationSalt = vNode.get("field_anonymization.salt").asString();
+        RoleMapping.ResolutionMode roleMappingResolution = vNode.get("role_mapping.resolution_mode")
+                .withDefault(RoleMapping.ResolutionMode.MAPPING_ONLY).asEnum(RoleMapping.ResolutionMode.class);
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
         MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
 
         if (!validationErrors.hasErrors()) {
-            return new ValidationResult<AuthorizationConfig>(
-                    new AuthorizationConfig(docNode, ignoreUnauthorizedIndices, ignoreUnauthorizedIndicesActions,
-                            ignoreUnauthorizedIndicesActionsAllowingEmptyResult, fieldAnonymizationSalt, debugEnabled, metricsLevel));
+            return new ValidationResult<AuthorizationConfig>(new AuthorizationConfig(docNode, ignoreUnauthorizedIndices,
+                    ignoreUnauthorizedIndicesActions, ignoreUnauthorizedIndicesActionsAllowingEmptyResult, fieldAnonymizationSalt,
+                    roleMappingResolution, debugEnabled, metricsLevel));
         } else {
             return new ValidationResult<AuthorizationConfig>(validationErrors);
         }
     }
 
-    public static AuthorizationConfig parseLegacySgConfig(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+    public static AuthorizationConfig parseLegacySgConfig(DocNode docNode, Parser.Context context, Settings settings)
+            throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode.splitDottedAttributeNamesToTree(), validationErrors);
 
@@ -107,7 +116,8 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         validationErrors.throwExceptionForPresentErrors();
 
         return new AuthorizationConfig(docNode, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
-                DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, fieldAnonymizationSalt, false, MetricsLevel.BASIC);
+                DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, fieldAnonymizationSalt, getRolesMappingResolution(settings), false,
+                MetricsLevel.BASIC);
     }
 
     public boolean isIgnoreUnauthorizedIndices() {
@@ -147,5 +157,22 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
 
     public Pattern getIgnoreUnauthorizedIndicesActionsAllowingEmptyResult() {
         return ignoreUnauthorizedIndicesActionsAllowingEmptyResult;
+    }
+
+    /**
+     * @deprecated only used for legacy config parsing 
+     */
+    private static RoleMapping.ResolutionMode getRolesMappingResolution(Settings settings) {
+        try {
+            return RoleMapping.ResolutionMode.valueOf(
+                    settings.get(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, RoleMapping.ResolutionMode.MAPPING_ONLY.toString())
+                            .toUpperCase());
+        } catch (Exception e) {
+            return RoleMapping.ResolutionMode.MAPPING_ONLY;
+        }
+    }
+
+    public RoleMapping.ResolutionMode getRoleMappingResolution() {
+        return roleMappingResolution;
     }
 }

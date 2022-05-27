@@ -39,7 +39,6 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Hideable;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.ArrayListMultimap;
@@ -155,6 +154,10 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
         return source;
     }
 
+    public enum ResolutionMode {
+        MAPPING_ONLY, BACKENDROLES_ONLY, BOTH
+    }
+
     public static class InvertedIndex {
         private final PatternMap<String> byUsers;
         private final PatternMap<String> byBackendRoles;
@@ -202,8 +205,7 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
             this.byBackendRolesAnded = ImmutableMap.map(andBackendRoles.asMap(), (k) -> k, (v) -> ImmutableSet.of(v));
         }
 
-        public ImmutableSet<String> evaluate(User user, TransportAddress transportAddress,
-                ConfigConstants.RolesMappingResolution rolesMappingResolution) {
+        public ImmutableSet<String> evaluate(User user, TransportAddress transportAddress, ResolutionMode rolesMappingResolution) {
 
             if (user == null) {
                 return ImmutableSet.empty();
@@ -211,13 +213,11 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
 
             ImmutableSet.Builder<String> result = new ImmutableSet.Builder<String>(user.getSearchGuardRoles());
 
-            if (rolesMappingResolution == ConfigConstants.RolesMappingResolution.BOTH
-                    || rolesMappingResolution == ConfigConstants.RolesMappingResolution.BACKENDROLES_ONLY) {
+            if (rolesMappingResolution == ResolutionMode.BOTH || rolesMappingResolution == ResolutionMode.BACKENDROLES_ONLY) {
                 result.addAll(user.getRoles());
             }
 
-            if (((rolesMappingResolution == ConfigConstants.RolesMappingResolution.BOTH
-                    || rolesMappingResolution == ConfigConstants.RolesMappingResolution.MAPPING_ONLY))) {
+            if (((rolesMappingResolution == ResolutionMode.BOTH || rolesMappingResolution == ResolutionMode.MAPPING_ONLY))) {
 
                 result.addAll(byUsers.get(user.getName()));
                 result.addAll(byBackendRoles.get(user.getRoles()));
