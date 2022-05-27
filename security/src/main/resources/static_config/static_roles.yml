@@ -187,6 +187,7 @@ SGS_KIBANA_SERVER:
   - "SGS_CLUSTER_MANAGE_ILM"
   - "cluster:admin:searchguard:authtoken/info"
   - "cluster:admin:searchguard:auth/frontend/config/get"
+  - "indices:searchguard:async_search/_all_owners"
   index_permissions:
   - index_patterns:
     - ".kibana"
