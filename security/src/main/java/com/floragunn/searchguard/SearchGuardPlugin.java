@@ -516,7 +516,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(FrontendAuthcConfigApi.DocumentLevel.REST_API);
                 handlers.add(SearchGuardLicenseKeyApi.REST_API);
                 handlers.add(SearchGuardLicenseInfoAction.REST_API);
-                handlers.add(SearchGuardCapabilities.GetCapabilitiesAction.REST_API);                
+                handlers.add(SearchGuardCapabilities.GetCapabilitiesAction.REST_API);       
+                handlers.add(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.REST_API);
                 handlers.add(GetActivatedFrontendConfigAction.REST_API);
                 handlers.add(MigrateConfigIndexApi.REST_API);
                 handlers.add(new AuthenticatingRestFilter.DebugApi());
@@ -571,6 +572,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PutAction.Handler.class));
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PatchAction.Handler.class));
             actions.add(new ActionHandler<>(SearchGuardCapabilities.GetCapabilitiesAction.INSTANCE, SearchGuardCapabilities.GetCapabilitiesAction.TransportAction.class));
+            actions.add(new ActionHandler<>(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.INSTANCE, ProtectedConfigIndexService.TriggerConfigIndexCreationAction.TransportAction.class));
+
             actions.add(new ActionHandler<>(MigrateConfigIndexApi.INSTANCE, MigrateConfigIndexApi.Handler.class));
 
         }
@@ -857,6 +860,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         adminDns = new AdminDNs(settings);
 
         protectedConfigIndexService = new ProtectedConfigIndexService(localClient, clusterService, threadPool, protectedIndices);
+        moduleRegistry.addComponentStateProvider(protectedConfigIndexService);
         configVarService = new ConfigVarService(localClient, clusterService, threadPool, protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(configVarService);
         
