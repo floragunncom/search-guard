@@ -17,8 +17,6 @@
 
 package com.floragunn.searchguard.authz.config;
 
-import org.elasticsearch.common.settings.Settings;
-
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
@@ -29,8 +27,9 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class AuthorizationConfig implements PatchableDocument<AuthorizationConfig> {
@@ -103,7 +102,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         }
     }
 
-    public static AuthorizationConfig parseLegacySgConfig(DocNode docNode, Parser.Context context, Settings settings)
+    public static AuthorizationConfig parseLegacySgConfig(DocNode docNode, Parser.Context context, StaticSettings settings)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode.splitDottedAttributeNamesToTree(), validationErrors);
@@ -164,10 +163,9 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
     /**
      * @deprecated only used for legacy config parsing 
      */
-    private static RoleMapping.ResolutionMode getRolesMappingResolution(Settings settings) {
+    private static RoleMapping.ResolutionMode getRolesMappingResolution(StaticSettings settings) {
         try {
-            return RoleMapping.ResolutionMode.valueOf(settings
-                    .get(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, RoleMapping.ResolutionMode.MAPPING_ONLY.toString()).toUpperCase());
+            return RoleMapping.ResolutionMode.valueOf(settings.get(PrivilegesEvaluator.ROLES_MAPPING_RESOLUTION).toUpperCase());
         } catch (Exception e) {
             return RoleMapping.ResolutionMode.MAPPING_ONLY;
         }

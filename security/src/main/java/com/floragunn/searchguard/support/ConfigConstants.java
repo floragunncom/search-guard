@@ -17,11 +17,6 @@
 
 package com.floragunn.searchguard.support;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
 public class ConfigConstants {
 
 
@@ -48,8 +43,6 @@ public class ConfigConstants {
     public static final String SG_DOC_WHITELST_TRANSIENT = SG_CONFIG_PREFIX+"doc_whitelist_t";
 
     public static final String SG_FILTER_LEVEL_DLS_DONE = SG_CONFIG_PREFIX+"filter_level_dls_done";
-
-    //public static final String SG_LOCAL_HASH_SALT_HEADER = SG_CONFIG_PREFIX+"local_hash_salt";
     
     public static final String SG_DLS_QUERY_CCS = SG_CONFIG_PREFIX+"dls_query_ccs";
 
@@ -175,12 +168,7 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_NODES_DN = "searchguard.nodes_dn";
     public static final String SEARCHGUARD_DISABLED = "searchguard.disabled";
     
-    @Deprecated
-    public static final String SEARCHGUARD_CACHE_TTL_MINUTES = "searchguard.cache.ttl_minutes";
     public static final String SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES = "searchguard.allow_unsafe_democertificates";
-
-    @Deprecated
-    public static final String SEARCHGUARD_ROLES_MAPPING_RESOLUTION = "searchguard.roles_mapping_resolution";
 
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_METADATA_ONLY = "searchguard.compliance.history.write.metadata_only";
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_READ_METADATA_ONLY = "searchguard.compliance.history.read.metadata_only";
