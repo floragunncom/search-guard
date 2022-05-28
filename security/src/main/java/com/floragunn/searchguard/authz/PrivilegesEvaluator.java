@@ -97,9 +97,16 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     static final StaticSettings.Attribute<Boolean> UNSUPPORTED_RESTORE_SGINDEX_ENABLED = //
             StaticSettings.Attribute.define("searchguard.unsupported.restore.sgindex.enabled").withDefault(false).asBoolean();
-    
+
+    /**
+     * @deprecated Only used for legacy config. Moved to sg_authz.yml in new-style config.
+     */
+    public static final StaticSettings.Attribute<String> ROLES_MAPPING_RESOLUTION = StaticSettings.Attribute
+            .define("searchguard.roles_mapping_resolution").withDefault(RoleMapping.ResolutionMode.MAPPING_ONLY.toString()).asString();
+
     public static final StaticSettings.AttributeSet STATIC_SETTINGS = //
-            StaticSettings.AttributeSet.of(ADMIN_ONLY_ACTIONS, ADMIN_ONLY_INDICES, CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES, UNSUPPORTED_RESTORE_SGINDEX_ENABLED);
+            StaticSettings.AttributeSet.of(ADMIN_ONLY_ACTIONS, ADMIN_ONLY_INDICES, CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
+                    UNSUPPORTED_RESTORE_SGINDEX_ENABLED, ROLES_MAPPING_RESOLUTION);
 
     private static final String USER_TENANT = "__user__";
     private static final Logger log = LogManager.getLogger(PrivilegesEvaluator.class);
@@ -171,7 +178,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     try {
                         LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
                         PrivilegesEvaluator.this.authzConfig = authzConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null,
-                                settings.getPlatformSettings());
+                                settings);
 
                         log.info("Updated authz config (legacy):\n" + legacyConfig);
                         if (log.isDebugEnabled()) {
