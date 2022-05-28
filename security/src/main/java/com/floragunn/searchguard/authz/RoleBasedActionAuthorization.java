@@ -76,6 +76,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     private final CountAggregation indexActionCheckResults_ok;
     private final CountAggregation indexActionCheckResults_insufficient;
     private final CountAggregation indexActionCheckResults_partially;
+    private final CountAggregation indexActionTypes;
+    private final CountAggregation indexActionTypes_wellKnown;
+    private final CountAggregation indexActionTypes_nonWellKnown;
     private final Measurement<?> tenantActionChecks;
     private final CountAggregation tenantActionCheckResults;
     private final CountAggregation tenantActionCheckResults_ok;
@@ -126,16 +129,19 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             indexActionCheckResults = new CountAggregation();
             tenantActionChecks = new TimeAggregation.Milliseconds();
             tenantActionCheckResults = new CountAggregation();
+            indexActionTypes = new CountAggregation();
         } else if (metricsLevel.basicEnabled()) {
             indexActionChecks = new CountAggregation();
             indexActionCheckResults = new CountAggregation();
             tenantActionChecks = new CountAggregation();
             tenantActionCheckResults = new CountAggregation();
+            indexActionTypes = new CountAggregation();
         } else {
             indexActionChecks = CountAggregation.noop();
             indexActionCheckResults = CountAggregation.noop();
             tenantActionChecks = CountAggregation.noop();
             tenantActionCheckResults = CountAggregation.noop();
+            indexActionTypes = CountAggregation.noop();
         }
 
         indexActionCheckResults_ok = indexActionCheckResults.getSubCount("ok");
@@ -143,6 +149,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         indexActionCheckResults_insufficient = indexActionCheckResults.getSubCount("insufficient");
         tenantActionCheckResults_ok = tenantActionCheckResults.getSubCount("ok");
         tenantActionCheckResults_insufficient = tenantActionCheckResults.getSubCount("insufficient");
+        indexActionTypes_wellKnown = indexActionTypes.getSubCount("well_known");
+        indexActionTypes_nonWellKnown = indexActionTypes.getSubCount("non_well_known");
 
         if (metricsLevel.basicEnabled()) {
             this.componentState.addMetrics("index_action_check_results", indexActionCheckResults);
@@ -150,6 +158,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             this.componentState.addMetrics("index_action_checks", indexActionChecks, "tenant_action_checks", tenantActionChecks,
                     "statful_index_rebuilds", statefulIndexRebuild);
+            
+            this.componentState.addMetrics("index_action_types", indexActionTypes);
         }
     }
 
@@ -167,6 +177,21 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     @Override
     public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions, ResolvedIndices resolved)
             throws PrivilegesEvaluationException {
+        if (metricsLevel.basicEnabled()) {
+            actions.forEach((action) -> {
+                indexActionTypes.increment();
+                if (action instanceof WellKnownAction) {
+                    indexActionTypes_wellKnown.increment();
+                } else {
+                    indexActionTypes_nonWellKnown.increment();
+                    
+                    if (metricsLevel.detailedEnabled()) {
+                        indexActionTypes_nonWellKnown.getSubCount(action.name()).increment();
+                    }
+                }
+            });
+        }
+        
         try (Meter meter = Meter.basic(metricsLevel, indexActionChecks)) {
             User user = context.getUser();
             ImmutableSet<String> mappedRoles = context.getMappedRoles();
@@ -319,9 +344,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             if (log.isTraceEnabled()) {
                 log.trace("Permissions before exclusions:\n" + checkTable);
             }
-            
+
             checkTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i));
-            
+
             if (log.isTraceEnabled()) {
                 log.trace("Permissions after universallyDeniedIndices exclusions:\n" + checkTable);
             }
@@ -444,6 +469,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final CountAggregation checks;
         private final CountAggregation nonWellKnownChecks;
         private final CountAggregation wildcardChecks;
+        private final MetricsLevel metricsLevel;
 
         ClusterPermissions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, MetricsLevel metricsLevel) {
             ImmutableMap.Builder<Action, ImmutableSet.Builder<String>> actionToRoles = new ImmutableMap.Builder<Action, ImmutableSet.Builder<String>>()
@@ -509,6 +535,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.checks = CountAggregation.basic(metricsLevel);
             this.nonWellKnownChecks = checks.getSubCount("non_well_known_actions");
             this.wildcardChecks = checks.getSubCount("wildcard");
+            this.metricsLevel = metricsLevel;
 
             if (metricsLevel.basicEnabled()) {
                 this.componentState.addMetrics("checks", checks);
@@ -541,13 +568,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             if (!(action instanceof WellKnownAction)) {
                 // WellKnownActions are guaranteed to be in the collections above
 
-                nonWellKnownChecks.increment();
+                try (Meter m = Meter.basic(MetricsLevel.BASIC, nonWellKnownChecks)) {
+                    if (metricsLevel.detailedEnabled()) {
+                        m.count(action.name());
+                    }
+                    
+                    for (String role : roles) {
+                        Pattern pattern = this.rolesToActionPattern.get(role);
 
-                for (String role : roles) {
-                    Pattern pattern = this.rolesToActionPattern.get(role);
-
-                    if (pattern != null && pattern.matches(action.name())) {
-                        return PrivilegesEvaluationResult.OK;
+                        if (pattern != null && pattern.matches(action.name())) {
+                            return PrivilegesEvaluationResult.OK;
+                        }
                     }
                 }
             }
