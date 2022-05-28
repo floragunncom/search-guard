@@ -99,6 +99,7 @@ import org.opensearch.action.admin.indices.open.OpenIndexAction;
 import org.opensearch.action.admin.indices.readonly.AddIndexBlockAction;
 import org.opensearch.action.admin.indices.recovery.RecoveryAction;
 import org.opensearch.action.admin.indices.refresh.RefreshAction;
+import org.opensearch.action.admin.indices.refresh.TransportShardRefreshAction;
 import org.opensearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.opensearch.action.admin.indices.rollover.RolloverAction;
 import org.opensearch.action.admin.indices.segments.IndicesSegmentsAction;
@@ -144,7 +145,9 @@ import org.opensearch.action.termvectors.MultiTermVectorsAction;
 import org.opensearch.action.termvectors.TermVectorsAction;
 import org.opensearch.action.update.UpdateAction;
 import org.opensearch.common.xcontent.ToXContent;
+import org.opensearch.index.reindex.DeleteByQueryAction;
 import org.opensearch.index.reindex.ReindexAction;
+import org.opensearch.index.reindex.UpdateByQueryAction;
 import org.opensearch.index.seqno.RetentionLeaseActions;
 import org.opensearch.persistent.CompletionPersistentTaskAction;
 import org.opensearch.persistent.RemovePersistentTaskAction;
@@ -183,6 +186,13 @@ public class Actions {
     private Builder builder = new Builder();
 
     public Actions(SearchGuardModulesRegistry modulesRegistry) {
+        // We define here "well-known" actions. 
+        //
+        // Having well-known actions allows us to pre-cache a hash table of allowed actions for roles,
+        // which can significantly improve performance of privilege checks.
+        //
+        // Additionally, extended settings are applied for some actions, such as additionally needed privileges.
+        
         index(IndexAction.INSTANCE);
         index(GetAction.INSTANCE);
         index(TermVectorsAction.INSTANCE);
@@ -191,6 +201,9 @@ public class Actions {
         index(SearchAction.INSTANCE);
         index(ExplainAction.INSTANCE);
         index(ResolveIndexAction.INSTANCE);
+        
+        index(UpdateByQueryAction.INSTANCE);
+        index(DeleteByQueryAction.INSTANCE);
 
         index(TransportShardBulkAction.ACTION_NAME)//
                 .requestType(BulkShardRequest.class)//
@@ -297,6 +310,7 @@ public class Actions {
 
         index(ValidateQueryAction.INSTANCE);
         index(RefreshAction.INSTANCE);
+        index(TransportShardRefreshAction.NAME);
         index(FlushAction.INSTANCE);
         index(SyncedFlushAction.INSTANCE);
         index(ForceMergeAction.INSTANCE);
