@@ -242,7 +242,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
     public void testAliases() throws Exception {
 
         final Settings settings = Settings.builder()
-                .put(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, "BOTH")
+                .put("searchguard.roles_mapping_resolution", "BOTH")
                 .build();
 
         setup(settings);

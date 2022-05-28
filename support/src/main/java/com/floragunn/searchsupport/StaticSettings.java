@@ -156,6 +156,10 @@ public class StaticSettings {
                 return new PatternBuilder(castedBuilder);
             }
 
+            public StringListAttribute asListOfStrings() {
+                return new StringListAttribute(name, ImmutableList.empty(), filtered);
+            }
+
         }
 
         public static class StringBuilder {
@@ -294,6 +298,17 @@ public class StaticSettings {
                     return defaultValue;
                 }
             }
+        }
+    }
+
+    static class StringListAttribute extends Attribute<List<String>> {
+        StringListAttribute(String name, List<String> defaultValue, boolean filtered) {
+            super(name, defaultValue, filtered);
+        }
+
+        @Override
+        protected org.opensearch.common.settings.Setting<?> toPlatformInstance() {
+            return org.opensearch.common.settings.Setting.listSetting(name, defaultValue, Function.identity(), toPlatformProperties());
         }
     }
 
