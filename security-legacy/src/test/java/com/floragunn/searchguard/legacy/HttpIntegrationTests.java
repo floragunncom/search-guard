@@ -491,7 +491,7 @@ public class HttpIntegrationTests extends SingleClusterTest {
     @Test
     public void testBulk() throws Exception {
         final Settings settings = Settings.builder()
-                .put(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, "BOTH")
+                .put("searchguard.roles_mapping_resolution", "BOTH")
                 .build();
         setup(Settings.EMPTY, new DynamicSgConfig().setSgRoles("sg_roles_bulk.yml"), settings);
         final RestHelper rh = nonSslRestHelper();

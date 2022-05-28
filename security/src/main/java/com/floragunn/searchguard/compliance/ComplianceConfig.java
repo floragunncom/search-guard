@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 floragunn GmbH
+ * Copyright 2018-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
+import com.floragunn.searchsupport.StaticSettings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -195,7 +196,7 @@ public class ComplianceConfig implements LicenseChangeListener {
             } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
                 try {
                     LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
-                    AuthorizationConfig privilegesConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null, settings);
+                    AuthorizationConfig privilegesConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null, new StaticSettings(settings, null));
                     setFieldAnonymizationSalt2(privilegesConfig.getFieldAnonymizationSalt());
                     log.info("Updated authz config (legacy):\n" + legacyConfig);
                     if (log.isDebugEnabled()) {
