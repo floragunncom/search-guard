@@ -38,11 +38,13 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
     static final Pattern DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS = Pattern.createUnchecked("indices:data/read/*",
             "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/resolve/index", "indices:admin/delete",
             "indices:admin/mapping/put", "indices:admin/settings/update", "indices:monitor/settings/get", "indices:monitor/stats",
-            "indices:admin/upgrade", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get");
+            "indices:admin/upgrade", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get",
+            "indices:admin/data_stream/get", "indices:admin/get");
 
     static final Pattern DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT = Pattern.createUnchecked("indices:data/read/*",
             "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/resolve/index", "indices:monitor/settings/get",
-            "indices:monitor/stats", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get");
+            "indices:monitor/stats", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get",
+            "indices:admin/data_stream/get", "indices:admin/get");
 
     public static final AuthorizationConfig DEFAULT = new AuthorizationConfig(DocNode.EMPTY, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
             DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, null, RoleMapping.ResolutionMode.MAPPING_ONLY, false,
@@ -85,7 +87,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         Pattern ignoreUnauthorizedIndicesActions = vNode.get("ignore_unauthorized_indices.affected_actions")
                 .withDefault(DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS).by(Pattern::parse);
         Pattern ignoreUnauthorizedIndicesActionsAllowingEmptyResult = vNode.get("ignore_unauthorized_indices.empty_result_allowed_for_actions")
-                .withDefault(DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS).by(Pattern::parse);
+                .withDefault(DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT).by(Pattern::parse);
         String fieldAnonymizationSalt = vNode.get("field_anonymization.salt").asString();
         RoleMapping.ResolutionMode roleMappingResolution = vNode.get("role_mapping.resolution_mode")
                 .withDefault(RoleMapping.ResolutionMode.MAPPING_ONLY).asEnum(RoleMapping.ResolutionMode.class);
@@ -164,9 +166,8 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
      */
     private static RoleMapping.ResolutionMode getRolesMappingResolution(Settings settings) {
         try {
-            return RoleMapping.ResolutionMode.valueOf(
-                    settings.get(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, RoleMapping.ResolutionMode.MAPPING_ONLY.toString())
-                            .toUpperCase());
+            return RoleMapping.ResolutionMode.valueOf(settings
+                    .get(ConfigConstants.SEARCHGUARD_ROLES_MAPPING_RESOLUTION, RoleMapping.ResolutionMode.MAPPING_ONLY.toString()).toUpperCase());
         } catch (Exception e) {
             return RoleMapping.ResolutionMode.MAPPING_ONLY;
         }
