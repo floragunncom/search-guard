@@ -38,9 +38,6 @@ import org.junit.Test;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
-import com.floragunn.searchguard.action.whoami.WhoAmIAction;
-import com.floragunn.searchguard.action.whoami.WhoAmIRequest;
-import com.floragunn.searchguard.action.whoami.WhoAmIResponse;
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
@@ -81,33 +78,6 @@ public class InitializationIntegrationTests extends SingleClusterTest {
         Assert.assertFalse(rh.executeSimpleRequest("_nodes/stats?pretty").contains("\"rx_size_in_bytes\" : 0"));
         Assert.assertFalse(rh.executeSimpleRequest("_nodes/stats?pretty").contains("\"tx_count\" : 0"));
 
-    }
-
-    @Deprecated
-    @Test
-    public void testWhoAmI() throws Exception {
-        setup(Settings.EMPTY, new DynamicSgConfig().setSgInternalUsers("sg_internal_empty.yml")
-                .setSgRoles("sg_roles_deny.yml"), Settings.EMPTY, true);
-        
-        try (Client tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
-            WhoAmIResponse wres = tc.execute(WhoAmIAction.INSTANCE, new WhoAmIRequest()).actionGet();  
-            System.out.println(wres);
-            Assert.assertEquals(wres.toString(), "CN=spock,OU=client,O=client,L=Test,C=DE", wres.getDn());
-            Assert.assertFalse(wres.toString(), wres.isAdmin());
-            Assert.assertFalse(wres.toString(), wres.isAuthenticated());
-            Assert.assertFalse(wres.toString(), wres.isNodeCertificateRequest());
-
-        }
-        
-        try (Client tc = getUserTransportClient(clusterInfo, "node-0-keystore.jks", Settings.EMPTY)) {  
-            WhoAmIResponse wres = tc.execute(WhoAmIAction.INSTANCE, new WhoAmIRequest()).actionGet();    
-            System.out.println(wres);
-            Assert.assertEquals(wres.toString(), "CN=node-0.example.com,OU=SSL,O=Test,L=Test,C=DE", wres.getDn());
-            Assert.assertFalse(wres.toString(), wres.isAdmin());
-            Assert.assertFalse(wres.toString(), wres.isAuthenticated());
-            Assert.assertTrue(wres.toString(), wres.isNodeCertificateRequest());
-
-        }
     }
     
     @Test

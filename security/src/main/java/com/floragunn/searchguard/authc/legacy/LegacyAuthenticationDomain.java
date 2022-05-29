@@ -42,7 +42,6 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
-import com.floragunn.searchguard.authc.transport.TransportAuthenticationDomain.TransportAuthenticationFrontend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -217,57 +216,6 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
 
         return Optional.of(new LegacyAuthenticationDomain<HttpAuthenticationFrontend>(id, authenticationBackend, httpAuthenticator, challenge, order,
                 skipUsers, enabledOnlyForIps, authorizationBackends));
-
-    }
-
-    public static Optional<AuthenticationDomain<TransportAuthenticationFrontend>> parseTransportDomain(String id, DocNode docNode,
-            ConfigurationRepository.Context context, ImmutableList<LegacyAuthorizationBackend> authorizationBackends)
-            throws ConfigValidationException {
-        TypedComponentRegistry typedComponentRegistry = context.modulesRegistry().getTypedComponentRegistry();
-
-        ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors);
-
-        boolean enabled = vNode.get("transport_enabled").withDefault(false).asBoolean();
-
-        if (!enabled) {
-            return Optional.empty();
-        }
-
-        IPAddressCollection enabledOnlyForIps = vNode.get("enabled_only_for_ips").by(IPAddressCollection::parse);
-        Pattern skipUsers = vNode.get("skip_users").by(Pattern::parse);
-        int order = vNode.get("order").withDefault(0).asInt();
-
-        String backendType = vNode.get("authentication_backend.type").withDefault("internal").asString();
-
-        LegacyAuthenticationBackend authenticationBackend = null;
-
-        try {
-            // Resolve the alias of the internal auth domain. This is done hard-coded because we don't want aliases any more in non-legacy code.
-            if ("intern".equals(backendType)) {
-                backendType = "internal";
-            }
-            
-            authenticationBackend = typedComponentRegistry.create(LegacyAuthenticationBackend.class, backendType, docNode.getAsNode("authentication_backend", "config"), context);
-
-            if (authenticationBackend == null) {
-                throw new NoSuchComponentException(backendType);
-            }
-
-        } catch (ConfigValidationException e) {
-            validationErrors.add(backendType, e);
-        } catch (NoSuchComponentException e) {
-            validationErrors.add(new InvalidAttributeValue("authentication_backend.type", backendType,
-                    e.getAvailableTypesAsInfoString()).message("Unknown authentication backend").cause(e));
-        } catch (Exception e) {
-            log.error("Unexpected exception while creating authentication backend " + backendType, e);
-            validationErrors.add(new ValidationError("authentication_backend", e.getMessage()).cause(e));
-        }
-
-        validationErrors.throwExceptionForPresentErrors();
-
-        return Optional.of(new LegacyAuthenticationDomain<TransportAuthenticationFrontend>(id, authenticationBackend, null, false, order, skipUsers,
-                enabledOnlyForIps, authorizationBackends));
 
     }
 
