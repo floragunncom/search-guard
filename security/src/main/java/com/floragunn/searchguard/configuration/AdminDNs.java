@@ -39,7 +39,6 @@ public class AdminDNs {
 
     protected final Logger log = LogManager.getLogger(AdminDNs.class);
     private final Set<LdapName> adminDn = new HashSet<LdapName>();
-    private final ListMultimap<LdapName, String> allowedImpersonations = ArrayListMultimap.<LdapName, String> create();
     private final ListMultimap<String, String> allowedRestImpersonations = ArrayListMultimap.<String, String> create();
     
     public AdminDNs(final Settings settings) {
@@ -56,19 +55,7 @@ public class AdminDNs {
         }
        
         log.debug("Loaded {} admin DN's {}",adminDn.size(),  adminDn);
-        
-        final Settings impersonationDns = settings.getByPrefix(ConfigConstants.SEARCHGUARD_AUTHCZ_IMPERSONATION_DN+".");
-        
-        for (String dnString:impersonationDns.keySet()) {
-            try {
-                allowedImpersonations.putAll(new LdapName(dnString), settings.getAsList(ConfigConstants.SEARCHGUARD_AUTHCZ_IMPERSONATION_DN+"."+dnString));
-            } catch (final InvalidNameException e) {
-                log.error("Unable to parse allowedImpersonations dn {}",dnString, e);
-            }
-        }
-        
-        log.debug("Loaded {} impersonation DN's {}",allowedImpersonations.size(), allowedImpersonations);
-        
+               
         final Settings impersonationUsersRest = settings.getByPrefix(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".");
 
         for (String user:impersonationUsersRest.keySet()) {
@@ -108,17 +95,7 @@ public class AdminDNs {
         
         return isAdmin;
     }
-    
-    public boolean isTransportImpersonationAllowed(LdapName dn, String impersonated) {
-        if(dn == null) return false;
-        
-        if(isAdminDN(dn)) {
-            return true;
-        }
-
-        return WildcardMatcher.matchAny(this.allowedImpersonations.get(dn), impersonated);
-    }
-    
+   
     public boolean isRestImpersonationAllowed(final String originalUser, final String impersonated) {
         if(originalUser == null) {
             return false;    
