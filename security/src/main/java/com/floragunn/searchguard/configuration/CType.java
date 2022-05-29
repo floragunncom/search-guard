@@ -32,7 +32,6 @@ import com.floragunn.searchguard.authc.internal_users_db.InternalUser;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfig;
-import com.floragunn.searchguard.authc.transport.TransportAuthcConfig;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.AuthorizationConfig;
 import com.floragunn.searchguard.authz.config.Role;
@@ -75,9 +74,6 @@ public class CType<T> {
 
     public static final CType<RestAuthcConfig> AUTHC = new CType<RestAuthcConfig>("authc", "Authc", 10, RestAuthcConfig.class, RestAuthcConfig::parse,
             Storage.OPTIONAL, Arity.SINGLE);
-
-    public static final CType<TransportAuthcConfig> AUTHC_TRANSPORT = new CType<TransportAuthcConfig>("authc_transport",
-            "Authc for Transport Clients", 11, TransportAuthcConfig.class, TransportAuthcConfig::parse, Storage.OPTIONAL, Arity.SINGLE);
 
     public static final CType<AuthorizationConfig> AUTHZ = new CType<AuthorizationConfig>("authz", "Authorization", 20, AuthorizationConfig.class,
             AuthorizationConfig::parse, Storage.OPTIONAL, Arity.SINGLE);

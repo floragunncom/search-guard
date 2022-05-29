@@ -56,7 +56,7 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.authc.transport.AuthenticatingTransportRequestHandler;
+import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -70,7 +70,6 @@ public class SearchGuardInterceptor {
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     protected final static Logger log = LogManager.getLogger(SearchGuardInterceptor.class);
-    private final AuthenticatingTransportRequestHandler authHandler;
     private AuditLog auditLog;
     private final ThreadPool threadPool;
     private final PrincipalExtractor principalExtractor;
@@ -81,12 +80,12 @@ public class SearchGuardInterceptor {
     private final List<Pattern> customAllowedHeaderPatterns;
     private final DiagnosticContext diagnosticContext;
     private final GuiceDependencies guiceDependencies;
+    private final AdminDNs adminDns;
 
-    public SearchGuardInterceptor(Settings settings, ThreadPool threadPool, AuthenticatingTransportRequestHandler authHandler, AuditLog auditLog,
+    public SearchGuardInterceptor(Settings settings, ThreadPool threadPool,AuditLog auditLog,
             PrincipalExtractor principalExtractor, InterClusterRequestEvaluator requestEvalProvider, ClusterService cs,
             SslExceptionHandler sslExceptionHandler, ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies,
-            DiagnosticContext diagnosticContext) {
-        this.authHandler = authHandler;
+            DiagnosticContext diagnosticContext, AdminDNs adminDns) {
         this.auditLog = auditLog;
         this.threadPool = threadPool;
         this.principalExtractor = principalExtractor;
@@ -97,12 +96,13 @@ public class SearchGuardInterceptor {
         this.customAllowedHeaderPatterns = getCustomAllowedHeaderPatterns(settings);
         this.diagnosticContext = diagnosticContext;
         this.guiceDependencies = guiceDependencies;
+        this.adminDns = adminDns;
     }
 
     public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action,
             TransportRequestHandler<T> actualHandler) {
-        return new SearchGuardRequestHandler<T>(action, actualHandler, threadPool, authHandler, auditLog,
-                principalExtractor, requestEvalProvider, cs, sslExceptionHandler);
+        return new SearchGuardRequestHandler<T>(action, actualHandler, threadPool, auditLog,
+                principalExtractor, requestEvalProvider, cs, sslExceptionHandler, adminDns);
     }
 
     public <T extends TransportResponse> void sendRequestDecorate(AsyncSender sender, Connection connection, String action,

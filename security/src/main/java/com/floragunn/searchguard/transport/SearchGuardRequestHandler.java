@@ -25,13 +25,13 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.support.replication.TransportReplicationAction.ConcreteShardRequest;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.internal.ShardSearchRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -39,18 +39,16 @@ import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
 
-import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.authc.transport.AuthenticatingTransportRequestHandler;
+import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLRequestHandler;
-import com.floragunn.searchguard.ssl.util.ExceptionUtils;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
+import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.base.Strings;
@@ -58,25 +56,24 @@ import com.google.common.base.Strings;
 public class SearchGuardRequestHandler<T extends TransportRequest> extends SearchGuardSSLRequestHandler<T> {
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
-    private final AuthenticatingTransportRequestHandler authenticatingHandler;
     private final AuditLog auditLog;
     private final InterClusterRequestEvaluator requestEvalProvider;
     private final ClusterService cs;
+    private final AdminDNs adminDns;
 
     SearchGuardRequestHandler(String action,
             final TransportRequestHandler<T> actualHandler,
             final ThreadPool threadPool,
-            final AuthenticatingTransportRequestHandler authenticatingHandler,
             final AuditLog auditLog,
             final PrincipalExtractor principalExtractor,
             final InterClusterRequestEvaluator requestEvalProvider,
             final ClusterService cs,
-            final SslExceptionHandler sslExceptionHandler) {
+            final SslExceptionHandler sslExceptionHandler,  AdminDNs adminDns) {
         super(action, actualHandler, threadPool, principalExtractor, sslExceptionHandler);
-        this.authenticatingHandler = authenticatingHandler;
         this.auditLog = auditLog;
         this.requestEvalProvider = requestEvalProvider;
         this.cs = cs;
+        this.adminDns = adminDns;
     }
 
     @Override
@@ -208,56 +205,20 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                     //this is a netty request from a non-server node (maybe also be internal: or a shard request)
                     //and therefore issued by a transport client
 
-                    if(SSLRequestHelper.containsBadHeader(getThreadContext(), ConfigConstants.SG_CONFIG_PREFIX)) {
-                        final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
-                        auditLog.logBadHeaders(request, task.getAction(), task);
-                        log.error(exception);
-                        transportChannel.sendResponse(exception);
-                        return;
-                    }
+                    User origPKIUser = new User(principal, AuthDomainInfo.TLS_CERT);
 
-                    //TODO SG6 exception handling, introduce authexception
-
-                    User user;
-                    //try {
-                        if((user = authenticatingHandler.authenticate(request, principal, task, task.getAction())) == null) {
-                            org.apache.logging.log4j.ThreadContext.remove("user");
-                           
-                            if(task.getAction().equals(WhoAmIAction.NAME)) {
-                                super.messageReceivedDecorate(request, handler, transportChannel, task);
-                                return;
-                            }
-
-                            if(task.getAction().equals("cluster:monitor/nodes/liveness")
-                                    || task.getAction().equals("internal:transport/handshake")) {
-                                super.messageReceivedDecorate(request, handler, transportChannel, task);
-                                return;
-                            }
-
-                            log.error("Cannot authenticate {} for {}", getThreadContext().getTransient(ConfigConstants.SG_USER), task.getAction());
-                            transportChannel.sendResponse(new ElasticsearchSecurityException("Cannot authenticate "+getThreadContext().getTransient(ConfigConstants.SG_USER)));
-                            return;
-                        } else {
-                            // make it possible to filter logs by username
-                            org.apache.logging.log4j.ThreadContext.put("user", user.getName());
-                        }
-                    //} catch (Exception e) {
-                        //    log.error("Error authentication transport user "+e, e);
-                        //auditLog.logFailedLogin(principal, false, null, request);
-                        //transportChannel.sendResponse(ExceptionsHelper.convertToElastic(e));
-                        //return;
-                        //}
-
-                    getThreadContext().putTransient(ConfigConstants.SG_USER, user);
-                    TransportAddress originalRemoteAddress = request.remoteAddress();
-
-                    if(originalRemoteAddress != null && (originalRemoteAddress instanceof TransportAddress)) {
-                        getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
+                    if (adminDns.isAdmin(origPKIUser)) {
+                        auditLog.logSucceededLogin(origPKIUser, true, null, request, task.getAction(), task);
+                        org.apache.logging.log4j.ThreadContext.put("user", origPKIUser.getName());
+                        getThreadContext().putTransient(ConfigConstants.SG_USER, origPKIUser);
+                        getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, request.remoteAddress());                      
                     } else {
-                        log.error("Request has no proper remote address {}", originalRemoteAddress);
-                        transportChannel.sendResponse(new ElasticsearchException("Request has no proper remote address"));
+                        Exception e = new ElasticsearchSecurityException("Transport request from untrusted node denied", RestStatus.FORBIDDEN);
+                        log.warn("Transport request from untrusted node denied. Check your trusted node configuration.", e);
+                        auditLog.logBadHeaders(request, task.getAction(), task);
+                        transportChannel.sendResponse(e);
                         return;
-                    }
+                    }           
                 }
 
                 if(actionTrace.isTraceEnabled()) {

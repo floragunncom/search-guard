@@ -94,55 +94,6 @@ public class IntegrationTests extends SingleClusterTest {
     }
     
     @Test
-    public void testNotInsecure() throws Exception {
-        setup(Settings.EMPTY, new DynamicSgConfig().setSgRoles("sg_roles_deny.yml"), Settings.EMPTY, true);
-        final RestHelper rh = nonSslRestHelper();
-        
-        try (Client tc = getInternalTransportClient()) {               
-            //create indices and mapping upfront
-            tc.index(new IndexRequest("test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();           
-            tc.index(new IndexRequest("lorem").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();      
-        
-            WhoAmIResponse wres = tc.execute(WhoAmIAction.INSTANCE, new WhoAmIRequest()).actionGet();   
-            System.out.println(wres);
-            Assert.assertEquals("CN=kirk,OU=client,O=client,L=Test,C=DE", wres.getDn());
-            Assert.assertTrue(wres.isAdmin());
-            Assert.assertTrue(wres.toString(), wres.isAuthenticated());
-            Assert.assertFalse(wres.toString(), wres.isNodeCertificateRequest());
-        }
-        
-        HttpResponse res = rh.executePutRequest("test/_mapping?pretty", "{\"properties\": {\"name\":{\"type\":\"text\"}}}", encodeBasicHeader("writer", "writer"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());  
-        
-        res = rh.executePostRequest("_cluster/reroute", "{}", encodeBasicHeader("writer", "writer"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());  
-        
-        try (Client tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {               
-            //create indices and mapping upfront
-            try {
-                tc.admin().indices().putMapping(new PutMappingRequest("test").type("_doc").source("fieldx","type=text")).actionGet();
-                Assert.fail();
-            } catch (ElasticsearchSecurityException e) {
-                Assert.assertTrue(e.toString(),e.getMessage().contains("Insufficient permissions"));
-            }          
-            
-            try {
-                tc.admin().cluster().reroute(new ClusterRerouteRequest()).actionGet();
-                Assert.fail();
-            } catch (ElasticsearchSecurityException e) {
-                Assert.assertTrue(e.toString(),e.getMessage().contains("Insufficient permissions"));
-            }
-            
-            WhoAmIResponse wres = tc.execute(WhoAmIAction.INSTANCE, new WhoAmIRequest()).actionGet();                
-            Assert.assertEquals("CN=spock,OU=client,O=client,L=Test,C=DE", wres.getDn());
-            Assert.assertFalse(wres.isAdmin());
-            Assert.assertTrue(wres.toString(), wres.isAuthenticated());
-            Assert.assertFalse(wres.toString(), wres.isNodeCertificateRequest());
-        }
-
-    }
-    
-    @Test
     public void testDnParsingCertAuth() throws Exception {
         Settings settings = Settings.builder()
                 .put("username_attribute", "cn")
