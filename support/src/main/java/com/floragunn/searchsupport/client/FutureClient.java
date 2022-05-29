@@ -22,7 +22,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
@@ -34,6 +37,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -44,6 +48,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchsupport.indices.IndexMapping;
 
 public class FutureClient {
 
@@ -314,6 +319,88 @@ public class FutureClient {
         return count(index, query);
     }
 
+    public CreateIndexBuilder createIndex(String name) {
+        return new CreateIndexBuilder(name);
+    }
+
+    public class CreateIndexBuilder {
+        private CreateIndexRequest request;
+        private ImmutableMap<String, Object> settings = ImmutableMap.empty();
+        private IndexMapping mapping;
+
+        private CreateIndexBuilder(String name) {
+            this.request = new CreateIndexRequest(name);
+        }
+
+        public CreateIndexBuilder mapping(IndexMapping mapping) {
+            this.mapping = mapping;
+            return this;
+        }
+
+        public CreateIndexBuilder hidden() {
+            this.settings = settings.with("index.hidden", true);
+            return this;
+        }
+
+        public CreateIndexBuilder settings(Map<String, Object> settings) {
+            this.settings = this.settings.with(ImmutableMap.of(settings));
+            return this;
+        }
+
+        private CreateIndexRequest completeRequest() {
+            if (!settings.isEmpty()) {
+                request.settings(settings);
+            }
+
+            if (mapping != null) {
+                request.mapping("_doc", mapping.toDocNode().toMap());
+            }
+
+            return request;
+        }
+
+        public CompletableFuture<Void> and() {
+            CompletableFuture<Void> futureResult = new CompletableFuture<Void>();
+
+            client.admin().indices().create(completeRequest(), new ActionListener<CreateIndexResponse>() {
+
+                @Override
+                public void onResponse(CreateIndexResponse response) {
+                    if (response.isAcknowledged()) {
+                        futureResult.complete(null);
+                    } else {
+                        futureResult.completeExceptionally(new CreateIndexException(request.index(),
+                                new Exception("Creation of index " + request.index() + " was not acknowleged:\n" + Strings.toString(response))));
+                    }
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    if (e instanceof ResourceAlreadyExistsException) {
+                        futureResult.completeExceptionally(new IndexAlreadyExistsException(request.index(), e));
+                    } else {
+                        futureResult.completeExceptionally(e);
+                    }
+                }
+            });
+
+            return futureResult;
+        }
+
+        public void sync() throws IndexAlreadyExistsException, CreateIndexException {
+            try {
+                CreateIndexResponse response = client.admin().indices().create(completeRequest()).actionGet();
+
+                if (!response.isAcknowledged()) {
+                    throw new CreateIndexException(request.index(),
+                            new Exception("Creation of index " + request.index() + " was not acknowleged:\n" + Strings.toString(response)));
+                }
+            } catch (ResourceAlreadyExistsException e) {
+                throw new IndexAlreadyExistsException(request.index(), e);
+            }
+        }
+    }
+
     public static class IndexResult {
 
         private final long version;
@@ -435,7 +522,6 @@ public class FutureClient {
     }
 
     public static class IndexNotFoundException extends Exception {
-
         private static final long serialVersionUID = -9223030818809963294L;
         private final String index;
 
@@ -449,4 +535,31 @@ public class FutureClient {
         }
     }
 
+    public static class CreateIndexException extends Exception {
+        private static final long serialVersionUID = -8370617026335107779L;
+        private final String index;
+
+        public CreateIndexException(String index, Throwable cause) {
+            super("Could not create index: " + index, cause);
+            this.index = index;
+        }
+
+        public String getIndex() {
+            return index;
+        }
+    }
+
+    public static class IndexAlreadyExistsException extends Exception {
+        private static final long serialVersionUID = 7742348984046557256L;
+        private final String index;
+
+        public IndexAlreadyExistsException(String index, Throwable cause) {
+            super("Index already exists: " + index, cause);
+            this.index = index;
+        }
+
+        public String getIndex() {
+            return index;
+        }
+    }
 }
