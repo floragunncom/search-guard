@@ -41,6 +41,13 @@ import com.floragunn.searchguard.configuration.Hideable;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.CountAggregation;
+import com.floragunn.searchsupport.cstate.metrics.Measurement;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 
@@ -158,7 +165,9 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
         MAPPING_ONLY, BACKENDROLES_ONLY, BOTH
     }
 
-    public static class InvertedIndex {
+    public static class InvertedIndex implements ComponentStateProvider {
+        private static final IPAddressGenerator ipAddressGenerator = new IPAddressGenerator();
+
         private final PatternMap<String> byUsers;
         private final PatternMap<String> byBackendRoles;
         private final PatternMap<String> byHostNames;
@@ -168,9 +177,12 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
          * @deprecated Undocumented: Backend roles which must existed "and'ed-together"
          */
         private final ImmutableMap<ImmutableSet<Pattern>, ImmutableSet<String>> byBackendRolesAnded;
-        private static final IPAddressGenerator ipAddressGenerator = new IPAddressGenerator();
 
-        public InvertedIndex(SgDynamicConfiguration<RoleMapping> roleMappings) {
+        private final ComponentState componentState = new ComponentState("role_mapping_index").initialized();
+        private final MetricsLevel metricsLevel;
+        private final Measurement<?> evaluations;
+
+        public InvertedIndex(SgDynamicConfiguration<RoleMapping> roleMappings, MetricsLevel metricsLevel) {
 
             PatternMap.Builder<String> users = new PatternMap.Builder<>();
             PatternMap.Builder<String> backendRoles = new PatternMap.Builder<>();
@@ -203,54 +215,65 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
             this.byHostNames = hosts.build();
             this.byIps = ImmutableMap.map(ips.asMap(), (k) -> ip(k), (v) -> ImmutableSet.of(v));
             this.byBackendRolesAnded = ImmutableMap.map(andBackendRoles.asMap(), (k) -> k, (v) -> ImmutableSet.of(v));
+            this.metricsLevel = metricsLevel;
+
+            if (metricsLevel == MetricsLevel.DETAILED) {
+                evaluations = new TimeAggregation.Milliseconds();
+            } else {
+                evaluations = CountAggregation.noop();
+            }
         }
 
         public ImmutableSet<String> evaluate(User user, TransportAddress transportAddress, ResolutionMode rolesMappingResolution) {
+            try (Meter meter = Meter.detail(metricsLevel, evaluations)) {
+                if (user == null) {
+                    return ImmutableSet.empty();
+                }
 
-            if (user == null) {
-                return ImmutableSet.empty();
-            }
+                ImmutableSet.Builder<String> result = new ImmutableSet.Builder<String>(user.getSearchGuardRoles());
 
-            ImmutableSet.Builder<String> result = new ImmutableSet.Builder<String>(user.getSearchGuardRoles());
+                if (rolesMappingResolution == ResolutionMode.BOTH || rolesMappingResolution == ResolutionMode.BACKENDROLES_ONLY) {
+                    result.addAll(user.getRoles());
+                }
 
-            if (rolesMappingResolution == ResolutionMode.BOTH || rolesMappingResolution == ResolutionMode.BACKENDROLES_ONLY) {
-                result.addAll(user.getRoles());
-            }
+                if (((rolesMappingResolution == ResolutionMode.BOTH || rolesMappingResolution == ResolutionMode.MAPPING_ONLY))) {
+                    result.addAll(byUsers.get(user.getName()));
+                    result.addAll(byBackendRoles.get(user.getRoles()));
 
-            if (((rolesMappingResolution == ResolutionMode.BOTH || rolesMappingResolution == ResolutionMode.MAPPING_ONLY))) {
+                    if (transportAddress != null) {
+                        if (!byHostNames.isEmpty()) {
+                            try (Meter subMeter = meter.detail("by_host_name")) {
+                                // The following may trigger a reverse DNS lookup
+                                result.addAll(byHostNames.get(transportAddress.address().getHostName()));
+                                // Backwards compatibility:
+                                result.addAll(byHostNames.get(transportAddress.getAddress()));
+                            }
+                        }
 
-                result.addAll(byUsers.get(user.getName()));
-                result.addAll(byBackendRoles.get(user.getRoles()));
+                        if (!byIps.isEmpty()) {
+                            try (Meter subMeter = meter.detail("by_ip")) {
+                                IPAddress ipAddress = ipAddressGenerator.from(transportAddress.address().getAddress());
 
-                if (transportAddress != null) {
-                    if (!byHostNames.isEmpty()) {
-                        // The following may trigger a reverse DNS lookup
-                        result.addAll(byHostNames.get(transportAddress.address().getHostName()));
-                        // Backwards compatibility:
-                        result.addAll(byHostNames.get(transportAddress.getAddress()));
+                                for (Map.Entry<IPAddressCollection, ImmutableSet<String>> entry : byIps.entrySet()) {
+                                    if (entry.getKey().contains(ipAddress)) {
+                                        result.addAll(entry.getValue());
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    if (!byIps.isEmpty()) {
-                        IPAddress ipAddress = ipAddressGenerator.from(transportAddress.address().getAddress());
-
-                        for (Map.Entry<IPAddressCollection, ImmutableSet<String>> entry : byIps.entrySet()) {
-                            if (entry.getKey().contains(ipAddress)) {
-                                result.addAll(entry.getValue());
+                    if (!byBackendRolesAnded.isEmpty()) {
+                        for (ImmutableSet<Pattern> patternSet : byBackendRolesAnded.keySet()) {
+                            if (patternSet.forAllApplies((p) -> p.matches(user.getRoles()))) {
+                                result.addAll(byBackendRolesAnded.get(patternSet));
                             }
                         }
                     }
                 }
 
-                if (!byBackendRolesAnded.isEmpty()) {
-                    for (ImmutableSet<Pattern> patternSet : byBackendRolesAnded.keySet()) {
-                        if (patternSet.forAllApplies((p) -> p.matches(user.getRoles()))) {
-                            result.addAll(byBackendRolesAnded.get(patternSet));
-                        }
-                    }
-                }
+                return result.build();
             }
-
-            return result.build();
         }
 
         private static IPAddressCollection ip(String source) {
@@ -261,6 +284,11 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
                 log.error("Error while compiling IP address " + source, e);
                 return null;
             }
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return componentState;
         }
     }
 

@@ -28,6 +28,7 @@ import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.RoleMapping;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class ConfigModel {
     private final SgDynamicConfiguration<Role> rolesConfig;
@@ -55,7 +56,7 @@ public class ConfigModel {
         this.actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, null, tenantsConfig.getCEntries().keySet());
         this.documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
 
-        this.roleMapping = new RoleMapping.InvertedIndex(roleMappingConfig);
+        this.roleMapping = new RoleMapping.InvertedIndex(roleMappingConfig, MetricsLevel.NONE);
     }
 
     public ConfigModel(ActionAuthorization actionAuthorization, DocumentAuthorization documentAuthorization, RoleMapping.InvertedIndex roleMapping,
