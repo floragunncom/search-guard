@@ -44,6 +44,20 @@ public interface Meter extends AutoCloseable {
             return NO_OP;
         }
     }
+    
+    static Meter detail(MetricsLevel level, Measurement<?> sink) {
+        if (level.detailedEnabled()) {
+            if (sink instanceof TimeAggregation) {
+                return new SystemCurrentTimeMillisMeter(level, (TimeAggregation) sink);
+            } else if (sink instanceof CountAggregation) {
+                return new CountingMeter(level, (CountAggregation) sink);
+            } else {
+                return NO_OP;
+            }
+        } else {
+            return NO_OP;
+        }
+    }
 
     void close();
 

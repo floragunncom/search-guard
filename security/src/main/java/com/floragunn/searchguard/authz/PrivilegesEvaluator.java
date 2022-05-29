@@ -202,11 +202,12 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
                 documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
 
-                roleMapping = new RoleMapping.InvertedIndex(configMap.get(CType.ROLESMAPPING));
+                roleMapping = new RoleMapping.InvertedIndex(configMap.get(CType.ROLESMAPPING), authzConfig.getMetricsLevel());
 
                 componentState.setConfigVersion(configMap.getVersionsAsString());
                 componentState.replacePart(actionAuthorization.getComponentState());
                 componentState.replacePart(documentAuthorization.getComponentState());
+                componentState.replacePart(roleMapping.getComponentState());
                 componentState.updateStateFromParts();
             }
         });
