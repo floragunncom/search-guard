@@ -22,12 +22,9 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -105,50 +102,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("SSL_EXCEPTION"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("exception_stacktrace"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("not an SSL/TLS record"));
-        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
-    }
-    
-    @Deprecated
-    @Test
-    public void testSimpleTransportAuthenticated() throws Exception {
-
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-        
-        setup(additionalSettings);
-        setupStarfleetIndex();
-        TestAuditlogImpl.clear();
-        
-        System.out.println("#### testSimpleAuthenticated");        
-        try (Client tc = getUserTransportClient(clusterInfo, "spock-keystore.jks", Settings.EMPTY)) {  
-            StoredContext ctx = tc.threadPool().getThreadContext().stashContext();
-            try {
-                Header header = encodeBasicHeader("admin", "admin");
-                tc.threadPool().getThreadContext().putHeader(header.getName(), header.getValue());
-                SearchResponse res = tc.search(new SearchRequest()).actionGet(); 
-                System.out.println(res);
-            } finally {
-                ctx.close();
-            }
-        }
-        
-        Thread.sleep(1500);
-        System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertTrue("Was "+TestAuditlogImpl.messages.size(), TestAuditlogImpl.messages.size() >= 2);
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("GRANTED_PRIVILEGES"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/read/search"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("TRANSPORT"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("\"audit_request_effective_user\" : \"admin\""));
-        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("REST"));
-        Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
     

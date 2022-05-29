@@ -97,7 +97,6 @@ public class ConfigConstants {
 
     public static final String SEARCHGUARD_AUTHCZ_ADMIN_DN = "searchguard.authcz.admin_dn";
        
-    public static final String SEARCHGUARD_AUTHCZ_IMPERSONATION_DN = "searchguard.authcz.impersonation_dn";
     public static final String SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS="searchguard.authcz.rest_impersonation_user";
     
     public static final String SEARCHGUARD_AUDIT_TYPE_DEFAULT = "searchguard.audit.type";    
