@@ -32,8 +32,6 @@
 #searchguard.ssl.transport.enforce_hostname_verification: true
 # If hostname verification is enabled specify if hostname should be resolved (default: true)
 #searchguard.ssl.transport.resolve_hostname: true
-# Use native Open SSL instead of JDK SSL if available (default: true)
-#searchguard.ssl.transport.enable_openssl_if_available: false
 
 # As an alternative to JKS/PCKS12 based configuration 
 # you can also use X.509 PEM certificates and PKCS #8 keys.
@@ -167,12 +165,6 @@ searchguard.nodes_dn:
 # to which admin privileges should be assigned (mandatory)
 searchguard.authcz.admin_dn:
   - "CN=kirk,OU=client,O=client,l=tEst, C=De"
-
-# Define how backend roles should be mapped to Search Guard roles
-# MAPPING_ONLY - mappings must be configured explicitely in sg_roles_mapping.yml (default)
-# BACKENDROLES_ONLY - backend roles are mapped to Search Guard rules directly. Settings in sg_roles_mapping.yml have no effect.
-# BOTH - backend roles are mapped to Search Guard roles mapped directly and via sg_roles_mapping.yml in addition
-searchguard.roles_mapping_resolution: MAPPING_ONLY
 
 ############## REST Management API configuration settings ##############
 # Enable or disable role based access to the REST management API
