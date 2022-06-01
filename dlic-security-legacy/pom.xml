@@ -86,10 +86,16 @@
 			<classifier>tests</classifier>
 			<scope>test</scope>
 		</dependency>
+		
+        <dependency>
+            <groupId>com.floragunn</groupId>
+            <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
+            <scope>test</scope>
+        </dependency>		
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
+			<artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
 			<scope>test</scope>
 		</dependency>
 		

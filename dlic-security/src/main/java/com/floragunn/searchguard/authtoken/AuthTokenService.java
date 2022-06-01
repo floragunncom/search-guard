@@ -79,13 +79,15 @@ import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateRequest;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateRequest.UpdateType;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateResponse;
 import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.DocumentAuthorization;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProvider;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
@@ -108,8 +110,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     private static final Logger log = LogManager.getLogger(AuthTokenService.class);
 
-    public static final StaticSettings.Attribute<String> INDEX_NAME = StaticSettings.Attribute.define("searchguard.authtokens.index.name").withDefault(".searchguard_authtokens").asString();
-    public static final StaticSettings.Attribute<TimeValue> CLEANUP_INTERVAL = StaticSettings.Attribute.define("searchguard.authtokens.cleanup_interval").withDefault(TimeValue.timeValueHours(1)).asTimeValue();
+    public static final StaticSettings.Attribute<String> INDEX_NAME = StaticSettings.Attribute.define("searchguard.authtokens.index.name")
+            .withDefault(".searchguard_authtokens").asString();
+    public static final StaticSettings.Attribute<TimeValue> CLEANUP_INTERVAL = StaticSettings.Attribute
+            .define("searchguard.authtokens.cleanup_interval").withDefault(TimeValue.timeValueHours(1)).asTimeValue();
 
     public static final String USER_TYPE = "sg_auth_token";
     public static final String USER_TYPE_FULL_CURRENT_PERMISSIONS = "sg_auth_token_full_current_permissions";
@@ -118,6 +122,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private final PrivilegedConfigClient privilegedConfigClient;
     private final ConfigHistoryService configHistoryService;
     private final ComponentState componentState;
+    private final AuthorizationService authorizationService;
     private final PrivilegesEvaluator privilegesEvaluator;
     private final Actions actions;
 
@@ -134,13 +139,15 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private IndexCleanupAgent indexCleanupAgent;
     private long maxTokensPerUser = 100;
 
-    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, PrivilegesEvaluator privilegesEvaluator,
-            ConfigHistoryService configHistoryService, StaticSettings settings, ThreadPool threadPool, ClusterService clusterService,
-            ProtectedConfigIndexService protectedConfigIndexService, Actions actions, AuthTokenServiceConfig config, ComponentState componentState) {
+    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, AuthorizationService authorizationService,
+            PrivilegesEvaluator privilegesEvaluator, ConfigHistoryService configHistoryService, StaticSettings settings, ThreadPool threadPool,
+            ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService, Actions actions, AuthTokenServiceConfig config,
+            ComponentState componentState) {
         this.indexName = settings.get(INDEX_NAME);
         this.privilegedConfigClient = privilegedConfigClient;
         this.configHistoryService = configHistoryService;
         this.componentState = componentState;
+        this.authorizationService = authorizationService;
         this.privilegesEvaluator = privilegesEvaluator;
         this.actions = actions;
 
@@ -158,11 +165,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 clusterService, threadPool);
     }
 
-    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, PrivilegesEvaluator privilegesEvaluator,
-            ConfigHistoryService configHistoryService, StaticSettings settings, ThreadPool threadPool, ClusterService clusterService,
-            ProtectedConfigIndexService protectedConfigIndexService,  Actions actions, AuthTokenServiceConfig config) {
-        this(privilegedConfigClient, privilegesEvaluator, configHistoryService, settings, threadPool, clusterService, protectedConfigIndexService,
-                actions, config, new ComponentState(1000, null, "auth_token_service"));
+    public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, AuthorizationService authorizationService,
+            PrivilegesEvaluator privilegesEvaluator, ConfigHistoryService configHistoryService, StaticSettings settings, ThreadPool threadPool,
+            ClusterService clusterService, ProtectedConfigIndexService protectedConfigIndexService, Actions actions, AuthTokenServiceConfig config) {
+        this(privilegedConfigClient, authorizationService, privilegesEvaluator, configHistoryService, settings, threadPool, clusterService,
+                protectedConfigIndexService, actions, config, new ComponentState(1000, null, "auth_token_service"));
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
@@ -857,7 +864,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                         ((RoleBasedActionAuthorization) privilegesEvaluator.getActionAuthorization()).getTenants());
 
                 onResult.accept(new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles,
-                        configModelSnapshot.getDocumentAuthorization(), authToken.getRequestedPrivileges()));
+                        configModelSnapshot.getRolesConfig(), authToken.getRequestedPrivileges()));
             } catch (Exception e) {
                 log.error("Error in provide(" + user + "); authTokenId: " + authTokenId, e);
                 onFailure.accept(e);
@@ -873,8 +880,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     }
 
     private ConfigModel getCurrentConfigModel() {
-        return new ConfigModel(privilegesEvaluator.getActionAuthorization(), privilegesEvaluator.getDocumentAuthorization(),
-                privilegesEvaluator.getRoleMapping(), privilegesEvaluator.getActionGroups());
+        return new ConfigModel(privilegesEvaluator.getActionAuthorization(), authorizationService.getRoleMapping(),
+                privilegesEvaluator.getActionGroups());
     }
 
     static class SpecialPrivilegesEvaluationContextImpl implements SpecialPrivilegesEvaluationContext {
@@ -882,16 +889,16 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         private final User user;
         private final ImmutableSet<String> mappedRoles;
         private final ActionAuthorization actionAuthorization;
-        private final DocumentAuthorization documentAuthorization;
+        private final SgDynamicConfiguration<Role> rolesConfig; 
         private final RequestedPrivileges requestedPrivileges;
 
-        SpecialPrivilegesEvaluationContextImpl(User user, Set<String> mappedRoles, ActionAuthorization actionAuthorization,
-                DocumentAuthorization documentAuthorization, RequestedPrivileges requestedPrivileges) {
+        SpecialPrivilegesEvaluationContextImpl(User user, Set<String> mappedRoles, ActionAuthorization actionAuthorization, SgDynamicConfiguration<Role> rolesConfig,
+                RequestedPrivileges requestedPrivileges) {
             this.user = user;
             this.mappedRoles = ImmutableSet.of(mappedRoles);
             this.actionAuthorization = actionAuthorization;
             this.requestedPrivileges = requestedPrivileges;
-            this.documentAuthorization = documentAuthorization;
+            this.rolesConfig = rolesConfig;
         }
 
         @Override
@@ -918,8 +925,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         }
 
         @Override
-        public DocumentAuthorization getDocumentAuthorization() {
-            return documentAuthorization;
+        public SgDynamicConfiguration<Role> getRolesConfig() {
+            return rolesConfig;
         }
 
     }

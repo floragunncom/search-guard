@@ -30,16 +30,20 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersDatabase;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.searchguard.license.LicenseRepository;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
@@ -57,6 +61,7 @@ public class BaseDependencies {
     private final Environment environment;
     private final IndexNameExpressionResolver indexNameExpressionResolver;
     private final ConfigurationRepository configurationRepository;
+    private final LicenseRepository licenseRepository;
     private final ProtectedConfigIndexService protectedConfigIndexService;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final NodeEnvironment nodeEnvironment;
@@ -72,16 +77,22 @@ public class BaseDependencies {
     private final SearchGuardModulesRegistry modulesRegistry;
     private final InternalUsersDatabase internalUsersDatabase;
     private final Actions actions;
+    private final AuthorizationService authorizationService;
+    private final GuiceDependencies guiceDependencies;
+    private final AuthInfoService authInfoService;
+    private final ActionRequestIntrospector actionRequestIntrospector;
 
     public BaseDependencies(Settings settings, StaticSettings staticSettings, Client localClient, ClusterService clusterService,
             ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
-            StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository, ProtectedConfigIndexService protectedConfigIndexService,
-            InternalAuthTokenProvider internalAuthTokenProvider,
+            StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository, LicenseRepository licenseRepository,
+            ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService,
             VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog,
             PrivilegesEvaluator privilegesEvaluator, BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry,
-            SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase, Actions actions) {
+            SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase, Actions actions,
+            AuthorizationService authorizationService, GuiceDependencies guiceDependencies, AuthInfoService authInfoService,
+            ActionRequestIntrospector actionRequestIntrospector) {
         super();
         this.settings = settings;
         this.staticSettings = staticSettings;
@@ -96,6 +107,7 @@ public class BaseDependencies {
         this.indexNameExpressionResolver = indexNameExpressionResolver;
         this.staticSgConfig = staticSgConfig;
         this.configurationRepository = configurationRepository;
+        this.licenseRepository = licenseRepository;
         this.protectedConfigIndexService = protectedConfigIndexService;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.internalAuthTokenProvider = internalAuthTokenProvider;
@@ -109,6 +121,10 @@ public class BaseDependencies {
         this.modulesRegistry = modulesRegistry;
         this.internalUsersDatabase = internalUsersDatabase;
         this.actions = actions;
+        this.authorizationService = authorizationService;
+        this.guiceDependencies = guiceDependencies;
+        this.authInfoService = authInfoService;
+        this.actionRequestIntrospector = actionRequestIntrospector;
     }
 
     public Settings getSettings() {
@@ -213,6 +229,26 @@ public class BaseDependencies {
 
     public StaticSettings getStaticSettings() {
         return staticSettings;
+    }
+
+    public AuthorizationService getAuthorizationService() {
+        return authorizationService;
+    }
+
+    public GuiceDependencies getGuiceDependencies() {
+        return guiceDependencies;
+    }
+
+    public AuthInfoService getAuthInfoService() {
+        return authInfoService;
+    }
+
+    public LicenseRepository getLicenseRepository() {
+        return licenseRepository;
+    }
+
+    public ActionRequestIntrospector getActionRequestIntrospector() {
+        return actionRequestIntrospector;
     }
 
 }

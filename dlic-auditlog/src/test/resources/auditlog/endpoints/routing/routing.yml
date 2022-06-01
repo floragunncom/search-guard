@@ -1,13 +1,13 @@
 searchguard:
   audit:
-    type: com.floragunn.searchguard.auditlog.helper.LoggingSink
+    type: com.floragunn.searchguard.enterprise.auditlog.helper.LoggingSink
     endpoints:
       endpoint1:
-        type: com.floragunn.searchguard.auditlog.helper.LoggingSink
+        type: com.floragunn.searchguard.enterprise.auditlog.helper.LoggingSink
       endpoint2:
-        type: com.floragunn.searchguard.auditlog.helper.LoggingSink
+        type: com.floragunn.searchguard.enterprise.auditlog.helper.LoggingSink
       endpoint3:
-        type: com.floragunn.searchguard.auditlog.helper.LoggingSink
+        type: com.floragunn.searchguard.enterprise.auditlog.helper.LoggingSink
     routes:
       MISSING_PRIVILEGEs:
         endpoints:

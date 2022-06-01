@@ -35,7 +35,7 @@ import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 public enum ModuleType implements Serializable {
 
 	REST_MANAGEMENT_API("REST Management API", "com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions", Boolean.TRUE),
-	DLSFLS("Document- and Field-Level Security", "com.floragunn.searchguard.dlsfls.lucene.SearchGuardFlsDlsIndexSearcherWrapper", Boolean.TRUE),
+	DLSFLS("Document- and Field-Level Security", "com.floragunn.searchguard.dlsfls.legacy.lucene.SearchGuardFlsDlsIndexSearcherWrapper", Boolean.TRUE),
 	AUDITLOG("Audit Logging", "com.floragunn.searchguard.auditlog.impl.AuditLogImpl", Boolean.TRUE),
 	MULTITENANCY("Kibana Multitenancy", "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule", Boolean.TRUE),
 	LDAP_AUTHENTICATION_BACKEND("LDAP authentication backend", "com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend", Boolean.TRUE),

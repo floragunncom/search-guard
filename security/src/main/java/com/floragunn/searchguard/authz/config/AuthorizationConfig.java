@@ -27,6 +27,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchsupport.StaticSettings;
@@ -165,7 +166,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
      */
     private static RoleMapping.ResolutionMode getRolesMappingResolution(StaticSettings settings) {
         try {
-            return RoleMapping.ResolutionMode.valueOf(settings.get(PrivilegesEvaluator.ROLES_MAPPING_RESOLUTION).toUpperCase());
+            return RoleMapping.ResolutionMode.valueOf(settings.get(AuthorizationService.ROLES_MAPPING_RESOLUTION).toUpperCase());
         } catch (Exception e) {
             return RoleMapping.ResolutionMode.MAPPING_ONLY;
         }

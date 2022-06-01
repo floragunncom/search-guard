@@ -9,4 +9,4 @@ searchguard:
         endpoints:
           - endpoint1
     fallback:
-      type: com.floragunn.searchguard.auditlog.helper.LoggingSink          
+      type: com.floragunn.searchguard.enterprise.auditlog.helper.LoggingSink          
