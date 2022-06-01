@@ -173,7 +173,7 @@ public class PrivilegesEvaluationResult {
     public boolean isPending() {
         return status == Status.PENDING;
     }
-
+    
     public ImmutableSet<String> getAvailableIndices() {
         return availableIndices;
     }

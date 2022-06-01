@@ -19,8 +19,6 @@ import org.elasticsearch.cluster.service.ClusterService;
 
 import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.DocumentAuthorization;
-import com.floragunn.searchguard.authz.LegacyRoleBasedDocumentAuthorization;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.ActionGroup;
@@ -39,7 +37,6 @@ public class ConfigModel {
 
     private final ActionGroup.FlattenedIndex actionGroups;
     private final ActionAuthorization actionAuthorization;
-    private final DocumentAuthorization documentAuthorization;
     private final RoleMapping.InvertedIndex roleMapping;
 
     public ConfigModel(SgDynamicConfiguration<Role> roles, SgDynamicConfiguration<RoleMapping> roleMappingConfig,
@@ -54,15 +51,12 @@ public class ConfigModel {
         this.actionGroups = new ActionGroup.FlattenedIndex(actionGroupsConfig);
 
         this.actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, null, tenantsConfig.getCEntries().keySet());
-        this.documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
 
         this.roleMapping = new RoleMapping.InvertedIndex(roleMappingConfig, MetricsLevel.NONE);
     }
 
-    public ConfigModel(ActionAuthorization actionAuthorization, DocumentAuthorization documentAuthorization, RoleMapping.InvertedIndex roleMapping,
-            ActionGroup.FlattenedIndex actionGroups) {
+    public ConfigModel(ActionAuthorization actionAuthorization, RoleMapping.InvertedIndex roleMapping, ActionGroup.FlattenedIndex actionGroups) {
         this.actionAuthorization = actionAuthorization;
-        this.documentAuthorization = documentAuthorization;
         this.roleMapping = roleMapping;
         this.rolesConfig = null;
         this.roleMappingConfig = null;
@@ -76,10 +70,6 @@ public class ConfigModel {
         return actionAuthorization;
     }
 
-    public DocumentAuthorization getDocumentAuthorization() {
-        return documentAuthorization;
-    }
-
     public RoleMapping.InvertedIndex getRoleMapping() {
         return roleMapping;
     }
@@ -88,9 +78,14 @@ public class ConfigModel {
         return actionGroups;
     }
 
+    public SgDynamicConfiguration<Role> getRolesConfig() {
+        return rolesConfig;
+    }
+
     @Override
     public String toString() {
         return "ConfigModel [rolesConfig=" + rolesConfig + ", roleMappingConfig=" + roleMappingConfig + ", actionGroupsConfig=" + actionGroupsConfig
                 + ", tenantsConfig=" + tenantsConfig + ", blocks=" + blocks + "]";
     }
+
 }

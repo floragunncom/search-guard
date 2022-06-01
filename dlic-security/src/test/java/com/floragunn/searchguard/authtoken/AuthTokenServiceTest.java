@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -53,6 +54,7 @@ public class AuthTokenServiceTest {
 
     private static ConfigurationRepository configurationRepository;
     private static PrivilegesEvaluator privilegesEvaluator;
+    private static AuthorizationService authorizationService;
     private static ProtectedConfigIndexService protectedConfigIndexService;
     private static ThreadPool threadPool;
     private static PrivilegedConfigClient privilegedConfigClient;
@@ -69,6 +71,7 @@ public class AuthTokenServiceTest {
     @BeforeClass
     public static void setupDependencies() {
         configurationRepository = cluster.getInjectable(ConfigurationRepository.class);
+        authorizationService = cluster.getInjectable(AuthorizationService.class);
         privilegesEvaluator = cluster.getInjectable(PrivilegesEvaluator.class);
         protectedConfigIndexService = cluster.getInjectable(ProtectedConfigIndexService.class);
         clusterService = cluster.getInjectable(ClusterService.class);
@@ -90,7 +93,7 @@ public class AuthTokenServiceTest {
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
                 threadPool, clusterService, protectedConfigIndexService, actions, config);
         try {
             authTokenService.setSendTokenUpdates(false);
@@ -134,7 +137,7 @@ public class AuthTokenServiceTest {
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
                 threadPool, clusterService, protectedConfigIndexService, actions, config);
 
         try {
@@ -179,7 +182,7 @@ public class AuthTokenServiceTest {
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient,  authorizationService, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
                 threadPool, clusterService, protectedConfigIndexService, actions, config);
 
         try {
@@ -209,7 +212,7 @@ public class AuthTokenServiceTest {
             ConfigHistoryService configHistoryService2 = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                     protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
 
-            AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService2,
+            AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient,  authorizationService, privilegesEvaluator, configHistoryService2,
                     StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
             authTokenService2.setSendTokenUpdates(false);
             authTokenService2.waitForInitComplete(20000);
@@ -240,7 +243,7 @@ public class AuthTokenServiceTest {
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService,
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator, configHistoryService,
                new StaticSettings(authTokenServiceSettings, null), threadPool, clusterService, protectedConfigIndexService, actions, config);
         try {
             authTokenService.setSendTokenUpdates(false);
@@ -302,7 +305,7 @@ public class AuthTokenServiceTest {
 
             ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                     protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-            AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, privilegesEvaluator, configHistoryService,
+            AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator, configHistoryService,
                     StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
             try {
                 authTokenService.setSendTokenUpdates(false);

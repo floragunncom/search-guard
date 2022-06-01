@@ -17,7 +17,6 @@
 
 package com.floragunn.searchguard.support;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -26,26 +25,17 @@ import java.util.Collections;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.index.IndexService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
 
-import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.auditlog.NullAuditLog;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.compliance.ComplianceConfig;
-import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.ssl.transport.DefaultPrincipalExtractor;
@@ -82,7 +72,7 @@ public class ReflectionHelper {
 
     public static Collection<RestHandler> instantiateMngtRestApiHandler(final Settings settings, final Path configPath,
             final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
-            StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
+            StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, final ThreadPool threadPool,
             final AuditLog auditlog) {
 
@@ -91,14 +81,14 @@ public class ReflectionHelper {
         }
 
         return instantiateRestApiHandler("com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions", settings, configPath, restController,
-                localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, specialPrivilegesEvaluationContextProviderRegistry,
+                localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService, specialPrivilegesEvaluationContextProviderRegistry,
                 threadPool, auditlog);
     }
 
     @SuppressWarnings("unchecked")
     public static Collection<RestHandler> instantiateRestApiHandler(final String className, final Settings settings, final Path configPath,
             final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
-            StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
+            StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, final ThreadPool threadPool,
             final AuditLog auditlog) {
 
@@ -109,22 +99,22 @@ public class ReflectionHelper {
                 result = (Collection<RestHandler>) clazz
                         .getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class, Client.class, AdminDNs.class,
                                 ConfigurationRepository.class, StaticSgConfig.class, ClusterService.class, PrincipalExtractor.class,
-                                PrivilegesEvaluator.class, SpecialPrivilegesEvaluationContextProviderRegistry.class, ThreadPool.class, AuditLog.class)
+                                AuthorizationService.class, SpecialPrivilegesEvaluationContextProviderRegistry.class, ThreadPool.class, AuditLog.class)
                         .invoke(null, settings, configPath, restController, localClient, adminDns, cr, staticSgConfig, cs, principalExtractor,
-                                evaluator, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditlog);
+                                authorizationService, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditlog);
             } catch (NoSuchMethodException e) {
                 try {
                     result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
                             Client.class, AdminDNs.class, ConfigurationRepository.class, StaticSgConfig.class, ClusterService.class,
-                            PrincipalExtractor.class, PrivilegesEvaluator.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath,
-                                    restController, localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, evaluator, threadPool,
+                            PrincipalExtractor.class, AuthorizationService.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath,
+                                    restController, localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService, threadPool,
                                     auditlog);
                 } catch (NoSuchMethodException e1) {
                     try {
                         result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
                                 Client.class, AdminDNs.class, ConfigurationRepository.class, ClusterService.class, PrincipalExtractor.class,
-                                PrivilegesEvaluator.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath, restController,
-                                        localClient, adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditlog);
+                                AuthorizationService.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath, restController,
+                                        localClient, adminDns, cr, cs, principalExtractor, authorizationService, threadPool, auditlog);
                     } catch (NoSuchMethodException e2) {
                         result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
                                 Client.class, ClusterService.class, ThreadPool.class)
@@ -145,138 +135,6 @@ public class ReflectionHelper {
                 log.debug("Stacktrace: ", e);
             }
             return Collections.emptyList();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public static Collection<RestHandler> instantiateRestApiHandler(final String className, final Settings settings, final Path configPath,
-            final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
-            final ClusterService cs, ScriptService scriptService, NamedXContentRegistry xContentRegistry, final PrincipalExtractor principalExtractor,
-            final PrivilegesEvaluator evaluator, final ThreadPool threadPool, final AuditLog auditlog) {
-
-        try {
-            final Class<?> clazz = Class.forName(className);
-            Collection<RestHandler> result;
-            try {
-                result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
-                        Client.class, AdminDNs.class, ConfigurationRepository.class, ClusterService.class, PrincipalExtractor.class,
-                        PrivilegesEvaluator.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath, restController, localClient,
-                                adminDns, cr, cs, principalExtractor, evaluator, threadPool, auditlog);
-            } catch (NoSuchMethodException e) {
-                result = (Collection<RestHandler>) clazz
-                        .getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class, Client.class, ClusterService.class,
-                                ScriptService.class, NamedXContentRegistry.class, ThreadPool.class)
-                        .invoke(null, settings, configPath, restController, localClient, cs, scriptService, xContentRegistry, threadPool);
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("Found " + result.size() + " REST API handlers in " + className);
-            }
-
-            return result;
-        } catch (final Throwable e) {
-            log.warn("Unable to enable REST API module {} due to {}", className,
-                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            return Collections.emptyList();
-        }
-    }
-
-    @SuppressWarnings("rawtypes")
-    public static Constructor instantiateDlsFlsConstructor() {
-
-        if (enterpriseModulesDisabled()) {
-            return null;
-        }
-
-        try {
-            final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlsfls.lucene.SearchGuardFlsDlsIndexSearcherWrapper");
-            final Constructor<?> ret = clazz.getConstructor(IndexService.class, Settings.class, AdminDNs.class, ClusterService.class, AuditLog.class,
-                    ComplianceIndexingOperationListener.class, ComplianceConfig.class);
-            return ret;
-        } catch (final Throwable e) {
-            log.warn("Unable to enable DLS/FLS Module due to {}", e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            return null;
-        }
-    }
-
-    public static DlsFlsRequestValve instantiateDlsFlsValve(Settings settings, Client nodeClient, ClusterService clusterService,
-            IndexNameExpressionResolver resolver, GuiceDependencies guiceDependencies, NamedXContentRegistry namedXContentRegistry,
-            ThreadContext threadContext, ConfigurationRepository configurationRepository, PrivilegesEvaluator privilegesEvaluator) {
-
-        if (enterpriseModulesDisabled()) {
-            return new DlsFlsRequestValve.NoopDlsFlsRequestValve();
-        }
-
-        try {
-            final Class<?> clazz = Class.forName("com.floragunn.searchguard.dlsfls.DlsFlsValveImpl");
-            final DlsFlsRequestValve ret = (DlsFlsRequestValve) clazz
-                    .getConstructor(Settings.class, Client.class, ClusterService.class, IndexNameExpressionResolver.class, GuiceDependencies.class,
-                            NamedXContentRegistry.class, ThreadContext.class, ConfigurationRepository.class, PrivilegesEvaluator.class)
-                    .newInstance(settings, nodeClient, clusterService, resolver, guiceDependencies, namedXContentRegistry, threadContext,
-                            configurationRepository, privilegesEvaluator);
-            return ret;
-        } catch (final Throwable e) {
-            log.warn("Unable to enable DLS/FLS Valve Module due to {}",
-                    e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            return new DlsFlsRequestValve.NoopDlsFlsRequestValve();
-        }
-    }
-
-    public static AuditLog instantiateAuditLog(final Settings settings, final Path configPath, final Client localClient, final ThreadPool threadPool,
-            final IndexNameExpressionResolver resolver, final ClusterService clusterService, ConfigurationRepository configurationRepository) {
-
-        if (enterpriseModulesDisabled()) {
-            return new NullAuditLog();
-        }
-
-        try {
-            final Class<?> clazz = Class.forName("com.floragunn.searchguard.auditlog.impl.AuditLogImpl");
-            final AuditLog impl = (AuditLog) clazz.getConstructor(Settings.class, Path.class, Client.class, ThreadPool.class,
-                    IndexNameExpressionResolver.class, ClusterService.class, ConfigurationRepository.class)
-                    .newInstance(settings, configPath, localClient, threadPool, resolver, clusterService, configurationRepository);
-            return impl;
-        } catch (final Throwable e) {
-            log.warn("Unable to enable Auditlog Module due to {}", e instanceof InvocationTargetException ? ((InvocationTargetException) e).getTargetException().toString() : e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-
-            return new NullAuditLog();
-        }
-    }
-
-    public static ComplianceIndexingOperationListener instantiateComplianceListener(ComplianceConfig complianceConfig, AuditLog auditlog) {
-
-        if (enterpriseModulesDisabled()) {
-            return new ComplianceIndexingOperationListener();
-        }
-
-        try {
-            final Class<?> clazz = Class.forName("com.floragunn.searchguard.compliance.ComplianceIndexingOperationListenerImpl");
-            final ComplianceIndexingOperationListener impl = (ComplianceIndexingOperationListener) clazz
-                    .getConstructor(ComplianceConfig.class, AuditLog.class).newInstance(complianceConfig, auditlog);
-            //no addLoadedModule(clazz) here because its not a typical module
-            //and it is not loaded in every case/on every node
-            return impl;
-        } catch (final ClassNotFoundException e) {
-            //TODO produce a single warn msg, this here is issued for every index
-            log.debug("Unable to enable Compliance Module due to {}", e.toString());
-            if (log.isDebugEnabled()) {
-                log.debug("Stacktrace: ", e);
-            }
-            return new ComplianceIndexingOperationListener();
-        } catch (final Throwable e) {
-            log.error("Unable to enable Compliance Module", e);
-            return new ComplianceIndexingOperationListener();
         }
     }
 

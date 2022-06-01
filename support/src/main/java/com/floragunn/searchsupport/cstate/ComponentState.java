@@ -653,6 +653,10 @@ public class ComponentState implements Document<ComponentState> {
 
         parts.add(part);
     }
+    
+    public synchronized void clearParts() {
+        parts.clear();
+    }
 
     public synchronized void replacePartsWithType(String type, ComponentState newPart) {
         Iterator<ComponentState> iter = this.parts.iterator();

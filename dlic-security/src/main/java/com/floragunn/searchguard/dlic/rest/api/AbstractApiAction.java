@@ -55,7 +55,7 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateNodeResponse;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
@@ -89,7 +89,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
     protected AbstractApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
             final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
-            final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
+            final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
             AuditLog auditLog) {
 		super();
@@ -99,7 +99,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		this.cl = cl;
 		this.cs = cs;
 		this.threadPool = threadPool;
-        this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, evaluator,
+        this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
 		this.auditLog = auditLog;
 		this.staticSgConfig = staticSgConfig;

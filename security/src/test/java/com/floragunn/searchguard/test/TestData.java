@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,11 +69,13 @@ public class TestData {
 
     private String[] ipAddresses;
     private String[] locationNames;
+    private String[] departments = new String[] { "dept_a_1", "dept_a_2", "dept_a_3", "dept_b_1", "dept_b_2", "dept_c", "dept_d" };
     private int size;
     private int deletedDocumentCount;
     private int refreshAfter;
     private Map<String, Map<String, ?>> allDocuments;
     private Map<String, Map<String, ?>> retainedDocuments;
+    private Map<String, Map<String, Map<String, ?>>> documentsByDepartment;
     private ImmutableMap<String, Object> additionalAttributes;
     private Set<String> deletedDocuments;
     private long subRandomSeed;
@@ -134,7 +136,7 @@ public class TestData {
 
         for (int i = 0; i < size; i++) {
             ImmutableMap<String, Object> document = ImmutableMap.of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random),
-                    "source_loc", randomLocationName(random), "dest_loc", randomLocationName(random));
+                    "source_loc", randomLocationName(random), "dest_loc", randomLocationName(random), "dept", randomDepartmentName(random));
 
             if (additionalAttributes != null && additionalAttributes.size() != 0) {
                 document = document.with(additionalAttributes);
@@ -158,10 +160,18 @@ public class TestData {
             deletedDocuments.add(id);
             retainedDocuments.remove(id);
         }
+        
+        Map<String, Map<String, Map<String, ?>>> documentsByDepartment = new HashMap<>();
+        
+        for (Map.Entry<String, Map<String, ?>> entry : retainedDocuments.entrySet()) {
+            String dept = (String) entry.getValue().get("dept");
+            documentsByDepartment.computeIfAbsent(dept, (k) -> new HashMap<>()).put(entry.getKey(), entry.getValue());
+        }
 
         this.allDocuments = Collections.unmodifiableMap(allDocuments);
         this.retainedDocuments = Collections.unmodifiableMap(retainedDocuments);
         this.deletedDocuments = Collections.unmodifiableSet(deletedDocuments);
+        this.documentsByDepartment = documentsByDepartment;
     }
 
     private String[] createRandomIpAddresses(Random random) {
@@ -209,6 +219,10 @@ public class TestData {
         return locationNames[i];
     }
 
+    private String randomDepartmentName(Random random) {
+        return departments[random.nextInt(departments.length)];
+    }
+
     private static String randomId(Random random) {
         UUID uuid = new UUID(random.nextLong(), random.nextLong());
         ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[16]);
@@ -240,6 +254,18 @@ public class TestData {
     public TestDocument anyDocument() {
         Map.Entry<String, Map<String, ?>> entry = retainedDocuments.entrySet().iterator().next();
 
+        return new TestDocument(entry.getKey(), entry.getValue());
+    }
+    
+    public TestDocument anyDocumentForDepartment(String dept) {
+        Map<String, Map<String, ?>> docs = this.documentsByDepartment.get(dept);
+        
+        if (docs == null) {
+            return null;
+        }
+        
+        Map.Entry<String, Map<String, ?>> entry = docs.entrySet().iterator().next();
+        
         return new TestDocument(entry.getKey(), entry.getValue());
     }
 

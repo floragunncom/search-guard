@@ -34,7 +34,6 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.user.UserInformation;
 
 public interface AuditLog extends Closeable {
@@ -71,9 +70,6 @@ public interface AuditLog extends Closeable {
     void logDocumentWritten(ShardId shardId, GetResult originalIndex, Index currentIndex, IndexResult result);
     void logDocumentDeleted(ShardId shardId, Delete delete, DeleteResult result);
     void logExternalConfig(Settings settings, Environment environment);
-    
-    // compliance config
-    void setComplianceConfig(ComplianceConfig complianceConfig);
     
     public enum Origin {
         REST, TRANSPORT, LOCAL

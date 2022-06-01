@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import org.apache.logging.log4j.Level;
@@ -104,21 +103,15 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     static final StaticSettings.Attribute<Boolean> UNSUPPORTED_RESTORE_SGINDEX_ENABLED = //
             StaticSettings.Attribute.define("searchguard.unsupported.restore.sgindex.enabled").withDefault(false).asBoolean();
 
-    /**
-     * @deprecated Only used for legacy config. Moved to sg_authz.yml in new-style config.
-     */
-    public static final StaticSettings.Attribute<String> ROLES_MAPPING_RESOLUTION = StaticSettings.Attribute
-            .define("searchguard.roles_mapping_resolution").withDefault(RoleMapping.ResolutionMode.MAPPING_ONLY.toString()).asString();
-
     public static final StaticSettings.AttributeSet STATIC_SETTINGS = //
             StaticSettings.AttributeSet.of(ADMIN_ONLY_ACTIONS, ADMIN_ONLY_INDICES, CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
-                    UNSUPPORTED_RESTORE_SGINDEX_ENABLED, ROLES_MAPPING_RESOLUTION);
+                    UNSUPPORTED_RESTORE_SGINDEX_ENABLED);
 
     private static final String USER_TENANT = "__user__";
     private static final Logger log = LogManager.getLogger(PrivilegesEvaluator.class);
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final ClusterService clusterService;
-
+    private final AuthorizationService authorizationService;
     private final IndexNameExpressionResolver resolver;
 
     private final AuditLog auditLog;
@@ -140,8 +133,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     private volatile AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
     private volatile RoleBasedActionAuthorization actionAuthorization = null;
-    private volatile LegacyRoleBasedDocumentAuthorization documentAuthorization = null;
-    private volatile RoleMapping.InvertedIndex roleMapping;
 
     // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
     private String kibanaServerUsername;
@@ -149,8 +140,9 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private volatile boolean kibanaIndexTemplateFixApplied = false;
 
     public PrivilegesEvaluator(Client localClient, ClusterService clusterService, ThreadPool threadPool,
-            ConfigurationRepository configurationRepository, IndexNameExpressionResolver resolver, AuditLog auditLog, StaticSettings settings,
-            ClusterInfoHolder clusterInfoHolder, Actions actions, ActionRequestIntrospector actionRequestIntrospector,
+            ConfigurationRepository configurationRepository, AuthorizationService authorizationService, IndexNameExpressionResolver resolver,
+            AuditLog auditLog, StaticSettings settings, ClusterInfoHolder clusterInfoHolder, Actions actions,
+            ActionRequestIntrospector actionRequestIntrospector,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
             GuiceDependencies guiceDependencies, NamedXContentRegistry namedXContentRegistry, boolean enterpriseModulesEnabled) {
         super();
@@ -158,6 +150,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.resolver = resolver;
         this.auditLog = auditLog;
         this.localClient = localClient;
+        this.authorizationService = authorizationService;
 
         this.threadContext = threadPool.getThreadContext();
 
@@ -213,14 +206,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet(), adminOnlyIndices,
                         authzConfig.getMetricsLevel());
 
-                documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
-
-                roleMapping = new RoleMapping.InvertedIndex(configMap.get(CType.ROLESMAPPING), authzConfig.getMetricsLevel());
-
                 componentState.setConfigVersion(configMap.getVersionsAsString());
                 componentState.replacePart(actionAuthorization.getComponentState());
-                componentState.replacePart(documentAuthorization.getComponentState());
-                componentState.replacePart(roleMapping.getComponentState());
                 componentState.updateStateFromParts();
             }
         });
@@ -235,30 +222,12 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     actionAuthorization.updateIndices(event.state().metadata().indices().keySet());
                 }
 
-                DocumentAuthorization documentAuthorization = PrivilegesEvaluator.this.documentAuthorization;
-
-                if (documentAuthorization != null) {
-                    documentAuthorization.updateIndices(event.state().metadata().indices().keySet());
-                }
             }
         });
     }
 
     public boolean isInitialized() {
         return actionAuthorization != null;
-    }
-
-    public ImmutableSet<String> getMappedRoles(User user, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
-        if (roleMapping == null) {
-            return ImmutableSet.empty();
-        }
-
-        if (specialPrivilegesEvaluationContext == null) {
-            TransportAddress caller = Objects.requireNonNull((TransportAddress) this.threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS));
-            return mapSgRoles(user, caller);
-        } else {
-            return specialPrivilegesEvaluationContext.getMappedRoles();
-        }
     }
 
     public PrivilegesEvaluationResult evaluate(User user, ImmutableSet<String> mappedRoles, String action0, ActionRequest request, Task task,
@@ -652,14 +621,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     }
 
-    public ImmutableSet<String> mapSgRoles(final User user, final TransportAddress caller) {
-        if (roleMapping == null) {
-            throw new ElasticsearchSecurityException("SearchGuard is not yet initialized");
-        }
-
-        return roleMapping.evaluate(user, caller, authzConfig.getRoleMappingResolution());
-    }
-
     public Set<String> getAllConfiguredTenantNames() {
         return actionAuthorization.getTenants();
     }
@@ -706,7 +667,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         // Note: This does not take authtokens into account yet. However, as this is only an API for Kibana and Kibana does not use authtokens, 
         // this does not really matter        
-        ImmutableSet<String> mappedRoles = mapSgRoles(user, caller);
+        ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, caller);
         String requestedTenant = getRequestedTenant(user);
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),
                 actionRequestIntrospector, null);
@@ -790,7 +751,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         ActionAuthorization actionAuthorization;
 
         if (specialPrivilegesEvaluationContext == null) {
-            mappedRoles = mapSgRoles(user, callerTransportAddress);
+            mappedRoles = this.authorizationService.getMappedRoles(user, callerTransportAddress);
             actionAuthorization = this.actionAuthorization;
         } else {
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
@@ -824,7 +785,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         ActionAuthorization actionAuthorization;
 
         if (specialPrivilegesEvaluationContext == null) {
-            mappedRoles = mapSgRoles(user, callerTransportAddress);
+            mappedRoles = this.authorizationService.getMappedRoles(user, callerTransportAddress);
             actionAuthorization = this.actionAuthorization;
         } else {
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
@@ -853,13 +814,13 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         } else {
             actionAuthorization = context.getSpecialPrivilegesEvaluationContext().getActionAuthorization();
         }
-        
+
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(context, actions.get(permission));
-        
+
         return privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.OK;
 
     }
-    
+
     private boolean checkDocWhitelistHeader(User user, String action, ActionRequest request) {
         String docWhitelistHeader = threadContext.getHeader(ConfigConstants.SG_DOC_WHITELST_HEADER);
 
@@ -901,14 +862,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     public RoleBasedActionAuthorization getActionAuthorization() {
         return actionAuthorization;
-    }
-
-    public DocumentAuthorization getDocumentAuthorization() {
-        return documentAuthorization;
-    }
-
-    public RoleMapping.InvertedIndex getRoleMapping() {
-        return roleMapping;
     }
 
     public RoleMapping.ResolutionMode getRolesMappingResolution() {
