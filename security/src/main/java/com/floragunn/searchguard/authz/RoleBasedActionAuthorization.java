@@ -1300,10 +1300,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             if (!dateMathExpressions.isEmpty()) {
                 try (Meter subMeter = meter.basic("render_date_math_expression")) {
-                    for (String dateMathExpression : dateMathExpressions) {
-                        try {
-                            String resolvedExpression = context.getResolver().resolveDateMathExpression(dateMathExpression);
+                    List<String> resolvedExpressions = com.floragunn.searchsupport.queries.DateMathExpressionResolver.resolve(this.dateMathExpressions);
 
+                    for (String resolvedExpression : resolvedExpressions) {
+                        try {
                             if (!Template.containsPlaceholders(resolvedExpression)) {
                                 Pattern pattern = Pattern.create(resolvedExpression);
 
@@ -1319,7 +1319,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 }
                             }
                         } catch (ConfigValidationException | ExpressionEvaluationException e) {
-                            throw new PrivilegesEvaluationException("Error while evaluating date math expression: " + dateMathExpression, e);
+                            throw new PrivilegesEvaluationException("Error while evaluating date math expression: " + resolvedExpression, e);
                         }
                     }
                 }

@@ -101,6 +101,6 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener {
         SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = authInfoService.getSpecialPrivilegesEvaluationContext();
         ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
 
-        return new PrivilegesEvaluationContext(user, mappedRoles, null, null, false, null, null, specialPrivilegesEvaluationContext);
+        return new PrivilegesEvaluationContext(user, mappedRoles, null, null, false, null, specialPrivilegesEvaluationContext);
     }
 }

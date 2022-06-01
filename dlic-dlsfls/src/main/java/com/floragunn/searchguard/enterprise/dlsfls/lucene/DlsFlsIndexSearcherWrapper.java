@@ -157,7 +157,7 @@ public class DlsFlsIndexSearcherWrapper implements CheckedFunction<DirectoryRead
         SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = authInfoService.getSpecialPrivilegesEvaluationContext();
         ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
 
-        return new PrivilegesEvaluationContext(user, mappedRoles, null, null, false, null, null, specialPrivilegesEvaluationContext);
+        return new PrivilegesEvaluationContext(user, mappedRoles, null, null, false, null, specialPrivilegesEvaluationContext);
     }
 
 }

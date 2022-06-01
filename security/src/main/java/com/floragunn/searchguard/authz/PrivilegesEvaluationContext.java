@@ -20,8 +20,6 @@ package com.floragunn.searchguard.authz;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
-
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
@@ -46,20 +44,17 @@ public class PrivilegesEvaluationContext {
     private final ImmutableSet<String> mappedRoles;
     private final ActionRequestIntrospector actionRequestIntrospector;
     private final SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext;
-    private final IndexNameExpressionResolver resolver;
     private final boolean debugEnabled;
     private ActionRequestInfo requestInfo;
 
     public PrivilegesEvaluationContext(User user, ImmutableSet<String> mappedRoles, Action action, Object request, boolean debugEnabled,
-            ActionRequestIntrospector actionRequestIntrospector, IndexNameExpressionResolver resolver,
-            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
+            ActionRequestIntrospector actionRequestIntrospector, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
         this.user = user;
         this.mappedRoles = mappedRoles;
         this.action = action;
         this.request = request;
         this.actionRequestIntrospector = actionRequestIntrospector;
         this.debugEnabled = debugEnabled;
-        this.resolver = resolver;
         this.specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContext;
     }
 
@@ -120,13 +115,9 @@ public class PrivilegesEvaluationContext {
         if (this.mappedRoles != null && this.mappedRoles.equals(mappedRoles)) {
             return this;
         } else {
-            return new PrivilegesEvaluationContext(user, mappedRoles, action, mappedRoles, debugEnabled, actionRequestIntrospector, resolver,
+            return new PrivilegesEvaluationContext(user, mappedRoles, action, mappedRoles, debugEnabled, actionRequestIntrospector,
                     specialPrivilegesEvaluationContext);
         }
-    }
-
-    public IndexNameExpressionResolver getResolver() {
-        return resolver;
     }
 
     public SpecialPrivilegesEvaluationContext getSpecialPrivilegesEvaluationContext() {

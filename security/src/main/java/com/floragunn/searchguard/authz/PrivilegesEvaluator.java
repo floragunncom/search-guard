@@ -614,7 +614,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, caller);
         String requestedTenant = getRequestedTenant(user);
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),
-                actionRequestIntrospector, resolver, null);
+                actionRequestIntrospector, null);
 
         Map<String, Boolean> result = new HashMap<>();
 
@@ -705,7 +705,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         Action action = this.actions.get(actionName);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, action, null, authzConfig.isDebugEnabled(),
-                actionRequestIntrospector, resolver, specialPrivilegesEvaluationContext);
+                actionRequestIntrospector, specialPrivilegesEvaluationContext);
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(context, action);
 
         return privilegesEvaluationResult.getStatus() == PrivilegesEvaluationResult.Status.OK;
@@ -736,7 +736,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         }
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),
-                actionRequestIntrospector, resolver, null);
+                actionRequestIntrospector, null);
 
         for (String permission : permissions) {
             PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(context, actions.get(permission));
