@@ -25,8 +25,6 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver.DateMathExpressionResolver;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
@@ -1275,8 +1273,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableList<Template<Pattern>> patternTemplates;
         private final ImmutableList<String> dateMathExpressions;
 
-        private final static DateMathExpressionResolver dateMathExpressionResolver = new DateMathExpressionResolver();
-
         IndexPattern(Pattern pattern, ImmutableList<Template<Pattern>> patternTemplates, ImmutableList<String> dateMathExpressions) {
             this.pattern = pattern;
             this.patternTemplates = patternTemplates;
@@ -1304,8 +1300,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             if (!dateMathExpressions.isEmpty()) {
                 try (Meter subMeter = meter.basic("render_date_math_expression")) {
-                    IndexNameExpressionResolver.Context resolverContext = new IndexNameExpressionResolver.ResolverContext();
-                    List<String> resolvedExpressions = dateMathExpressionResolver.resolve(resolverContext, this.dateMathExpressions);
+                    List<String> resolvedExpressions = com.floragunn.searchsupport.queries.DateMathExpressionResolver.resolve(this.dateMathExpressions);
 
                     for (String dateMathExpression : resolvedExpressions) {
                         try {
