@@ -41,6 +41,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
@@ -56,7 +57,7 @@ public class RestApiPrivilegesEvaluator {
 	protected final Logger logger = LogManager.getLogger(this.getClass());
 
 	private final AdminDNs adminDNs;
-	private final PrivilegesEvaluator privilegesEvaluator;
+	private final AuthorizationService authorizationService;
 	private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
 	private final PrincipalExtractor principalExtractor;
 	private final Path configPath;
@@ -81,12 +82,12 @@ public class RestApiPrivilegesEvaluator {
 
 	private final Boolean roleBasedAccessEnabled;
 
-    public RestApiPrivilegesEvaluator(Settings settings, AdminDNs adminDNs, PrivilegesEvaluator privilegesEvaluator,
+    public RestApiPrivilegesEvaluator(Settings settings, AdminDNs adminDNs, AuthorizationService authorizationService, 
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
             PrincipalExtractor principalExtractor, Path configPath, ThreadPool threadPool) {
 
 		this.adminDNs = adminDNs;
-		this.privilegesEvaluator = privilegesEvaluator;
+		this.authorizationService = authorizationService;
 		this.principalExtractor = principalExtractor;
 		this.configPath = configPath;
 		this.threadPool = threadPool;
@@ -371,7 +372,7 @@ public class RestApiPrivilegesEvaluator {
 
             if (specialPrivilegesEvaluationContext == null) {
                 remoteAddress = (TransportAddress) threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-                userRoles = privilegesEvaluator.mapSgRoles(user, remoteAddress);
+                userRoles = authorizationService.getMappedRoles(user, remoteAddress);
             } else {
                 user = specialPrivilegesEvaluationContext.getUser();
                 remoteAddress = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()

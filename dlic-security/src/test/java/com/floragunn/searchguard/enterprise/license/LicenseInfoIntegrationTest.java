@@ -46,7 +46,7 @@ public class LicenseInfoIntegrationTest {
             HttpResponse response = client.get("/_searchguard/license/info");
 
             System.out.println(response.getBody());
-            Assert.assertEquals(response.getBody(), ImmutableSet.of("authentication_backend/ldap"),
+            Assert.assertEquals(response.getBody(), ImmutableSet.of("authentication_backend/ldap", "dlsfls", "dlsfls_legacy"),
                     ImmutableSet.of(response.getBodyAsDocNode().getAsNode("licenses_required").getAsNode("enterprise").toListOfStrings()));
         }
     }

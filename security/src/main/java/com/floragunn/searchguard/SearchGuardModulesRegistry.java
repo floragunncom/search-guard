@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -26,21 +27,27 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.DirectoryReader;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.common.CheckedFunction;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.index.IndexService;
+import org.elasticsearch.index.shard.IndexingOperationListener;
+import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
@@ -48,6 +55,8 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.SearchGuardModule.QueryCacheWeightProvider;
+import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
@@ -57,6 +66,7 @@ import com.floragunn.searchguard.authc.rest.authenticators.HttpClientCertAuthent
 import com.floragunn.searchguard.authc.rest.authenticators.HttpTrustedOriginAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.LinkApiAuthenticationFrontend;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
@@ -70,6 +80,14 @@ public class SearchGuardModulesRegistry {
 
     private List<SearchGuardModule> modules = new ArrayList<>();
     private List<ComponentStateProvider> componentStateProviders = new ArrayList<>();
+    private ImmutableList<SearchOperationListener> searchOperationListeners;
+    private ImmutableList<IndexingOperationListener> indexOperationListeners;
+    private ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters;
+    private ImmutableList<Function<String, Predicate<String>>> fieldFilters;
+    private ImmutableList<QueryCacheWeightProvider> queryCacheWeightProviders;
+    private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForNormalOperations;
+    private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForAllOperations;
+
     private PrivilegesInterceptor privilegesInterceptor;
     private Set<String> moduleNames = new HashSet<>();
     private final Set<String> disabledModules;
@@ -179,6 +197,114 @@ public class SearchGuardModulesRegistry {
         return result;
     }
 
+    public ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> getDirectoryReaderWrappersForNormalOperations() {
+        ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> result = this.directoryReaderWrappersForNormalOperations;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getDirectoryReaderWrappersForNormalOperations());
+            }
+
+            this.directoryReaderWrappersForNormalOperations = result;
+        }
+
+        return result;
+    }
+
+    public ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> getDirectoryReaderWrappersForAllOperations() {
+        ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> result = this.directoryReaderWrappersForAllOperations;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getDirectoryReaderWrappersForAllOperations());
+            }
+
+            this.directoryReaderWrappersForAllOperations = result;
+        }
+
+        return result;
+    }
+        
+    public ImmutableList<SearchOperationListener> getSearchOperationListeners() {
+
+        ImmutableList<SearchOperationListener> result = this.searchOperationListeners;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getSearchOperationListeners());
+            }
+
+            this.searchOperationListeners = result;
+        }
+
+        return result;
+    }
+
+    public ImmutableList<IndexingOperationListener> getIndexOperationListeners() {
+
+        ImmutableList<IndexingOperationListener> result = this.indexOperationListeners;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getIndexOperationListeners());
+            }
+
+            this.indexOperationListeners = result;
+        }
+
+        return result;
+    }
+    
+    public ImmutableList<SyncAuthorizationFilter> getSyncAuthorizationFilters() {
+        ImmutableList<SyncAuthorizationFilter> result = this.syncAuthorizationFilters;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getSyncAuthorizationFilters());
+            }
+        }
+
+        return result;
+    }
+
+    public ImmutableList<Function<String, Predicate<String>>> getFieldFilters() {
+        ImmutableList<Function<String, Predicate<String>>> result = this.fieldFilters;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getFieldFilters());
+            }
+        }
+
+        return result;
+    }
+
+    public ImmutableList<QueryCacheWeightProvider> getQueryCacheWeightProviders() {
+        ImmutableList<QueryCacheWeightProvider> result = this.queryCacheWeightProviders;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getQueryCacheWeightProviders());
+            }
+        }
+
+        return result;
+    }
+
     public List<Setting<?>> getSettings() {
         List<Setting<?>> result = new ArrayList<>();
 
@@ -197,6 +323,18 @@ public class SearchGuardModulesRegistry {
         }
 
         return result.build();
+    }
+    
+    public AuditLog getAuditLog() {
+        for (SearchGuardModule module : modules) {
+            AuditLog auditLog = module.getAuditLog();
+            
+            if (auditLog != null) {
+                return auditLog;
+            }
+        }
+        
+        return null;
     }
 
     public void onNodeStarted() {
@@ -264,7 +402,8 @@ public class SearchGuardModulesRegistry {
 
         typedComponentRegistry.register(HttpAuthenticationFrontend.class, "basic", BasicAuthenticationFrontend::new);
         typedComponentRegistry.registerInstance(HttpAuthenticationFrontend.class, "anonymous", new AnonymousAuthenticationFrontend());
-        typedComponentRegistry.registerInstance(HttpAuthenticationFrontend.class, "trusted_origin", new HttpTrustedOriginAuthenticationFrontend(null, null));
+        typedComponentRegistry.registerInstance(HttpAuthenticationFrontend.class, "trusted_origin",
+                new HttpTrustedOriginAuthenticationFrontend(null, null));
         typedComponentRegistry.registerInstance(HttpAuthenticationFrontend.class, "clientcert", new HttpClientCertAuthenticationFrontend(null, null));
 
         typedComponentRegistry.register(ApiAuthenticationFrontend.class, "basic", BasicAuthenticationFrontend::new);

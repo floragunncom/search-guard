@@ -39,6 +39,8 @@ import com.floragunn.searchguard.user.UserInformation;
 
 public class NullAuditLog implements AuditLog {
 
+    static final NullAuditLog INSTANCE = new NullAuditLog();
+    
     @Override
     public void close() throws IOException {
         //noop, intentionally left empty
@@ -127,11 +129,6 @@ public class NullAuditLog implements AuditLog {
     @Override
     public void logExternalConfig(Settings settings, Environment environment) {
         //noop, intentionally left empty
-    }
-    
-    @Override
-    public void setComplianceConfig(ComplianceConfig complianceConfig) {
-    	//noop, intentionally left empty
     }
 
 	@Override

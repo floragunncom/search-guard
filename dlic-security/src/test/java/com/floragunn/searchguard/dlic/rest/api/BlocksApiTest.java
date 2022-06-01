@@ -160,7 +160,7 @@ public class BlocksApiTest {
 
             // Now we will block the user
             response = adminClient.putJson("_searchguard/api/blocks/a_block", FileHelper.loadFile("restapi/simple_blocks_netmask.json"));
-            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
             // Seeing if the blocks API confirms that the user is being blocked
             response = adminClient.get("_searchguard/api/blocks/a_block");

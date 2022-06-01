@@ -18,7 +18,6 @@
 package com.floragunn.searchguard;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -83,6 +82,7 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexModule;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.cache.query.QueryCache;
+import org.elasticsearch.index.shard.IndexingOperationListener;
 import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ClusterPlugin;
@@ -96,7 +96,6 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.ReaderContext;
 import org.elasticsearch.search.internal.ScrollContext;
-import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.Transport.Connection;
@@ -111,12 +110,15 @@ import org.elasticsearch.watcher.ResourceWatcherService;
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.VariableResolvers;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.SearchGuardModule.QueryCacheWeightProvider;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
 import com.floragunn.searchguard.action.whoami.TransportWhoAmIAction;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.auditlog.AuditLogRelay;
 import com.floragunn.searchguard.auditlog.AuditLogSslExceptionHandler;
 import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
@@ -129,18 +131,17 @@ import com.floragunn.searchguard.authc.rest.RestAuthcConfigApi;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfigApi;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.authc.session.backend.SessionModule;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.AuthorizationConfigApi;
+import com.floragunn.searchguard.authz.indices.SearchGuardDirectoryReaderWrapper;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
-import com.floragunn.searchguard.compliance.ComplianceIndexingOperationListener;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.DlsFlsRequestValve;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.configuration.SearchGuardIndexSearcherWrapper;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.configuration.api.MigrateConfigIndexApi;
@@ -173,8 +174,6 @@ import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.ReflectionHelper;
-import com.floragunn.searchguard.support.SgUtils;
-import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.SearchGuardInterceptor;
@@ -185,17 +184,16 @@ import com.google.common.collect.Lists;
 
 public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin, ScriptPlugin {
 
-    private static final String KEYWORD = ".keyword";
-    private final boolean dlsFlsAvailable;
-    private final Constructor<?> dlsFlsConstructor;
     private volatile AuthenticatingRestFilter sgRestHandler;
     private volatile SearchGuardInterceptor sgi;
+    private AuthorizationService authorizationService;
     private volatile PrivilegesEvaluator evaluator;
     private volatile ThreadPool threadPool;
+    private volatile NamedXContentRegistry xContentRegistry;
     private volatile ConfigurationRepository cr;
     private volatile AdminDNs adminDns;
-    private volatile ClusterService cs;
-    private volatile AuditLog auditLog;
+    private volatile ClusterService clusterService;
+    private final AuditLogRelay auditLog = new AuditLogRelay();
     private volatile SslExceptionHandler sslExceptionHandler;
     private volatile Client localClient;
     private final boolean disabled;
@@ -203,15 +201,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private final boolean sslOnly;
     private boolean sslCertReloadEnabled;
     private final List<String> demoCertHashes = new ArrayList<String>(3);
-    private volatile SearchGuardFilter sgf;
     private volatile ComplianceConfig complianceConfig;
     private volatile ActionRequestIntrospector actionRequestIntrospector;
     private ScriptService scriptService;
 
     private static ProtectedIndices protectedIndices;
     private ProtectedConfigIndexService protectedConfigIndexService;
-    private volatile NamedXContentRegistry namedXContentRegistry = null;
-    private volatile DlsFlsRequestValve dlsFlsValve = null;
     private SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry = new SpecialPrivilegesEvaluationContextProviderRegistry();
 
     private SearchGuardModulesRegistry moduleRegistry;
@@ -222,7 +217,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private ConfigVarService configVarService;
     private LicenseRepository licenseRepository;
     private VariableResolvers configVariableProviders = VariableResolvers.ALL_PRIVILEGED;
-
+    private Actions actions;
+    
     @Override
     public void close() throws IOException {
         if (auditLog != null) {
@@ -263,8 +259,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         moduleRegistry = new SearchGuardModulesRegistry(settings);
 
         if (disabled) {
-            this.dlsFlsAvailable = false;
-            this.dlsFlsConstructor = null;
             this.enterpriseModulesEnabled = false;
             this.sslOnly = false;
             this.sslCertReloadEnabled = false;
@@ -277,8 +271,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         sslOnly = isSslOnlyMode(settings);
 
         if (sslOnly) {
-            this.dlsFlsAvailable = false;
-            this.dlsFlsConstructor = null;
             this.enterpriseModulesEnabled = false;
             this.sslCertReloadEnabled = false;
             complianceConfig = null;
@@ -333,14 +325,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             throw new IllegalStateException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED + " must be set to 'true'");
         }
 
-        if (!client) {
-            dlsFlsConstructor = ReflectionHelper.instantiateDlsFlsConstructor();
-            dlsFlsAvailable = dlsFlsConstructor != null;
-        } else {
-            dlsFlsAvailable = false;
-            dlsFlsConstructor = null;
-        }
-
+     
         if (!client) {
             final List<Path> filesWithWrongPermissions = AccessController.doPrivileged(new PrivilegedAction<List<Path>>() {
                 @Override
@@ -405,9 +390,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (enterpriseModulesEnabled) {
             moduleRegistry.add("com.floragunn.searchguard.enterprise.auth.EnterpriseAuthFeaturesModule",
                     "com.floragunn.searchguard.authtoken.AuthTokenModule", "com.floragunn.dlic.auth.LegacyEnterpriseSecurityModule",
-                    "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule");
+                    "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule", "com.floragunn.searchguard.enterprise.dlsfls.DlsFlsModule",
+                    "com.floragunn.searchguard.enterprise.dlsfls.legacy.LegacyDlsFlsModule",
+                    "com.floragunn.searchguard.enterprise.auditlog.AuditLogModule");
         }
-        
+
         moduleRegistry.add(SessionModule.class.getName());
         moduleRegistry.add("com.floragunn.signals.SignalsModule");
         moduleRegistry.add("com.floragunn.searchguard.legacy.LegacySecurityModule");
@@ -470,11 +457,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             return true;
         }
 
-        //if (perms.contains(PosixFilePermission.GROUP_READ) || perms.contains(PosixFilePermission.GROUP_WRITE)) {
-        //    // no permissions for "group" allowed
-        //    return true;
-        //}
-
         return false;
     }
 
@@ -492,13 +474,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             if (!sslOnly) {
                 handlers.add(
-                        new SearchGuardInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool), cs));
+                        new SearchGuardInfoAction(settings, restController, authorizationService, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool), clusterService));
                 handlers.add(new KibanaInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
                 handlers.add(new SearchGuardHealthAction(settings, restController, cr));
                 handlers.add(new PermissionAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
 
                 handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr,
-                        staticSgConfig, cs, Objects.requireNonNull(principalExtractor), evaluator, specialPrivilegesEvaluationContextProviderRegistry,
+                        staticSgConfig, clusterService, Objects.requireNonNull(principalExtractor), authorizationService, specialPrivilegesEvaluationContextProviderRegistry,
                         threadPool, Objects.requireNonNull(auditLog)));
 
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
@@ -583,44 +565,28 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         return moduleRegistry.getContexts();
     }
 
-    private CheckedFunction<DirectoryReader, DirectoryReader, IOException> loadFlsDlsIndexSearcherWrapper(final IndexService indexService,
-            final ComplianceIndexingOperationListener ciol, final ComplianceConfig complianceConfig) {
-        namedXContentRegistry = indexService.xContentRegistry();
-        try {
-            namedXContentRegistry = indexService.xContentRegistry();
-            CheckedFunction<DirectoryReader, DirectoryReader, IOException> flsdlsWrapper = (CheckedFunction<DirectoryReader, DirectoryReader, IOException>) dlsFlsConstructor
-                    .newInstance(indexService, settings, Objects.requireNonNull(adminDns), Objects.requireNonNull(cs),
-                            Objects.requireNonNull(auditLog), Objects.requireNonNull(ciol), Objects.requireNonNull(complianceConfig));
-            if (log.isDebugEnabled()) {
-                log.debug("FLS/DLS enabled for index {}", indexService.index().getName());
-            }
-            return flsdlsWrapper;
-        } catch (Exception ex) {
-            throw new RuntimeException("Failed to enable FLS/DLS", ex);
-        }
-    }
-
     @Override
     public void onIndexModule(IndexModule indexModule) {
-        //called for every index!
+        // called for every index!
+        
+        if (!disabled && !client && !sslOnly) {            
+            if (adminDns == null) {
+                throw new IllegalStateException("adminDns is not yet initialized");
+            }
 
-        if (!disabled && !client && !sslOnly) {
-            log.debug("Handle complianceConfig=" + complianceConfig + "/dlsFlsAvailable: " + dlsFlsAvailable + "/auditLog=" + auditLog.getClass()
-                    + " for onIndexModule() of index " + indexModule.getIndex().getName());
-            if (dlsFlsAvailable) {
-
-                final ComplianceIndexingOperationListener ciol;
-
-                assert complianceConfig != null : "compliance config must not be null here";
-
-                if (complianceConfig.writeHistoryEnabledForIndex(indexModule.getIndex().getName())) {
-                    ciol = ReflectionHelper.instantiateComplianceListener(complianceConfig, Objects.requireNonNull(auditLog));
-                    indexModule.addIndexOperationListener(ciol);
-                } else {
-                    ciol = new ComplianceIndexingOperationListener();
-                }
-
-                indexModule.setReaderWrapper(indexService -> loadFlsDlsIndexSearcherWrapper(indexService, ciol, complianceConfig));
+            ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForNormalOperations = this.moduleRegistry
+                    .getDirectoryReaderWrappersForNormalOperations();
+            ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForAllOperations = this.moduleRegistry
+                    .getDirectoryReaderWrappersForAllOperations();
+            
+            indexModule.setReaderWrapper(
+                    indexService -> new SearchGuardDirectoryReaderWrapper(indexService, adminDns, directoryReaderWrappersForNormalOperations, directoryReaderWrappersForAllOperations));
+            
+            ImmutableList<QueryCacheWeightProvider> queryCacheWeightProviders = moduleRegistry.getQueryCacheWeightProviders();
+            
+            if (!queryCacheWeightProviders.isEmpty()) {
+         
+                
                 indexModule.forceQueryCacheProvider((indexSettings, nodeCache) -> new QueryCache() {
 
                     @Override
@@ -640,42 +606,20 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
                     @Override
                     public Weight doCache(Weight weight, QueryCachingPolicy policy) {
-                        final Map<String, Set<String>> allowedFlsFields = (Map<String, Set<String>>) HeaderHelper
-                                .deserializeSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_FLS_FIELDS_HEADER);
+                        for (QueryCacheWeightProvider provider : queryCacheWeightProviders) {
+                            Weight result = provider.apply(index(), weight, policy);
 
-                        if (SgUtils.evalMap(allowedFlsFields, index().getName()) != null) {
-                            return weight;
-                        } else {
-
-                            final Map<String, Set<String>> maskedFieldsMap = (Map<String, Set<String>>) HeaderHelper
-                                    .deserializeSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_MASKED_FIELD_HEADER);
-
-                            if (SgUtils.evalMap(maskedFieldsMap, index().getName()) != null) {
-                                return weight;
-                            } else {
-                                return nodeCache.doCache(weight, policy);
+                            if (result != null) {
+                                return result;
                             }
                         }
 
+                        return nodeCache.doCache(weight, policy);
                     }
                 });
-            } else {
-
-                assert complianceConfig == null : "compliance config must be null here";
-
-                indexModule.setReaderWrapper(
-                        indexService -> new SearchGuardIndexSearcherWrapper(indexService, settings, Objects.requireNonNull(adminDns)));
-            }
-
+            } 
+            
             indexModule.addSearchOperationListener(new SearchOperationListener() {
-
-                @Override
-                public void onPreQueryPhase(SearchContext context) {
-
-                    if (enterpriseModulesEnabled) {
-                        dlsFlsValve.handleSearchContext(context, threadPool, namedXContentRegistry);
-                    }
-                }
 
                 @Override
                 public void onNewScrollContext(ReaderContext context) {
@@ -713,6 +657,14 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     }
                 }
             });
+            
+            for (SearchOperationListener searchOperationListener : this.moduleRegistry.getSearchOperationListeners()) {
+                indexModule.addSearchOperationListener(searchOperationListener);
+            }
+            
+            for (IndexingOperationListener indexOperationListener : this.moduleRegistry.getIndexOperationListeners()) {
+                indexModule.addIndexOperationListener(indexOperationListener);
+            }
         }
     }
 
@@ -720,7 +672,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public List<ActionFilter> getActionFilters() {
         List<ActionFilter> filters = new ArrayList<>(1);
         if (!client && !disabled && !sslOnly) {
-            filters.add(Objects.requireNonNull(sgf));
+            ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, evaluator, settings);
+            ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
+            SearchGuardFilter searchGuardFilter = new SearchGuardFilter(authorizationService, evaluator, adminDns,
+                    moduleRegistry.getSyncAuthorizationFilters(), auditLog, threadPool, clusterService, diagnosticContext, complianceConfig, actions,
+                    actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry, null);
+
+            filters.add(searchGuardFilter);
 
             ActionFilter actionTraceFilter = diagnosticContext.getActionTraceFilter();
 
@@ -825,7 +783,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
         this.threadPool = threadPool;
-        this.cs = clusterService;
+        this.xContentRegistry = xContentRegistry;
+        this.clusterService = clusterService;
         this.localClient = localClient;
         this.scriptService = scriptService;
 
@@ -839,7 +798,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(guiceDependencies);
 
         final ClusterInfoHolder cih = new ClusterInfoHolder();
-        this.cs.addListener(cih);
+        this.clusterService.addListener(cih);
 
         actionRequestIntrospector = new ActionRequestIntrospector(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
     
@@ -859,43 +818,32 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         configVarService = new ConfigVarService(localClient, clusterService, threadPool, protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(configVarService);
         
-        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig);
+        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig, xContentRegistry);
         moduleRegistry.addComponentStateProvider(cr);
         
         licenseRepository = new LicenseRepository(settings, localClient, clusterService, cr);
-
-        auditLog = ReflectionHelper.instantiateAuditLog(settings, configPath, localClient, threadPool, indexNameExpressionResolver, clusterService, cr);
        
         sslExceptionHandler = new AuditLogSslExceptionHandler(auditLog);
 
-        complianceConfig = dlsFlsAvailable ? new ComplianceConfig(environment, actionRequestIntrospector, auditLog, localClient, cr) : null;
-        log.debug("Compliance config is " + complianceConfig + " because of dlsFlsAvailable: " + dlsFlsAvailable + " and auditLog="
-                + auditLog.getClass());
-        auditLog.setComplianceConfig(complianceConfig);
+        complianceConfig = new ComplianceConfig(environment, actionRequestIntrospector, cr);
+
         licenseRepository.subscribeOnLicenseChange(complianceConfig);
         moduleRegistry.addComponentStateProvider(licenseRepository);
         
         Actions actions = new Actions(moduleRegistry);
-
-        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, indexNameExpressionResolver, auditLog, staticSettings, cih,
+        
+        this.authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
+        this.authorizationService = new AuthorizationService(cr, staticSettings, authInfoService);
+        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, authorizationService, indexNameExpressionResolver, auditLog, staticSettings, cih,
                 actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
                 enterpriseModulesEnabled);
         moduleRegistry.addComponentStateProvider(evaluator);
-
-        dlsFlsValve = ReflectionHelper.instantiateDlsFlsValve(settings, localClient, clusterService, indexNameExpressionResolver, guiceDependencies,
-                xContentRegistry, threadPool.getThreadContext(), cr, evaluator);
         
-        InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(evaluator, actions, cr);
+        InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(authorizationService, evaluator, actions, cr);
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
-        authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
 
-        ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, evaluator, settings);
-        ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
         diagnosticContext = new DiagnosticContext(settings, threadPool.getThreadContext());
-        sgf = new SearchGuardFilter(evaluator, adminDns, dlsFlsValve, auditLog, threadPool, cs, diagnosticContext, complianceConfig, actions,
-                actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry,
-                indexNameExpressionResolver);
-      
+
         InternalUsersDatabase internalUsersDatabase = new InternalUsersDatabase(cr);
         moduleRegistry.addComponentStateProvider(internalUsersDatabase);
         moduleRegistry.getTypedComponentRegistry().register(new InternalUsersAuthenticationBackend.Info(internalUsersDatabase));
@@ -914,16 +862,17 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         
         BaseDependencies baseDependencies = new BaseDependencies(settings, staticSettings, localClient, clusterService, threadPool, resourceWatcherService,
                 scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, staticSgConfig, cr,
-                protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
+                licenseRepository, protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
                 configVariableProviders, diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
-                internalUsersDatabase, actions);
+                internalUsersDatabase, actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector);
 
-        sgi = new SearchGuardInterceptor(settings, threadPool, auditLog, principalExtractor, interClusterRequestEvaluator, cs,
+        sgi = new SearchGuardInterceptor(settings, threadPool, auditLog, principalExtractor, interClusterRequestEvaluator, clusterService,
                 Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext, adminDns);
         components.add(principalExtractor);
         components.add(adminDns);
         components.add(cr);
         components.add(evaluator);
+        components.add(authorizationService);
         components.add(sgi);
         components.add(internalAuthTokenProvider);
         components.add(moduleRegistry);
@@ -939,9 +888,17 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
         
         components.addAll(moduleComponents);
-        
+            
         capabilities = new SearchGuardCapabilities(moduleRegistry.getModules(), clusterService, localClient);
         components.add(capabilities);
+        
+        {
+            AuditLog auditLog = moduleRegistry.getAuditLog();
+
+            if (auditLog != null) {
+                this.auditLog.setAuditLog(auditLog);
+            }
+        }
         
         sgRestHandler = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool,
                 principalExtractor, evaluator, settings, configPath, diagnosticContext);
@@ -950,10 +907,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         moduleRegistry.addComponentStateProvider(sgRestHandler);
         
+        this.actions = actions;
+        
         return components;
 
     }
-
+    
     @Override
     public Settings additionalSettings() {
 
@@ -1175,7 +1134,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.addAll(moduleRegistry.getSettings());
             settings.addAll(DiagnosticContext.SETTINGS);
             settings.addAll(PrivilegesEvaluator.STATIC_SETTINGS.toPlatform());
-            
+            settings.addAll(AuthorizationService.STATIC_SETTINGS.toPlatform());
+
         }
 
         return settings;
@@ -1217,52 +1177,26 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public Function<String, Predicate<String>> getFieldFilter() {
+    public Function<String, Predicate<String>> getFieldFilter() {        
+        return (index) -> {
+            ImmutableList<Function<String, Predicate<String>>> fieldFilters = this.moduleRegistry.getFieldFilters();
 
-        return index -> {
-
-            if (threadPool == null) {
-                return field -> true;
+            List<Predicate<String>> predicates = new ArrayList<>(fieldFilters.size());
+            
+            for (Function<String, Predicate<String>> filter : fieldFilters) {
+                predicates.add(filter.apply(index));                
             }
-
-            final Map<String, Set<String>> allowedFlsFields = (Map<String, Set<String>>) HeaderHelper
-                    .deserializeSafeFromHeader(threadPool.getThreadContext(), ConfigConstants.SG_FLS_FIELDS_HEADER);
-
-            final String eval = SgUtils.evalMap(allowedFlsFields, index);
-
-            if (eval == null) {
-                return field -> true;
-            } else {
-
-                final Set<String> includesExcludes = allowedFlsFields.get(eval);
-
-                final Set<String> includesSet = new HashSet<>(includesExcludes.size());
-                final Set<String> excludesSet = new HashSet<>(includesExcludes.size());
-
-                for (final String incExc : includesExcludes) {
-                    final char firstChar = incExc.charAt(0);
-
-                    if (firstChar == '!' || firstChar == '~') {
-                        excludesSet.add(incExc.substring(1));
-                    } else {
-                        includesSet.add(incExc);
+            
+            return (field) -> {
+                for (Predicate<String> predicate : predicates) {
+                    if (!predicate.test(field)) {
+                        return false;
                     }
                 }
-
-                if (!excludesSet.isEmpty()) {
-                    return field -> !WildcardMatcher.matchAny(excludesSet, handleKeyword(field));
-                } else {
-                    return field -> WildcardMatcher.matchAny(includesSet, handleKeyword(field));
-                }
-            }
+                
+                return true;
+            };
         };
-    }
-
-    private static String handleKeyword(final String field) {
-        if (field != null && field.endsWith(KEYWORD)) {
-            return field.substring(0, field.length() - KEYWORD.length());
-        }
-        return field;
     }
 
     public static ProtectedIndices getProtectedIndices() {

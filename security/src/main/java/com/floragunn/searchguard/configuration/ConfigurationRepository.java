@@ -55,6 +55,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
@@ -93,6 +94,7 @@ import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.xcontent.XContentParserContext;
 
 public class ConfigurationRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(ConfigurationRepository.class);
@@ -155,7 +157,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Context parserContext;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
-            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig) {
+            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig, NamedXContentRegistry xContentRegistry) {
         this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
         this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
@@ -168,7 +170,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.mainConfigLoader = new ConfigurationLoader(client, componentState, this, staticSgConfig);
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
         this.variableResolvers = VariableResolvers.ALL_PRIVILEGED.with("var", (key) -> configVarService.get(key));
-        this.parserContext = new Context(variableResolvers, modulesRegistry, settings);
+        this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry);
         this.threadPool = threadPool;
 
         configVarService.addChangeListener(() -> {
@@ -296,11 +298,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
             while (response == null || response.isTimedOut() || response.getStatus() == ClusterHealthStatus.RED) {
                 LOGGER.debug("index '{}' not healthy yet, we try again ... (Reason: {})", searchguardIndex,
                         response == null ? "no response" : (response.isTimedOut() ? "timeout" : "other, maybe red cluster"));
-                
+
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace(Strings.toString(response));
                 }
-                
+
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e1) {
@@ -351,9 +353,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
             componentState.setState(State.INITIALIZING, "install_default_config");
 
             String lookupDir = System.getProperty("sg.default_init.dir");
-            File cd = lookupDir != null ? new File(lookupDir) 
+            File cd = lookupDir != null ? new File(lookupDir)
                     : settings.getPlatformPluginsDirectory().resolve("search-guard-flx/sgconfig/").toAbsolutePath().toFile();
-            File confFile =   new File(cd, "sg_authc.yml");
+            File confFile = new File(cd, "sg_authc.yml");
             File legacyConfFile = new File(cd, "sg_config.yml");
 
             if (confFile.exists() || legacyConfFile.exists()) {
@@ -1002,15 +1004,18 @@ public class ConfigurationRepository implements ComponentStateProvider {
         return result;
     }
 
-    public static class Context implements Parser.Context {
+    public static class Context implements Parser.Context, XContentParserContext {
         private final VariableResolvers variableResolvers;
         private final SearchGuardModulesRegistry searchGuardModulesRegistry;
         private final StaticSettings staticSettings;
+        private final NamedXContentRegistry xContentRegistry;
 
-        public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings) {
+        public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings,
+                NamedXContentRegistry xContentRegistry) {
             this.variableResolvers = variableResolvers;
             this.searchGuardModulesRegistry = searchGuardModulesRegistry;
             this.staticSettings = staticSettings;
+            this.xContentRegistry = xContentRegistry;
         }
 
         @Override
@@ -1025,12 +1030,17 @@ public class ConfigurationRepository implements ComponentStateProvider {
         public StaticSettings getStaticSettings() {
             return staticSettings;
         }
+
+        @Override
+        public NamedXContentRegistry xContentRegistry() {
+            return xContentRegistry;
+        }
     }
 
-    private static <T> void uploadFile(Client tc, File configDirectory, String fileName, String index, CType<T> cType, ConfigurationRepository.Context parserContext)
-            throws ConfigUpdateException {
+    private static <T> void uploadFile(Client tc, File configDirectory, String fileName, String index, CType<T> cType,
+            ConfigurationRepository.Context parserContext) throws ConfigUpdateException {
         File filepath = new File(configDirectory, fileName);
-        
+
         LOGGER.info("Will update '" + cType + "' with " + filepath);
 
         try (Reader reader = new FileReader(filepath)) {

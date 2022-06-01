@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@
  *
  */
 
-
 package com.floragunn.searchguard.authc;
 
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
@@ -29,28 +29,33 @@ import com.floragunn.searchguard.user.User;
 public class AuthInfoService {
     private final ThreadPool threadPool;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
-    
-    public AuthInfoService(ThreadPool threadPool, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry) {
+
+    public AuthInfoService(ThreadPool threadPool,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry) {
         this.threadPool = threadPool;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
     }
-    
+
     public User getCurrentUser() {
         User user = peekCurrentUser();
-        
+
         if (user == null) {
             throw new ElasticsearchSecurityException("No user information available");
         }
-        
+
         return user;
     }
-    
+
     public User peekCurrentUser() {
         return threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
     }
-    
+
+    public TransportAddress getCurrentRemoteAddress() {
+        return (TransportAddress) this.threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+    }
+
     public SpecialPrivilegesEvaluationContext getSpecialPrivilegesEvaluationContext() {
         return specialPrivilegesEvaluationContextProviderRegistry.provide(getCurrentUser(), threadPool.getThreadContext());
     }
-    
+
 }
