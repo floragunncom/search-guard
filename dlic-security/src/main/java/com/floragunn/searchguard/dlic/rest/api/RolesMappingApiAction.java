@@ -27,6 +27,7 @@ import org.opensearch.rest.RestRequest;
 import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.config.RoleMapping;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -43,10 +44,10 @@ public class RolesMappingApiAction extends PatchableResourceApiAction {
     @Inject
     public RolesMappingApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
             final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
-            final PrincipalExtractor principalExtractor, final PrivilegesEvaluator evaluator,
+            final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
             AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, evaluator,
+        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
     }
 

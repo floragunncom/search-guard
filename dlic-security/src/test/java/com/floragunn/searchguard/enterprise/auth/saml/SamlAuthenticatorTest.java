@@ -50,7 +50,7 @@ public class SamlAuthenticatorTest {
 
     protected static MockSamlIdpServer mockSamlIdpServer;
 
-    private static ConfigurationRepository.Context testContext = new ConfigurationRepository.Context(null, null, null);
+    private static ConfigurationRepository.Context testContext = new ConfigurationRepository.Context(null, null, null, null);
 
     private static Map<String, Object> basicIdpConfig;
     private static Map<String, Object> basicAuthenticatorSettings;

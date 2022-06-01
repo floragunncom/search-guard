@@ -37,7 +37,7 @@ import org.opensearch.rest.RestStatus;
 import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
@@ -54,18 +54,18 @@ public class PermissionsInfoAction extends BaseRestHandler {
 
     private final RestApiPrivilegesEvaluator restApiPrivilegesEvaluator;
     private final ThreadPool threadPool;
-    private final PrivilegesEvaluator privilegesEvaluator;
+    private final AuthorizationService authorizationService;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
 
     protected PermissionsInfoAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
             final AdminDNs adminDNs, final ConfigurationRepository cl, final ClusterService cs, final PrincipalExtractor principalExtractor,
-            final PrivilegesEvaluator privilegesEvaluator,
+            AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
             AuditLog auditLog) {
         super();
         this.threadPool = threadPool;
-        this.privilegesEvaluator = privilegesEvaluator;
-        this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, privilegesEvaluator,
+        this.authorizationService = authorizationService;
+        this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
     }
@@ -114,7 +114,7 @@ public class PermissionsInfoAction extends BaseRestHandler {
                     
                     if (specialPrivilegesEvaluationContext == null) {
                         remoteAddress = (TransportAddress) threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-                        userRoles = privilegesEvaluator.mapSgRoles(user, remoteAddress);
+                        userRoles = authorizationService.getMappedRoles(user, remoteAddress);
                     } else {
                         user = specialPrivilegesEvaluationContext.getUser();
                         remoteAddress = specialPrivilegesEvaluationContext.getCaller() != null ? specialPrivilegesEvaluationContext.getCaller()

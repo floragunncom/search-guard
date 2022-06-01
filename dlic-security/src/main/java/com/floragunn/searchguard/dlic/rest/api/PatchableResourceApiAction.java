@@ -50,7 +50,7 @@ import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.codova.documents.patch.JsonPatch;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -59,8 +59,6 @@ import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchsupport.action.Responses;
-import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableList;
 
@@ -70,9 +68,9 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
     public PatchableResourceApiAction(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDNs,
             ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
-            PrivilegesEvaluator evaluator, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
+            AuthorizationService authorizationService, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
             ThreadPool threadPool, AuditLog auditLog) {
-        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, evaluator,
+        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
     }
 

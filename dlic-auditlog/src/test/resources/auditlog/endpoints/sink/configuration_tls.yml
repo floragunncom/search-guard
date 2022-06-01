@@ -38,4 +38,4 @@ searchguard:
               verify: true
               pemtrustedcas_content: dyn
       fallback:
-        type: com.floragunn.searchguard.auditlog.helper.LoggingSink
+        type: com.floragunn.searchguard.enterprise.auditlog.helper.LoggingSink

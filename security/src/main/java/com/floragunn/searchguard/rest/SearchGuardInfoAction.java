@@ -45,6 +45,7 @@ import org.opensearch.rest.RestStatus;
 import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -54,15 +55,17 @@ import com.google.common.collect.ImmutableList;
 public class SearchGuardInfoAction extends BaseRestHandler {
 
     private final Logger log = LogManager.getLogger(this.getClass());
+    private final AuthorizationService authorizationService;
     private final PrivilegesEvaluator evaluator;
     private final ThreadContext threadContext;
     private final ClusterService clusterService;
     
-    public SearchGuardInfoAction(Settings settings, RestController controller, PrivilegesEvaluator evaluator, ThreadPool threadPool, ClusterService clusterService) {
+    public SearchGuardInfoAction(Settings settings, RestController controller, AuthorizationService authorizationService, PrivilegesEvaluator evaluator, ThreadPool threadPool, ClusterService clusterService) {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
         this.clusterService = clusterService;
+        this.authorizationService = authorizationService;
     }
 
     @Override
@@ -92,7 +95,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     Set<String> sgRoles = null;
                     
                     try {
-                        sgRoles = evaluator.mapSgRoles(user, remoteAddress);                        
+                        sgRoles = authorizationService.getMappedRoles(user, remoteAddress);                        
                     } catch (Exception e) {
                         log.warn("Error while evaluating roles for user " + user, e);
                         sgRoles = ImmutableSet.empty();

@@ -30,8 +30,7 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.DocumentAuthorization;
-import com.floragunn.searchguard.authz.LegacyRoleBasedDocumentAuthorization;
+import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Actions;
@@ -54,6 +53,7 @@ public class InternalAuthTokenProvider {
 
     private static final Logger log = LogManager.getLogger(InternalAuthTokenProvider.class);
 
+    private final AuthorizationService authorizationService;
     private final PrivilegesEvaluator privilegesEvaluator;
     private final Actions actions;
 
@@ -64,8 +64,9 @@ public class InternalAuthTokenProvider {
     private JweDecryptionProvider jweDecryptionProvider;
     private volatile SgDynamicConfiguration<Role> roles;
 
-    public InternalAuthTokenProvider(PrivilegesEvaluator privilegesEvaluator, Actions actions, ConfigurationRepository configurationRepository) {
+    public InternalAuthTokenProvider(AuthorizationService authorizationService, PrivilegesEvaluator privilegesEvaluator, Actions actions, ConfigurationRepository configurationRepository) {
         this.privilegesEvaluator = privilegesEvaluator;
+        this.authorizationService = authorizationService;
         this.actions = actions;
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
@@ -141,11 +142,9 @@ public class InternalAuthTokenProvider {
 
             ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions,
                     null, privilegesEvaluator.getAllConfiguredTenantNames());
-            DocumentAuthorization documentAuthorization = new LegacyRoleBasedDocumentAuthorization(rolesConfig, privilegesEvaluator.getResolver(),
-                    privilegesEvaluator.getClusterService());
             String userName = verifiedToken.getClaims().getSubject();
             User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(roleNames).build();
-            AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, roleNames, actionAuthorization, documentAuthorization);
+            AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, roleNames, actionAuthorization, rolesConfig);
 
             return userAuth;
 
@@ -182,7 +181,7 @@ public class InternalAuthTokenProvider {
     }
 
     private Object getSgRolesForUser(User user) {
-        ImmutableSet<String> userRoles = this.privilegesEvaluator.mapSgRoles(user, null);
+        ImmutableSet<String> userRoles = this.authorizationService.getMappedRoles(user, (TransportAddress) null);
         ImmutableMap<String, Role> roles = ImmutableMap.of(this.roles.getCEntries()).intersection(userRoles);
 
         return Document.toDeepBasicObject(roles);
@@ -241,14 +240,13 @@ public class InternalAuthTokenProvider {
         private final User user;
         private final ImmutableSet<String> mappedRoles;
         private final ActionAuthorization actionAuthorization;
-        private final DocumentAuthorization documentAuthorization;
+        private final SgDynamicConfiguration<Role> rolesConfig;
 
-        AuthFromInternalAuthToken(User user, ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization,
-                DocumentAuthorization documentAuthorization) {
+        AuthFromInternalAuthToken(User user, ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization, SgDynamicConfiguration<Role> rolesConfig) {
             this.user = user;
             this.mappedRoles = mappedRoles;
             this.actionAuthorization = actionAuthorization;
-            this.documentAuthorization = documentAuthorization;
+            this.rolesConfig = rolesConfig;
         }
 
         public User getUser() {
@@ -281,9 +279,10 @@ public class InternalAuthTokenProvider {
         }
 
         @Override
-        public DocumentAuthorization getDocumentAuthorization() {
-            return documentAuthorization;
+        public SgDynamicConfiguration<Role> getRolesConfig() {
+            return rolesConfig;
         }
+
     }
 
     public JsonWebKey getSigningKey() {

@@ -17,430 +17,88 @@
 
 package com.floragunn.searchguard.compliance;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.opensearch.OpenSearchException;
-import org.opensearch.action.ActionListener;
-import org.opensearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
-import org.opensearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
-import org.opensearch.client.Client;
-import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsException;
 import org.opensearch.env.Environment;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.authz.config.AuthorizationConfig;
-import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.license.LicenseChangeListener;
 import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.WildcardMatcher;
-import com.floragunn.searchsupport.StaticSettings;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-
 
 public class ComplianceConfig implements LicenseChangeListener {
 
     private final Logger log = LogManager.getLogger(getClass());
     private final Settings settings;
-    private final Map<Pattern, Set<String>> readEnabledFields = new HashMap<>(100);
-    private final List<String> watchedWriteIndices;
-    private DateTimeFormatter auditLogPattern = null;
-    private String auditLogIndex = null;
-    private final boolean logDiffsForWrite;
-    private final boolean logWriteMetadataOnly;
-    private final boolean logReadMetadataOnly;
-    private final boolean logExternalConfig;
-    private final boolean logInternalConfig;
-    private final LoadingCache<String, Set<String>> cache;
     private final Pattern immutableIndicesPatterns;
-    private final byte[] salt16;
-    private final Pattern searchguardIndexPattern;
     private final ActionRequestIntrospector actionRequestIntrospector;
-    private final Environment environment;
-    private final AuditLog auditLog;
     private volatile boolean enabled = true;
-    private volatile boolean externalConfigLogged = false;
-    private final boolean localHashingEnabled;
-    private byte[] salt2_16;
-    private final Client client;
-    private final byte[] maskPrefix;
-    
-    public ComplianceConfig(Environment environment, ActionRequestIntrospector actionRequestIntrospector, AuditLog auditLog, Client client, ConfigurationRepository configRepository) {
+
+    public ComplianceConfig(Environment environment, ActionRequestIntrospector actionRequestIntrospector, ConfigurationRepository configRepository) {
         super();
         this.settings = environment.settings();
-        this.environment = environment;
         this.actionRequestIntrospector = actionRequestIntrospector;
-        this.auditLog = auditLog;
-        this.client = client;
-        this.searchguardIndexPattern = configRepository.getConfiguredSearchguardIndices();
-        this.localHashingEnabled = this.settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED, false);
-        final List<String> watchedReadFields = this.settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS,
-                Collections.emptyList(), false);
 
-        watchedWriteIndices = settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_WATCHED_INDICES, Collections.emptyList());
-        logDiffsForWrite = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_LOG_DIFFS, false);
-        logWriteMetadataOnly = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_METADATA_ONLY, false);
-        logReadMetadataOnly = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_METADATA_ONLY, false);
-        logExternalConfig = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false);
-        logInternalConfig = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, false);
         try {
-            immutableIndicesPatterns = Pattern.create(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, Collections.emptyList()));
+            immutableIndicesPatterns = Pattern
+                    .create(settings.getAsList(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, Collections.emptyList()));
         } catch (SettingsException | ConfigValidationException e1) {
             throw new RuntimeException("Invalid setting " + ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, e1);
         }
-        final String saltAsString = settings.get(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT, ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT_DEFAULT);
-        final byte[] saltAsBytes = saltAsString.getBytes(StandardCharsets.UTF_8);
-
-        if(saltAsString.equals(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT_DEFAULT)) {
-            log.warn("If you plan to use field masking pls configure "+ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT+" to be a random string of 16 chars length identical on all nodes");
-        }
-        
-        if(saltAsBytes.length < 16) {
-            throw new OpenSearchException(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT+" must at least contain 16 bytes");
-        }
-        
-        if(saltAsBytes.length > 16) {
-            log.warn(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT+" is greater than 16 bytes. Only the first 16 bytes are used for salting");
-        }
-        
-        salt16 = Arrays.copyOf(saltAsBytes, 16);
-        
-        //searchguard.compliance.pii_fields:
-        //  - indexpattern,fieldpattern,fieldpattern,....
-        for(String watchedReadField: watchedReadFields) {
-            final List<String> split = new ArrayList<>(Arrays.asList(watchedReadField.split(",")));
-            try {
-                if (split.isEmpty()) {
-                    continue;
-                } else if (split.size() == 1) {
-                    readEnabledFields.put(Pattern.create(split.get(0)), Collections.singleton("*"));
-                } else {
-                    Set<String> _fields = new HashSet<String>(split.subList(1, split.size()));
-                    readEnabledFields.put(Pattern.create(split.get(0)), _fields);
-                }
-            } catch (ConfigValidationException e) {
-                throw new RuntimeException("Invalid index pattern in " + ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, e);
-            }
-        }
-
-        final String type = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, null);
-        if("internal_elasticsearch".equalsIgnoreCase(type)) {
-            final String index = settings.get(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX + ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX,"'sg6-auditlog-'YYYY.MM.dd");
-            try {
-                auditLogPattern = DateTimeFormat.forPattern(index); //throws IllegalArgumentException if no pattern
-            } catch (IllegalArgumentException e) {
-                //no pattern
-                auditLogIndex = index;
-            } catch (Exception e) {
-                log.error("Unable to check if auditlog index {} is part of compliance setup", index, e);
-            }
-        }
-
-        log.info("PII configuration [auditLogPattern={},  auditLogIndex={}]: {}", auditLogPattern, auditLogIndex, readEnabledFields);
-
-        final String maskPrefixString = settings.get(ConfigConstants.SEARCHGUARD_COMPLIANCE_MASK_PREFIX, null);
-        
-        if(maskPrefixString == null || maskPrefixString.isEmpty()) {
-            maskPrefix = null;
-        } else {
-            maskPrefix = maskPrefixString.getBytes(StandardCharsets.UTF_8);
-        }
-
-        cache = CacheBuilder.newBuilder()
-                .maximumSize(1000)
-                .build(new CacheLoader<String, Set<String>>() {
-                    @Override
-                    public Set<String> load(String index) throws Exception {
-                        return getFieldsForIndex0(index);
-                    }
-                });
-
-        configRepository.subscribeOnChange((configMap) -> {
-            SgDynamicConfiguration<AuthorizationConfig> config = configMap.get(CType.AUTHZ);
-            SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
-
-            if (config != null && config.getCEntry("default") != null) {
-                AuthorizationConfig authzConfig = config.getCEntry("default");
-                setFieldAnonymizationSalt2(authzConfig.getFieldAnonymizationSalt());
-                log.info("Updated authz config:\n" + config);
-                if (log.isDebugEnabled()) {
-                    log.debug(authzConfig);
-                }
-            } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                try {
-                    LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
-                    AuthorizationConfig privilegesConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null, new StaticSettings(settings, null));
-                    setFieldAnonymizationSalt2(privilegesConfig.getFieldAnonymizationSalt());
-                    log.info("Updated authz config (legacy):\n" + legacyConfig);
-                    if (log.isDebugEnabled()) {
-                        log.debug(privilegesConfig);
-                    }
-                } catch (ConfigValidationException e) {
-                    log.error("Error while parsing sg_config:\n" + e);
-                }
-            }
-        });
     }
-    
+
     @Override
     public void onChange(SearchGuardLicense license) {
-        
-        if(license == null) {
+
+        if (license == null) {
             this.enabled = false;
         } else {
-            if(license.hasFeature(Feature.COMPLIANCE)) {
+            if (license.hasFeature(Feature.COMPLIANCE)) {
                 this.enabled = true;
             } else {
                 this.enabled = false;
             }
         }
-        
-        log.info("Compliance features are "+(this.enabled?"enabled":"disabled. To enable them you need a special license. Please contact support for this."));
-        
-        //only on node startup?
-        if(this.enabled && logExternalConfig && !externalConfigLogged) {
-            auditLog.logExternalConfig(settings, environment);
-            externalConfigLogged = true;
-        }
+
+        log.info("Compliance features are "
+                + (this.enabled ? "enabled" : "disabled. To enable them you need a special license. Please contact support for this."));
+
     }
 
     public boolean isEnabled() {
         return this.enabled;
     }
 
-    //cached
-    @SuppressWarnings("unchecked")
-    private Set<String> getFieldsForIndex0(String index) {
-
-        if(index == null) {
-            return Collections.EMPTY_SET;
-        }
-
-        if(auditLogIndex != null && auditLogIndex.equalsIgnoreCase(index)) {
-            return Collections.EMPTY_SET;
-        }
-
-        if(auditLogPattern != null) {
-            if(index.equalsIgnoreCase(getExpandedIndexName(auditLogPattern, null))) {
-                return Collections.EMPTY_SET;
-            }
-        }
-
-        final Set<String> tmp = new HashSet<String>(100);
-        for(Pattern indexPattern: readEnabledFields.keySet()) {
-            if(indexPattern.matches(index)) {
-                tmp.addAll(readEnabledFields.get(indexPattern));
-            }
-        }
-        return tmp;
-    }
-
-    private String getExpandedIndexName(DateTimeFormatter indexPattern, String index) {
-        if(indexPattern == null) {
-            return index;
-        }
-        return indexPattern.print(DateTime.now(DateTimeZone.UTC));
-    }
-
-    //do not check for isEnabled
-    public boolean writeHistoryEnabledForIndex(String index) {
-
-        if(index == null) {
-            return false;
-        }
-        
-        if(searchguardIndexPattern.matches(index)) {
-            return logInternalConfig;
-        }
-
-        if(auditLogIndex != null && auditLogIndex.equalsIgnoreCase(index)) {
-            return false;
-        }
-
-        if(auditLogPattern != null) {
-            if(index.equalsIgnoreCase(getExpandedIndexName(auditLogPattern, null))) {
-                return false;
-            }
-        }
-
-        return WildcardMatcher.matchAny(watchedWriteIndices, index);
-    }
-
-    //no patterns here as parameters
-    //check for isEnabled
-    public boolean readHistoryEnabledForIndex(String index) {
-        
-        if(!this.enabled) {
-            return false;
-        }
-        
-        if(searchguardIndexPattern.matches(index)) {
-            return logInternalConfig;
-        }
-        
-        try {
-            return !cache.get(index).isEmpty();
-        } catch (ExecutionException e) {
-            log.error(e);
-            return true;
-        }
-    }
-
-    //no patterns here as parameters
-    //check for isEnabled
-    public boolean readHistoryEnabledForField(String index, String field) {
-        
-        if(!this.enabled) {
-            return false;
-        }
-        
-        if(searchguardIndexPattern.matches(index)) {
-            return logInternalConfig;
-        }
-        
-        try {
-            final Set<String> fields = cache.get(index);
-            if(fields.isEmpty()) {
-                return false;
-            }
-
-            return WildcardMatcher.matchAny(fields, field);
-        } catch (ExecutionException e) {
-            log.error(e);
-            return true;
-        }
-    }
-
-    public boolean logDiffsForWrite() {
-        return !logWriteMetadataOnly() && logDiffsForWrite;
-    }
-
-    public boolean logWriteMetadataOnly() {
-        return logWriteMetadataOnly;
-    }
-    
-    public boolean logReadMetadataOnly() {
-        return logReadMetadataOnly;
-    }
-
     //check for isEnabled
     public boolean isIndexImmutable(String action, Object request) {
-        
-        if(!this.enabled) {
+
+        if (!this.enabled) {
             return false;
         }
-        
-        if(immutableIndicesPatterns.isBlank()) {
+
+        if (immutableIndicesPatterns.isBlank()) {
             return false;
         }
-        
+
         ResolvedIndices resolved = actionRequestIntrospector.getActionRequestInfo(action, request).getResolvedIndices();
-        
+
         if (resolved.isLocalAll()) {
             return true;
-        } else {        
+        } else {
             final Set<String> allIndices = resolved.getLocalIndices();
 
             return immutableIndicesPatterns.matches(allIndices);
         }
     }
-
-    public byte[] getSalt16() {
-        return salt16.clone();
-    }
-
-    public boolean isLocalHashingEnabled() {
-        return localHashingEnabled;
-    }
-
-    private void setFieldAnonymizationSalt2(String fieldAnonymizationSalt2) {
-
-    	if (log.isTraceEnabled()) {
-        	log.trace("ComplianceConfiguration#onChanged called");
-        	log.trace("isLocalHashingEnabled? " + isLocalHashingEnabled());
-        	log.trace("FieldAnonymizationSalt2: " + fieldAnonymizationSalt2);    		
-    	}
-    	    	
-        if(isLocalHashingEnabled() && fieldAnonymizationSalt2 != null) {
-            final String salt2AsString = fieldAnonymizationSalt2;
-               
-            if(salt2AsString != null && !salt2AsString.isEmpty()) {
-                final byte[] salt2AsBytes = salt2AsString.getBytes(StandardCharsets.UTF_8);
-                
-                if(salt2AsBytes.length < 16) {
-                    log.error("searchguard.dynamic.field_anonymization.salt2 must at least contain 16 bytes");
-                }
-                
-                if(salt2AsBytes.length > 16) {
-                    log.warn("searchguard.dynamic.field_anonymization.salt2 is greater than 16 bytes. Only the first 16 bytes are used");
-                }
-                final byte[] _salt2_16 = Arrays.copyOf(salt2AsBytes, 16);
-                
-                if(!Arrays.equals(salt2_16, _salt2_16)) {
-                    log.debug("value of searchguard.dynamic.field_anonymization.salt2 changed");
-                    salt2_16 = _salt2_16;
-                    ClearIndicesCacheRequest clearIndicesCacheRequest = new ClearIndicesCacheRequest();
-                    clearIndicesCacheRequest.fieldDataCache(false);
-                    //clearIndicesCacheRequest.fields(fields)
-                    //clearIndicesCacheRequest.indices("");
-                    clearIndicesCacheRequest.queryCache(false);
-                    clearIndicesCacheRequest.requestCache(true);
-                    
-                    
-                    client.admin().indices().clearCache(clearIndicesCacheRequest, new ActionListener<ClearIndicesCacheResponse>() {
-                        
-                        @Override
-                        public void onResponse(ClearIndicesCacheResponse response) {
-                            log.debug("Cache cleared due to salt2 changed: "+Strings.toString(response));
-                        }
-                        
-                        @Override
-                        public void onFailure(Exception e) {
-                            log.debug("Cache cleared due to salt2 changed: "+e,e);
-                        }
-                    });
-                }
-                
-            } else {
-                log.error(ConfigConstants.SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED+" is enabled but searchguard.dynamic.field_anonymization.salt2 is not set");
-            }
-        }
-    }
-
-    public byte[] getSalt2_16() {
-        return salt2_16==null?null:salt2_16.clone();
-    }
-
-    public byte[] getMaskPrefix() {
-        return maskPrefix;
-    }
-
 
 }

@@ -47,6 +47,8 @@ import org.opensearch.common.bytes.BytesReference;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
@@ -75,6 +77,7 @@ public class TestSgConfig {
     private NestedValueMap overrideRoleMappingSettings;
     private NestedValueMap overrideFrontendConfigSettings;
     private Authc authc;
+    private DlsFls dlsFls;
     private Privileges privileges;
     private Sessions sessions;
     private String indexName = ".searchguard";
@@ -88,7 +91,7 @@ public class TestSgConfig {
         this.indexName = configIndexName;
         return this;
     }
-    
+
     public TestSgConfig resources(String resourceFolder) {
         this.resourceFolder = resourceFolder;
         return this;
@@ -126,6 +129,11 @@ public class TestSgConfig {
 
     public TestSgConfig authc(Authc authc) {
         this.authc = authc;
+        return this;
+    }
+
+    public TestSgConfig dlsFls(DlsFls dlsFls) {
+        this.dlsFls = dlsFls;
         return this;
     }
 
@@ -336,6 +344,10 @@ public class TestSgConfig {
 
         if (sessions != null) {
             writeConfigToIndex(client, "sessions", sessions);
+        }
+
+        if (dlsFls != null) {
+            writeConfigToIndex(client, "authz_dlsfls", dlsFls);
         }
 
         if (variableSuppliers.size() != 0) {
@@ -645,6 +657,11 @@ public class TestSgConfig {
 
         public IndexPermission dls(String dlsQuery) {
             this.dlsQuery = dlsQuery;
+            return this;
+        }
+
+        public IndexPermission dls(Map<String, Object> dlsQuery) {
+            this.dlsQuery = DocWriter.json().writeAsString(dlsQuery);
             return this;
         }
 
@@ -1051,7 +1068,28 @@ public class TestSgConfig {
             result.put("label", label);
             return result;
         }
+    }
 
+    public static class DlsFls implements Document<DlsFls> {
+
+        private Boolean debug;
+        private String metrics;
+        private String useImpl;
+        private Boolean dlsAllowNow;
+
+        public DlsFls() {
+        }
+
+        public DlsFls useImpl(String impl) {
+            this.useImpl = impl;
+            return this;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.of("default", ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "use_impl", useImpl, "dls",
+                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow)));
+        }
     }
 
     public static class AuthFailureListener {

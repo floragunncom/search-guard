@@ -113,9 +113,10 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
 
         componentState.addPart(configHistoryService.getComponentState());
 
-        authTokenService = new AuthTokenService(privilegedConfigClient, baseDependencies.getPrivilegesEvaluator(), configHistoryService,
-                baseDependencies.getStaticSettings(), baseDependencies.getThreadPool(), baseDependencies.getClusterService(),
-                baseDependencies.getProtectedConfigIndexService(), baseDependencies.getActions(), null, componentState);
+        authTokenService = new AuthTokenService(privilegedConfigClient, baseDependencies.getAuthorizationService(),
+                baseDependencies.getPrivilegesEvaluator(), configHistoryService, baseDependencies.getStaticSettings(),
+                baseDependencies.getThreadPool(), baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(),
+                baseDependencies.getActions(), null, componentState);
 
         AuthTokenAuthenticationDomain authenticationBackend = new AuthTokenAuthenticationDomain(authTokenService);
 

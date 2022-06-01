@@ -17,28 +17,42 @@
 
 package com.floragunn.searchguard;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.search.QueryCachingPolicy;
+import org.apache.lucene.search.Weight;
 import org.opensearch.action.ActionRequest;
 import org.opensearch.action.ActionResponse;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
+import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.index.Index;
+import org.opensearch.index.IndexService;
+import org.opensearch.index.shard.IndexingOperationListener;
+import org.opensearch.index.shard.SearchOperationListener;
 import org.opensearch.plugins.ActionPlugin.ActionHandler;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.script.ScriptContext;
 import org.opensearch.script.ScriptService;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchsupport.StaticSettings;
 
 public interface SearchGuardModule {
@@ -83,8 +97,51 @@ public interface SearchGuardModule {
     default ImmutableSet<String> getPublicCapabilities() {
         return ImmutableSet.empty();
     }
+    
+    /**
+     * These readers are not executed when an admin certificate user has initiated the operation
+     */
+    default ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> getDirectoryReaderWrappersForNormalOperations() {
+        return ImmutableList.empty();
+    }
+
+    /**
+     * These readers are also executed when an admin certificate user has initiated the operation
+     */
+    default ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> getDirectoryReaderWrappersForAllOperations() {
+        return ImmutableList.empty();
+    }
+    
+    default ImmutableList<SearchOperationListener> getSearchOperationListeners() {
+        return ImmutableList.empty();
+    }
+
+    default ImmutableList<IndexingOperationListener> getIndexOperationListeners() {
+        return ImmutableList.empty();
+    }
+
+    default ImmutableList<SyncAuthorizationFilter> getSyncAuthorizationFilters() {
+        return ImmutableList.empty();
+    }
+
+    default ImmutableList<Function<String, Predicate<String>>> getFieldFilters() {
+        return ImmutableList.empty();
+    }
+
+    default ImmutableList<QueryCacheWeightProvider> getQueryCacheWeightProviders() {
+        return ImmutableList.empty();
+    }
+
+    default AuditLog getAuditLog() {
+        return null;
+    }
 
     default void onNodeStarted() {
 
+    }
+
+    @FunctionalInterface
+    interface QueryCacheWeightProvider {
+        Weight apply(Index index, Weight weight, QueryCachingPolicy policy);
     }
 }

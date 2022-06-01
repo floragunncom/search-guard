@@ -219,7 +219,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     public void updateSgConfig(CType<?> configType, String key, Map<String, Object> value) {
         try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
             log.info("Updating config {}.{}:{}", configType, key, value);
-            ConfigurationRepository configRepository = getInjectable(ConfigurationRepository.class);            
+            ConfigurationRepository configRepository = getInjectable(ConfigurationRepository.class);
             String searchGuardIndex = configRepository.getEffectiveSearchGuardIndex();
 
             GetResponse getResponse = client.get(new GetRequest(searchGuardIndex, configType.toLCString())).actionGet();
@@ -490,6 +490,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
+        public Builder dlsFls(TestSgConfig.DlsFls dlsfls) {
+            testSgConfig.dlsFls(dlsfls);
+            return this;
+        }
+
         public Builder var(String name, Supplier<Object> value) {
             testSgConfig.var(name, value);
             return this;
@@ -499,7 +504,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             this.clusterName = clusterName;
             return this;
         }
-        
+
         public Builder configIndexName(String configIndexName) {
             testSgConfig.configIndexName(configIndexName);
             return this;

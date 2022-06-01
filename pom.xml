@@ -61,8 +61,7 @@
 		<module>support</module>
 		<module>sgadmin</module>
 		<module>plugin</module>
-		<module>ssl</module>		
-		
+		<module>ssl</module>				
 	</modules>
 
 	<repositories>
@@ -335,7 +334,7 @@
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>codova</artifactId>
-				<version>0.2.12</version>
+				<version>0.2.13</version>
 			</dependency>
 
 			<dependency>
@@ -344,16 +343,22 @@
 				<version>0.2.3</version>
 			</dependency>
 
+            <dependency>
+                <groupId>com.floragunn</groupId>
+                <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
 			<dependency>
 				<groupId>com.floragunn</groupId>
-				<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
+				<artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			
 			
 			<dependency>			
 				<groupId>com.floragunn</groupId>
-				<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
+				<artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>				
 			</dependency>
@@ -683,8 +688,9 @@
 				<module>sgadmin</module>				
 				<module>dlic-security</module>
 				<module>dlic-signals</module>	
-				<module>dlic-auditlog</module>		
-				<module>dlic-dlsfls</module>											
+				<module>dlic-auditlog</module>
+				<module>dlic-dlsfls</module>				
+				<module>dlic-dlsfls-legacy</module>											
 				<module>dlic-security-legacy</module>		
 				<module>dlic-fe-multi-tenancy</module>										
 				<module>plugin</module>
