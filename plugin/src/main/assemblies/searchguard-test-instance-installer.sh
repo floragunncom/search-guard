@@ -24,11 +24,11 @@ SG_VERSION="${1:-$SG_VERSION_PRE}"
 SGSF_VERSION="${2:-$SG_VERSION_PRE}"
 SG_REPOSITORY="${3:-search-guard-flx-release}"
 SG_PLUGIN_NAME="search-guard-flx"
-SGCTL_VERSION="1.0.0-beta-1"
+SGCTL_VERSION="1.0.0-beta-2"
 NODE_VERSION="v10.24.1"
 
 if [[ $SG_VERSION =~ .*-os-.* ]]; then
-  OS_VERSION=$(echo $SG_VERSION | cut -d- -f3)
+  OS_VERSION=$(echo $SG_VERSION | sed -n 's/^.*-os-\(.*\)*$/\1/p')
   SB_NAME="OpenSearch"
   SB_LC_NAME="opensearch"
   SF_NAME="OpenSearch Dashboards"
@@ -54,7 +54,7 @@ if [[ $SG_VERSION =~ .*-os-.* ]]; then
     exit
   fi
 else
-  ES_VERSION=$(echo $SG_VERSION | cut -d- -f3)
+  ES_VERSION=$(echo $SG_VERSION | sed -n 's/^.*-es-\(.*\)*$/\1/p')
   SB_NAME="Elasticsearch"
   SB_LC_NAME="elasticsearch"
   SF_NAME="Kibana"
@@ -73,11 +73,11 @@ else
   fi
 fi    
 
-SG_PLUGIN_FILE_NAME="search-guard-$SB_LC_NAME-plugin-$SG_VERSION.zip"
-SGSF_PLUGIN_FILE_NAME="search-guard-$SF_LC_NAME-plugin-$SGSF_VERSION.zip"
+SG_PLUGIN_FILE_NAME="search-guard-flx-$SB_LC_NAME-plugin-$SG_VERSION.zip"
+SGSF_PLUGIN_FILE_NAME="search-guard-flx-$SF_LC_NAME-plugin-$SGSF_VERSION.zip"
 
-SG_LINK="https://maven.search-guard.com/$SG_REPOSITORY/com/floragunn/search-guard-$SB_LC_NAME-plugin/$SG_VERSION/$SG_PLUGIN_FILE_NAME"
-SGSF_LINK="https://maven.search-guard.com/$SG_REPOSITORY/com/floragunn/search-guard-$SF_LC_NAME-plugin/$SGSF_VERSION/$SGSF_PLUGIN_FILE_NAME"
+SG_LINK="https://maven.search-guard.com/$SG_REPOSITORY/com/floragunn/search-guard-flx-$SB_LC_NAME-plugin/$SG_VERSION/$SG_PLUGIN_FILE_NAME"
+SGSF_LINK="https://maven.search-guard.com/$SG_REPOSITORY/com/floragunn/search-guard-flx-$SF_LC_NAME-plugin/$SGSF_VERSION/$SGSF_PLUGIN_FILE_NAME"
 SGCTL_LINK="https://maven.search-guard.com/search-guard-flx-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
 
 TLS_TOOL="search-guard-tlstool"
