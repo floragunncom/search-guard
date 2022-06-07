@@ -158,6 +158,10 @@
                     <groupId>xyz.rogfam</groupId>
                     <artifactId>littleproxy</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>                  
             </exclusions>
         </dependency>   
         

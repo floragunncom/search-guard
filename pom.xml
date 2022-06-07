@@ -38,7 +38,7 @@
 		<log4j.version>2.11.1</log4j.version>
 		<guava.version>30.0-jre</guava.version>
 		<commons.cli.version>1.4</commons.cli.version>
-		<jackson.version>2.11.2</jackson.version>
+		<jackson.version>2.13.2</jackson.version>
 	    <cxf.version>3.3.11</cxf.version>
 		<http.commons.version>4.5.13</http.commons.version>
 		<quartz.version>2.3.2</quartz.version>
@@ -137,8 +137,8 @@
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-api</artifactId>
 			<scope>provided</scope>
-		</dependency>
-		
+		</dependency>     
+        		
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -333,7 +333,7 @@
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>codova</artifactId>
-				<version>0.2.13</version>
+				<version>0.2.14</version>
 			</dependency>
 
 			<dependency>
