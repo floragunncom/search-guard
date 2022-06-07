@@ -72,7 +72,6 @@ import org.opensearch.action.admin.cluster.tasks.PendingClusterTasksAction;
 import org.opensearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
-import org.opensearch.action.admin.indices.alias.exists.AliasesExistAction;
 import org.opensearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.opensearch.action.admin.indices.analyze.AnalyzeAction;
 import org.opensearch.action.admin.indices.cache.clear.ClearIndicesCacheAction;
@@ -87,7 +86,6 @@ import org.opensearch.action.admin.indices.dangling.list.ListDanglingIndicesActi
 import org.opensearch.action.admin.indices.delete.DeleteIndexAction;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.opensearch.action.admin.indices.flush.FlushAction;
-import org.opensearch.action.admin.indices.flush.SyncedFlushAction;
 import org.opensearch.action.admin.indices.forcemerge.ForceMergeAction;
 import org.opensearch.action.admin.indices.get.GetIndexAction;
 import org.opensearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
@@ -310,7 +308,6 @@ public class Actions {
         index(RefreshAction.INSTANCE);
         index(TransportShardRefreshAction.NAME);
         index(FlushAction.INSTANCE);
-        index(SyncedFlushAction.INSTANCE);
         index(ForceMergeAction.INSTANCE);
         index(UpgradeAction.INSTANCE);
         index(UpgradeStatusAction.INSTANCE);
@@ -318,7 +315,6 @@ public class Actions {
         index(ClearIndicesCacheAction.INSTANCE);
 
         index(GetAliasesAction.INSTANCE);
-        index(AliasesExistAction.INSTANCE);
         index(GetSettingsAction.INSTANCE);
 
         index(FieldCapabilitiesAction.INSTANCE);

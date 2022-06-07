@@ -293,7 +293,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             request.settings(INDEX_SETTINGS);
 
             if (log.isDebugEnabled()) {
-                log.debug("Creating index " + request.index() + ":\n" + Strings.toString(request, true, true));
+                log.debug("Creating index " + request.index() + ":\n" + request);
             }
 
             completedIndices.add(configIndex);

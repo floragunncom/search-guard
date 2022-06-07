@@ -88,7 +88,7 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
     }
 
     @Override
-    public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+    public void stringField(final FieldInfo fieldInfo, final String value) throws IOException {
         FieldMaskingRule.Field field = this.fieldMaskingRule.get(fieldInfo.name);
 
         if (field != null) {

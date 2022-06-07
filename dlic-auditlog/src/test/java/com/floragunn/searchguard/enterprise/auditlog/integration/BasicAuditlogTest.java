@@ -372,10 +372,10 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         String json = 
         "{"+
             "\"persistent\" : {"+
-                "\"discovery.zen.minimum_master_nodes\" : 1"+
+                "\"cluster.no_master_block\" : \"all\""+
             "},"+
             "\"transient\" : {"+
-                "\"discovery.zen.minimum_master_nodes\" : 1"+
+                "\"cluster.no_master_block\" : \"all\""+
              "}"+
         "}";
 
@@ -384,7 +384,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("cluster:admin/settings/update"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("discovery.zen.minimum_master_nodes"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("cluster.no_master_block"));
         //may vary because we log may hit master directly or not
         Assert.assertTrue(TestAuditlogImpl.messages.size() > 1);
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));

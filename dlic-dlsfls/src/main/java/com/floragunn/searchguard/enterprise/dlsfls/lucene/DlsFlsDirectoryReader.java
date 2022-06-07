@@ -237,11 +237,6 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 }
 
                 @Override
-                public long ramBytesUsed() {
-                    return delegate.ramBytesUsed();
-                }
-
-                @Override
                 public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
                     if (log.isTraceEnabled()) {
                         log.trace("DlsFlsStoredFieldsReader.visitDocument()\nindex: " + dlsFlsContext.getIndexService().index().getName() + "\nfls: "

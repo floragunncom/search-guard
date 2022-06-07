@@ -546,7 +546,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         }
 
         @Override
-        public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+        public void stringField(final FieldInfo fieldInfo, final String value) throws IOException {
             delegate.stringField(fieldInfo, value);
         }
 
@@ -616,7 +616,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         }
 
         @Override
-        public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+        public void stringField(final FieldInfo fieldInfo, final String value) throws IOException {
 
             final Optional<String> matchedPattern = WildcardMatcher.getFirstMatchingPattern(maskedFieldsKeySet, fieldInfo.name);
 
@@ -711,11 +711,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         @Override
         public void close() throws IOException {
             delegate.close();
-        }
-
-        @Override
-        public long ramBytesUsed() {
-            return delegate.ramBytesUsed();
         }
 
         @Override
@@ -875,11 +870,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             }
 
             return new SortedDocValues() {
-
-                @Override
-                public BytesRef binaryValue() throws IOException {
-                    return mf.mask(sortedDocValues.binaryValue());
-                }
 
                 @Override
                 public int lookupTerm(BytesRef key) throws IOException {

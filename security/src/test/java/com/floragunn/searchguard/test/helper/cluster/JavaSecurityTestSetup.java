@@ -34,6 +34,9 @@ import org.apache.logging.log4j.Logger;
 import org.opensearch.bootstrap.BootstrapInfo;
 import org.opensearch.monitor.jvm.JvmInfo;
 import org.opensearch.secure_sm.SecureSM;
+
+import com.floragunn.fluent.collections.ImmutableSet;
+
 import org.junit.rules.ExternalResource;
 
 /**
@@ -101,7 +104,7 @@ public class JavaSecurityTestSetup extends ExternalResource {
             }
 
             Policy.setPolicy(new TestPolicy());
-            System.setSecurityManager(SecureSM.createTestSecureSM());
+            System.setSecurityManager(SecureSM.createTestSecureSM(ImmutableSet.empty()));
             log.info("JavaSecurityTestSetup has been installed");
         }
     }

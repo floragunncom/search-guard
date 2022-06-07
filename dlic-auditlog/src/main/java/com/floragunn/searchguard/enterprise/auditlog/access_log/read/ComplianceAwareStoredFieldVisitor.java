@@ -45,7 +45,7 @@ public class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
     }
 
     @Override
-    public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+    public void stringField(final FieldInfo fieldInfo, final String value) throws IOException {
         fieldReadCallback.stringFieldRead(fieldInfo, value);
         delegate.stringField(fieldInfo, value);
     }

@@ -93,11 +93,6 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
                 }
 
                 @Override
-                public long ramBytesUsed() {
-                    return delegate.ramBytesUsed();
-                }
-
-                @Override
                 public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
                     if (context.getAuditLogConfig().isEnabled()
                             && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
