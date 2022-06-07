@@ -20,7 +20,6 @@ package com.floragunn.searchguard.legacy.test;
 import static com.floragunn.searchguard.support.ConfigConstants.SEARCHGUARD_AUTHCZ_ADMIN_DN;
 
 import java.io.FileNotFoundException;
-import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
@@ -32,23 +31,19 @@ import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.action.admin.indices.create.CreateIndexRequest;
-import org.opensearch.action.get.GetRequest;
-import org.opensearch.action.index.IndexRequest;
-import org.opensearch.client.Client;
-import org.opensearch.client.transport.TransportClient;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.common.transport.TransportAddress;
-import org.opensearch.plugins.Plugin;
-import org.opensearch.threadpool.ThreadPool;
-import org.opensearch.transport.Netty4Plugin;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
+import org.opensearch.action.admin.indices.create.CreateIndexRequest;
+import org.opensearch.action.get.GetRequest;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.client.Client;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.plugins.Plugin;
+import org.opensearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
@@ -57,7 +52,6 @@ import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
-import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public abstract class AbstractSGUnitTest {
@@ -99,81 +93,9 @@ public abstract class AbstractSGUnitTest {
 				(username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
 	}
 
-	@Deprecated
-	protected static class TransportClientImpl extends TransportClient {
-
-        public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, plugins);
-        }
-
-        public TransportClientImpl(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, defaultSettings, plugins, null);
-        }
-    }
-
     @SafeVarargs
     protected static Collection<Class<? extends Plugin>> asCollection(Class<? extends Plugin>... plugins) {
         return Arrays.asList(plugins);
-    }
-
-
-    @Deprecated
-    protected TransportClient getInternalTransportClient(ClusterInfo info, Settings initTransportClientSettings) {
-
-        final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-        Settings.Builder settingsBuilder = Settings.builder();
-
-        settingsBuilder.put("cluster.name", info.clustername);
-        settingsBuilder.put("searchguard.ssl.transport.enforce_hostname_verification", false);
-
-        if (initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH) == null
-                && initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH) == null) {
-            try {
-                settingsBuilder.put("searchguard.ssl.transport.truststore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"));
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException("Could not locate truststore for " + prefix);
-            }
-        }
-
-        if (initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH) == null
-                && initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH) == null) {
-            try {
-                settingsBuilder.put("searchguard.ssl.transport.keystore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix + "kirk-keystore.jks"));
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException("Could not locate keystore for " + prefix);
-            }
-        }
-
-        settingsBuilder.put(initTransportClientSettings);
-
-        Settings tcSettings = settingsBuilder.build();
-
-        TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class));
-        tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
-        return tc;
-    }
-
-    @Deprecated
-    protected TransportClient getUserTransportClient(ClusterInfo info, String keyStore, Settings initTransportClientSettings) {
-
-        try {
-            final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-            Settings tcSettings = Settings.builder().put("cluster.name", info.clustername)
-                    .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                    .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + keyStore))
-                    .put(initTransportClientSettings).build();
-
-            TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class));
-            tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
-            return tc;
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
     }
     
     protected void initialize(Client tc, Settings initTransportClientSettings, DynamicSgConfig sgconfig) {

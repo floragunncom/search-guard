@@ -38,7 +38,6 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
-import org.opensearch.client.Client;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestClientBuilder;
 import org.opensearch.client.RestClientBuilder.HttpClientConfigCallback;
@@ -136,12 +135,6 @@ public interface EsClientProvider {
                         new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
 
         return new RestHighLevelClient(builder);
-    }
-
-    @Deprecated
-    default Client getAdminCertClient() {
-        return new LocalEsClusterTransportClient(getClusterName(), getTransportAddress(), getTestCertificates().getAdminCertificate(),
-                getTestCertificates().getCaCertFile().toPath());
     }
 
     default GenericRestClient createGenericClientRestClient(List<Header> headers) {

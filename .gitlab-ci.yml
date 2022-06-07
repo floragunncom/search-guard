@@ -210,26 +210,6 @@ test_support:
       - .m2/repository
     policy: pull
 
-test_sgadmin:
-  stage: test
-  interruptible: true
-  tags:
-    - aws-runner
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl sgadmin test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
 test_dlic_security:
   stage: test
   interruptible: true
@@ -390,7 +370,6 @@ deploy_snapshot:
       set -x
       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-opensearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-opensearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`
       ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:opensearch.version pom.xml)
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       if [ -z "$IT_BRANCH" ]; then
@@ -413,7 +392,7 @@ deploy_snapshot:
       #  fi
       #fi
       echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
-      echo "SG_ADMIN=$SG_ADMIN" >> build.env
+      echo "SG_ADMIN=https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-elasticsearch-plugin/1.0.0-beta-2-es-7.17.3/search-guard-flx-elasticsearch-plugin-1.0.0-beta-2-es-7.17.3-sgadmin-standalone.zip" >> build.env
       echo "ES_VERSION=$ES_VERSION" >>build.env
       echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
       echo "KI_VERSION=$KI_VERSION" >>build.env
@@ -454,7 +433,6 @@ deploy_staging:
       echo "Deploying Release to Staging repo"
       mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-flx-staging -DskipTests -B -Penterprise -Prelease -Drevision=$DEPLOY_VERSION | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-opensearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-opensearch-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
       if [ -z "$IT_BRANCH" ]; then
         if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n "$(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME)" ]; then
           IT_BRANCH="$CI_COMMIT_REF_NAME"
@@ -463,7 +441,7 @@ deploy_staging:
         fi
       fi
       echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
-      echo "SG_ADMIN=$SG_ADMIN" >> build.env
+      echo "SG_ADMIN=https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-elasticsearch-plugin/1.0.0-beta-2-es-7.17.3/search-guard-flx-elasticsearch-plugin-1.0.0-beta-2-es-7.17.3-sgadmin-standalone.zip" >> build.env
       echo "ES_VERSION=$ES_VERSION" >>build.env
       echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
       echo "KI_VERSION=$KI_VERSION" >>build.env

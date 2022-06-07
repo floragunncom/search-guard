@@ -384,37 +384,4 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
     }
     
     
-    @Test
-    public void testInternalConfigRead() throws Exception {
-
-        Settings settings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false)
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-
-        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
-        TestAuditlogImpl.clear();
-        
-        try (Client tc = getInternalTransportClient()) {
-           GetResponse response = tc.get(new GetRequest("searchguard").id("config").refresh(true).realtime(false)).actionGet();
-            
-           System.out.println(Strings.toString(response));
-           
-           Thread.sleep(500);
-           System.out.println(TestAuditlogImpl.sb.toString());
-           Assert.assertTrue(TestAuditlogImpl.messages.size()+"",TestAuditlogImpl.messages.size() == 1);      
-           Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_request_effective_user"));
-           Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
-           Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
-           Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("UPDATE"));
-           Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
-        }
-    }
 }

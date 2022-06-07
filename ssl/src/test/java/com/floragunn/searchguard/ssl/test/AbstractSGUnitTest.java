@@ -29,13 +29,12 @@ import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.opensearch.client.transport.TransportClient;
-import org.opensearch.common.settings.Settings;
-import org.opensearch.plugins.Plugin;
-import org.opensearch.threadpool.ThreadPool;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.plugins.Plugin;
+import org.opensearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.ssl.test.helper.file.FileHelper;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
@@ -63,18 +62,6 @@ public abstract class AbstractSGUnitTest {
     public static Header encodeBasicHeader(final String username, final String password) {
         return new BasicHeader("Authorization",
                 "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-    }
-
-    @Deprecated
-    protected static class TransportClientImpl extends TransportClient {
-
-        public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, plugins);
-        }
-
-        public TransportClientImpl(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, defaultSettings, plugins, null);
-        }
     }
 
     @SafeVarargs

@@ -19,10 +19,9 @@ package com.floragunn.searchguard.legacy.test;
 
 import java.net.InetAddress;
 
-import org.opensearch.client.Client;
-import org.opensearch.client.transport.TransportClient;
-import org.opensearch.common.settings.Settings;
 import org.junit.After;
+import org.opensearch.client.Client;
+import org.opensearch.common.settings.Settings;
 
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -130,11 +129,6 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
         RestHelper result = new RestHelper(clusterInfo, false, false, getResourceFolder());
         result.setLocalAddress(bindAddress);
         return result;
-    }
-    
-    @Deprecated
-    protected TransportClient getInternalTransportClient() {
-        return getInternalTransportClient(clusterInfo, Settings.EMPTY);
     }
     
     protected Client getNodeClient() {
