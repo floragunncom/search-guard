@@ -74,10 +74,10 @@ public class ActionGroupsApiTest extends AbstractRestApiUnitTest {
 
 		// add user picard, role starfleet, maps to sg_role_starfleet
 		addUserWithPassword("picard", "picard", new String[] { "starfleet" }, HttpStatus.SC_CREATED);
-		checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
+		checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
 		// TODO: only one doctype allowed for ES6
 		// checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "public", 0);
-		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 0);
+		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_0");
 		// TODO: only one doctype allowed for ES6
 		//checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "public", 0);
 
@@ -95,22 +95,22 @@ public class ActionGroupsApiTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
 		rh.sendHTTPClientCertificate = false;
-		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 0);
+		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_0");
 
 		// put picard in captains role. Role sg_role_captains uses the CRUD_UT
 		// action group
 		// which uses READ_UT and WRITE action groups. We removed READ_UT, so only
 		// WRITE is possible
 		addUserWithPassword("picard", "picard", new String[] { "captains" }, HttpStatus.SC_OK);
-		checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
-		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 0);
+		checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
+		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_0");
 
 		// now remove also CRUD_UT groups, write also not possible anymore
 		rh.sendHTTPClientCertificate = true;
 		response = rh.executeDeleteRequest("/_searchguard/api/actiongroups/CRUD_UT", new Header[0]);
 		rh.sendHTTPClientCertificate = false;
-		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 0);
-		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 0);
+		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_0");
+		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_0");
 
 		// -- PUT
 
@@ -134,8 +134,8 @@ public class ActionGroupsApiTest extends AbstractRestApiUnitTest {
 		rh.sendHTTPClientCertificate = false;
 
 		// write access allowed again, read forbidden, since READ_UT group is still missing
-		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 0);
-		checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
+		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_0");
+		checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
 
 		// restore READ_UT action groups
 		rh.sendHTTPClientCertificate = true;
@@ -144,8 +144,8 @@ public class ActionGroupsApiTest extends AbstractRestApiUnitTest {
 
 		rh.sendHTTPClientCertificate = false;
 		// read/write allowed again
-		checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
-		checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
+		checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
+		checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
 		
 		// -- PUT, new JSON format including readonly flag, disallowed in REST API
 		rh.sendHTTPClientCertificate = true;

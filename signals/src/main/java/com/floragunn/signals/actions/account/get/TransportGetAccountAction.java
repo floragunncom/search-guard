@@ -51,7 +51,7 @@ public class TransportGetAccountAction extends HandledTransportAction<GetAccount
 
                 String scopedId = request.getAccountType() + "/" + request.getAccountId();
 
-                client.prepareGet(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts(), null, scopedId)
+                client.prepareGet().setIndex(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts()).setId(scopedId)
                         .execute(new ActionListener<GetResponse>() {
                             @Override
                             public void onResponse(GetResponse response) {

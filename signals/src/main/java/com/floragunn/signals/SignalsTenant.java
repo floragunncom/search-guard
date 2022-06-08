@@ -310,7 +310,7 @@ public class SignalsTenant implements Closeable {
 
         String newWatchJsonString = DocWriter.json().writeAsString(watchJson);
 
-        IndexResponse indexResponse = privilegedConfigClient.prepareIndex(getConfigIndexName(), null, getWatchIdForConfigIndex(watch.getId()))
+        IndexResponse indexResponse = privilegedConfigClient.prepareIndex().setIndex(getConfigIndexName()).setId(getWatchIdForConfigIndex(watch.getId()))
                 .setSource(newWatchJsonString, XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute().actionGet();
 
         if (log.isDebugEnabled()) {

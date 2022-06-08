@@ -338,9 +338,9 @@ public class SgAdminTests extends SingleClusterTest {
         rh.sendHTTPClientCertificate = true;
         rh.keystore = "kirk-keystore.jks";
         System.out
-                .println(rh.executePutRequest("searchguard/" + getType() + "/roles", FileHelper.loadFile("sg_roles_invalidxcontent.yml")).getBody());
+                .println(rh.executePutRequest("searchguard/_doc/roles", FileHelper.loadFile("sg_roles_invalidxcontent.yml")).getBody());
         ;
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executePutRequest("searchguard/" + getType() + "/roles", "{\"roles\":\"dummy\"}").getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, rh.executePutRequest("searchguard/_doc/roles", "{\"roles\":\"dummy\"}").getStatusCode());
 
         final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 

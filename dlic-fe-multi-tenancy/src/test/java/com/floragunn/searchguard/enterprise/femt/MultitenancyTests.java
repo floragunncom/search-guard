@@ -350,12 +350,12 @@ public class MultitenancyTests {
                 Assert.assertEquals(response.getBody(), "true", response.getBodyAsDocNode().getAsNode("sg_tenants", "dept_01").toString());
                 Assert.assertNull(response.getBodyAsDocNode().get("sg_tenants", "dept_02"));
 
-                response = restClient.putJson(".kibana/config/user_attr_test",
+                response = restClient.putJson(".kibana/_doc/user_attr_test",
                         "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",
                         new BasicHeader("sgtenant", "dept_01"));
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-                response = restClient.putJson(".kibana/config/user_attr_test",
+                response = restClient.putJson(".kibana/_doc/user_attr_test",
                         "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",
                         new BasicHeader("sgtenant", "dept_02"));
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
@@ -367,12 +367,12 @@ public class MultitenancyTests {
                 Assert.assertNull(response.getBodyAsDocNode().get("sg_tenants", "dept_01"));
                 Assert.assertEquals("true", response.getBodyAsDocNode().getAsNode("sg_tenants", "dept_02").toString());
 
-                response = restClient.putJson(".kibana/config/user_attr_test",
+                response = restClient.putJson(".kibana/_doc/user_attr_test",
                         "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",
                         new BasicHeader("sgtenant", "dept_01"));
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
-                response = restClient.putJson(".kibana/config/user_attr_test",
+                response = restClient.putJson(".kibana/_doc/user_attr_test",
                         "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}",
                         new BasicHeader("sgtenant", "dept_02"));
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
