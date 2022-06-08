@@ -66,9 +66,9 @@ public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
         rh.sendHTTPClientCertificate = true;
         rh.keystore = "auditlog/kirk-keystore.jks";
         rh.executePutRequest("sf", null, new Header[0]);
-        rh.executePutRequest("sf/public/0?refresh", "{\"number\" : \"NCC-1701-D\"}", new Header[0]);
-        rh.executePutRequest("sf/public/0?refresh", "{\"some\" : \"value\"}", new Header[0]);
-        rh.executePutRequest("sf/public/0?refresh", "{\"some\" : \"value\"}", new Header[0]);
+        rh.executePutRequest("sf/_doc/0?refresh", "{\"number\" : \"NCC-1701-D\"}", new Header[0]);
+        rh.executePutRequest("sf/_doc/0?refresh", "{\"some\" : \"value\"}", new Header[0]);
+        rh.executePutRequest("sf/_doc/0?refresh", "{\"some\" : \"value\"}", new Header[0]);
         rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
         rh.keystore = keystore;
     }

@@ -55,7 +55,7 @@ public class TransportGetWatchAction extends HandledTransportAction<GetWatchRequ
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
 
-                client.prepareGet(signalsTenant.getConfigIndexName(), null, signalsTenant.getWatchIdForConfigIndex(request.getWatchId()))
+                client.prepareGet().setIndex(signalsTenant.getConfigIndexName()).setId(signalsTenant.getWatchIdForConfigIndex(request.getWatchId()))
                         .setFetchSource(Strings.EMPTY_ARRAY, Watch.HiddenAttributes.asArray()).execute(new ActionListener<GetResponse>() {
 
                             @Override

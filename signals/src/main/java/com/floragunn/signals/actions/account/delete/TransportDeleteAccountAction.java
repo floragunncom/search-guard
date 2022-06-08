@@ -71,8 +71,9 @@ public class TransportDeleteAccountAction extends HandledTransportAction<DeleteA
                             listener.onResponse(new DeleteAccountResponse(account.getScopedId(), -1, Result.IN_USE, RestStatus.CONFLICT,
                                     "The account is still in use"));
                         } else {
-                            client.prepareDelete(signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts(), null,
-                                    account.getScopedId()).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
+                            client.prepareDelete().setIndex(signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts())
+                                    .setId(account.getScopedId()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                                    .execute(new ActionListener<DeleteResponse>() {
                                         @Override
                                         public void onResponse(DeleteResponse response) {
                                             if (response.getResult() == DocWriteResponse.Result.DELETED) {

@@ -86,7 +86,6 @@ import org.opensearch.action.admin.indices.dangling.import_index.ImportDanglingI
 import org.opensearch.action.admin.indices.dangling.list.ListDanglingIndicesAction;
 import org.opensearch.action.admin.indices.delete.DeleteIndexAction;
 import org.opensearch.action.admin.indices.exists.indices.IndicesExistsAction;
-import org.opensearch.action.admin.indices.exists.types.TypesExistsAction;
 import org.opensearch.action.admin.indices.flush.FlushAction;
 import org.opensearch.action.admin.indices.flush.SyncedFlushAction;
 import org.opensearch.action.admin.indices.forcemerge.ForceMergeAction;
@@ -239,7 +238,6 @@ public class Actions {
         index(OpenIndexAction.INSTANCE);
         index(CloseIndexAction.INSTANCE);
         index(IndicesExistsAction.INSTANCE);
-        index(TypesExistsAction.INSTANCE);
         index(AddIndexBlockAction.INSTANCE);
         index(GetMappingsAction.INSTANCE);
         index(GetFieldMappingsAction.INSTANCE);

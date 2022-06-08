@@ -136,13 +136,13 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
         // Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, restHelper.executeGetRequest("_searchguard/authinfo").getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, restHelper.executeGetRequest("_searchguard/authinfo", new BasicHeader("x-proxy-user", "scotty"),
                 new BasicHeader("x-proxy-roles", "starfleet,engineer")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, restHelper.executePutRequest("searchguard/" + getType() + "/x", "{}",
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, restHelper.executePutRequest("searchguard/_doc/x", "{}",
                 new BasicHeader("x-proxy-user", "scotty"), new BasicHeader("x-proxy-roles", "starfleet,engineer")).getStatusCode());
 
         testAdditionalAttributes(restHelper, null);
 
         restHelper.keystore = "kirk-keystore.jks";
-        Assert.assertEquals(HttpStatus.SC_CREATED, restHelper.executePutRequest("searchguard/" + getType() + "/y", "{}").getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_CREATED, restHelper.executePutRequest("searchguard/_doc/y", "{}").getStatusCode());
         RestHelper.HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = restHelper.executeGetRequest("_searchguard/authinfo")).getStatusCode());
         System.out.println(res.getBody());
@@ -177,14 +177,14 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
                         new BasicHeader("x-proxy-roles", "starfleet,engineer"), new BasicHeader("x-forwarded-for", "99.0.0.1,192.168.0.1,10.0.0.2"))
                         .getStatusCode());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN,
-                restHelper.executePutRequest("searchguard/" + getType() + "/x", "{}", new BasicHeader("x-proxy-user", "scotty"),
+                restHelper.executePutRequest("searchguard/_doc/x", "{}", new BasicHeader("x-proxy-user", "scotty"),
                         new BasicHeader("x-proxy-roles", "starfleet,engineer"), new BasicHeader("x-forwarded-for", "99.0.0.1,192.168.0.1,10.0.0.2"))
                         .getStatusCode());
 
         testAdditionalAttributes(restHelper, new BasicHeader("x-forwarded-for", "99.0.0.1,192.168.0.1,10.0.0.2"));
 
         restHelper.keystore = "kirk-keystore.jks";
-        Assert.assertEquals(HttpStatus.SC_CREATED, restHelper.executePutRequest("searchguard/" + getType() + "/y", "{}").getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_CREATED, restHelper.executePutRequest("searchguard/_doc/y", "{}").getStatusCode());
         RestHelper.HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = restHelper.executeGetRequest("_searchguard/authinfo")).getStatusCode());
         System.out.println(res.getBody());
@@ -214,7 +214,7 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
                         new BasicHeader("x-proxy-roles", "starfleet,engineer"), new BasicHeader("x-forwarded-for", "127.0.0.1,192.168.0.1,10.0.0.2"))
                         .getStatusCode());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN,
-                restHelper.executePutRequest("searchguard/" + getType() + "/x", "{}", new BasicHeader("x-proxy-user", "scotty"),
+                restHelper.executePutRequest("searchguard/_doc/x", "{}", new BasicHeader("x-proxy-user", "scotty"),
                         new BasicHeader("x-proxy-roles", "starfleet,engineer"), new BasicHeader("x-forwarded-for", "127.0.0.1,192.168.0.1,10.0.0.2"))
                         .getStatusCode());
 

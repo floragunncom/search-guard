@@ -69,7 +69,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
 
                 String idInIndex = signalsTenant.getWatchIdForConfigIndex(request.getWatchId());
 
-                client.prepareDelete(signalsTenant.getConfigIndexName(), null, idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                client.prepareDelete().setIndex(signalsTenant.getConfigIndexName()).setId(idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                         .execute(new ActionListener<DeleteResponse>() {
                             @Override
                             public void onResponse(DeleteResponse response) {
@@ -85,8 +85,8 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
                                     threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
                                     threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
 
-                                    client.prepareDelete(signalsTenant.getSettings().getStaticSettings().getIndexNames().getWatchesState(), null,
-                                            idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
+                                    client.prepareDelete().setIndex(signalsTenant.getSettings().getStaticSettings().getIndexNames().getWatchesState())
+                                            .setId(idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
 
                                                 @Override
                                                 public void onResponse(DeleteResponse response) {
@@ -102,7 +102,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
 
                                             });
                                 }
-                                
+
                                 listener.onResponse(new DeleteWatchResponse(request.getWatchId(), response.getVersion(), response.getResult(),
                                         response.status(), null));
                             }

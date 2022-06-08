@@ -26,7 +26,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
- */ 
+ */
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
@@ -111,12 +111,12 @@ public class DlsTest {
     public void testDlsTermVectors() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient("dept_manager", "password")) {
-            GenericRestClient.HttpResponse response = client.get("/deals/_doc/0/_termvectors?pretty=true");
+            GenericRestClient.HttpResponse response = client.get("/deals/_termvectors/0?pretty=true");
             Assert.assertTrue(response.getBody().contains("\"found\" : false"));
         }
 
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
-            GenericRestClient.HttpResponse response = client.get("/deals/_doc/0/_termvectors?pretty=true");
+            GenericRestClient.HttpResponse response = client.get("/deals/_termvectors/0?pretty=true");
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"found\" : true"));
         }
     }
@@ -252,13 +252,13 @@ public class DlsTest {
             Assert.assertTrue(res.getBody().contains("\"found\" : false"));
         }
     }
-    
+
     @Test
     public void testDlsWithMinDocCountZeroAggregations() throws Exception {
 
         try (Client client = cluster.getInternalNodeClient()) {
-            client.admin().indices().create(new CreateIndexRequest("logs").mapping("_doc",
-                    ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
+            client.admin().indices().create(new CreateIndexRequest("logs")
+                    .mapping("_doc", ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
 
             for (int i = 0; i < 3; i++) {
                 client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "A", "timestamp",
@@ -374,7 +374,7 @@ public class DlsTest {
             Assert.assertFalse(response5.getBody(), response5.getBody().contains("\"termX\":\"D\""));
             // TODO there seems to be some flakyness with the following assert
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
-            
+
             // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager".
             String query4 = "{\"aggregations\":{\"significant_termX\":{\"significant_terms\":{\"field\":\"termX.keyword\"}}}}";
 
@@ -387,7 +387,7 @@ public class DlsTest {
             Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"D\""));
             // TODO there seems to be some flakyness with the following assert
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
-            
+
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
             HttpResponse response7 = adminClient.postJson("logs*/_search", query3);
 
@@ -423,7 +423,7 @@ public class DlsTest {
             Assert.assertFalse(response9.getBody(), response9.getBody().contains("\"termX\":\"D\""));
             // TODO there seems to be some flakyness with the following assert
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
-            
+
             // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager".
             String query6 = "{\"aggs\":{\"amount\":{\"histogram\":{\"field\":\"amount\",\"interval\":1}}}}";
 
@@ -436,7 +436,7 @@ public class DlsTest {
             Assert.assertFalse(response10.getBody(), response10.getBody().contains("\"termX\":\"D\""));
             // TODO there seems to be some flakyness with the following assert
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
-            
+
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
             HttpResponse response11 = adminClient.postJson("logs*/_search", query5);
 
@@ -458,7 +458,7 @@ public class DlsTest {
             Assert.assertTrue(response12.getBody(), response12.getBody().contains("\"termX\":\"D\""));
             // TODO there seems to be some flakyness with the following assert
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
-            
+
             // Date Histogram Aggregation is not impacted.
             // Non-admin user with setting "min_doc_count=0". Expected to only have access to buckets for dept_manager".
             String query7 = "{\"aggs\":{\"timestamp\":{\"date_histogram\":{\"field\":\"timestamp\",\"calendar_interval\":\"month\",\"min_doc_count\":0}}}}";
@@ -472,7 +472,7 @@ public class DlsTest {
             Assert.assertFalse(response13.getBody(), response13.getBody().contains("\"termX\":\"D\""));
             // TODO there seems to be some flakyness with the following assert
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
-            
+
             // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager".
             String query8 = "{\"aggs\":{\"timestamp\":{\"date_histogram\":{\"field\":\"timestamp\",\"calendar_interval\":\"month\"}}}}";
 
@@ -485,7 +485,7 @@ public class DlsTest {
             Assert.assertFalse(response14.getBody(), response14.getBody().contains("\"termX\":\"D\""));
             // TODO there seems to be some flakyness with the following assert
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
-            
+
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
             HttpResponse response15 = adminClient.postJson("logs*/_search", query7);
 
@@ -496,7 +496,7 @@ public class DlsTest {
             Assert.assertTrue(response15.getBody(), response15.getBody().contains("\"termX\":\"D\""));
             // TODO there seems to be some flakyness with the following assert
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
-            
+
             // Admin without setting "min_doc_count". Expected to have access to all buckets".
             HttpResponse response16 = adminClient.postJson("logs*/_search", query8);
 

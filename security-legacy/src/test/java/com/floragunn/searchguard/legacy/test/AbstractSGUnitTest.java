@@ -270,8 +270,4 @@ public abstract class AbstractSGUnitTest {
     protected String getResourceFolder() {
         return null;
     }
-
-    protected String getType() {
-        return "_doc";
-    }
 }

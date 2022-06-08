@@ -19,6 +19,7 @@ import java.time.Duration;
 
 import org.apache.http.HttpStatus;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.opensearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
@@ -45,6 +46,7 @@ public class TracingTests extends SingleClusterTest {
         return "auditlog";
     }
 
+    @Ignore // XXX This test does not assert anything?
     @Test
     public void testHTTPTrace() throws Exception {
 
@@ -317,7 +319,8 @@ public class TracingTests extends SingleClusterTest {
 
 
     }
-
+    
+    @Ignore // XXX This test does not assert anything?
     @Test
     public void testAdvancedMapping() throws Exception {
         Settings settings = Settings.builder()
@@ -328,23 +331,23 @@ public class TracingTests extends SingleClusterTest {
 
         try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
-            .mapping("mytype1", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")
-            .mapping("mytype2", FileHelper.loadFile("mapping2.json"), XContentType.JSON)).actionGet();
+            .mapping("_doc", FileHelper.loadFile("mapping2.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex3")
-            .mapping("mytype3", FileHelper.loadFile("mapping3.json"), XContentType.JSON)).actionGet();
+            .mapping("_doc", FileHelper.loadFile("mapping3.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex4")
-            .mapping("mytype4", FileHelper.loadFile("mapping4.json"), XContentType.JSON)).actionGet();
+            .mapping("_doc", FileHelper.loadFile("mapping4.json"), XContentType.JSON)).actionGet();
         }
 
         RestHelper rh = nonSslRestHelper();
         System.out.println("############ write into mapping 1");
         String data1 = FileHelper.loadFile("auditlog/data1.json");
         String data2 = FileHelper.loadFile("auditlog/data1mod.json");
-        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("admin", "admin")));
-        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("admin", "admin")));
+        System.out.println(rh.executePutRequest("myindex1/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin")));
+        System.out.println(rh.executePutRequest("myindex1/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin")));
         System.out.println("############ write into mapping diffing");
-        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data2, encodeBasicHeader("admin", "admin")));
+        System.out.println(rh.executePutRequest("myindex1/_doc/1?refresh", data2, encodeBasicHeader("admin", "admin")));
 
         System.out.println("############ write into mapping 2");
         System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("admin", "admin")));
@@ -377,36 +380,36 @@ public class TracingTests extends SingleClusterTest {
 
         try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
-            .mapping("mytype1", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")
-            .mapping("mytype2", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
         }
 
         RestHelper rh = nonSslRestHelper();
         System.out.println("############ immutable 1");
         String data1 = FileHelper.loadFile("auditlog/data1.json");
         String data2 = FileHelper.loadFile("auditlog/data1mod.json");
-        HttpResponse res = rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("admin", "admin"));
+        HttpResponse res = rh.executePutRequest("myindex1/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(201, res.getStatusCode());
-        res = rh.executePutRequest("myindex1/mytype1/1?refresh", data2, encodeBasicHeader("admin", "admin"));
+        res = rh.executePutRequest("myindex1/_doc/1?refresh", data2, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(403, res.getStatusCode());
-        res = rh.executeDeleteRequest("myindex1/mytype1/1?refresh", encodeBasicHeader("admin", "admin"));
+        res = rh.executeDeleteRequest("myindex1/_doc/1?refresh", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(403, res.getStatusCode());
-        res = rh.executeGetRequest("myindex1/mytype1/1", encodeBasicHeader("admin", "admin"));
+        res = rh.executeGetRequest("myindex1/_doc/1", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(200, res.getStatusCode());
         Assert.assertFalse(res.getBody().contains("city"));
         Assert.assertTrue(res.getBody().contains("\"found\":true,"));
         
         System.out.println("############ immutable 2");
-        res = rh.executePutRequest("myindex2/mytype2/1?refresh", data1, encodeBasicHeader("admin", "admin"));
+        res = rh.executePutRequest("myindex2/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(201, res.getStatusCode());
-        res = rh.executePutRequest("myindex2/mytype2/1?refresh", data2, encodeBasicHeader("admin", "admin"));
+        res = rh.executePutRequest("myindex2/_doc/1?refresh", data2, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(200, res.getStatusCode());
-        res = rh.executeGetRequest("myindex2/mytype2/1", encodeBasicHeader("admin", "admin"));
+        res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
         Assert.assertTrue(res.getBody().contains("city"));
-        res = rh.executeDeleteRequest("myindex2/mytype2/1?refresh", encodeBasicHeader("admin", "admin"));
+        res = rh.executeDeleteRequest("myindex2/_doc/1?refresh", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(200, res.getStatusCode());
-        res = rh.executeGetRequest("myindex2/mytype2/1", encodeBasicHeader("admin", "admin"));
+        res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(404, res.getStatusCode());
     }
 

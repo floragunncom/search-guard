@@ -20,6 +20,7 @@ import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.get.GetRequest;
@@ -67,9 +68,9 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         final String keystore = rh.keystore;
         rh.sendHTTPClientCertificate = true;
         rh.keystore = "auditlog/kirk-keystore.jks";
-        rh.executePutRequest("emp/doc/0?refresh", "{\"Designation\" : \"CEO\", \"Gender\" : \"female\", \"Salary\" : 100}", new Header[0]);
-        rh.executePutRequest("emp/doc/1?refresh", "{\"Designation\" : \"IT\", \"Gender\" : \"male\", \"Salary\" : 200}", new Header[0]);
-        rh.executePutRequest("emp/doc/2?refresh", "{\"Designation\" : \"IT\", \"Gender\" : \"female\", \"Salary\" : 300}", new Header[0]);
+        rh.executePutRequest("emp/_doc/0?refresh", "{\"Designation\" : \"CEO\", \"Gender\" : \"female\", \"Salary\" : 100}", new Header[0]);
+        rh.executePutRequest("emp/_doc/1?refresh", "{\"Designation\" : \"IT\", \"Gender\" : \"male\", \"Salary\" : 200}", new Header[0]);
+        rh.executePutRequest("emp/_doc/2?refresh", "{\"Designation\" : \"IT\", \"Gender\" : \"female\", \"Salary\" : 300}", new Header[0]);
         rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
         rh.keystore = keystore;
 
@@ -120,9 +121,9 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         final String keystore = rh.keystore;
         rh.sendHTTPClientCertificate = true;
         rh.keystore = "auditlog/kirk-keystore.jks";
-        rh.executePutRequest("emp/doc/0?refresh", "{\"Designation\" : \"CEO\", \"Gender\" : \"female\", \"Salary\" : 100}", new Header[0]);
-        rh.executePutRequest("emp/doc/1?refresh", "{\"Designation\" : \"IT\", \"Gender\" : \"male\", \"Salary\" : 200}", new Header[0]);
-        rh.executePutRequest("emp/doc/2?refresh", "{\"Designation\" : \"IT\", \"Gender\" : \"female\", \"Salary\" : 300}", new Header[0]);
+        rh.executePutRequest("emp/_doc/0?refresh", "{\"Designation\" : \"CEO\", \"Gender\" : \"female\", \"Salary\" : 100}", new Header[0]);
+        rh.executePutRequest("emp/_doc/1?refresh", "{\"Designation\" : \"IT\", \"Gender\" : \"male\", \"Salary\" : 200}", new Header[0]);
+        rh.executePutRequest("emp/_doc/2?refresh", "{\"Designation\" : \"IT\", \"Gender\" : \"female\", \"Salary\" : 300}", new Header[0]);
         rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
         rh.keystore = keystore;
 
@@ -228,7 +229,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         
         
         try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.prepareIndex("humanresources", "employees", "100")
+            tc.prepareIndex().setIndex("humanresources").setId("100")
             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
             .setSource("Age", 456)
             .execute()
@@ -239,7 +240,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         
         String body = "{\"doc\": {\"Age\":123}}";
         
-        HttpResponse response = rh.executePostRequest("humanresources/employees/100/_update?pretty", body, encodeBasicHeader("admin", "admin"));
+        HttpResponse response = rh.executePostRequest("humanresources/_update/100?pretty", body, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(response.getBody());
         Thread.sleep(1500);
@@ -247,6 +248,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
     
+    @Ignore
     @Test
     public void testUpdatePerf() throws Exception {
 
@@ -278,13 +280,13 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         
         
         for(int i=0; i<1; i++) {
-            HttpResponse response = rh.executePostRequest("humanresources/employees/"+i+"", "{\"customer\": {\"Age\":"+i+"}}", encodeBasicHeader("admin", "admin"));
+            HttpResponse response = rh.executePostRequest("humanresources/_doc/"+i+"", "{\"customer\": {\"Age\":"+i+"}}", encodeBasicHeader("admin", "admin"));
             Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
             System.out.println("==================");
-            response = rh.executePostRequest("humanresources/employees/"+i+"", "{\"customer\": {\"Age\":"+(i+2)+"}}", encodeBasicHeader("admin", "admin"));
+            response = rh.executePostRequest("humanresources/_doc/"+i+"", "{\"customer\": {\"Age\":"+(i+2)+"}}", encodeBasicHeader("admin", "admin"));
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             System.out.println("==================");
-            response = rh.executePostRequest("humanresources/employees/"+i+"/_update?pretty", "{\"doc\": {\"doesel\":"+(i+3)+"}}", encodeBasicHeader("admin", "admin"));
+            response = rh.executePostRequest("humanresources/_doc/"+i+"/_update?pretty", "{\"doc\": {\"doesel\":"+(i+3)+"}}", encodeBasicHeader("admin", "admin"));
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         }
         
@@ -313,7 +315,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         
         
         try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.prepareIndex("humanresources", "employees", "100")
+            tc.prepareIndex().setIndex("humanresources").setId("100")
             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
             .setSource("Age", 456)
             .execute()
@@ -324,7 +326,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         
         String body = "{\"doc\": {\"Age\":123}}";
         
-        HttpResponse response = rh.executePostRequest("humanresources/employees/100/_update?pretty", body, encodeBasicHeader("admin", "admin"));
+        HttpResponse response = rh.executePostRequest("humanresources/_update/100?pretty", body, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(response.getBody());
         AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.sb.toString().split(".*audit_compliance_diff_content.*replace.*").length == 2, Duration.ofSeconds(2));
@@ -332,7 +334,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         
         body = "{\"Age\":555}";
         TestAuditlogImpl.clear();
-        response = rh.executePostRequest("humanresources/employees/100?pretty", body, encodeBasicHeader("admin", "admin"));
+        response = rh.executePostRequest("humanresources/_doc/100?pretty", body, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(response.getBody());
         AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.sb.toString().split(".*audit_compliance_diff_content.*replace.*").length == 2, Duration.ofSeconds(2));
@@ -348,36 +350,36 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
         try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
-            .mapping("mytype1", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")
-            .mapping("mytype2", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
         }
 
         RestHelper rh = nonSslRestHelper();
         System.out.println("############ immutable 1");
         String data1 = FileHelper.loadFile("auditlog/data1.json");
         String data2 = FileHelper.loadFile("auditlog/data1mod.json");
-        HttpResponse res = rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("admin", "admin"));
+        HttpResponse res = rh.executePutRequest("myindex1/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(201, res.getStatusCode());
-        res = rh.executePutRequest("myindex1/mytype1/1?refresh", data2, encodeBasicHeader("admin", "admin"));
+        res = rh.executePutRequest("myindex1/_doc/1?refresh", data2, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(403, res.getStatusCode());
-        res = rh.executeDeleteRequest("myindex1/mytype1/1?refresh", encodeBasicHeader("admin", "admin"));
+        res = rh.executeDeleteRequest("myindex1/_doc/1?refresh", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(403, res.getStatusCode());
-        res = rh.executeGetRequest("myindex1/mytype1/1", encodeBasicHeader("admin", "admin"));
+        res = rh.executeGetRequest("myindex1/_doc/1", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(200, res.getStatusCode());
         Assert.assertFalse(res.getBody().contains("city"));
         Assert.assertTrue(res.getBody().contains("\"found\":true,"));
         
         System.out.println("############ immutable 2");
-        res = rh.executePutRequest("myindex2/mytype2/1?refresh", data1, encodeBasicHeader("admin", "admin"));
+        res = rh.executePutRequest("myindex2/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(201, res.getStatusCode());
-        res = rh.executePutRequest("myindex2/mytype2/1?refresh", data2, encodeBasicHeader("admin", "admin"));
+        res = rh.executePutRequest("myindex2/_doc/1?refresh", data2, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(200, res.getStatusCode());
-        res = rh.executeGetRequest("myindex2/mytype2/1", encodeBasicHeader("admin", "admin"));
+        res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
         Assert.assertTrue(res.getBody().contains("city"));
-        res = rh.executeDeleteRequest("myindex2/mytype2/1?refresh", encodeBasicHeader("admin", "admin"));
+        res = rh.executeDeleteRequest("myindex2/_doc/1?refresh", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(200, res.getStatusCode());
-        res = rh.executeGetRequest("myindex2/mytype2/1", encodeBasicHeader("admin", "admin"));
+        res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(404, res.getStatusCode());
     }
     
