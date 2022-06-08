@@ -38,14 +38,14 @@ public class Fls983Test extends AbstractDlsFlsTest{
     public void test() throws Exception {
         
         setup(new DynamicSgConfig().setSgRoles("sg_roles_983.yml"));
-
-        HttpResponse res;
         
         String doc =  "{\"doc\" : {"+
             "\"x\" : \"y\""+
         "}}";
         
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/.kibana/_doc/0/_update?pretty", doc, encodeBasicHeader("human_resources_trainee", "password"))).getStatusCode());
+        HttpResponse res = rh.executePostRequest("/.kibana/_update/0?pretty", doc, encodeBasicHeader("human_resources_trainee", "password"));
+        
+        Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
         System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("updated"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));

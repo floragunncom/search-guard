@@ -82,11 +82,8 @@ public class RolesMappingApiTest extends AbstractRestApiUnitTest {
 		// add user picard, role captains initially maps to
 		// sg_role_starfleet_captains and sg_role_starfleet
 		addUserWithPassword("picard", "picard", new String[] { "captains" }, HttpStatus.SC_CREATED);
-		checkWriteAccess(HttpStatus.SC_CREATED, "picard", "picard", "sf", "ships", 1);
+		checkWriteAccess(HttpStatus.SC_CREATED, "picard", "picard", "sf", "ships_1");
 		
-        // ES7 only supports one doc type, so trying to create a second one leads to 400  BAD REQUEST
-		checkWriteAccess(HttpStatus.SC_BAD_REQUEST, "picard", "picard", "sf", "public", 1);
-
 		// --- DELETE
 
 		rh.sendHTTPClientCertificate = true;
@@ -111,11 +108,11 @@ public class RolesMappingApiTest extends AbstractRestApiUnitTest {
 		rh.sendHTTPClientCertificate = false;
 
 		// User has now only role starfleet which has READ access only
-		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 1);
+		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_1");
 		
 		// ES7 only supports one document type. The SG permission checks run first, so trying to
 		// write to another document type must also lead to a 403
-		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "public", 1);
+		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "public_1");
 
 		// remove also sg_role_starfleet, poor picard has no mapping left
 		rh.sendHTTPClientCertificate = true;
@@ -310,17 +307,14 @@ public class RolesMappingApiTest extends AbstractRestApiUnitTest {
 
 	private void checkAllSfAllowed() throws Exception {
 		rh.sendHTTPClientCertificate = false;
-		checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 1);
-		checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 1);
-
-		// ES7 only supports one doc type, so trying to create a second one leads to 400  BAD REQUEST
-		checkWriteAccess(HttpStatus.SC_BAD_REQUEST, "picard", "picard", "sf", "public", 1);
+		checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_1");
+		checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_1");
 	}
 
 	private void checkAllSfForbidden() throws Exception {
 		rh.sendHTTPClientCertificate = false;
-		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 1);
-		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 1);
+		checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_1");
+		checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_1");
 	}
 
 	private HttpResponse deleteAndputNewMapping(String fileName) throws Exception {

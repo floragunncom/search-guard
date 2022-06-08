@@ -191,12 +191,10 @@ public class IntegrationTests extends SingleClusterTest {
             "\"docs\" : ["+
                 "{"+
                      "\"_index\" : \"mindex1\","+
-                    "\"_type\" : \"type\","+
                     "\"_id\" : \"1\""+
                " },"+
                " {"+
                    "\"_index\" : \"mindex2\","+
-                   " \"_type\" : \"type\","+
                    " \"_id\" : \"2\""+
                 "}"+
             "]"+
@@ -340,9 +338,9 @@ public class IntegrationTests extends SingleClusterTest {
         setup();
         final RestHelper rh = nonSslRestHelper();
         
-        HttpResponse res = rh.executePostRequest("abc_xyz_2018_05_24/logs/1", "{\"content\":1}", encodeBasicHeader("underscore", "nagilum"));
+        HttpResponse res = rh.executePostRequest("abc_xyz_2018_05_24/_doc/1", "{\"content\":1}", encodeBasicHeader("underscore", "nagilum"));
         
-        res = rh.executeGetRequest("abc_xyz_2018_05_24/logs/1", encodeBasicHeader("underscore", "nagilum"));
+        res = rh.executeGetRequest("abc_xyz_2018_05_24/_doc/1", encodeBasicHeader("underscore", "nagilum"));
         Assert.assertTrue(res.getBody(),res.getBody().contains("\"content\":1"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
         res = rh.executeGetRequest("abc_xyz_2018_05_24/_refresh", encodeBasicHeader("underscore", "nagilum"));
@@ -365,7 +363,7 @@ public class IntegrationTests extends SingleClusterTest {
                     .source("{\"content\":1}", XContentType.JSON)).actionGet();
         }
 
-        HttpResponse res = rh.executePostRequest("indexc/_doc/0/_update?pretty=true&refresh=true", "{\"doc\" : {\"content\":2}}",
+        HttpResponse res = rh.executePostRequest("indexc/_update/0?pretty=true&refresh=true", "{\"doc\" : {\"content\":2}}",
                 encodeBasicHeader("user_c", "user_c"));
         System.out.println(res.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());

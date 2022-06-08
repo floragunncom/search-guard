@@ -157,7 +157,7 @@ public class DlsTest {
     @Test
     public void termvectors() throws Exception {
         TestDocument doc = TEST_DATA.anyDocumentForDepartment("dept_a_1");
-        String docUrl = "/logs/_doc/" + doc.getId() + "/_termvectors?pretty=true";
+        String docUrl = "/logs/_termvectors/" + doc.getId() + "?pretty=true";
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
             GenericRestClient.HttpResponse response = client.get(docUrl);
@@ -173,7 +173,7 @@ public class DlsTest {
 
         TestDocument allowedDoc = TEST_DATA.anyDocumentForDepartment("dept_d");
 
-        String allowedDocUrl = "/logs/_doc/" + allowedDoc.getId() + "/_termvectors?pretty=true";
+        String allowedDocUrl = "/logs/_termvectors/" + allowedDoc.getId() + "?pretty=true";
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
             GenericRestClient.HttpResponse response = client.get(allowedDocUrl);

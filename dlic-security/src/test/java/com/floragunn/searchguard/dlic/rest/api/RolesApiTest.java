@@ -143,11 +143,8 @@ public class RolesApiTest {
 
             // add user picard, role starfleet, maps to sg_role_starfleet
             addUserWithPassword("picard", "picard", new String[] { "starfleet", "captains" }, HttpStatus.SC_CREATED);
-            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
-            checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
-
-            // ES7 only supports one doc type, so trying to create a second one leads to 400  BAD REQUEST
-            checkWriteAccess(HttpStatus.SC_BAD_REQUEST, "picard", "picard", "sf", "public", 0);
+            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
+            checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
 
             // -- DELETE
 
@@ -168,17 +165,17 @@ public class RolesApiTest {
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
             // user has only role starfleet left, role has READ access only
-            checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 1);
+            checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_1");
 
             // ES7 only supports one doc type, but SG permission checks run first
             // So we also get a 403 FORBIDDEN when tring to add new document type
-            checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "public", 0);
+            checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "public_0");
 
             // remove also starfleet role, nothing is allowed anymore
             response = adminClient.delete("/_searchguard/api/roles/sg_role_starfleet");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 0);
-            checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 0);
+            checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_0");
+            checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_0");
 
             // -- PUT
             // put with empty roles, must fail
@@ -219,26 +216,21 @@ public class RolesApiTest {
             // restore starfleet role
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet", FileHelper.loadFile("restapi/roles_starfleet.json"));
             Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
-            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
+            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
 
             // now picard is only in sg_role_starfleet, which has write access to
             // all indices. We collapse all document types in SG7 so this permission in the
             // starfleet role grants all permissions:
             //   public:  
             //       - 'indices:*'		
-            checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
-            // ES7 only supports one doc type, so trying to create a second one leads to 400  BAD REQUEST
-            checkWriteAccess(HttpStatus.SC_BAD_REQUEST, "picard", "picard", "sf", "public", 0);
+            checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
 
             // restore captains role
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet_captains", FileHelper.loadFile("restapi/roles_captains.json"));
             Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
-            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
-            checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
-
-            // ES7 only supports one doc type, so trying to create a second one leads to 400  BAD REQUEST
-            checkWriteAccess(HttpStatus.SC_BAD_REQUEST, "picard", "picard", "sf", "public", 0);
-
+            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
+            checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
+            
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet_captains",
                     FileHelper.loadFile("restapi/roles_complete_invalid.json"));
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
@@ -429,8 +421,8 @@ public class RolesApiTest {
         try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
 
             adminClient.put("sf");
-            adminClient.putJson("sf/ships/0", "{\"number\" : \"NCC-1701-D\"}");
-            adminClient.putJson("sf/public/0", "{\"some\" : \"value\"}");
+            adminClient.putJson("sf/_doc/ships_0", "{\"number\" : \"NCC-1701-D\"}");
+            adminClient.putJson("sf/_doc/public_0", "{\"some\" : \"value\"}");
         }
     }
 
@@ -457,9 +449,9 @@ public class RolesApiTest {
         }
     }
 
-    protected String checkReadAccess(int status, String username, String password, String indexName, String type, int id) throws Exception {
+    protected String checkReadAccess(int status, String username, String password, String indexName, String id) throws Exception {
         try (GenericRestClient client = cluster.getRestClient(username, password)) {
-            String action = indexName + "/" + type + "/" + id;
+            String action = indexName + "/" + "_doc" + "/" + id;
             HttpResponse response = client.get(action);
             int returnedStatus = response.getStatusCode();
             Assert.assertEquals(status, returnedStatus);
@@ -467,10 +459,10 @@ public class RolesApiTest {
         }
     }
 
-    protected String checkWriteAccess(int status, String username, String password, String indexName, String type, int id) throws Exception {
+    protected String checkWriteAccess(int status, String username, String password, String indexName, String id) throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(username, password)) {
-            String action = indexName + "/" + type + "/" + id;
+            String action = indexName + "/" + "_doc" + "/" + id;
             String payload = "{\"value\" : \"true\"}";
             HttpResponse response = client.putJson(action, payload);
             int returnedStatus = response.getStatusCode();

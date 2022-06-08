@@ -88,7 +88,6 @@ import org.elasticsearch.action.admin.indices.dangling.import_index.ImportDangli
 import org.elasticsearch.action.admin.indices.dangling.list.ListDanglingIndicesAction;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
-import org.elasticsearch.action.admin.indices.exists.types.TypesExistsAction;
 import org.elasticsearch.action.admin.indices.flush.FlushAction;
 import org.elasticsearch.action.admin.indices.flush.SyncedFlushAction;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction;
@@ -241,7 +240,6 @@ public class Actions {
         index(OpenIndexAction.INSTANCE);
         index(CloseIndexAction.INSTANCE);
         index(IndicesExistsAction.INSTANCE);
-        index(TypesExistsAction.INSTANCE);
         index(AddIndexBlockAction.INSTANCE);
         index(GetMappingsAction.INSTANCE);
         index(GetFieldMappingsAction.INSTANCE);

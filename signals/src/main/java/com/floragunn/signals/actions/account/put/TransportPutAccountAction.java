@@ -70,7 +70,7 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
 
                 account.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
 
-                client.prepareIndex(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts(), null, scopedId)
+                client.prepareIndex().setIndex(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts()).setId(scopedId)
                         .setSource(xContentBuilder).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<IndexResponse>() {
                             @Override
                             public void onResponse(IndexResponse response) {
@@ -90,8 +90,8 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
                         });
             }
         } catch (ConfigValidationException e) {
-            listener.onResponse(
-                    new PutAccountResponse(scopedId, -1, Result.NOOP, RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJsonString()));
+            listener.onResponse(new PutAccountResponse(scopedId, -1, Result.NOOP, RestStatus.BAD_REQUEST, e.getMessage(),
+                    e.getValidationErrors().toJsonString()));
         } catch (Exception e) {
             listener.onFailure(e);
         }

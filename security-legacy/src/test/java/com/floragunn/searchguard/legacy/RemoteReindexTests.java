@@ -99,7 +99,7 @@ public class RemoteReindexTests extends AbstractSGUnitTest{
                     "\"size\": 10,"+
                     "\"query\": {"+
                     "\"match\": {"+
-                    "\"_type\": \"_doc\""+
+                    "\"_index\": \"twitter\""+
                     "}"+
                   "}"+
             "},"+
@@ -116,6 +116,6 @@ public class RemoteReindexTests extends AbstractSGUnitTest{
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("_reindex?pretty", reindex, encodeBasicHeader("nagilum","nagilum"));
         System.out.println(ccs.getBody());
         Assert.assertEquals(ccs.getBody(), HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody().contains("created\" : 1"));
+        Assert.assertTrue(ccs.getBody(), ccs.getBody().contains("created\" : 1"));
     }
 }

@@ -287,18 +287,18 @@ public class UserApiTest {
             checkGeneralAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard");
 
             // check read access to starfleet index and ships type, must fail
-            checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 0);
+            checkReadAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_0");
 
             // overwrite user picard, and give him role "starfleet". This role has READ access only
             addUserWithPassword(adminClient, "picard", "picard", new String[] { "starfleet" }, HttpStatus.SC_OK);
-            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
-            checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships", 1);
+            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
+            checkWriteAccess(HttpStatus.SC_FORBIDDEN, "picard", "picard", "sf", "ships_1");
 
             // overwrite user picard, and give him role "starfleet" plus "captains. Now
             // document can be created.
             addUserWithPassword(adminClient, "picard", "picard", new String[] { "starfleet", "captains" }, HttpStatus.SC_OK);
-            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships", 0);
-            checkWriteAccess(HttpStatus.SC_CREATED, "picard", "picard", "sf", "ships", 1);
+            checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
+            checkWriteAccess(HttpStatus.SC_CREATED, "picard", "picard", "sf", "ships_1");
 
             response = adminClient.get("/_searchguard/api/internalusers/picard");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
@@ -501,29 +501,29 @@ public class UserApiTest {
         try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
 
             adminClient.put("sf");
-            adminClient.putJson("sf/ships/0", "{\"number\" : \"NCC-1701-D\"}");
-            adminClient.putJson("sf/public/0", "{\"some\" : \"value\"}");
+            adminClient.putJson("sf/_doc/ships_0", "{\"number\" : \"NCC-1701-D\"}");
+            adminClient.putJson("sf/_doc/public_0", "{\"some\" : \"value\"}");
         }
     }
 
-    protected String checkReadAccess(int status, String username, String password, String indexName, String type, int id) throws Exception {
+    protected String checkReadAccess(int status, String username, String password, String indexName, String id) throws Exception {
         try (GenericRestClient client = cluster.getRestClient(username, password)) {
-            String action = indexName + "/" + type + "/" + id;
+            String action = indexName + "/" + "_doc" + "/" + id;
             HttpResponse response = client.get(action);
             int returnedStatus = response.getStatusCode();
-            Assert.assertEquals(status, returnedStatus);
+            Assert.assertEquals(response.getBody(), status, returnedStatus);
             return response.getBody();
         }
     }
 
-    protected String checkWriteAccess(int status, String username, String password, String indexName, String type, int id) throws Exception {
+    protected String checkWriteAccess(int status, String username, String password, String indexName, String id) throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(username, password)) {
-            String action = indexName + "/" + type + "/" + id;
+            String action = indexName + "/" + "_doc" + "/" + id;
             String payload = "{\"value\" : \"true\"}";
             HttpResponse response = client.putJson(action, payload);
             int returnedStatus = response.getStatusCode();
-            Assert.assertEquals(status, returnedStatus);
+            Assert.assertEquals(response.getBody(), status, returnedStatus);
             return response.getBody();
         }
     }

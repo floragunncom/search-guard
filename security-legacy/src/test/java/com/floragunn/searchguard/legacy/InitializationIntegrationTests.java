@@ -66,12 +66,11 @@ public class InitializationIntegrationTests extends SingleClusterTest {
         rh.enableHTTPClientSSL = true;
         rh.trustHTTPServerCertificate = true;
         rh.sendHTTPClientCertificate = true;
-        Assert.assertEquals(HttpStatus.SC_SERVICE_UNAVAILABLE, rh.executePutRequest("searchguard/config/0", "{}", encodeBasicHeader("___", "")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_SERVICE_UNAVAILABLE, rh.executePutRequest("searchguard/"+getType()+"/config", "{}", encodeBasicHeader("___", "")).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_SERVICE_UNAVAILABLE, rh.executePutRequest("searchguard/_doc/0", "{}", encodeBasicHeader("___", "")).getStatusCode());
         
         
         rh.keystore = "kirk-keystore.jks";
-        Assert.assertEquals(HttpStatus.SC_CREATED, rh.executePutRequest("searchguard/"+getType()+"/config", "{}", encodeBasicHeader("___", "")).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_CREATED, rh.executePutRequest("searchguard/_doc/config", "{}", encodeBasicHeader("___", "")).getStatusCode());
     
         Assert.assertFalse(rh.executeSimpleRequest("_nodes/stats?pretty").contains("\"tx_size_in_bytes\" : 0"));
         Assert.assertFalse(rh.executeSimpleRequest("_nodes/stats?pretty").contains("\"rx_count\" : 0"));

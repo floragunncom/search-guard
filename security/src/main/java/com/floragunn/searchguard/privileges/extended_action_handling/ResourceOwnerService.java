@@ -103,13 +103,13 @@ public class ResourceOwnerService {
         }
 
         String docId = resourceType + "_" + id;
-        privilegedConfigClient.prepareIndex(index, null, docId).setSource("user_name", owner.getName(), "expires", expires)
+        privilegedConfigClient.prepareIndex().setIndex(index).setId(docId).setSource("user_name", owner.getName(), "expires", expires)
                 .setRefreshPolicy(refreshPolicy).execute(actionListener);
     }
 
     public void deleteOwner(String resourceType, Object id) {
         String docId = resourceType + "_" + id;
-        privilegedConfigClient.prepareDelete(index, null, docId).execute(new ActionListener<DeleteResponse>() {
+        privilegedConfigClient.prepareDelete().setIndex(index).setId(docId).execute(new ActionListener<DeleteResponse>() {
 
             @Override
             public void onResponse(DeleteResponse response) {
@@ -132,7 +132,7 @@ public class ResourceOwnerService {
     private void checkOwner(String resourceType, Object id, User currentUser, ActionListener<CheckOwnerResponse> actionListener, int retry) {
         String docId = resourceType + "_" + id;
 
-        privilegedConfigClient.prepareGet(index, null, docId).execute(new ActionListener<GetResponse>() {
+        privilegedConfigClient.prepareGet().setIndex(index).setId(docId).execute(new ActionListener<GetResponse>() {
 
             @Override
             public void onResponse(GetResponse response) {

@@ -28,6 +28,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
@@ -308,15 +309,15 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
         System.out.println("#### testBulkAuth");
         String bulkBody = 
-                "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
+                "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
-                "{ \"index\" : { \"_index\" : \"worf\", \"_type\" : \"type1\", \"_id\" : \"2\" } }"+System.lineSeparator()+
+                "{ \"index\" : { \"_index\" : \"worf\", \"_id\" : \"2\" } }"+System.lineSeparator()+
                 "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
                 
-                "{ \"update\" : {\"_id\" : \"1\", \"_type\" : \"type1\", \"_index\" : \"test\"} }"+System.lineSeparator()+
+                "{ \"update\" : {\"_id\" : \"1\", \"_index\" : \"test\"} }"+System.lineSeparator()+
                 "{ \"doc\" : {\"field\" : \"valuex\"} }"+System.lineSeparator()+
-                "{ \"delete\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
-                "{ \"create\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
+                "{ \"delete\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
+                "{ \"create\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value3x\" }"+System.lineSeparator();
                 
 
@@ -338,15 +339,15 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
     public void testBulkNonAuth() throws Exception {
 
         String bulkBody = 
-                "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
+                "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
-                "{ \"index\" : { \"_index\" : \"worf\", \"_type\" : \"type1\", \"_id\" : \"2\" } }"+System.lineSeparator()+
+                "{ \"index\" : { \"_index\" : \"worf\", \"_id\" : \"2\" } }"+System.lineSeparator()+
                 "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
                 
-                "{ \"update\" : {\"_id\" : \"1\", \"_type\" : \"type1\", \"_index\" : \"test\"} }"+System.lineSeparator()+
+                "{ \"update\" : {\"_id\" : \"1\", \"_index\" : \"test\"} }"+System.lineSeparator()+
                 "{ \"doc\" : {\"field\" : \"valuex\"} }"+System.lineSeparator()+
-                "{ \"delete\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
-                "{ \"create\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
+                "{ \"delete\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
+                "{ \"create\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value3x\" }"+System.lineSeparator();
 
         HttpResponse response = rh.executePostRequest("_bulk", bulkBody, encodeBasicHeader("worf", "worf"));
@@ -365,6 +366,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
 	
+    @Ignore
     public void testUpdateSettings() throws Exception {
         
         String json = 
@@ -378,7 +380,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         "}";
 
         HttpResponse response = rh.executePutRequest("_cluster/settings", json, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("cluster:admin/settings/update"));

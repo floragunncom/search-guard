@@ -128,7 +128,7 @@ public class LicenseRepository implements ComponentStateProvider {
 
         long created = System.currentTimeMillis();
 
-        GetResponse get = privilegedClient.prepareGet(searchguardIndex, "_doc", "tattr").get();
+        GetResponse get = privilegedClient.prepareGet().setIndex(searchguardIndex).setId("tattr").get();
         if (get.isExists()) {
             created = (long) get.getSource().get("val");
         } else {
