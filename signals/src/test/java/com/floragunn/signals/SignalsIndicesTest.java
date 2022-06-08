@@ -61,7 +61,7 @@ public class SignalsIndicesTest {
 
         try (Client client = cluster.getInternalNodeClient()) {
             CreateIndexResponse response = client.admin().indices().create(new CreateIndexRequest(".signals_watches")
-                    .mapping("_doc", getOldWatchIndexMapping()).settings(Settings.builder().put("index.hidden", true))).actionGet();
+                    .mapping(getOldWatchIndexMapping()).settings(Settings.builder().put("index.hidden", true))).actionGet();
 
             Assert.assertTrue(response.toString(), response.isAcknowledged());
         }

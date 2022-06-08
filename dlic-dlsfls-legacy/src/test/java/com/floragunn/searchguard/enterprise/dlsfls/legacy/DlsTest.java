@@ -258,7 +258,7 @@ public class DlsTest {
 
         try (Client client = cluster.getInternalNodeClient()) {
             client.admin().indices().create(new CreateIndexRequest("logs")
-                    .mapping("_doc", ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
+                    .mapping(ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
 
             for (int i = 0; i < 3; i++) {
                 client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "A", "timestamp",

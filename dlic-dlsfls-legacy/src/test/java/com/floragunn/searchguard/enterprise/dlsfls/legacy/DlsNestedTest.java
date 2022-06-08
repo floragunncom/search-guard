@@ -46,7 +46,7 @@ public class DlsNestedTest extends AbstractDlsFlsTest{
         
         tc.admin().indices().create(new CreateIndexRequest("deals")
         .settings(Settings.builder().put("number_of_shards", 1).put("number_of_replicas", 0).build())
-        .mapping("_doc", mapping, XContentType.JSON)).actionGet();
+        .mapping(mapping, XContentType.JSON)).actionGet();
         
         //tc.index(new IndexRequest("deals").id("3").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
         //        .source("{\"amount\": 7,\"owner\": \"a\", \"my_nested_object\" : {\"name\": \"spock\"}}", XContentType.JSON)).actionGet();

@@ -29,7 +29,7 @@ public class FlsExistsFieldsTest extends AbstractDlsFlsTest {
 
     protected void populateData(Client tc) {
 
-        tc.admin().indices().create(new CreateIndexRequest("data").mapping("_doc", 
+        tc.admin().indices().create(new CreateIndexRequest("data").simpleMapping( 
                 "@timestamp", "type=date", 
                 "host", "type=text,norms=false",
                 "response", "type=text,norms=false",

@@ -350,9 +350,9 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
         try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
-            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")
-            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
         }
 
         RestHelper rh = nonSslRestHelper();

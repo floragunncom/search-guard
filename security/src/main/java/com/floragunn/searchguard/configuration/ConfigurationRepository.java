@@ -157,7 +157,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Context parserContext;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
-            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig, NamedXContentRegistry xContentRegistry) {
+            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
+            NamedXContentRegistry xContentRegistry) {
         this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
         this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
@@ -407,9 +408,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
             indexSettings = indexSettings.with("index.hidden", true);
         }
 
-        boolean ok = client.admin().indices()
-                .create(new CreateIndexRequest(searchguardIndex).settings(indexSettings).mapping("_doc", SG_INDEX_MAPPING)).actionGet()
-                .isAcknowledged();
+        boolean ok = client.admin().indices().create(new CreateIndexRequest(searchguardIndex).settings(indexSettings).mapping(SG_INDEX_MAPPING))
+                .actionGet().isAcknowledged();
 
         if (!ok) {
             LOGGER.error("Can not create {} index", searchguardIndex);

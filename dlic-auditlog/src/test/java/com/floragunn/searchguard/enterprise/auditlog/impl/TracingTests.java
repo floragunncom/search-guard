@@ -331,13 +331,13 @@ public class TracingTests extends SingleClusterTest {
 
         try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
-            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")
-            .mapping("_doc", FileHelper.loadFile("mapping2.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping2.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex3")
-            .mapping("_doc", FileHelper.loadFile("mapping3.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping3.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex4")
-            .mapping("_doc", FileHelper.loadFile("mapping4.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping4.json"), XContentType.JSON)).actionGet();
         }
 
         RestHelper rh = nonSslRestHelper();
@@ -380,9 +380,9 @@ public class TracingTests extends SingleClusterTest {
 
         try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
-            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")
-            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
         }
 
         RestHelper rh = nonSslRestHelper();

@@ -232,7 +232,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
                         configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "mapping_update");
 
-                        PutMappingRequest putMappingRequest = new PutMappingRequest(configIndex.getName()).type("_doc").source(patch);
+                        PutMappingRequest putMappingRequest = new PutMappingRequest(configIndex.getName()).source(patch);
 
                         if (log.isDebugEnabled()) {
                             log.debug(Strings.toString(putMappingRequest));
@@ -287,7 +287,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             CreateIndexRequest request = new CreateIndexRequest(configIndex.getName());
 
             if (configIndex.getMapping() != null) {
-                request.mapping("_doc", configIndex.getMapping());
+                request.mapping(configIndex.getMapping());
             }
 
             request.settings(INDEX_SETTINGS);

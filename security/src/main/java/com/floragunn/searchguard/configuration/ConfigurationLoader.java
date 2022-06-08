@@ -124,12 +124,12 @@ public class ConfigurationLoader {
         CompletableFuture<ConfigMap> resultFuture = new CompletableFuture<>();
 
         String searchguardIndex = configRepository.getEffectiveSearchGuardIndex();
-        
+
         if (searchguardIndex == null) {
             resultFuture.completeExceptionally(new ConfigUnavailableException("Search Guard index does not exist"));
             return resultFuture;
         }
-        
+
         MultiGetRequest mget = new MultiGetRequest().refresh(true).realtime(true);
 
         Set<CType<?>> expectedTypes = new HashSet<>();
@@ -185,12 +185,12 @@ public class ConfigurationLoader {
                             configMapBuilder.with(config);
                             success(config, typeToStateMap);
                         } catch (ConfigValidationException e) {
-                            Failure failure = new Failure(searchguardIndex, item.getResponse().getType(), item.getResponse().getId(),
+                            Failure failure = new Failure(searchguardIndex, item.getResponse().getId(),
                                     new Exception(e.getValidationErrors().toString(), e));
                             failures.add(failure);
                             failure(type, failure, typeToStateMap);
                         } catch (Exception e) {
-                            Failure failure = new Failure(searchguardIndex, item.getResponse().getType(), item.getResponse().getId(), e);
+                            Failure failure = new Failure(searchguardIndex, item.getResponse().getId(), e);
                             failures.add(failure);
                             failure(type, failure, typeToStateMap);
                         }

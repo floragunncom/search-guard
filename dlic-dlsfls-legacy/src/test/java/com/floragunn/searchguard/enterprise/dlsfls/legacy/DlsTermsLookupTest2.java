@@ -95,7 +95,7 @@ public class DlsTermsLookupTest2 {
 
             // need to have keyword for bu field since we're testing aggregations
             client.admin().indices().create(new CreateIndexRequest("tlqdocuments")).actionGet();
-            client.admin().indices().putMapping(new PutMappingRequest("tlqdocuments").type("_doc").source("bu", "type=keyword")).actionGet();
+            client.admin().indices().putMapping(new PutMappingRequest("tlqdocuments").source("bu", "type=keyword")).actionGet();
 
             // tlqdocuments, protected by TLQ
             client.index(new IndexRequest("tlqdocuments").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
@@ -137,7 +137,7 @@ public class DlsTermsLookupTest2 {
 
             // we use a "bu" field here as well to test aggregations over multiple indices (TBD)
             client.admin().indices().create(new CreateIndexRequest("tlqdummy")).actionGet();
-            client.admin().indices().putMapping(new PutMappingRequest("tlqdummy").type("_doc").source("bu", "type=keyword")).actionGet();
+            client.admin().indices().putMapping(new PutMappingRequest("tlqdummy").source("bu", "type=keyword")).actionGet();
 
             // tlqdummy, not protected by TLQ
             client.index(new IndexRequest("tlqdummy").id("101").setRefreshPolicy(RefreshPolicy.IMMEDIATE)

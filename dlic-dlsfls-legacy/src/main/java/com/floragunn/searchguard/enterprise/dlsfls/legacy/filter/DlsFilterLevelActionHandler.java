@@ -249,7 +249,7 @@ public class DlsFilterLevelActionHandler {
                     if (hits == 1) {
                         getListener.onResponse(new GetResponse(searchHitToGetResult(response.getHits().getAt(0))));
                     } else if (hits == 0) {
-                        getListener.onResponse(new GetResponse(new GetResult(searchRequest.indices()[0], "_doc", getRequest.id(),
+                        getListener.onResponse(new GetResponse(new GetResult(searchRequest.indices()[0], getRequest.id(),
                                 SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, -1, false, null, null, null)));
                     } else {
                         log.error("Unexpected hit count " + hits + " in " + response);
@@ -385,10 +385,7 @@ public class DlsFilterLevelActionHandler {
             }
         }
 
-        @SuppressWarnings("deprecation")
-        String type = hit.getType();
-
-        return new GetResult(hit.getIndex(), type, hit.getId(), hit.getSeqNo(), hit.getPrimaryTerm(), hit.getVersion(), true, hit.getSourceRef(),
+        return new GetResult(hit.getIndex(), hit.getId(), hit.getSeqNo(), hit.getPrimaryTerm(), hit.getVersion(), true, hit.getSourceRef(),
                 documentFields, metadataFields);
     }
 
