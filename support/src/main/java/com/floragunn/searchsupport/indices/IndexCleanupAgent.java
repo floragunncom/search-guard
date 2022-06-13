@@ -57,7 +57,7 @@ public class IndexCleanupAgent implements ComponentStateProvider {
     private final String index;
     private final Supplier<QueryBuilder> cleanupQuery;
     private final ClusterService clusterService;
-    
+
     private final ComponentState componentState;
     private final TimeAggregation deleteActionMetrics = new TimeAggregation.Milliseconds();
 
@@ -112,19 +112,19 @@ public class IndexCleanupAgent implements ComponentStateProvider {
 
         try {
             Meter meter = Meter.basic(MetricsLevel.BASIC, deleteActionMetrics);
-            
+
             new DeleteByQueryRequestBuilder(client, DeleteByQueryAction.INSTANCE).filter(cleanupQuery.get()).source(index)
                     .execute(new ActionListener<BulkByScrollResponse>() {
                         @Override
                         public void onResponse(BulkByScrollResponse response) {
                             cleanupInProgress = false;
-                            meter.close();
-
                             long deleted = response.getDeleted();
                             meter.count("deleted_documents", deleted);
-                            
+
+                            meter.close();
+
                             log.debug("Deleted " + deleted + " expired entries from " + index);
-                            
+
                             if (log.isTraceEnabled()) {
                                 log.trace(Strings.toString(response));
                             }
