@@ -22,7 +22,7 @@ import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.enterprise.auth.jwt.JwtAuthenticator;
-import com.floragunn.searchguard.enterprise.auth.kerberos.HTTPSpnegoAuthenticator;
+import com.floragunn.searchguard.enterprise.auth.kerberos.KerberosAuthenticationFrontend;
 import com.floragunn.searchguard.enterprise.auth.ldap.LDAPAuthenticationBackend;
 import com.floragunn.searchguard.enterprise.auth.oidc.OidcAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.saml.SamlAuthenticator;
@@ -43,7 +43,7 @@ public class EnterpriseAuthFeaturesModule implements SearchGuardModule {
     @Override
     public List<TypedComponent.Info<?>> getTypedComponents() {
         if (enterpriseModulesEnabled) {
-            return ImmutableList.<TypedComponent.Info<?>>of(JwtAuthenticator.INFO, HTTPSpnegoAuthenticator.INFO, OidcAuthenticator.INFO,
+            return ImmutableList.<TypedComponent.Info<?>>of(JwtAuthenticator.INFO, KerberosAuthenticationFrontend.INFO, OidcAuthenticator.INFO,
                     SamlAuthenticator.INFO, ExternalSearchGuardSessionAuthenticationBackend.INFO).with(LDAPAuthenticationBackend.INFOS);
         } else {
             return ImmutableList.empty();

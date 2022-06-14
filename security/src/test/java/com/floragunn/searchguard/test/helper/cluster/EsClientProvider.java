@@ -22,7 +22,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -44,6 +43,7 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.elasticsearch.client.RestHighLevelClient;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 
@@ -92,11 +92,15 @@ public interface EsClientProvider {
     }
 
     default GenericRestClient getRestClient(List<Header> headers) {
-        return createGenericClientRestClient(headers);
+        return new GenericRestClient(getHttpAddress(), headers, getAnyClientSslContextProvider().getSslContext(false));
     }
 
     default GenericRestClient getAdminCertRestClient() {
-        return createGenericAdminRestClient(Collections.emptyList());
+        return getAdminCertRestClient(ImmutableList.empty());
+    }
+
+    default GenericRestClient getAdminCertRestClient(List<Header> headers) {
+        return new GenericRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true));
     }
 
     default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {
@@ -142,15 +146,6 @@ public interface EsClientProvider {
     default Client getAdminCertClient() {
         return new LocalEsClusterTransportClient(getClusterName(), getTransportAddress(), getTestCertificates().getAdminCertificate(),
                 getTestCertificates().getCaCertFile().toPath());
-    }
-
-    default GenericRestClient createGenericClientRestClient(List<Header> headers) {
-        return new GenericRestClient(getHttpAddress(), headers, getAnyClientSslContextProvider().getSslContext(false));
-    }
-
-    default GenericRestClient createGenericAdminRestClient(List<Header> headers) {
-        //a client authentication is needed for admin because admin needs to authenticate itself (dn matching in config file)
-        return new GenericRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true));
     }
 
     default BasicHeader getBasicAuthHeader(String user, String password) {

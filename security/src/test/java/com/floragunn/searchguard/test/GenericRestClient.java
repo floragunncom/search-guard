@@ -34,6 +34,7 @@ import javax.net.ssl.SSLContext;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
@@ -208,7 +209,7 @@ public class GenericRestClient implements AutoCloseable {
                 uriRequest.addHeader(header);
             }
 
-            HttpResponse res = new HttpResponse(httpClient.execute(uriRequest));
+            HttpResponse res = new HttpResponse(innerExecuteRequest(httpClient, uriRequest));
             log.debug(res.getBody());
             return res;
         } finally {
@@ -217,6 +218,10 @@ public class GenericRestClient implements AutoCloseable {
                 httpClient.close();
             }
         }
+    }
+    
+    protected CloseableHttpResponse innerExecuteRequest(CloseableHttpClient httpClient, HttpUriRequest uriRequest) throws ClientProtocolException, IOException {
+        return httpClient.execute(uriRequest);
     }
 
     public GenericRestClient trackResources() {
@@ -243,11 +248,10 @@ public class GenericRestClient implements AutoCloseable {
     }
 
     protected final CloseableHttpClient getHTTPClient() throws Exception {
-
-        final HttpClientBuilder hcb = HttpClients.custom();
+        HttpClientBuilder clientBuilder = HttpClients.custom();
 
         if (sslConfig != null) {
-            hcb.setSSLSocketFactory(sslConfig.toSSLConnectionSocketFactory());
+            clientBuilder.setSSLSocketFactory(sslConfig.toSSLConnectionSocketFactory());
         } else if (enableHTTPClientSSL) {
 
             log.debug("Configure HTTP client with SSL");
@@ -262,16 +266,22 @@ public class GenericRestClient implements AutoCloseable {
 
             final SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslContext, protocols, null, NoopHostnameVerifier.INSTANCE);
 
-            hcb.setSSLSocketFactory(sslsf);
+            clientBuilder.setSSLSocketFactory(sslsf);
         }
 
-        hcb.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 10000).build());
+        clientBuilder.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 10000).build());
 
         if (requestConfig != null) {
-            hcb.setDefaultRequestConfig(requestConfig);
+            clientBuilder.setDefaultRequestConfig(requestConfig);
         }
+        
+        configureHttpClientBuilder(clientBuilder);
 
-        return hcb.build();
+        return clientBuilder.build();
+    }
+    
+    protected void configureHttpClientBuilder(HttpClientBuilder clientBuilder) {
+        
     }
 
 

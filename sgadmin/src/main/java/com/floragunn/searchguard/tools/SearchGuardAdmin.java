@@ -1257,7 +1257,12 @@ public class SearchGuardAdmin {
     
     private static int upload(TransportClient tc, String index, String cd, boolean legacy, NodesInfoResponse nodesInfo, boolean resolveEnvVars) {
         
-        boolean success = uploadFile(tc, cd+"sg_config.yml", index, "config", legacy, resolveEnvVars);
+        boolean success = true;
+        
+        if (new File(cd + "sg_config.yml").exists()) {
+            success = uploadFile(tc, cd + "sg_config.yml", index, "config", legacy, resolveEnvVars) && success;
+        }
+        
         success = uploadFile(tc, cd+"sg_roles.yml", index, "roles", legacy, resolveEnvVars) && success;
         success = uploadFile(tc, cd+"sg_roles_mapping.yml", index, "rolesmapping", legacy, resolveEnvVars) && success;
         
@@ -1270,6 +1275,10 @@ public class SearchGuardAdmin {
 
             if (new File(cd + "sg_blocks.yml").exists()) {
                 success = uploadFile(tc, cd + "sg_blocks.yml", index, "blocks", legacy, resolveEnvVars) && success;
+            }
+
+            if (new File(cd + "sg_authc.yml").exists()) {
+                success = uploadFile(tc, cd + "sg_authc.yml", index, "authc", legacy, resolveEnvVars) && success;
             }
 
             if (new File(cd + "sg_frontend_authc.yml").exists()) {
