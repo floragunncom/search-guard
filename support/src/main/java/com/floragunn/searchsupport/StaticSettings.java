@@ -54,6 +54,10 @@ public class StaticSettings {
     public Path getPlatformPluginsDirectory() {
         return this.environment.pluginsFile();
     }
+    
+    public Path getPatformConfigDirectory() {
+        return this.environment.configFile();
+    }
 
     public <V> V get(Attribute<V> option) {
         return option.getFrom(settings);
