@@ -12,6 +12,13 @@ enterprise_1:
   variables:
     TEST: "enterprise_1"
     TEST_ENVIRONMENT: "enterprise_1"
+    
+enterprise_1_authc:
+  extends:
+  - .be_integration_test
+  variables:
+    TEST: "enterprise_1_sg_authc"
+    TEST_ENVIRONMENT: "enterprise_1"    
 
 enterprise_2:
   extends:
