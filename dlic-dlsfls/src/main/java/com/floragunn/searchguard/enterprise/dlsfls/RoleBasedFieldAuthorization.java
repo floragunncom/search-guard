@@ -40,6 +40,8 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class RoleBasedFieldAuthorization implements ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedFieldAuthorization.class);
@@ -49,113 +51,136 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
     private volatile StatefulIndexRules statefulIndexQueries;
     private final ComponentState componentState = new ComponentState("role_based_field_authorization");
 
-    public RoleBasedFieldAuthorization(SgDynamicConfiguration<Role> roles, Set<String> indices) {
+    public RoleBasedFieldAuthorization(SgDynamicConfiguration<Role> roles, Set<String> indices, MetricsLevel metricsLevel) {
         this.roles = roles;
         this.staticIndexQueries = new StaticIndexRules(roles);
         this.statefulIndexQueries = new StatefulIndexRules(roles, indices);
         this.componentState.setInitialized();
         this.componentState.setConfigVersion(roles.getDocVersion());
+        this.componentState.addPart(staticIndexQueries.getComponentState());
+        this.componentState.addPart(statefulIndexQueries.getComponentState());
     }
 
-    public FlsRule getFlsRule(PrivilegesEvaluationContext context, String index) throws PrivilegesEvaluationException {
-        if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
-            return FlsRule.ALLOW_ALL;
-        }
+    public FlsRule getFlsRule(PrivilegesEvaluationContext context, String index, Meter meter) throws PrivilegesEvaluationException {
+        try (Meter subMeter = meter.detail("evaluate_fls")) {
 
-        StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
-
-        if (!statefulIndexQueries.indices.contains(index)) {
-            throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
-        }
-
-        ImmutableSet<String> rolesWithoutRule = statefulIndexQueries.indexToRoleWithoutRule.get(index);
-
-        if (rolesWithoutRule != null && rolesWithoutRule.containsAny(context.getMappedRoles())) {
-            return FlsRule.ALLOW_ALL;
-        }
-
-        ImmutableMap<String, FlsRule> roleToRule = this.statefulIndexQueries.indexToRoleToRule.get(index);
-        List<FlsRule> rules = new ArrayList<>();
-
-        for (String role : context.getMappedRoles()) {
-            {
-                FlsRule rule = this.staticIndexQueries.roleWithIndexWildcardToRule.get(role);
-
-                if (rule != null) {
-                    rules.add(rule);
-                }
+            if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                return FlsRule.ALLOW_ALL;
             }
 
-            if (roleToRule != null) {
-                FlsRule rule = roleToRule.get(role);
+            StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
-                if (rule != null) {
-                    rules.add(rule);
-                }
+            if (!statefulIndexQueries.indices.contains(index)) {
+                throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
             }
 
-            ImmutableMap<Template<Pattern>, FlsRule> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
-                    .get(role);
+            ImmutableSet<String> rolesWithoutRule = statefulIndexQueries.indexToRoleWithoutRule.get(index);
 
-            if (indexPatternTemplateToQuery != null) {
-                for (Map.Entry<Template<Pattern>, FlsRule> entry : indexPatternTemplateToQuery.entrySet()) {
-                    try {
-                        Pattern pattern = context.getRenderedPattern(entry.getKey());
+            if (rolesWithoutRule != null && rolesWithoutRule.containsAny(context.getMappedRoles())) {
+                return FlsRule.ALLOW_ALL;
+            }
 
-                        if (pattern.matches(index)) {
-                            rules.add(entry.getValue());
+            ImmutableMap<String, FlsRule> roleToRule = this.statefulIndexQueries.indexToRoleToRule.get(index);
+            List<FlsRule> rules = new ArrayList<>();
+
+            for (String role : context.getMappedRoles()) {
+                {
+                    FlsRule rule = this.staticIndexQueries.roleWithIndexWildcardToRule.get(role);
+
+                    if (rule != null) {
+                        rules.add(rule);
+                    }
+                }
+
+                if (roleToRule != null) {
+                    FlsRule rule = roleToRule.get(role);
+
+                    if (rule != null) {
+                        rules.add(rule);
+                    }
+                }
+
+                ImmutableMap<Template<Pattern>, FlsRule> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
+                        .get(role);
+
+                if (indexPatternTemplateToQuery != null) {
+                    for (Map.Entry<Template<Pattern>, FlsRule> entry : indexPatternTemplateToQuery.entrySet()) {
+                        try {
+                            Pattern pattern = context.getRenderedPattern(entry.getKey());
+
+                            if (pattern.matches(index)) {
+                                rules.add(entry.getValue());
+                            }
+                        } catch (ExpressionEvaluationException e) {
+                            throw new PrivilegesEvaluationException("Error while rendering index pattern of role " + role, e);
                         }
-                    } catch (ExpressionEvaluationException e) {
-                        throw new PrivilegesEvaluationException("Error while rendering index pattern of role " + role, e);
                     }
                 }
             }
-        }
 
-        if (rules.isEmpty()) {
-            return FlsRule.ALLOW_ALL;
-        } else {
-            return FlsRule.merge(rules);
-        }
-    }
-
-    boolean isFieldVisible(PrivilegesEvaluationContext context, String index, String field) throws PrivilegesEvaluationException {
-        return getFlsRule(context, index).isAllowed(field);
-    }
-
-    boolean hasFlsRestrictions(PrivilegesEvaluationContext context, Collection<String> indices) throws PrivilegesEvaluationException {
-        if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
-            return false;
-        }
-
-        StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
-
-        if (!statefulIndexQueries.indices.containsAll(indices)) {
-            throw new IllegalStateException("Index " + ImmutableSet.of(indices).without(this.statefulIndexQueries.indices) + " is not registered in "
-                    + this.statefulIndexQueries);
-        }
-
-        for (String index : indices) {
-            if (hasFlsRestrictions(context, index, statefulIndexQueries)) {
-                return true;
+            if (rules.isEmpty()) {
+                return FlsRule.ALLOW_ALL;
+            } else {
+                return FlsRule.merge(rules);
             }
+        } catch (PrivilegesEvaluationException e) {
+            componentState.addLastException("evaluate", e);
+            throw e;
+        } catch (RuntimeException e) {
+            componentState.addLastException("evaluate_u", e);
+            throw e;
         }
-
-        return false;
     }
 
-    boolean hasFlsRestrictions(PrivilegesEvaluationContext context, String index) throws PrivilegesEvaluationException {
-        if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+    boolean hasFlsRestrictions(PrivilegesEvaluationContext context, Collection<String> indices, Meter meter) throws PrivilegesEvaluationException {
+        try (Meter subMeter = meter.detail("has_fls_restriction")) {
+            if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                return false;
+            }
+
+            StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
+
+            if (!statefulIndexQueries.indices.containsAll(indices)) {
+                throw new IllegalStateException("Index " + ImmutableSet.of(indices).without(this.statefulIndexQueries.indices)
+                        + " is not registered in " + this.statefulIndexQueries);
+            }
+
+            for (String index : indices) {
+                if (hasFlsRestrictions(context, index, statefulIndexQueries)) {
+                    return true;
+                }
+            }
+
             return false;
+        } catch (PrivilegesEvaluationException e) {
+            componentState.addLastException("has_restriction", e);
+            throw e;
+        } catch (RuntimeException e) {
+            componentState.addLastException("has_restriction_u", e);
+            throw e;
         }
+    }
 
-        StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
+    boolean hasFlsRestrictions(PrivilegesEvaluationContext context, String index, Meter meter) throws PrivilegesEvaluationException {
+        try (Meter subMeter = meter.detail("has_fls_restriction")) {
+            if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                return false;
+            }
 
-        if (!statefulIndexQueries.indices.contains(index)) {
-            throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
+            StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
+
+            if (!statefulIndexQueries.indices.contains(index)) {
+                throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
+            }
+
+            return hasFlsRestrictions(context, index, statefulIndexQueries);
+        } catch (PrivilegesEvaluationException e) {
+            componentState.addLastException("has_restriction", e);
+            throw e;
+        } catch (RuntimeException e) {
+            componentState.addLastException("has_restriction_u", e);
+            throw e;
         }
-
-        return hasFlsRestrictions(context, index, statefulIndexQueries);
     }
 
     private boolean hasFlsRestrictions(PrivilegesEvaluationContext context, String index, StatefulIndexRules statefulIndexQueries)
@@ -370,7 +395,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
             if (rules.size() == 1) {
                 return rules.get(0);
             }
-            
+
             ImmutableList.Builder<SingleRole> entries = new ImmutableList.Builder<>(rules.size());
 
             for (FlsRule rule : rules) {
@@ -385,7 +410,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
 
             return new FlsRule.MultiRole(entries.build());
         }
-        
+
         public static final FlsRule ALLOW_ALL = new FlsRule.SingleRole(ImmutableList.empty());
 
         public abstract boolean isAllowed(String field);
@@ -399,7 +424,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
             final ImmutableList<Role.Index.FlsPattern> patterns;
             final Map<String, Boolean> cache;
             final boolean allowAll;
-            
+
             SingleRole(Role sourceRole, Role.Index sourceIndex) {
                 this.sourceRole = sourceRole;
                 this.sourceIndex = sourceIndex;
@@ -428,9 +453,10 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                     // Mixed
                     this.patterns = sourceIndex.getFls();
                 }
-                
-                this.allowAll =  patterns.isEmpty() || (patterns.size() == 1 && patterns.get(0).getPattern().isWildcard() && !patterns.get(0).isExcluded());
-                
+
+                this.allowAll = patterns.isEmpty()
+                        || (patterns.size() == 1 && patterns.get(0).getPattern().isWildcard() && !patterns.get(0).isExcluded());
+
                 if (this.allowAll) {
                     this.cache = null;
                 } else {
@@ -442,7 +468,8 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                 this.patterns = patterns;
                 this.sourceIndex = null;
                 this.sourceRole = null;
-                this.allowAll =  patterns.isEmpty() || (patterns.size() == 1 && patterns.get(0).getPattern().isWildcard() && !patterns.get(0).isExcluded());
+                this.allowAll = patterns.isEmpty()
+                        || (patterns.size() == 1 && patterns.get(0).getPattern().isWildcard() && !patterns.get(0).isExcluded());
                 this.cache = null;
             }
 
@@ -489,7 +516,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                 } else {
                     return "FLS:" + patterns;
                 }
-            }           
+            }
         }
 
         static class MultiRole extends FlsRule {
@@ -558,6 +585,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
 
         if (!statefulIndexQueries.indices.equals(indices)) {
             this.statefulIndexQueries = new StatefulIndexRules(roles, indices);
+            this.componentState.replacePart(this.statefulIndexQueries.getComponentState());
         }
     }
 

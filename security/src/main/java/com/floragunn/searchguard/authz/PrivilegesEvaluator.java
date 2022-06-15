@@ -195,6 +195,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
                 componentState.setConfigVersion(configMap.getVersionsAsString());
                 componentState.replacePart(actionAuthorization.getComponentState());
+                componentState.replacePart(actionGroups.getComponentState());
                 componentState.updateStateFromParts();
             }
         });

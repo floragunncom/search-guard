@@ -38,6 +38,10 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.configuration.Hideable;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticDefinable;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Count;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
 
 public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefinable {
 
@@ -108,14 +112,18 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
         return source;
     }
     
-    public static class FlattenedIndex {
+    public static class FlattenedIndex implements ComponentStateProvider {
         public static final FlattenedIndex EMPTY = new FlattenedIndex();
         
         private static final Logger log = LogManager.getLogger(FlattenedIndex.class);
 
         private final ImmutableMap<String, Set<String>> resolvedActionGroups;
+        private final ComponentState componentState = new ComponentState("action_group_index");
+        private final Count size = new Count();
+        private final Count initRounds = new Count();
 
-        public FlattenedIndex(SgDynamicConfiguration<ActionGroup> actionGroups) {
+        public FlattenedIndex(SgDynamicConfiguration<ActionGroup> actionGroups) {            
+            boolean tooDeep = false;
 
             Map<String, Set<String>> resolved = new HashMap<>(actionGroups.getCEntries().size());
             Map<String, Set<String>> needsResolution = new HashMap<>(actionGroups.getCEntries().size());
@@ -152,18 +160,31 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
 
                 if (!changed) {
                     settled = true;
+                    initRounds.set(i);
                     if (log.isDebugEnabled()) {
                         log.debug("Action groups settled after " + i + " loops.\nResolved: " + resolved);
                     }
                 }
 
-                if (i > 100) {
+                if (i >= 1000) {
+                    initRounds.set(i);
                     log.error("Found too deeply nested action groups. Aborting resolution.\nResolved so far: " + resolved);
+                    tooDeep = true;
                     break;
                 }
             }
 
             this.resolvedActionGroups = ImmutableMap.of(resolved);
+            this.size.set(this.resolvedActionGroups.size());
+            
+            this.componentState.addMetrics("size", size, "init_rounds", initRounds);
+            
+            if (tooDeep) {
+                this.componentState.setState(State.PARTIALLY_INITIALIZED, "too_deply_nested_action_groups");
+                this.componentState.setMessage("Found too deeply nested action groups. Action groups are not fully initialized.");
+            } else {
+                this.componentState.initialized();   
+            }
         }
 
         /**
@@ -195,6 +216,11 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
             }
             
             return result.build();
+        }
+
+        @Override
+        public ComponentState getComponentState() {
+            return componentState;
         }
     }
 }

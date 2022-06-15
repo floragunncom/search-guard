@@ -25,6 +25,7 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class DlsFlsProcessedConfig {
     private static final Logger log = LogManager.getLogger(DlsFlsProcessedConfig.class);
@@ -63,9 +64,9 @@ public class DlsFlsProcessedConfig {
             if (dlsFlsConfig.getEnabledImpl() == DlsFlsConfig.Impl.FLX) {
                 SgDynamicConfiguration<Role> roleConfig = configMap.get(CType.ROLES);
 
-                documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indices);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indices);
-                fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indices);
+                documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
+                fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
+                fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indices, dlsFlsConfig.getMetricsLevel());
 
                 if (log.isDebugEnabled()) {
                     log.debug("Using FLX DLS/FLS implementation\ndocumentAuthorization: " + documentAuthorization + "\nfieldAuthorization: "
@@ -82,7 +83,6 @@ public class DlsFlsProcessedConfig {
                     log.debug("FLX DLS/FLS implementation is disabled");
                 }
                 
-                componentState.clearParts();
                 componentState.setState(State.DISABLED);
             }
 
@@ -93,7 +93,7 @@ public class DlsFlsProcessedConfig {
             return DEFAULT;
         }
     }
-
+    
     public DlsFlsConfig getDlsFlsConfig() {
         return dlsFlsConfig;
     }
@@ -112,6 +112,10 @@ public class DlsFlsProcessedConfig {
 
     public boolean isEnabled() {
         return enabled;
+    }
+    
+    public MetricsLevel getMetricsLevel() {
+        return dlsFlsConfig.getMetricsLevel();
     }
 
     public void updateIndices(Set<String> indices) {

@@ -75,4 +75,8 @@ public class Count extends Measurement<Count> {
     public void reset() {
         this.count.set(0);
     }
+    
+    public void set(long count) {
+        this.count.set(count);
+    }
 }

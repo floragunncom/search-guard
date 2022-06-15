@@ -28,7 +28,6 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.authz.AuthorizationService;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;

@@ -47,7 +47,6 @@ import org.elasticsearch.common.bytes.BytesReference;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.DocumentParseException;
@@ -1082,6 +1081,11 @@ public class TestSgConfig {
 
         public DlsFls useImpl(String impl) {
             this.useImpl = impl;
+            return this;
+        }
+        
+        public DlsFls metrics(String metrics) {
+            this.metrics = metrics;
             return this;
         }
 

@@ -34,7 +34,6 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.user.UserInformation;
 
 public class NullAuditLog implements AuditLog {

@@ -50,9 +50,13 @@ import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
-public class DlsFlsIndexSearcherWrapper implements CheckedFunction<DirectoryReader, DirectoryReader, IOException> {
-    private static final Logger log = LogManager.getLogger(DlsFlsIndexSearcherWrapper.class);
+public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryReader, DirectoryReader, IOException> {
+    private static final Logger log = LogManager.getLogger(DlsFlsDirectoryReaderWrapper.class);
 
     private final IndexService indexService;
     private final AuditLog auditlog;
@@ -62,10 +66,14 @@ public class DlsFlsIndexSearcherWrapper implements CheckedFunction<DirectoryRead
     private final AuthorizationService authorizationService;
     private final AtomicReference<DlsFlsProcessedConfig> config;
     private final AtomicReference<DlsFlsLicenseInfo> licenseInfo;
+    private final ComponentState componentState;
+    private final TimeAggregation directoryReaderWrapperApplyAggregation;
 
-    public DlsFlsIndexSearcherWrapper(IndexService indexService, AuditLog auditlog, AuthInfoService authInfoService,
-            AuthorizationService authorizationService, AtomicReference<DlsFlsProcessedConfig> config,
-            AtomicReference<DlsFlsLicenseInfo> licenseInfo) {
+    public DlsFlsDirectoryReaderWrapper(IndexService indexService, AuditLog auditlog, AuthInfoService authInfoService,
+            AuthorizationService authorizationService, AtomicReference<DlsFlsProcessedConfig> config, AtomicReference<DlsFlsLicenseInfo> licenseInfo,
+            ComponentState directoryReaderWrapperComponentState, TimeAggregation directoryReaderWrapperApplyAggregation) {
+        this.componentState = directoryReaderWrapperComponentState;
+        this.directoryReaderWrapperApplyAggregation = directoryReaderWrapperApplyAggregation;
         this.indexService = indexService;
         this.index = indexService.index();
         this.auditlog = auditlog;
@@ -78,19 +86,20 @@ public class DlsFlsIndexSearcherWrapper implements CheckedFunction<DirectoryRead
 
     @Override
     public final DirectoryReader apply(DirectoryReader reader) throws IOException {
-        try {
-            DlsFlsProcessedConfig config = this.config.get();
+        DlsFlsProcessedConfig config = this.config.get();
 
-            if (!config.isEnabled()) {
-                return reader;
-            }
+        if (!config.isEnabled()) {
+            return reader;
+        }
 
-            PrivilegesEvaluationContext privilegesEvaluationContext = getPrivilegesEvaluationContext();
+        PrivilegesEvaluationContext privilegesEvaluationContext = getPrivilegesEvaluationContext();
 
-            if (privilegesEvaluationContext == null) {
-                return reader;
-            }
-            
+        if (privilegesEvaluationContext == null) {
+            return reader;
+        }
+
+        try (Meter meter = Meter.detail(config.getMetricsLevel(), directoryReaderWrapperApplyAggregation)) {
+
             DlsFlsLicenseInfo licenseInfo = this.licenseInfo.get();
 
             ShardId shardId = ShardUtils.extractShardId(reader);
@@ -98,19 +107,19 @@ public class DlsFlsIndexSearcherWrapper implements CheckedFunction<DirectoryRead
             RoleBasedDocumentAuthorization documentAuthorization = config.getDocumentAuthorization();
             RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
             RoleBasedFieldMasking fieldMasking = config.getFieldMasking();
-            
+
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
                 Set<String> indices = ImmutableSet.of(index.getName());
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices);
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
             }
 
-            DlsRestriction dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index.getName());
-            FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index.getName());
-            FieldMaskingRule fieldMaskingRule = fieldMasking.getFieldMaskingRule(privilegesEvaluationContext, index.getName());
+            DlsRestriction dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index.getName(), meter);
+            FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index.getName(), meter);
+            FieldMaskingRule fieldMaskingRule = fieldMasking.getFieldMaskingRule(privilegesEvaluationContext, index.getName(), meter);
             Query dlsQuery;
 
             if (dlsRestriction.isUnrestricted()) {
@@ -133,6 +142,7 @@ public class DlsFlsIndexSearcherWrapper implements CheckedFunction<DirectoryRead
             return new DlsFlsDirectoryReader(reader, dlsFlsContext);
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating privileges in " + this, e);
+            componentState.addLastException("wrap_reader", e);
             throw new RuntimeException(e);
         }
     }
@@ -149,11 +159,11 @@ public class DlsFlsIndexSearcherWrapper implements CheckedFunction<DirectoryRead
 
     private PrivilegesEvaluationContext getPrivilegesEvaluationContext() {
         User user = authInfoService.peekCurrentUser();
-        
+
         if (user == null) {
             return null;
         }
-        
+
         SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = authInfoService.getSpecialPrivilegesEvaluationContext();
         ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
 
