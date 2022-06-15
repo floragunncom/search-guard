@@ -34,12 +34,11 @@ import org.elasticsearch.index.shard.ShardUtils;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authc.AuthInfoService;
-import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsBaseContext;
 import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsLicenseInfo;
 import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsProcessedConfig;
 import com.floragunn.searchguard.enterprise.dlsfls.DlsRestriction;
@@ -48,8 +47,6 @@ import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
-import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
@@ -62,15 +59,14 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
     private final AuditLog auditlog;
     private final Index index;
     private final ThreadContext threadContext;
-    private final AuthInfoService authInfoService;
-    private final AuthorizationService authorizationService;
+    private final DlsFlsBaseContext dlsFlsBaseContext;
     private final AtomicReference<DlsFlsProcessedConfig> config;
     private final AtomicReference<DlsFlsLicenseInfo> licenseInfo;
     private final ComponentState componentState;
     private final TimeAggregation directoryReaderWrapperApplyAggregation;
 
-    public DlsFlsDirectoryReaderWrapper(IndexService indexService, AuditLog auditlog, AuthInfoService authInfoService,
-            AuthorizationService authorizationService, AtomicReference<DlsFlsProcessedConfig> config, AtomicReference<DlsFlsLicenseInfo> licenseInfo,
+    public DlsFlsDirectoryReaderWrapper(IndexService indexService, AuditLog auditlog, DlsFlsBaseContext dlsFlsBaseContext,
+            AtomicReference<DlsFlsProcessedConfig> config, AtomicReference<DlsFlsLicenseInfo> licenseInfo,
             ComponentState directoryReaderWrapperComponentState, TimeAggregation directoryReaderWrapperApplyAggregation) {
         this.componentState = directoryReaderWrapperComponentState;
         this.directoryReaderWrapperApplyAggregation = directoryReaderWrapperApplyAggregation;
@@ -80,8 +76,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
         this.threadContext = indexService.getThreadPool().getThreadContext();
         this.config = config;
         this.licenseInfo = licenseInfo;
-        this.authInfoService = authInfoService;
-        this.authorizationService = authorizationService;
+        this.dlsFlsBaseContext = dlsFlsBaseContext;
     }
 
     @Override
@@ -92,7 +87,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             return reader;
         }
 
-        PrivilegesEvaluationContext privilegesEvaluationContext = getPrivilegesEvaluationContext();
+        PrivilegesEvaluationContext privilegesEvaluationContext = this.dlsFlsBaseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {
             return reader;
@@ -117,7 +112,14 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
                 fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
             }
 
-            DlsRestriction dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index.getName(), meter);
+            DlsRestriction dlsRestriction;
+
+            if (!this.dlsFlsBaseContext.isDlsDoneOnFilterLevel()) {
+                dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index.getName(), meter);
+            } else {
+                dlsRestriction = DlsRestriction.NONE;
+            }
+
             FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index.getName(), meter);
             FieldMaskingRule fieldMaskingRule = fieldMasking.getFieldMaskingRule(privilegesEvaluationContext, index.getName(), meter);
             Query dlsQuery;
@@ -136,7 +138,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
                         + "\nfieldMasking: " + fieldMaskingRule);
             }
 
-            DlsFlsContext dlsFlsContext = new DlsFlsContext(dlsQuery, flsRule, fieldMaskingRule, indexService, threadContext, licenseInfo, auditlog,
+            DlsFlsActionContext dlsFlsContext = new DlsFlsActionContext(dlsQuery, flsRule, fieldMaskingRule, indexService, threadContext, licenseInfo, auditlog,
                     shardId);
 
             return new DlsFlsDirectoryReader(reader, dlsFlsContext);
@@ -156,18 +158,4 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             };
         }
     }
-
-    private PrivilegesEvaluationContext getPrivilegesEvaluationContext() {
-        User user = authInfoService.peekCurrentUser();
-
-        if (user == null) {
-            return null;
-        }
-
-        SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = authInfoService.getSpecialPrivilegesEvaluationContext();
-        ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
-
-        return new PrivilegesEvaluationContext(user, mappedRoles, null, null, false, null, specialPrivilegesEvaluationContext);
-    }
-
 }

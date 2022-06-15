@@ -73,6 +73,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
     private final TimeAggregation directoryReaderWrapperApplyAggregation = new TimeAggregation.Nanoseconds();
 
+    private DlsFlsBaseContext dlsFlsBaseContext;
     private DlsFlsValve dlsFlsValve;
     private DlsFlsSearchOperationListener dlsFlsSearchOperationListener;
     private FlsFieldFilter flsFieldFilter;
@@ -92,21 +93,21 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
         this.clusterService = baseDependencies.getClusterService();
 
+        this.dlsFlsBaseContext = new DlsFlsBaseContext(baseDependencies.getAuthInfoService(), baseDependencies.getAuthorizationService(),
+                baseDependencies.getThreadPool().getThreadContext());
+
         this.dlsFlsValve = new DlsFlsValve(baseDependencies.getLocalClient(), baseDependencies.getClusterService(),
                 baseDependencies.getIndexNameExpressionResolver(), baseDependencies.getGuiceDependencies(),
                 baseDependencies.getThreadPool().getThreadContext(), config);
 
-        this.dlsFlsSearchOperationListener = new DlsFlsSearchOperationListener(baseDependencies.getAuthInfoService(),
-                baseDependencies.getAuthorizationService(), config);
+        this.dlsFlsSearchOperationListener = new DlsFlsSearchOperationListener(this.dlsFlsBaseContext, config);
 
-        this.flsFieldFilter = new FlsFieldFilter(baseDependencies.getAuthInfoService(), baseDependencies.getAuthorizationService(), config);
+        this.flsFieldFilter = new FlsFieldFilter(this.dlsFlsBaseContext, config);
 
-        this.flsQueryCacheWeightProvider = new FlsQueryCacheWeightProvider(config, baseDependencies.getAuthInfoService(),
-                baseDependencies.getAuthorizationService());
+        this.flsQueryCacheWeightProvider = new FlsQueryCacheWeightProvider(this.dlsFlsBaseContext, config);
 
         this.directoryReaderWrapperFactory = (indexService) -> new DlsFlsDirectoryReaderWrapper(indexService, baseDependencies.getAuditLog(),
-                baseDependencies.getAuthInfoService(), baseDependencies.getAuthorizationService(), config, this.licenseInfo,
-                directoryReaderWrapperComponentState, directoryReaderWrapperApplyAggregation);
+                this.dlsFlsBaseContext, config, this.licenseInfo, directoryReaderWrapperComponentState, directoryReaderWrapperApplyAggregation);
 
         this.componentState.addParts(this.dlsFlsValve.getComponentState(), this.dlsFlsSearchOperationListener.getComponentState(),
                 this.flsFieldFilter.getComponentState(), this.flsQueryCacheWeightProvider.getComponentState());
