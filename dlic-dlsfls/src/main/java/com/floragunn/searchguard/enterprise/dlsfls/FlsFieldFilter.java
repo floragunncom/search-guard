@@ -34,8 +34,13 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
-public class FlsFieldFilter implements Function<String, Predicate<String>> {
+public class FlsFieldFilter implements Function<String, Predicate<String>>, ComponentStateProvider {
     private static final String KEYWORD = ".keyword";
     private static final Logger log = LogManager.getLogger(FlsFieldFilter.class);
 
@@ -43,11 +48,14 @@ public class FlsFieldFilter implements Function<String, Predicate<String>> {
     private final AuthorizationService authorizationService;
 
     private final AtomicReference<DlsFlsProcessedConfig> config;
+    private final ComponentState componentState = new ComponentState(1, null, "fls_field_filter", FlsFieldFilter.class).initialized();
+    private final TimeAggregation applyAggregation = new TimeAggregation.Nanoseconds();
 
     FlsFieldFilter(AuthInfoService authInfoService, AuthorizationService authorizationService, AtomicReference<DlsFlsProcessedConfig> config) {
         this.authInfoService = authInfoService;
         this.authorizationService = authorizationService;
         this.config = config;
+        this.componentState.addMetrics("filter_fields", applyAggregation);
     }
 
     @Override
@@ -63,36 +71,40 @@ public class FlsFieldFilter implements Function<String, Predicate<String>> {
         if (privilegesEvaluationContext == null) {
             return (field) -> true;
         }
-        
-        RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
 
-        if (fieldAuthorization == null) {
-            throw new IllegalStateException("FLS is not initialized");
-        }
+        try (Meter meter = Meter.detail(config.getMetricsLevel(), applyAggregation)) {
+            RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
 
-        try {
-            
-            if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
-                SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, ImmutableSet.of(index));
+            if (fieldAuthorization == null) {
+                throw new IllegalStateException("FLS is not initialized");
             }
-            
-            FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index);
+
+            if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
+                    && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
+                SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, ImmutableSet.of(index), MetricsLevel.NONE);
+            }
+
+            FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index, meter);
             return (field) -> flsRule.isAllowed(removeSuffix(field));
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating FLS for index " + index, e);
+            componentState.addLastException("filter_fields", e);
             throw new RuntimeException("Error while evaluating FLS for index " + index, e);
+        } catch (RuntimeException e) {
+            log.error("Error while evaluating FLS for index " + index, e);
+            componentState.addLastException("filter_fields", e);
+            throw e;
         }
-
     }
 
     private PrivilegesEvaluationContext getPrivilegesEvaluationContext() {
         User user = authInfoService.peekCurrentUser();
-        
+
         if (user == null) {
             return null;
         }
-        
+
         SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = authInfoService.getSpecialPrivilegesEvaluationContext();
         ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
 
@@ -104,6 +116,11 @@ public class FlsFieldFilter implements Function<String, Predicate<String>> {
             return field.substring(0, field.length() - KEYWORD.length());
         }
         return field;
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 
 }

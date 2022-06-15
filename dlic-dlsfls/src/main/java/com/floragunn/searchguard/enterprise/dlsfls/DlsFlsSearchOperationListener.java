@@ -31,34 +31,44 @@ import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
-public class DlsFlsSearchOperationListener implements SearchOperationListener {
+public class DlsFlsSearchOperationListener implements SearchOperationListener, ComponentStateProvider {
 
     private final AuthInfoService authInfoService;
     private final AuthorizationService authorizationService;
     private final AtomicReference<DlsFlsProcessedConfig> config;
+    private final ComponentState componentState = new ComponentState(1, null, "search_operation_listener", DlsFlsSearchOperationListener.class)
+            .initialized();
+    private final TimeAggregation onPreQueryPhaseAggregation = new TimeAggregation.Nanoseconds();
 
     DlsFlsSearchOperationListener(AuthInfoService authInfoService, AuthorizationService authorizationService,
             AtomicReference<DlsFlsProcessedConfig> config) {
         this.authInfoService = authInfoService;
         this.authorizationService = authorizationService;
         this.config = config;
+        this.componentState.addMetrics("filter_pre_query_phase", onPreQueryPhaseAggregation);
     }
 
     @Override
     public void onPreQueryPhase(SearchContext context) {
-        try {
-            DlsFlsProcessedConfig config = this.config.get();
+        DlsFlsProcessedConfig config = this.config.get();
 
-            if (!config.isEnabled()) {
-                return;
-            }
+        if (!config.isEnabled()) {
+            return;
+        }
 
-            PrivilegesEvaluationContext privilegesEvaluationContext = getPrivilegesEvaluationContext();
+        PrivilegesEvaluationContext privilegesEvaluationContext = getPrivilegesEvaluationContext();
 
-            if (privilegesEvaluationContext == null) {
-                return;
-            }
+        if (privilegesEvaluationContext == null) {
+            return;
+        }
+
+        try (Meter meter = Meter.detail(config.getMetricsLevel(), onPreQueryPhaseAggregation)) {
 
             RoleBasedDocumentAuthorization documentAuthorization = config.getDocumentAuthorization();
 
@@ -71,10 +81,10 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener {
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, ImmutableSet.of(index));
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, ImmutableSet.of(index), MetricsLevel.NONE);
             }
 
-            DlsRestriction dlsRestriction = documentAuthorization.getDlsRestriction(getPrivilegesEvaluationContext(), index);
+            DlsRestriction dlsRestriction = documentAuthorization.getDlsRestriction(getPrivilegesEvaluationContext(), index, meter);
 
             if (!dlsRestriction.isUnrestricted()) {
                 BooleanQuery.Builder queryBuilder = dlsRestriction.toQueryBuilder(context.getQueryShardContext(), (q) -> new ConstantScoreQuery(q));
@@ -87,6 +97,7 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener {
                 context.preProcess(true);
             }
         } catch (Exception e) {
+            this.componentState.addLastException("filter_pre_query_phase", e);
             throw new RuntimeException("Error evaluating dls for a search query: " + e, e);
         }
     }
@@ -102,5 +113,10 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener {
         ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
 
         return new PrivilegesEvaluationContext(user, mappedRoles, null, null, false, null, specialPrivilegesEvaluationContext);
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }

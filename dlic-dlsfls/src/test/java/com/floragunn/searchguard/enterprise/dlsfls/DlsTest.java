@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 
 import java.util.Collection;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -56,7 +57,7 @@ public class DlsTest {
             .roles(new Role("dept_d").indexPermissions("SGS_READ").dls(DocNode.of("term.dept.value", "dept_d")).on(INDEX).clusterPermissions("*"));
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
-    static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx");
+    static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx").metrics("detailed");
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
@@ -179,6 +180,13 @@ public class DlsTest {
             GenericRestClient.HttpResponse response = client.get(allowedDocUrl);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertEquals(response.getBody(), true, response.getBodyAsDocNode().get("found"));
+        }
+    }
+    
+    @AfterClass
+    public static void cs() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+           System.out.println(client.get("/_searchguard/component/dlsfls/_health?pretty=true").getBody());
         }
     }
 

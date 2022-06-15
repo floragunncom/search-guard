@@ -50,11 +50,12 @@ import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
-import com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsIndexSearcherWrapper;
+import com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsDirectoryReaderWrapper;
 import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
 public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(DlsFlsModule.class);
@@ -64,6 +65,13 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private static final CType<DlsFlsConfig> TYPE = DlsFlsConfig.TYPE;
 
     private final ComponentState componentState = new ComponentState(1000, null, "dlsfls", DlsFlsModule.class).requiresEnterpriseLicense();
+    /**
+     * DlsFlsDirectoryReaderWrapper is instantiated per index. We however do not want a ComponentState instance per index. Thus, we create it on this level.
+     */
+    private final ComponentState directoryReaderWrapperComponentState = new ComponentState(10, null, "directory_reader_wrapper",
+            DlsFlsDirectoryReaderWrapper.class);
+
+    private final TimeAggregation directoryReaderWrapperApplyAggregation = new TimeAggregation.Nanoseconds();
 
     private DlsFlsValve dlsFlsValve;
     private DlsFlsSearchOperationListener dlsFlsSearchOperationListener;
@@ -72,10 +80,16 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private AtomicReference<DlsFlsLicenseInfo> licenseInfo = new AtomicReference<>(new DlsFlsLicenseInfo(false));
     private FlsQueryCacheWeightProvider flsQueryCacheWeightProvider;
     private ClusterService clusterService;
-    private Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>> directoryReaderWrapper;
+    private Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>> directoryReaderWrapperFactory;
+
+    public DlsFlsModule() {
+        this.componentState.addPart(directoryReaderWrapperComponentState);
+        this.directoryReaderWrapperComponentState.addMetrics("wrap_reader", directoryReaderWrapperApplyAggregation);
+    }
 
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
+
         this.clusterService = baseDependencies.getClusterService();
 
         this.dlsFlsValve = new DlsFlsValve(baseDependencies.getLocalClient(), baseDependencies.getClusterService(),
@@ -90,8 +104,12 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
         this.flsQueryCacheWeightProvider = new FlsQueryCacheWeightProvider(config, baseDependencies.getAuthInfoService(),
                 baseDependencies.getAuthorizationService());
 
-        this.directoryReaderWrapper = (indexService) -> new DlsFlsIndexSearcherWrapper(indexService, baseDependencies.getAuditLog(),
-                baseDependencies.getAuthInfoService(), baseDependencies.getAuthorizationService(), config, this.licenseInfo);
+        this.directoryReaderWrapperFactory = (indexService) -> new DlsFlsDirectoryReaderWrapper(indexService, baseDependencies.getAuditLog(),
+                baseDependencies.getAuthInfoService(), baseDependencies.getAuthorizationService(), config, this.licenseInfo,
+                directoryReaderWrapperComponentState, directoryReaderWrapperApplyAggregation);
+
+        this.componentState.addParts(this.dlsFlsValve.getComponentState(), this.dlsFlsSearchOperationListener.getComponentState(),
+                this.flsFieldFilter.getComponentState(), this.flsQueryCacheWeightProvider.getComponentState());
 
         baseDependencies.getConfigurationRepository().subscribeOnChange((ConfigMap configMap) -> {
             DlsFlsProcessedConfig config = DlsFlsProcessedConfig.createFrom(configMap, componentState,
@@ -124,7 +142,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
     @Override
     public ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> getDirectoryReaderWrappersForNormalOperations() {
-        return ImmutableList.of(directoryReaderWrapper);
+        return ImmutableList.of(directoryReaderWrapperFactory);
     }
 
     @Override

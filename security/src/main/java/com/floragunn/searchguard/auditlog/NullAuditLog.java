@@ -34,7 +34,6 @@ import org.opensearch.rest.RestRequest;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportRequest;
 
-import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.user.UserInformation;
 
 public class NullAuditLog implements AuditLog {

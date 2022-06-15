@@ -34,9 +34,9 @@ public abstract class Measurement<M> implements Document<Measurement<M>> {
     public static Measurement<?> parse(DocNode docNode) {
         if (!docNode.isMap() || docNode.isEmpty()) {
             log.error("Error while parsing measurement\n" + docNode, docNode);
-            return new UnknownMeasurement("_", docNode);            
+            return new UnknownMeasurement("_", docNode);
         }
-        
+
         String type = docNode.keySet().iterator().next();
         DocNode typeNode = docNode.getAsNode(type);
         try {
@@ -44,6 +44,8 @@ public abstract class Measurement<M> implements Document<Measurement<M>> {
             case "agg":
                 if (typeNode.hasNonNull("agg_ms")) {
                     return new TimeAggregation.Milliseconds(typeNode);
+                } else if (typeNode.hasNonNull("agg_ns")) {
+                    return new TimeAggregation.Nanoseconds(typeNode);
                 } else {
                     return new CountAggregation(typeNode);
                 }
