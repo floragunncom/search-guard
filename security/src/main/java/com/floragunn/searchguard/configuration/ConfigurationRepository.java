@@ -157,7 +157,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Context parserContext;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
-            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig, NamedXContentRegistry xContentRegistry) {
+            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
+            NamedXContentRegistry xContentRegistry) {
         this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
         this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
@@ -644,7 +645,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         try {
 
             if (configType.getArity() == CType.Arity.SINGLE) {
-                return applyPatch(configType, "default", patch, matchETag);
+                return applyPatch(configType, "default", patch, matchETag, PatchDefaultHandling.TREAT_MISSING_DOCUMENT_AS_EMPTY_DOCUMENT);
             }
 
             SgDynamicConfiguration<T> configInstance = getConfigurationFromIndex(configType, "Update of entry");
@@ -699,7 +700,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
     }
 
-    public <T> StandardResponse applyPatch(CType<T> configType, String id, DocPatch patch, String matchETag)
+    public <T> StandardResponse applyPatch(CType<T> configType, String id, DocPatch patch, String matchETag,
+            PatchDefaultHandling patchDefaultHandling)
             throws ConfigUpdateException, ConcurrentConfigUpdateException, NoSuchConfigEntryException, ConfigValidationException {
         try {
             SgDynamicConfiguration<T> configInstance = getConfigurationFromIndex(configType, "Update of entry " + id);
@@ -709,17 +711,21 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         + "; ETag: " + configInstance.getETag());
             }
 
-            @SuppressWarnings("unchecked")
-            Document<T> document = (Document<T>) configInstance.getCEntry(id);
+            T document = configInstance.getCEntry(id);
 
             if (document == null) {
-                throw new NoSuchConfigEntryException(configType, id);
+                if (patchDefaultHandling == PatchDefaultHandling.TREAT_MISSING_DOCUMENT_AS_EMPTY_DOCUMENT) {
+                    document = configType.createDefaultInstance(parserContext);
+                } else {
+                    throw new NoSuchConfigEntryException(configType, id);
+                }
             }
 
             if (!(document instanceof PatchableDocument)) {
                 throw new ConfigUpdateException("The config type " + configType + " cannot be patched");
             }
 
+            @SuppressWarnings("unchecked")
             PatchableDocument<T> entry = (PatchableDocument<T>) document;
 
             configInstance.putCEntry(id, entry.patch(patch, parserContext));
@@ -1118,5 +1124,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
         String configuredSearchguardIndexOld = staticSettings.get(NEW_INDEX_NAME);
         String configuredSearchguardIndexNew = staticSettings.get(OLD_INDEX_NAME);
         return ImmutableSet.of(configuredSearchguardIndexOld, configuredSearchguardIndexNew);
+    }
+
+    public static enum PatchDefaultHandling {
+        FAIL_ON_MISSING_DOCUMENT, TREAT_MISSING_DOCUMENT_AS_EMPTY_DOCUMENT
     }
 }

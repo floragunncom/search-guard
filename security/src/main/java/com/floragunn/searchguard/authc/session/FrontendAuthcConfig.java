@@ -26,7 +26,9 @@ import java.util.stream.Collectors;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Parser.Context;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
+import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -39,7 +41,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
-public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destroyable {
+public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfig>, Destroyable {
 
     public static final FrontendAuthenticationDomain DEFAULT_BASIC_AUTHC = new FrontendAuthenticationDomain("basic", "Login",
             "If you have forgotten your username or password, please ask your system administrator");
@@ -70,7 +72,7 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
         } catch (UnexpectedDocumentStructureException e) {
             return new ValidationResult<FrontendAuthcConfig>(e.getValidationErrors());
         }
-        
+
         MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
 
         FrontendAuthcConfig result = new FrontendAuthcConfig();
@@ -134,7 +136,8 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
                     result.message = DEFAULT_BASIC_AUTHC.getMessage();
                 }
             } else if (context != null && result.enabled) {
-                result.authenticationDomain = StandardAuthenticationDomain.parse(vNode, validationErrors, ApiAuthenticationFrontend.class, context, metricsLevel);
+                result.authenticationDomain = StandardAuthenticationDomain.parse(vNode, validationErrors, ApiAuthenticationFrontend.class, context,
+                        metricsLevel);
             }
 
             validationErrors.throwExceptionForPresentErrors();
@@ -282,6 +285,11 @@ public class FrontendAuthcConfig implements Document<FrontendAuthcConfig>, Destr
 
             return result;
         }
+    }
+
+    @Override
+    public FrontendAuthcConfig parseI(DocNode docNode, Context context) throws ConfigValidationException {
+        return parse(docNode, (ConfigurationRepository.Context) context).get();
     }
 
     @Override

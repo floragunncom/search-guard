@@ -15,16 +15,18 @@
 package com.floragunn.searchguard.enterprise.femt;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.documents.Parser.Context;
+import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.google.common.collect.ImmutableMap;
 
-public class FeMultiTenancyConfig implements Document<FeMultiTenancyConfig> {
+public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyConfig> {
 
     public static CType<FeMultiTenancyConfig> TYPE = new CType<FeMultiTenancyConfig>("frontend_multi_tenancy", "Frontend Multi-Tenancy", 10001,
             FeMultiTenancyConfig.class, FeMultiTenancyConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
@@ -93,4 +95,8 @@ public class FeMultiTenancyConfig implements Document<FeMultiTenancyConfig> {
         return "FeMultiTenancyConfig [source=" + source + ", enabled=" + enabled + ", index=" + index + ", serverUsername=" + serverUsername + "]";
     }
 
+    @Override
+    public FeMultiTenancyConfig parseI(DocNode docNode, Context context) throws ConfigValidationException {
+        return parse(docNode, (ConfigurationRepository.Context) context).get();
+    }
 }
