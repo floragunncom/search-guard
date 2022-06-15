@@ -148,9 +148,8 @@ public class InternalUsersConfigApi {
                 return supplyAsync(() -> {
                     try {
                         InternalUser internalUser = InternalUser.parse(request.getValue().toDocNode(), configRepository.getParserContext()).get();
-                        
-                        return this.configRepository.addOrUpdate(CType.INTERNALUSERS, request.getId(), internalUser,
-                                request.getIfMatch());
+
+                        return this.configRepository.addOrUpdate(CType.INTERNALUSERS, request.getId(), internalUser, request.getIfMatch());
                     } catch (ConfigValidationException e) {
                         return new StandardResponse(400).error(e);
                     } catch (ConcurrentConfigUpdateException e) {
@@ -263,8 +262,8 @@ public class InternalUsersConfigApi {
             protected CompletableFuture<StandardResponse> doExecute(PatchAction.Request request) {
                 return supplyAsync(() -> {
                     try {
-                        return this.configRepository.applyPatch(CType.INTERNALUSERS, request.getId(), request.getPatch(),
-                                request.getIfMatch());
+                        return this.configRepository.applyPatch(CType.INTERNALUSERS, request.getId(), request.getPatch(), request.getIfMatch(),
+                                ConfigurationRepository.PatchDefaultHandling.FAIL_ON_MISSING_DOCUMENT);
                     } catch (ConfigValidationException e) {
                         return new StandardResponse(400).error(null, e.getMessage(), e.getValidationErrors());
                     } catch (ConcurrentConfigUpdateException e) {

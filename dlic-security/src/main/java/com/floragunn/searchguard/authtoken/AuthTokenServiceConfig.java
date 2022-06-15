@@ -26,6 +26,8 @@ import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.documents.Parser.Context;
+import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidatingFunction;
@@ -36,11 +38,12 @@ import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPermissions;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
 import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 
-public class AuthTokenServiceConfig {
-    public static CType<AuthTokenServiceConfig> TYPE = new CType<AuthTokenServiceConfig>("auth_token_service", "Auth Token Service", 10021, AuthTokenServiceConfig.class,
-            AuthTokenServiceConfig::parse, CType.Storage.OPTIONAL);
-    
+public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServiceConfig> {
+    public static CType<AuthTokenServiceConfig> TYPE = new CType<AuthTokenServiceConfig>("auth_token_service", "Auth Token Service", 10021,
+            AuthTokenServiceConfig.class, AuthTokenServiceConfig::parse, CType.Storage.OPTIONAL);
+
     public static final String DEFAULT_AUDIENCE = "searchguard_tokenauth";
 
     private boolean enabled;
@@ -52,6 +55,7 @@ public class AuthTokenServiceConfig {
     private List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions;
     private int maxTokensPerUser = 100;
     private FreezePrivileges freezePrivileges = FreezePrivileges.USER_CHOOSES;
+    private DocNode source;
 
     public boolean isEnabled() {
         return enabled;
@@ -114,6 +118,8 @@ public class AuthTokenServiceConfig {
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors, context);
 
         AuthTokenServiceConfig result = new AuthTokenServiceConfig();
+        result.source = jsonNode;
+
         result.enabled = vJsonNode.get("enabled").withDefault(false).asBoolean();
 
         if (result.enabled) {
@@ -134,7 +140,8 @@ public class AuthTokenServiceConfig {
             result.jwtAud = vJsonNode.get("jwt_aud_claim").withDefault(DEFAULT_AUDIENCE).asString();
             result.maxValidity = vJsonNode.get("max_validity").asTemporalAmount();
 
-            result.excludeClusterPermissions = vJsonNode.get("exclude_cluster_permissions").asList().withDefault(CreateAuthTokenAction.NAME).ofStrings();
+            result.excludeClusterPermissions = vJsonNode.get("exclude_cluster_permissions").asList().withDefault(CreateAuthTokenAction.NAME)
+                    .ofStrings();
             result.excludeIndexPermissions = vJsonNode.get("exclude_index_permissions").asList(ExcludedIndexPermissions::parse);
 
             result.maxTokensPerUser = vJsonNode.get("max_tokens_per_user").withDefault(100).asInt();
@@ -272,6 +279,16 @@ public class AuthTokenServiceConfig {
 
     public void setFreezePrivileges(FreezePrivileges freezePrivileges) {
         this.freezePrivileges = freezePrivileges;
+    }
+
+    @Override
+    public Object toBasicObject() {
+        return source;
+    }
+
+    @Override
+    public AuthTokenServiceConfig parseI(DocNode docNode, Context context) throws ConfigValidationException {
+        return parse(docNode, (ConfigurationRepository.Context) context).get();
     }
 
 }

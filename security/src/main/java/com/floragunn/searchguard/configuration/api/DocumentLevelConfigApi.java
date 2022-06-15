@@ -212,7 +212,8 @@ public abstract class DocumentLevelConfigApi {
             protected CompletableFuture<StandardResponse> doExecute(PatchAction.Request request) {
                 return supplyAsync(() -> {
                     try {
-                        return this.configRepository.applyPatch(configType, request.getId(), request.getPatch(), request.getIfMatch());
+                        return this.configRepository.applyPatch(configType, request.getId(), request.getPatch(), request.getIfMatch(),
+                                ConfigurationRepository.PatchDefaultHandling.FAIL_ON_MISSING_DOCUMENT);
                     } catch (ConfigValidationException e) {
                         return new StandardResponse(400).error(null, e.getMessage(), e.getValidationErrors());
                     } catch (ConcurrentConfigUpdateException e) {

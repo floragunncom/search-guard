@@ -19,17 +19,20 @@ import java.util.Arrays;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.documents.Parser.Context;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
+import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.io.BaseEncoding;
 
-public class DlsFlsConfig implements Document<DlsFlsConfig> {
+public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
     public static CType<DlsFlsConfig> TYPE = new CType<DlsFlsConfig>("authz_dlsfls", "Document Level Security and Field Level Security", 10011,
             DlsFlsConfig.class, DlsFlsConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
@@ -84,6 +87,11 @@ public class DlsFlsConfig implements Document<DlsFlsConfig> {
     @Override
     public Object toBasicObject() {
         return source;
+    }
+
+    @Override
+    public DlsFlsConfig parseI(DocNode docNode, Context context) throws ConfigValidationException {
+        return parse(docNode, (ConfigurationRepository.Context) context).get();
     }
 
     public boolean isDebugEnabled() {
@@ -183,5 +191,6 @@ public class DlsFlsConfig implements Document<DlsFlsConfig> {
     public Mode getDlsMode() {
         return dlsMode;
     }
+
 
 }
