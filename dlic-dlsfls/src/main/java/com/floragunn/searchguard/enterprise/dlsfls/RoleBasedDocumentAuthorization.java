@@ -40,6 +40,9 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.floragunn.searchsupport.queries.Query;
 
 public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
@@ -49,78 +52,142 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
     private final StaticIndexQueries staticIndexQueries;
     private volatile StatefulIndexQueries statefulIndexQueries;
     private final ComponentState componentState = new ComponentState("role_based_document_authorization");
+    private final MetricsLevel metricsLevel;
+    private final TimeAggregation statefulIndexRebuild = new TimeAggregation.Milliseconds();
 
-    public RoleBasedDocumentAuthorization(SgDynamicConfiguration<Role> roles, Set<String> indices) {
+    public RoleBasedDocumentAuthorization(SgDynamicConfiguration<Role> roles, Set<String> indices, MetricsLevel metricsLevel) {
         this.roles = roles;
+        this.metricsLevel = metricsLevel;
         this.staticIndexQueries = new StaticIndexQueries(roles);
-        this.statefulIndexQueries = new StatefulIndexQueries(roles, indices);
+        try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
+            this.statefulIndexQueries = new StatefulIndexQueries(roles, indices);
+        }
         this.componentState.addPart(this.staticIndexQueries.getComponentState());
         this.componentState.addPart(this.statefulIndexQueries.getComponentState());
         this.componentState.setConfigVersion(roles.getDocVersion());
         this.componentState.updateStateFromParts();
+
+        if (metricsLevel.basicEnabled()) {
+            this.componentState.addMetrics("statful_index_rebuilds", statefulIndexRebuild);
+        }
     }
 
-    boolean hasDlsRestrictions(PrivilegesEvaluationContext context, Collection<String> indices) throws PrivilegesEvaluationException {
-        if (this.staticIndexQueries.rolesWithIndexWildcardWithoutQuery.containsAny(context.getMappedRoles())) {
-            return false;
-        }
-
-        StatefulIndexQueries statefulIndexQueries = this.statefulIndexQueries;
-
-        if (!statefulIndexQueries.indices.containsAll(indices)) {
-            throw new IllegalStateException("Index " + ImmutableSet.of(indices).without(this.statefulIndexQueries.indices) + " is not registered in "
-                    + this.statefulIndexQueries);
-        }
-
-        for (String index : indices) {
-            ImmutableSet<String> roleWithoutQuery = statefulIndexQueries.indexToRoleWithoutQuery.get(index);
-
-            if (roleWithoutQuery != null && roleWithoutQuery.containsAny(context.getMappedRoles())) {
-                continue;
+    boolean hasDlsRestrictions(PrivilegesEvaluationContext context, Collection<String> indices, Meter meter) throws PrivilegesEvaluationException {
+        try (Meter subMeter = meter.detail("has_dls_restriction")) {
+            if (this.staticIndexQueries.rolesWithIndexWildcardWithoutQuery.containsAny(context.getMappedRoles())) {
+                return false;
             }
 
-            ImmutableMap<String, DlsQuery> roleToQuery = this.statefulIndexQueries.indexToRoleToQuery.get(index);
+            StatefulIndexQueries statefulIndexQueries = this.statefulIndexQueries;
 
-            for (String role : context.getMappedRoles()) {
-                {
-                    DlsQuery query = this.staticIndexQueries.roleWithIndexWildcardToQuery.get(role);
+            if (!statefulIndexQueries.indices.containsAll(indices)) {
+                throw new IllegalStateException("Index " + ImmutableSet.of(indices).without(this.statefulIndexQueries.indices)
+                        + " is not registered in " + this.statefulIndexQueries);
+            }
 
-                    if (query != null) {
-                        return true;
-                    }
+            for (String index : indices) {
+                ImmutableSet<String> roleWithoutQuery = statefulIndexQueries.indexToRoleWithoutQuery.get(index);
+
+                if (roleWithoutQuery != null && roleWithoutQuery.containsAny(context.getMappedRoles())) {
+                    continue;
                 }
 
-                if (roleToQuery != null) {
-                    DlsQuery query = roleToQuery.get(role);
+                ImmutableMap<String, DlsQuery> roleToQuery = this.statefulIndexQueries.indexToRoleToQuery.get(index);
 
-                    if (query != null) {
-                        return true;
+                for (String role : context.getMappedRoles()) {
+                    {
+                        DlsQuery query = this.staticIndexQueries.roleWithIndexWildcardToQuery.get(role);
+
+                        if (query != null) {
+                            return true;
+                        }
                     }
-                }
 
-                ImmutableMap<Template<Pattern>, DlsQuery> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToQuery
-                        .get(role);
+                    if (roleToQuery != null) {
+                        DlsQuery query = roleToQuery.get(role);
 
-                if (indexPatternTemplateToQuery != null) {
-                    for (Map.Entry<Template<Pattern>, DlsQuery> entry : indexPatternTemplateToQuery.entrySet()) {
-                        try {
-                            Pattern pattern = context.getRenderedPattern(entry.getKey());
+                        if (query != null) {
+                            return true;
+                        }
+                    }
 
-                            if (pattern.matches(index)) {
-                                return true;
+                    ImmutableMap<Template<Pattern>, DlsQuery> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToQuery
+                            .get(role);
+
+                    if (indexPatternTemplateToQuery != null) {
+                        for (Map.Entry<Template<Pattern>, DlsQuery> entry : indexPatternTemplateToQuery.entrySet()) {
+                            try {
+                                Pattern pattern = context.getRenderedPattern(entry.getKey());
+
+                                if (pattern.matches(index)) {
+                                    return true;
+                                }
+                            } catch (ExpressionEvaluationException e) {
+                                throw new PrivilegesEvaluationException("Error while rendering index pattern of role " + role, e);
                             }
-                        } catch (ExpressionEvaluationException e) {
-                            throw new PrivilegesEvaluationException("Error while rendering index pattern of role " + role, e);
                         }
                     }
                 }
             }
-        }
 
-        return false;
+            return false;
+        } catch (PrivilegesEvaluationException e) {
+            componentState.addLastException("has_dls_restriction", e);
+            throw e;
+        } catch (RuntimeException e) {
+            componentState.addLastException("has_dls_restriction_u", e);
+            throw e;
+        }
     }
 
-    public DlsRestriction getDlsRestriction(PrivilegesEvaluationContext context, String index) throws PrivilegesEvaluationException {
+    public DlsRestriction getDlsRestriction(PrivilegesEvaluationContext context, String index, Meter meter) throws PrivilegesEvaluationException {
+        try (Meter subMeter = meter.detail("evaluate_dls")) {
+            return getDlsRestrictionInternal(context, index);
+        } catch (PrivilegesEvaluationException e) {
+            componentState.addLastException("get_dls_restriction", e);
+            throw e;
+        } catch (RuntimeException e) {
+            componentState.addLastException("get_dls_restriction_u", e);
+            throw e;
+        }
+    }
+
+    public DlsRestriction.IndexMap getDlsRestriction(PrivilegesEvaluationContext context, Collection<String> indices, Meter meter)
+            throws PrivilegesEvaluationException {
+        try (Meter subMeter = meter.detail("evaluate_dls")) {
+            if (this.staticIndexQueries.rolesWithIndexWildcardWithoutQuery.containsAny(context.getMappedRoles())) {
+                return DlsRestriction.IndexMap.NONE;
+            }
+
+            ImmutableMap.Builder<String, DlsRestriction> result = new ImmutableMap.Builder<>(indices.size());
+
+            int restrictedIndices = 0;
+
+            for (String index : indices) {
+                DlsRestriction restriction = getDlsRestrictionInternal(context, index);
+
+                if (!restriction.isUnrestricted()) {
+                    restrictedIndices++;
+                }
+
+                result.put(index, restriction);
+            }
+
+            if (restrictedIndices == 0) {
+                return DlsRestriction.IndexMap.NONE;
+            }
+
+            return new DlsRestriction.IndexMap(result.build());
+        } catch (PrivilegesEvaluationException e) {
+            componentState.addLastException("get_dls_restriction", e);
+            throw e;
+        } catch (RuntimeException e) {
+            componentState.addLastException("get_dls_restriction_u", e);
+            throw e;
+        }
+    }
+
+    private DlsRestriction getDlsRestrictionInternal(PrivilegesEvaluationContext context, String index) throws PrivilegesEvaluationException {
         if (this.staticIndexQueries.rolesWithIndexWildcardWithoutQuery.containsAny(context.getMappedRoles())) {
             return DlsRestriction.NONE;
         }
@@ -191,33 +258,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
         }
 
         return new DlsRestriction(ImmutableList.of(renderedQueries));
-    }
 
-    public DlsRestriction.IndexMap getDlsRestriction(PrivilegesEvaluationContext context, Collection<String> indices)
-            throws PrivilegesEvaluationException {
-        if (this.staticIndexQueries.rolesWithIndexWildcardWithoutQuery.containsAny(context.getMappedRoles())) {
-            return DlsRestriction.IndexMap.NONE;
-        }
-
-        ImmutableMap.Builder<String, DlsRestriction> result = new ImmutableMap.Builder<>(indices.size());
-
-        int restrictedIndices = 0;
-
-        for (String index : indices) {
-            DlsRestriction restriction = getDlsRestriction(context, index);
-
-            if (!restriction.isUnrestricted()) {
-                restrictedIndices++;
-            }
-
-            result.put(index, restriction);
-        }
-
-        if (restrictedIndices == 0) {
-            return DlsRestriction.IndexMap.NONE;
-        }
-
-        return new DlsRestriction.IndexMap(result.build());
     }
 
     static class StaticIndexQueries implements ComponentStateProvider {
@@ -416,7 +457,10 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
         StatefulIndexQueries statefulIndexQueries = this.statefulIndexQueries;
 
         if (!statefulIndexQueries.indices.equals(indices)) {
-            this.statefulIndexQueries = new StatefulIndexQueries(roles, indices);
+            try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
+                this.statefulIndexQueries = new StatefulIndexQueries(roles, indices);
+                this.componentState.replacePart(this.statefulIndexQueries.getComponentState());
+            }
         }
     }
 

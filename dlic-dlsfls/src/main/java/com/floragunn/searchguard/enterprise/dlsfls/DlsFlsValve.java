@@ -30,7 +30,6 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.LogManager;
@@ -61,6 +60,9 @@ import com.floragunn.searchguard.enterprise.dlsfls.filter.DlsFilterLevelActionHa
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
 public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvider {
     private static final String MAP_EXECUTION_HINT = "map";
@@ -73,6 +75,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
     private final IndexNameExpressionResolver resolver;
     private final AtomicReference<DlsFlsProcessedConfig> config;
     private final ComponentState componentState = new ComponentState(0, null, "dls_fls_valve", DlsFlsValve.class).initialized();
+    private final TimeAggregation applyTimeAggregation = new TimeAggregation.Nanoseconds();
 
     public DlsFlsValve(Client nodeClient, ClusterService clusterService, IndexNameExpressionResolver resolver, GuiceDependencies guiceDependencies,
             ThreadContext threadContext, AtomicReference<DlsFlsProcessedConfig> config) {
@@ -82,21 +85,22 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
         this.guiceDependencies = guiceDependencies;
         this.threadContext = threadContext;
         this.config = config;
+        this.componentState.addMetrics("filter_request", applyTimeAggregation);
     }
 
     @Override
     public SyncAuthorizationFilter.Result apply(PrivilegesEvaluationContext context, ActionListener<?> listener) {
-        try {
-            if (threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE) != null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("DLS is already done for: " + threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE));
-                }
-
-                return SyncAuthorizationFilter.Result.OK;
+        if (threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE) != null) {
+            if (log.isDebugEnabled()) {
+                log.debug("DLS is already done for: " + threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE));
             }
 
-            DlsFlsProcessedConfig config = this.config.get();
+            return SyncAuthorizationFilter.Result.OK;
+        }
 
+        DlsFlsProcessedConfig config = this.config.get();
+
+        try (Meter meter = Meter.detail(config.getMetricsLevel(), applyTimeAggregation)) {
             RoleBasedDocumentAuthorization documentAuthorization = config.getDocumentAuthorization();
             RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
             RoleBasedFieldMasking fieldMasking = config.getFieldMasking();
@@ -111,19 +115,18 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                         + context.getRequestInfo().getResolvedIndices() + "\nmode: " + mode);
             }
 
-            if (context.getSpecialPrivilegesEvaluationContext() != null && context.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
-                SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                Set<String> indices = clusterService.state().metadata().indices().keySet();
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices);
-            }
-
             ImmutableSet<String> indices = context.getRequestInfo().getResolvedIndices().getLocalIndices();
 
-            boolean hasDlsRestrictions = documentAuthorization.hasDlsRestrictions(context, indices);
-            boolean hasFlsRestrictions = fieldAuthorization.hasFlsRestrictions(context, indices);
-            boolean hasFieldMasking = fieldMasking.hasFieldMaskingRestrictions(context, indices);
+            if (context.getSpecialPrivilegesEvaluationContext() != null && context.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
+                SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+            }
+
+            boolean hasDlsRestrictions = documentAuthorization.hasDlsRestrictions(context, indices, meter);
+            boolean hasFlsRestrictions = fieldAuthorization.hasFlsRestrictions(context, indices, meter);
+            boolean hasFieldMasking = fieldMasking.hasFieldMaskingRestrictions(context, indices, meter);
 
             if (!hasDlsRestrictions && !hasFlsRestrictions && !hasFieldMasking) {
                 return SyncAuthorizationFilter.Result.OK;
@@ -135,7 +138,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
 
             if (mode == Mode.FILTER_LEVEL) {
                 doFilterLevelDls = true;
-                restrictionMap = documentAuthorization.getDlsRestriction(context, indices);
+                restrictionMap = documentAuthorization.getDlsRestriction(context, indices, meter);
             } else if (mode == Mode.LUCENE_LEVEL) {
                 doFilterLevelDls = false;
             } else { // mode == Mode.ADAPTIVE
@@ -145,7 +148,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                     doFilterLevelDls = true;
                     log.debug("Doing filter-level DLS due to header");
                 } else {
-                    restrictionMap = documentAuthorization.getDlsRestriction(context, indices);
+                    restrictionMap = documentAuthorization.getDlsRestriction(context, indices, meter);
                     doFilterLevelDls = restrictionMap.containsTermLookupQuery();
 
                     if (doFilterLevelDls) {
@@ -217,7 +220,12 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
             }
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating DLS/FLS privileges", e);
+            componentState.addLastException("filter_request", e);
             return SyncAuthorizationFilter.Result.DENIED.reason(e.getMessage()).cause(e);
+        } catch (RuntimeException e) {
+            log.error("Error while evaluating DLS/FLS privileges", e);
+            componentState.addLastException("filter_request_u", e);
+            throw e;
         }
     }
 

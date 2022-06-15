@@ -43,8 +43,10 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.primitives.Bytes;
 
 public class RoleBasedFieldMasking implements ComponentStateProvider {
@@ -56,110 +58,139 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
     private final ComponentState componentState = new ComponentState("role_based_field_masking");
     private final DlsFlsConfig.FieldMasking fieldMaskingConfig;
 
-    public RoleBasedFieldMasking(SgDynamicConfiguration<Role> roles, DlsFlsConfig.FieldMasking fieldMaskingConfig, Set<String> indices) {
+    public RoleBasedFieldMasking(SgDynamicConfiguration<Role> roles, DlsFlsConfig.FieldMasking fieldMaskingConfig, Set<String> indices,
+            MetricsLevel metricsLevel) {
         this.roles = roles;
         this.fieldMaskingConfig = fieldMaskingConfig;
         this.staticIndexQueries = new StaticIndexRules(roles, fieldMaskingConfig);
         this.statefulIndexQueries = new StatefulIndexRules(roles, fieldMaskingConfig, indices);
         this.componentState.setInitialized();
         this.componentState.setConfigVersion(roles.getDocVersion());
+        this.componentState.addPart(this.statefulIndexQueries.getComponentState());
+        this.componentState.addPart(this.staticIndexQueries.getComponentState());
     }
 
-    public FieldMaskingRule getFieldMaskingRule(PrivilegesEvaluationContext context, String index) throws PrivilegesEvaluationException {
-        if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
-            return FieldMaskingRule.ALLOW_ALL;
-        }
+    public FieldMaskingRule getFieldMaskingRule(PrivilegesEvaluationContext context, String index, Meter meter) throws PrivilegesEvaluationException {
+        try (Meter subMeter = meter.detail("evaluate_fm")) {
 
-        StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
-
-        if (!statefulIndexQueries.indices.contains(index)) {
-            throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
-        }
-
-        ImmutableSet<String> rolesWithoutRule = statefulIndexQueries.indexToRoleWithoutRule.get(index);
-
-        if (rolesWithoutRule != null && rolesWithoutRule.containsAny(context.getMappedRoles())) {
-            return FieldMaskingRule.ALLOW_ALL;
-        }
-
-        ImmutableMap<String, FieldMaskingRule.SingleRole> roleToRule = this.statefulIndexQueries.indexToRoleToRule.get(index);
-        List<FieldMaskingRule.SingleRole> rules = new ArrayList<>();
-
-        for (String role : context.getMappedRoles()) {
-            {
-                FieldMaskingRule.SingleRole rule = this.staticIndexQueries.roleWithIndexWildcardToRule.get(role);
-
-                if (rule != null) {
-                    rules.add(rule);
-                }
+            if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                return FieldMaskingRule.ALLOW_ALL;
             }
 
-            if (roleToRule != null) {
-                FieldMaskingRule.SingleRole rule = roleToRule.get(role);
+            StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
-                if (rule != null) {
-                    rules.add(rule);
-                }
+            if (!statefulIndexQueries.indices.contains(index)) {
+                throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
             }
 
-            ImmutableMap<Template<Pattern>, FieldMaskingRule.SingleRole> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
-                    .get(role);
+            ImmutableSet<String> rolesWithoutRule = statefulIndexQueries.indexToRoleWithoutRule.get(index);
 
-            if (indexPatternTemplateToQuery != null) {
-                for (Map.Entry<Template<Pattern>, FieldMaskingRule.SingleRole> entry : indexPatternTemplateToQuery.entrySet()) {
-                    try {
-                        Pattern pattern = context.getRenderedPattern(entry.getKey());
+            if (rolesWithoutRule != null && rolesWithoutRule.containsAny(context.getMappedRoles())) {
+                return FieldMaskingRule.ALLOW_ALL;
+            }
 
-                        if (pattern.matches(index)) {
-                            rules.add(entry.getValue());
+            ImmutableMap<String, FieldMaskingRule.SingleRole> roleToRule = this.statefulIndexQueries.indexToRoleToRule.get(index);
+            List<FieldMaskingRule.SingleRole> rules = new ArrayList<>();
+
+            for (String role : context.getMappedRoles()) {
+                {
+                    FieldMaskingRule.SingleRole rule = this.staticIndexQueries.roleWithIndexWildcardToRule.get(role);
+
+                    if (rule != null) {
+                        rules.add(rule);
+                    }
+                }
+
+                if (roleToRule != null) {
+                    FieldMaskingRule.SingleRole rule = roleToRule.get(role);
+
+                    if (rule != null) {
+                        rules.add(rule);
+                    }
+                }
+
+                ImmutableMap<Template<Pattern>, FieldMaskingRule.SingleRole> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
+                        .get(role);
+
+                if (indexPatternTemplateToQuery != null) {
+                    for (Map.Entry<Template<Pattern>, FieldMaskingRule.SingleRole> entry : indexPatternTemplateToQuery.entrySet()) {
+                        try {
+                            Pattern pattern = context.getRenderedPattern(entry.getKey());
+
+                            if (pattern.matches(index)) {
+                                rules.add(entry.getValue());
+                            }
+                        } catch (ExpressionEvaluationException e) {
+                            throw new PrivilegesEvaluationException("Error while rendering index pattern of role " + role, e);
                         }
-                    } catch (ExpressionEvaluationException e) {
-                        throw new PrivilegesEvaluationException("Error while rendering index pattern of role " + role, e);
                     }
                 }
             }
-        }
 
-        if (rules.isEmpty()) {
-            return FieldMaskingRule.ALLOW_ALL;
-        } else {
-            return new FieldMaskingRule.MultiRole(rules);
-        }
-    }
-
-    boolean hasFieldMaskingRestrictions(PrivilegesEvaluationContext context, Collection<String> indices) throws PrivilegesEvaluationException {
-        if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
-            return false;
-        }
-
-        StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
-
-        if (!statefulIndexQueries.indices.containsAll(indices)) {
-            throw new IllegalStateException("Index " + ImmutableSet.of(indices).without(this.statefulIndexQueries.indices) + " is not registered in "
-                    + this.statefulIndexQueries);
-        }
-
-        for (String index : indices) {
-            if (hasFieldMaskingRestrictions(context, index, statefulIndexQueries)) {
-                return true;
+            if (rules.isEmpty()) {
+                return FieldMaskingRule.ALLOW_ALL;
+            } else {
+                return new FieldMaskingRule.MultiRole(rules);
             }
+        } catch (PrivilegesEvaluationException e) {
+            componentState.addLastException("evaluate", e);
+            throw e;
+        } catch (RuntimeException e) {
+            componentState.addLastException("evaluate_u", e);
+            throw e;
         }
-
-        return false;
     }
 
-    boolean hasFieldMaskingRestrictions(PrivilegesEvaluationContext context, String index) throws PrivilegesEvaluationException {
-        if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+    boolean hasFieldMaskingRestrictions(PrivilegesEvaluationContext context, Collection<String> indices, Meter meter)
+            throws PrivilegesEvaluationException {
+        try (Meter subMeter = meter.detail("has_fm_restriction")) {
+            if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                return false;
+            }
+
+            StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
+
+            if (!statefulIndexQueries.indices.containsAll(indices)) {
+                throw new IllegalStateException("Index " + ImmutableSet.of(indices).without(this.statefulIndexQueries.indices)
+                        + " is not registered in " + this.statefulIndexQueries);
+            }
+
+            for (String index : indices) {
+                if (hasFieldMaskingRestrictions(context, index, statefulIndexQueries)) {
+                    return true;
+                }
+            }
+
             return false;
+        } catch (PrivilegesEvaluationException e) {
+            componentState.addLastException("has_restriction", e);
+            throw e;
+        } catch (RuntimeException e) {
+            componentState.addLastException("has_restriction_u", e);
+            throw e;
         }
+    }
 
-        StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
+    boolean hasFieldMaskingRestrictions(PrivilegesEvaluationContext context, String index, Meter meter) throws PrivilegesEvaluationException {
+        try (Meter subMeter = meter.detail("has_fm_restriction")) {
+            if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                return false;
+            }
 
-        if (!statefulIndexQueries.indices.contains(index)) {
-            throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
+            StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
+
+            if (!statefulIndexQueries.indices.contains(index)) {
+                throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
+            }
+
+            return hasFieldMaskingRestrictions(context, index, statefulIndexQueries);
+        } catch (PrivilegesEvaluationException e) {
+            componentState.addLastException("has_restriction", e);
+            throw e;
+        } catch (RuntimeException e) {
+            componentState.addLastException("has_restriction_u", e);
+            throw e;
         }
-
-        return hasFieldMaskingRestrictions(context, index, statefulIndexQueries);
     }
 
     private boolean hasFieldMaskingRestrictions(PrivilegesEvaluationContext context, String index, StatefulIndexRules statefulIndexQueries)
@@ -414,7 +445,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
             public boolean isAllowAll() {
                 return expressions.isEmpty();
             }
-            
+
             @Override
             public String toString() {
                 if (isAllowAll()) {
@@ -451,7 +482,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
             public boolean isAllowAll() {
                 return allowAll;
             }
-            
+
             @Override
             public String toString() {
                 if (isAllowAll()) {
@@ -576,6 +607,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
 
         if (!statefulIndexQueries.indices.equals(indices)) {
             this.statefulIndexQueries = new StatefulIndexRules(roles, fieldMaskingConfig, indices);
+            this.componentState.replacePart(this.statefulIndexQueries.getComponentState());
         }
     }
 

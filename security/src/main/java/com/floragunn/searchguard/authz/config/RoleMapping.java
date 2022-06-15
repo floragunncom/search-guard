@@ -178,7 +178,7 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
          */
         private final ImmutableMap<ImmutableSet<Pattern>, ImmutableSet<String>> byBackendRolesAnded;
 
-        private final ComponentState componentState = new ComponentState("role_mapping_index").initialized();
+        private final ComponentState componentState = new ComponentState("role_mapping_index");
         private final MetricsLevel metricsLevel;
         private final Measurement<?> evaluations;
 
@@ -222,6 +222,9 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
             } else {
                 evaluations = CountAggregation.noop();
             }
+            
+            componentState.addMetrics("evaluations", evaluations);
+            componentState.initialized();
         }
 
         public ImmutableSet<String> evaluate(User user, TransportAddress transportAddress, ResolutionMode rolesMappingResolution) {

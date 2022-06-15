@@ -125,9 +125,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         this.componentState.setConfigVersion(roles.getDocVersion());
 
         if (metricsLevel.detailedEnabled()) {
-            indexActionChecks = new TimeAggregation.Milliseconds();
+            indexActionChecks = new TimeAggregation.Nanoseconds();
             indexActionCheckResults = new CountAggregation();
-            tenantActionChecks = new TimeAggregation.Milliseconds();
+            tenantActionChecks = new TimeAggregation.Nanoseconds();
             tenantActionCheckResults = new CountAggregation();
             indexActionTypes = new CountAggregation();
         } else if (metricsLevel.basicEnabled()) {
@@ -472,6 +472,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final MetricsLevel metricsLevel;
 
         ClusterPermissions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, MetricsLevel metricsLevel) {
+            this.componentState = new ComponentState("cluster_permissions");
+
             ImmutableMap.Builder<Action, ImmutableSet.Builder<String>> actionToRoles = new ImmutableMap.Builder<Action, ImmutableSet.Builder<String>>()
                     .defaultValue((k) -> new ImmutableSet.Builder<String>());
             ImmutableSet.Builder<String> rolesWithWildcardPermissions = new ImmutableSet.Builder<>();
@@ -529,7 +531,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.rolesToActionPattern = rolesToActionPattern.build();
             this.initializationErrors = initializationErrors.build();
 
-            this.componentState = new ComponentState("cluster_permissions");
             this.componentState.setConfigVersion(roles.getDocVersion());
 
             this.checks = CountAggregation.basic(metricsLevel);
@@ -599,6 +600,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ComponentState componentState;
 
         ClusterPermissionExclusions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions) {
+            this.componentState = new ComponentState("cluster_permission_exclusions");
+
             ImmutableMap.Builder<Action, ImmutableSet.Builder<String>> actionToRoles = new ImmutableMap.Builder<Action, ImmutableSet.Builder<String>>()
                     .defaultValue((k) -> new ImmutableSet.Builder<String>());
             ImmutableMap.Builder<String, Pattern> rolesToActionPattern = new ImmutableMap.Builder<>();
@@ -645,7 +648,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.rolesToActionPattern = rolesToActionPattern.build();
             this.initializationErrors = initializationErrors.build();
 
-            this.componentState = new ComponentState("cluster_permission_exclusions");
             this.componentState.setConfigVersion(roles.getDocVersion());
 
             if (this.initializationErrors.isEmpty()) {
@@ -695,6 +697,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ComponentState componentState;
 
         IndexPermissions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions) {
+            this.componentState = new ComponentState("index_permissions");
 
             ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>> rolesToActionToIndexPattern = //
                     new ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>>().defaultValue(
@@ -762,7 +765,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             this.initializationErrors = initializationErrors.build();
 
-            this.componentState = new ComponentState("index_permissions");
             this.componentState.setConfigVersion(roles.getDocVersion());
 
             if (this.initializationErrors.isEmpty()) {
@@ -788,6 +790,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ComponentState componentState;
 
         IndexPermissionExclusions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions) {
+            this.componentState = new ComponentState("index_permission_exclusions");
 
             ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>> rolesToActionToIndexPattern = //
                     new ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>>().defaultValue(
@@ -843,7 +846,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.rolesToActionPatternToIndexPattern = rolesToActionPatternsToIndexPattern.build((b) -> b.build(IndexPattern.Builder::build));
 
             this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
-            this.componentState = new ComponentState("index_permission_exclusions");
             this.componentState.setConfigVersion(roles.getDocVersion());
 
             if (this.rolesToInitializationErrors.isEmpty()) {
