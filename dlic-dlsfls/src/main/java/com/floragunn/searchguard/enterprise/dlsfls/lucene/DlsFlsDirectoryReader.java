@@ -39,9 +39,9 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.google.common.collect.Iterators;
 
 public class DlsFlsDirectoryReader extends FilterDirectoryReader {
-    private final DlsFlsContext dlsFlsContext;
+    private final DlsFlsActionContext dlsFlsContext;
 
-    public DlsFlsDirectoryReader(DirectoryReader in, DlsFlsContext dlsFlsContext) throws IOException {
+    public DlsFlsDirectoryReader(DirectoryReader in, DlsFlsActionContext dlsFlsContext) throws IOException {
         super(in, new SubReaderWrapper(dlsFlsContext));
         this.dlsFlsContext = dlsFlsContext;
     }
@@ -58,9 +58,9 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
     private static class SubReaderWrapper extends FilterDirectoryReader.SubReaderWrapper {
 
-        private final DlsFlsContext dlsFlsContext;
+        private final DlsFlsActionContext dlsFlsContext;
 
-        SubReaderWrapper(DlsFlsContext dlsFlsContext) {
+        SubReaderWrapper(DlsFlsActionContext dlsFlsContext) {
             this.dlsFlsContext = dlsFlsContext;
         }
 
@@ -73,10 +73,10 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
             private static final Logger log = LogManager.getLogger(FilterLeafReader.class);
 
             private final FieldInfos flsFieldInfos;
-            private final DlsFlsContext dlsFlsContext;
+            private final DlsFlsActionContext dlsFlsContext;
             private final DlsGetEvaluator dlsGetEvaluator;
 
-            FilterLeafReader(LeafReader delegate, DlsFlsContext dlsFlsContext) {
+            FilterLeafReader(LeafReader delegate, DlsFlsActionContext dlsFlsContext) {
                 super(delegate);
 
                 this.dlsFlsContext = dlsFlsContext;

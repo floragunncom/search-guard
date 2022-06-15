@@ -21,6 +21,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.support.WriteRequest.RefreshPolicy;
 import org.opensearch.client.Client;
 import org.opensearch.common.settings.Settings;
 
@@ -55,18 +57,116 @@ public class DlsTest {
             .roles(new Role("dept_a").indexPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a")).on(INDEX).clusterPermissions("*"));
     static final TestSgConfig.User DEPT_D_USER = new TestSgConfig.User("dept_d")
             .roles(new Role("dept_d").indexPermissions("SGS_READ").dls(DocNode.of("term.dept.value", "dept_d")).on(INDEX).clusterPermissions("*"));
+    static final TestSgConfig.User DEPT_D_TERMS_LOOKUP_USER = new TestSgConfig.User("dept_d_terms_lookup_user")
+            .roles(new Role("dept_d").indexPermissions("SGS_READ")
+                    .dls(DocNode.of("terms", DocNode.of("dept", DocNode.of("index", "user_dept_terms_lookup", "id", "${user.name}", "path", "dept"))))
+                    .on(INDEX).clusterPermissions("*"));
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx").metrics("detailed");
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
-            .users(ADMIN, DEPT_A_USER, DEPT_D_USER).resources("dlsfls").build();
+            .users(ADMIN, DEPT_A_USER, DEPT_D_USER, DEPT_D_TERMS_LOOKUP_USER).resources("dlsfls").build();
 
     @BeforeClass
     public static void setupTestData() {
         try (Client client = cluster.getInternalNodeClient()) {
             TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
+
+            client.index(new IndexRequest("user_dept_terms_lookup").id("dept_d_terms_lookup_user").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .source("dept", "dept_d")).actionGet();
+        }
+    }
+
+    @Test
+    public void get() throws Exception {
+        TestDocument testDocument = TEST_DATA.anyDocumentForDepartment("dept_a_1");
+        String documentUri = "/logs/_doc/" + testDocument.getId();
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
+            GenericRestClient.HttpResponse response = client.get(documentUri);
+            Assert.assertEquals(response.getBody(), 404, response.getStatusCode());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.get(documentUri);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+    }
+
+    @Test
+    public void get_termsLookup() throws Exception {
+        TestDocument testDocumentA1 = TEST_DATA.anyDocumentForDepartment("dept_a_1");
+        TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
+        String documentUriA1 = "/logs/_doc/" + testDocumentA1.getId();
+        String documentUriD = "/logs/_doc/" + testDocumentD.getId();
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
+            GenericRestClient.HttpResponse response = client.get(documentUriA1);
+            Assert.assertEquals(response.getBody(), 404, response.getStatusCode());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
+            GenericRestClient.HttpResponse response = client.get(documentUriD);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.get(documentUriA1);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+    }
+
+    @Test
+    public void mget() throws Exception {
+        TestDocument testDocumentA1 = TEST_DATA.anyDocumentForDepartment("dept_a_1");
+        TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
+            GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
+                    DocNode.of("docs", DocNode.array(DocNode.of("_id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId()))));
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_a.*/)]").size() == 0);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_d.*/)]").size() == 1);
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
+                    DocNode.of("docs", DocNode.array(DocNode.of("_id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId()))));
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_a.*/)]").size() == 1);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_d.*/)]").size() == 1);
+        }
+    }
+
+    @Test
+    public void mget_termsLookup() throws Exception {
+        TestDocument testDocumentA1 = TEST_DATA.anyDocumentForDepartment("dept_a_1");
+        TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
+            GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
+                    DocNode.of("docs", DocNode.array(DocNode.of("_id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId()))));
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_a.*/)]").size() == 0);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_d.*/)]").size() == 1);
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
+                    DocNode.of("docs", DocNode.array(DocNode.of("_id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId()))));
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_a.*/)]").size() == 1);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_d.*/)]").size() == 1);
         }
     }
 
@@ -87,6 +187,18 @@ public class DlsTest {
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() != 0);
+        }
+    }
+
+    @Test
+    public void search_termsLookup() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
+            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 10);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
         }
     }
 
@@ -118,6 +230,39 @@ public class DlsTest {
                         response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == hits);
                 Assert.assertTrue(response.getBody(),
                         response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
+            }
+
+        }
+    }
+
+    @Test
+    public void scroll_termsLookup() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
+            GenericRestClient.HttpResponse response = client.get("/logs/_search?scroll=1m&pretty=true&size=5");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 5);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
+
+            System.out.println(response.getBody());
+            String scrollId = response.getBodyAsDocNode().getAsString("_scroll_id");
+
+            for (;;) {
+                GenericRestClient.HttpResponse scrollResponse = client.postJson("/_search/scroll?pretty=true",
+                        DocNode.of("scroll", "1m", "scroll_id", scrollId));
+
+                int hits = scrollResponse.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits").size();
+
+                if (hits == 0) {
+                    break;
+                }
+
+                Assert.assertTrue(response.getBody(),
+                        response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == hits);
+                Assert.assertTrue(response.getBody(),
+                        response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
             }
 
         }
@@ -182,11 +327,11 @@ public class DlsTest {
             Assert.assertEquals(response.getBody(), true, response.getBodyAsDocNode().get("found"));
         }
     }
-    
+
     @AfterClass
-    public static void cs() throws Exception {
+    public static void clusterState() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-           System.out.println(client.get("/_searchguard/component/dlsfls/_health?pretty=true").getBody());
+            System.out.println(client.get("/_searchguard/component/dlsfls/_health?pretty=true").getBody());
         }
     }
 

@@ -25,15 +25,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authc.AuthInfoService;
-import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
-import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
@@ -44,16 +40,14 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
     private static final String KEYWORD = ".keyword";
     private static final Logger log = LogManager.getLogger(FlsFieldFilter.class);
 
-    private final AuthInfoService authInfoService;
-    private final AuthorizationService authorizationService;
+    private final DlsFlsBaseContext baseContext;
 
     private final AtomicReference<DlsFlsProcessedConfig> config;
     private final ComponentState componentState = new ComponentState(1, null, "fls_field_filter", FlsFieldFilter.class).initialized();
     private final TimeAggregation applyAggregation = new TimeAggregation.Nanoseconds();
 
-    FlsFieldFilter(AuthInfoService authInfoService, AuthorizationService authorizationService, AtomicReference<DlsFlsProcessedConfig> config) {
-        this.authInfoService = authInfoService;
-        this.authorizationService = authorizationService;
+    FlsFieldFilter(DlsFlsBaseContext baseContext, AtomicReference<DlsFlsProcessedConfig> config) {
+        this.baseContext = baseContext;
         this.config = config;
         this.componentState.addMetrics("filter_fields", applyAggregation);
     }
@@ -66,7 +60,7 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
             return (field) -> true;
         }
 
-        PrivilegesEvaluationContext privilegesEvaluationContext = getPrivilegesEvaluationContext();
+        PrivilegesEvaluationContext privilegesEvaluationContext = this.baseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {
             return (field) -> true;
@@ -96,19 +90,6 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
             componentState.addLastException("filter_fields", e);
             throw e;
         }
-    }
-
-    private PrivilegesEvaluationContext getPrivilegesEvaluationContext() {
-        User user = authInfoService.peekCurrentUser();
-
-        if (user == null) {
-            return null;
-        }
-
-        SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = authInfoService.getSpecialPrivilegesEvaluationContext();
-        ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
-
-        return new PrivilegesEvaluationContext(user, mappedRoles, null, null, false, null, specialPrivilegesEvaluationContext);
     }
 
     private static String removeSuffix(String field) {
