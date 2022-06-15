@@ -25,8 +25,9 @@ import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.documents.Parser.Context;
+import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -35,13 +36,14 @@ import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.authc.LoginPrivileges;
 import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.configuration.variables.ConfigVarServiceNotYetAvailableException;
 import com.floragunn.searchguard.support.JoseParsers;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.collect.ImmutableList;
 
-public class SessionServiceConfig implements Document<SessionServiceConfig> {
+public class SessionServiceConfig implements PatchableDocument<SessionServiceConfig> {
     public static CType<SessionServiceConfig> TYPE = new CType<SessionServiceConfig>("sessions", "Sessions", 10011, SessionServiceConfig.class,
             SessionServiceConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
@@ -225,4 +227,8 @@ public class SessionServiceConfig implements Document<SessionServiceConfig> {
         return metricsLevel;
     }
 
+    @Override
+    public SessionServiceConfig parseI(DocNode docNode, Context context) throws ConfigValidationException {
+        return parse(docNode, (ConfigurationRepository.Context) context).get();
+    }
 }

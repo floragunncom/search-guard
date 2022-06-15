@@ -25,7 +25,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUser;
@@ -235,6 +237,15 @@ public class CType<T> {
 
     public Arity getArity() {
         return arity;
+    }
+
+    public T createDefaultInstance(ConfigurationRepository.Context context) {
+        try {
+            T result = (T) parser.parse(DocNode.EMPTY, context).get();
+            return result;
+        } catch (ConfigValidationException e) {
+            throw new RuntimeException("Could not create default config", e);
+        }
     }
 
     CType<T> replaceLegacyEnvVars() {
