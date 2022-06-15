@@ -24,7 +24,7 @@ import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsLicenseInfo;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
 
-public class DlsFlsContext {
+public class DlsFlsActionContext {
     private final FlsRule flsRule;
     private final Query dlsQuery;
     private final IndexService indexService;
@@ -34,7 +34,7 @@ public class DlsFlsContext {
     private final FieldMaskingRule fieldMaskingRule;
     private final ShardId shardId;
 
-    public DlsFlsContext(Query dlsQuery, FlsRule flsRule, FieldMaskingRule fieldMaskingRule, IndexService indexService, ThreadContext threadContext,
+    public DlsFlsActionContext(Query dlsQuery, FlsRule flsRule, FieldMaskingRule fieldMaskingRule, IndexService indexService, ThreadContext threadContext,
             DlsFlsLicenseInfo licenseInfo, AuditLog auditlog, ShardId shardId) {
         this.dlsQuery = dlsQuery;
         this.flsRule = flsRule;

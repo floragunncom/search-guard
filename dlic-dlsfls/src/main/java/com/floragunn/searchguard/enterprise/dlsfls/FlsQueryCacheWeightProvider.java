@@ -27,13 +27,9 @@ import org.elasticsearch.index.Index;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardModule;
-import com.floragunn.searchguard.authc.AuthInfoService;
-import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
-import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
@@ -44,17 +40,14 @@ public class FlsQueryCacheWeightProvider implements SearchGuardModule.QueryCache
     private static final Logger log = LogManager.getLogger(FlsQueryCacheWeightProvider.class);
 
     private final AtomicReference<DlsFlsProcessedConfig> config;
-    private final AuthInfoService authInfoService;
-    private final AuthorizationService authorizationService;
+    private final DlsFlsBaseContext baseContext;
     private final ComponentState componentState = new ComponentState(12, null, "fls_query_cache_weight_provider", FlsQueryCacheWeightProvider.class)
             .initialized();
     private final TimeAggregation applyAggregation = new TimeAggregation.Nanoseconds();
 
-    FlsQueryCacheWeightProvider(AtomicReference<DlsFlsProcessedConfig> config, AuthInfoService authInfoService,
-            AuthorizationService authorizationService) {
+    FlsQueryCacheWeightProvider(DlsFlsBaseContext baseContext, AtomicReference<DlsFlsProcessedConfig> config) {
         this.config = config;
-        this.authInfoService = authInfoService;
-        this.authorizationService = authorizationService;
+        this.baseContext = baseContext;
         this.componentState.addMetrics("apply", applyAggregation);
     }
 
@@ -66,7 +59,7 @@ public class FlsQueryCacheWeightProvider implements SearchGuardModule.QueryCache
             return null;
         }
 
-        PrivilegesEvaluationContext context = getPrivilegesEvaluationContext();
+        PrivilegesEvaluationContext context = baseContext.getPrivilegesEvaluationContext();
 
         if (context == null) {
             return null;
@@ -94,19 +87,6 @@ public class FlsQueryCacheWeightProvider implements SearchGuardModule.QueryCache
             componentState.addLastException("apply", e);
             throw new RuntimeException(e);
         }
-    }
-
-    private PrivilegesEvaluationContext getPrivilegesEvaluationContext() {
-        User user = authInfoService.peekCurrentUser();
-
-        if (user == null) {
-            return null;
-        }
-
-        SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = authInfoService.getSpecialPrivilegesEvaluationContext();
-        ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
-
-        return new PrivilegesEvaluationContext(user, mappedRoles, null, null, false, null, specialPrivilegesEvaluationContext);
     }
 
     @Override
