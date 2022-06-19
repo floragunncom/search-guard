@@ -51,11 +51,15 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
     public void onPreQueryPhase(SearchContext searchContext) {
         DlsFlsProcessedConfig config = this.config.get();
 
-        if (!config.isEnabled()) {
+        if (!config.isEnabled() || config.getDlsFlsConfig().getDlsMode() ==  DlsFlsConfig.Mode.FILTER_LEVEL) {
             return;
         }
 
         if (dlsFlsBaseContext.isDlsDoneOnFilterLevel()) {
+            return;
+        }
+
+        if (searchContext.suggest() != null) {
             return;
         }
 
@@ -84,6 +88,17 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
             DlsRestriction dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index, meter);
 
             if (!dlsRestriction.isUnrestricted()) {
+                if (config.getDlsFlsConfig().getDlsMode() ==  DlsFlsConfig.Mode.ADAPTIVE && dlsRestriction.containsTermLookupQuery()) {
+                    // Special case for scroll operations: 
+                    // Normally, the check dlsFlsBaseContext.isDlsDoneOnFilterLevel() already aborts early if DLS filter level mode
+                    // has been activated. However, this is not the case for scroll operations, as these lose the thread context value
+                    // on which dlsFlsBaseContext.isDlsDoneOnFilterLevel() is based on. Thus, we need to check here again the deeper
+                    // conditions.
+                    
+                    return;
+                }
+                
+                
                 BooleanQuery.Builder queryBuilder = dlsRestriction.toQueryBuilder(searchContext.getSearchExecutionContext(),
                         (q) -> new ConstantScoreQuery(q));
 

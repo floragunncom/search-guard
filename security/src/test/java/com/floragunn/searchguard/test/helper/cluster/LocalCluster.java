@@ -452,6 +452,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             testSgConfig.dlsFls(dlsfls);
             return this;
         }
+        
+        public Builder authTokenService(TestSgConfig.AuthTokenService authTokenService) {
+            testSgConfig.authTokenService(authTokenService);
+            return this;
+        }
 
         public Builder var(String name, Supplier<Object> value) {
             testSgConfig.var(name, value);

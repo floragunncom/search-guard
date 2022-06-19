@@ -30,6 +30,7 @@ import org.apache.logging.log4j.Logger;
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -391,6 +392,16 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
     }
 
     public static abstract class FlsRule {
+        public static FlsRule of(String... rules) throws ConfigValidationException {
+            ImmutableList.Builder<Role.Index.FlsPattern> patterns = new ImmutableList.Builder<>();
+
+            for (String rule : rules) {
+                patterns.add(new Role.Index.FlsPattern(rule));
+            }
+
+            return new SingleRole(patterns.build());
+        }
+
         static FlsRule merge(List<FlsRule> rules) {
             if (rules.size() == 1) {
                 return rules.get(0);
@@ -464,7 +475,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                 }
             }
 
-            SingleRole(ImmutableList<Role.Index.FlsPattern> patterns) {
+            public SingleRole(ImmutableList<Role.Index.FlsPattern> patterns) {
                 this.patterns = patterns;
                 this.sourceIndex = null;
                 this.sourceRole = null;
@@ -490,6 +501,8 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
             }
 
             private boolean internalIsAllowed(String field) {
+                field = stripKeywordSuffix(field);
+
                 boolean allowed = true;
 
                 for (Role.Index.FlsPattern pattern : this.patterns) {
@@ -555,6 +568,8 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
             }
 
             private boolean internalIsAllowed(String field) {
+                field = stripKeywordSuffix(field);
+                
                 for (SingleRole entry : this.entries) {
                     if (entry.isAllowed(field)) {
                         return true;
@@ -577,6 +592,14 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                 }
             }
 
+        }
+        
+        static String stripKeywordSuffix(String field) {
+            if (field.endsWith(".keyword")) {
+                return field.substring(0, field.length() - ".keyword".length());
+            } else {
+                return field;
+            }
         }
     }
 

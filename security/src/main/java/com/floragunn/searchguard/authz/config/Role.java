@@ -175,7 +175,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             private final Pattern pattern;
             private final String source;
 
-            FlsPattern(String string) throws ConfigValidationException {
+            public FlsPattern(String string) throws ConfigValidationException {
                 if (string.startsWith("~") || string.startsWith("!")) {
                     excluded = true;
                     pattern = Pattern.create(string.substring(1));
@@ -204,7 +204,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             public boolean isExcluded() {
                 return excluded;
             }
-            
+
             @Override
             public String toString() {
                 return source;
@@ -217,7 +217,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             private final List<RegexReplacement> regexReplacements;
             private final String source;
 
-            FieldMaskingExpression(String value) throws ConfigValidationException {
+            public FieldMaskingExpression(String value) throws ConfigValidationException {
                 this.source = value;
 
                 List<String> tokens = Splitter.on("::").splitToList(value);

@@ -24,8 +24,10 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestData;
+import com.floragunn.searchguard.test.TestData.TestDocument;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
@@ -35,7 +37,7 @@ import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
 
-public class FlsTest {
+public class FlsIntTest {
     static {
         // TODO properly initialize JsonPath defaults
         com.jayway.jsonpath.Configuration.setDefaults(new Defaults() {
@@ -74,8 +76,8 @@ public class FlsTest {
     static final TestSgConfig.User EXCLUDE_IP_USER = new TestSgConfig.User("exclude_ip")
             .roles(new Role("exclude_ip").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("~*_ip").on(INDEX).clusterPermissions("*"));
 
-    static final TestSgConfig.User INCLUDE_LOC_USER = new TestSgConfig.User("include_loc").roles(
-            new Role("include_loc").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("*_loc").on(INDEX).clusterPermissions("*"));
+    static final TestSgConfig.User INCLUDE_LOC_USER = new TestSgConfig.User("include_loc").roles(new Role("include_loc")
+            .indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("*_loc", "timestamp").on(INDEX).clusterPermissions("*"));
 
     static final TestSgConfig.User MULTI_ROLE_USER = new TestSgConfig.User("multi_role").roles(
             new Role("role1").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("~*_ip").on(INDEX).clusterPermissions("*"),
@@ -130,6 +132,27 @@ public class FlsTest {
     }
 
     @Test
+    public void search_onFilteredField() throws Exception {
+        TestDocument testDocument = TEST_DATA.anyDocument();
+
+        DocNode searchBody = DocNode.of("query.term.source_ip.value", testDocument.getContent().get("source_ip"));
+
+        try (GenericRestClient client = cluster.getRestClient(INCLUDE_LOC_USER)) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", searchBody);
+            System.out.println(response.getBody());
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), 0, response.getBodyAsDocNode().get("hits", "total", "value"));
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", searchBody);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), 1, response.getBodyAsDocNode().get("hits", "total", "value"));
+        }
+    }
+
+    @Test
     public void search_multiRole() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(MULTI_ROLE_USER)) {
             GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty");
@@ -165,7 +188,7 @@ public class FlsTest {
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("_source").get("source_loc") != null);
         }
     }
-    
+
     @Test
     public void get_include() throws Exception {
         String docId = TEST_DATA.anyDocument().getId();
@@ -185,7 +208,6 @@ public class FlsTest {
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("_source").get("source_loc") != null);
         }
     }
-
 
     @Test
     public void get_multiRole() throws Exception {
@@ -247,6 +269,31 @@ public class FlsTest {
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("fields").get("source_loc") != null);
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("fields").get("source_loc.keyword") != null);
         }
+    }
+
+    @Test
+    public void termvectors() throws Exception {
+        TestDocument doc = TEST_DATA.anyDocumentForDepartment("dept_a_1");
+        String docUrl = "/logs/_termvectors/" + doc.getId() + "?pretty=true&fields=*";
+
+        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_IP_USER)) {
+            GenericRestClient.HttpResponse response = client.get(docUrl);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("term_vectors").get("source_ip") == null);
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("term_vectors").get("source_ip.keyword") == null);
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("term_vectors").get("source_loc") != null);
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("term_vectors").get("source_loc.keyword") != null);
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.get(docUrl);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("term_vectors").get("source_ip") != null);
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("term_vectors").get("source_ip.keyword") != null);
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("term_vectors").get("source_loc") != null);
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("term_vectors").get("source_loc.keyword") != null);
+        }
+
     }
 
 }

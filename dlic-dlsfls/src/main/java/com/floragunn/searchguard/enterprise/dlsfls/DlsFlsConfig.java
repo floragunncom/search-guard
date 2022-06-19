@@ -73,7 +73,7 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
         Impl enabledImpl = vNode.get("use_impl").withDefault(Impl.LEGACY).asEnum(Impl.class);
         boolean nowAllowedInQueries = vNode.get("dls.allow_now").withDefault(false).asBoolean();
         Mode dlsMode = vNode.get("dls.mode").withDefault(Mode.ADAPTIVE).asEnum(Mode.class);
-        
+
         vNode.checkForUnusedAttributes();
 
         if (!validationErrors.hasErrors()) {
@@ -121,7 +121,7 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
     public static class FieldMasking implements Document<FieldMasking> {
         static final String DEFAULT_SALT = "7A4EB67D40536EB6B107AF3202EA6275";
         static final String DEFAULT_PERSONALISATION = "searchguard-flx1";
-        static final FieldMasking DEFAULT = new FieldMasking(null, bytesFromHex(DEFAULT_SALT), DEFAULT_PERSONALISATION.getBytes(), null);
+        public static final FieldMasking DEFAULT = new FieldMasking(null, bytesFromHex(DEFAULT_SALT), DEFAULT_PERSONALISATION.getBytes(), null);
 
         private final DocNode source;
         private final byte[] salt;
@@ -191,6 +191,5 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
     public Mode getDlsMode() {
         return dlsMode;
     }
-
 
 }
