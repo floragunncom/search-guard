@@ -69,7 +69,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
      * DlsFlsDirectoryReaderWrapper is instantiated per index. We however do not want a ComponentState instance per index. Thus, we create it on this level.
      */
     private final ComponentState directoryReaderWrapperComponentState = new ComponentState(10, null, "directory_reader_wrapper",
-            DlsFlsDirectoryReaderWrapper.class);
+            DlsFlsDirectoryReaderWrapper.class).initialized();
 
     private final TimeAggregation directoryReaderWrapperApplyAggregation = new TimeAggregation.Nanoseconds();
 
