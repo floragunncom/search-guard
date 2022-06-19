@@ -37,7 +37,7 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
-public class DlsTest {
+public class DlsIntTest {
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -81,16 +81,20 @@ public class DlsTest {
 
     @Test
     public void get() throws Exception {
-        TestDocument testDocument = TEST_DATA.anyDocumentForDepartment("dept_a_1");
-        String documentUri = "/logs/_doc/" + testDocument.getId();
+        TestDocument testDocumentA1 = TEST_DATA.anyDocumentForDepartment("dept_a_1");
+        String documentUriA1 = "/logs/_doc/" + testDocumentA1.getId();
+        TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
+        String documentUriD = "/logs/_doc/" + testDocumentD.getId();
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
-            GenericRestClient.HttpResponse response = client.get(documentUri);
+            GenericRestClient.HttpResponse response = client.get(documentUriA1);
             Assert.assertEquals(response.getBody(), 404, response.getStatusCode());
+            response = client.get(documentUriD);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.get(documentUri);
+            GenericRestClient.HttpResponse response = client.get(documentUriA1);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
     }
@@ -203,6 +207,25 @@ public class DlsTest {
     }
 
     @Test
+    public void search_suggest() throws Exception {
+        // TOOD test with exclusive term
+
+        DocNode query = DocNode.of("suggest", DocNode.of("suggestion", DocNode.of("text", "rahnsthla", "term.field", "source_loc")));
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
+            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", query);
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", query);
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+    }
+
+    @Test
     public void scroll() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER)) {
@@ -226,10 +249,10 @@ public class DlsTest {
                     break;
                 }
 
-                Assert.assertTrue(response.getBody(),
-                        response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == hits);
-                Assert.assertTrue(response.getBody(),
-                        response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
+                Assert.assertTrue(scrollResponse.getBody(),
+                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == hits);
+                Assert.assertTrue(scrollResponse.getBody(),
+                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
             }
 
         }
@@ -259,10 +282,10 @@ public class DlsTest {
                     break;
                 }
 
+                Assert.assertTrue(scrollResponse.getBody(),
+                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == hits);
                 Assert.assertTrue(response.getBody(),
-                        response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == hits);
-                Assert.assertTrue(response.getBody(),
-                        response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
+                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
             }
 
         }

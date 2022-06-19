@@ -79,6 +79,7 @@ public class TestSgConfig {
     private DlsFls dlsFls;
     private Privileges privileges;
     private Sessions sessions;
+    private AuthTokenService authTokenService;
     private String indexName = ".searchguard";
     private Map<String, Supplier<Object>> variableSuppliers = new HashMap<>();
 
@@ -300,6 +301,11 @@ public class TestSgConfig {
         return this;
     }
 
+    public TestSgConfig authTokenService(AuthTokenService authTokenService) {
+        this.authTokenService = authTokenService;
+        return this;
+    }
+    
     public TestSgConfig clone() {
         TestSgConfig result = new TestSgConfig();
 
@@ -349,6 +355,10 @@ public class TestSgConfig {
             writeConfigToIndex(client, "authz_dlsfls", dlsFls);
         }
 
+        if (authTokenService != null) {
+            writeConfigToIndex(client, "auth_token_service", authTokenService);
+        }
+        
         if (variableSuppliers.size() != 0) {
             writeConfigVars(client, variableSuppliers);
         }
@@ -1083,7 +1093,7 @@ public class TestSgConfig {
             this.useImpl = impl;
             return this;
         }
-        
+
         public DlsFls metrics(String metrics) {
             this.metrics = metrics;
             return this;
@@ -1093,6 +1103,37 @@ public class TestSgConfig {
         public Object toBasicObject() {
             return ImmutableMap.of("default", ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "use_impl", useImpl, "dls",
                     ImmutableMap.ofNonNull("allow_now", dlsAllowNow)));
+        }
+    }
+
+    public static class AuthTokenService implements Document<AuthTokenService> {
+
+        private Boolean enabled;
+        private String metrics;
+        private String jwtSigningKeyHs512;
+
+        public AuthTokenService() {
+        }
+
+        public AuthTokenService enabled(boolean enabled) {
+            this.enabled = enabled;
+            return this;
+        }
+
+        public AuthTokenService metrics(String metrics) {
+            this.metrics = metrics;
+            return this;
+        }
+
+        public AuthTokenService jwtSigningKeyHs512(String jwtSigningKeyHs512) {
+            this.jwtSigningKeyHs512 = jwtSigningKeyHs512;
+            return this;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.of("default",
+                    ImmutableMap.ofNonNull("enabled", enabled, "metrics", metrics, "jwt_signing_key_hs512", jwtSigningKeyHs512));
         }
     }
 

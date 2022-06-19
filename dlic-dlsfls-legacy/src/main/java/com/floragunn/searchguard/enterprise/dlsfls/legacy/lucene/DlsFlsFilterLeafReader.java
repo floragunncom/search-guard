@@ -108,20 +108,17 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
     private Function<Map<String, ?>, Map<String, Object>> filterFunction;
     private final IndexService indexService;
     private final ThreadContext threadContext;
-    private final ClusterService clusterService;
     private final DlsFlsComplianceConfig complianceConfig;
-    private final AuditLog auditlog;
     private final Map<String, MaskedField> maskedFieldsMap;
     private final Set<String> maskedFieldsKeySet;
-    private final ShardId shardId;
     private final boolean maskFields;
     private final boolean localHashingEnabled;
 
     private DlsGetEvaluator dge = null;
 
     DlsFlsFilterLeafReader(final LeafReader delegate, final Set<String> includesExcludes, final Query dlsQuery, final IndexService indexService,
-            final ThreadContext threadContext, final ClusterService clusterService, final DlsFlsComplianceConfig complianceConfig, final AuditLog auditlog,
-            final Set<String> maskedFields, final ShardId shardId) {
+            final ThreadContext threadContext, final ClusterService clusterService, final DlsFlsComplianceConfig complianceConfig,
+            final AuditLog auditlog, final Set<String> maskedFields, final ShardId shardId) {
         super(delegate);
 
         try {
@@ -130,9 +127,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
             this.indexService = indexService;
             this.threadContext = threadContext;
-            this.clusterService = clusterService;
             this.complianceConfig = complianceConfig;
-            this.auditlog = auditlog;
             this.maskedFieldsMap = maskFields ? extractMaskedFields(maskedFields) : null;
 
             if (maskedFieldsMap != null) {
@@ -141,7 +136,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
                 maskedFieldsKeySet = null;
             }
 
-            this.shardId = shardId;
             flsEnabled = includesExcludes != null && !includesExcludes.isEmpty();
 
             if (flsEnabled) {
@@ -423,80 +417,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
         return flsFieldInfos;
     }
-/* TODO
-    private class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
-
-        private final StoredFieldVisitor delegate;
-        private FieldReadCallback fieldReadCallback = new FieldReadCallback(threadContext, indexService, clusterService, complianceConfig, auditlog,
-                maskedFieldsKeySet, shardId);
-
-        public ComplianceAwareStoredFieldVisitor(final StoredFieldVisitor delegate) {
-            super();
-            this.delegate = delegate;
-        }
-
-        @Override
-        public void binaryField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
-            fieldReadCallback.binaryFieldRead(fieldInfo, value);
-            delegate.binaryField(fieldInfo, value);
-        }
-
-        @Override
-        public Status needsField(final FieldInfo fieldInfo) throws IOException {
-            return delegate.needsField(fieldInfo);
-        }
-
-        @Override
-        public int hashCode() {
-            return delegate.hashCode();
-        }
-
-        @Override
-        public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
-            fieldReadCallback.stringFieldRead(fieldInfo, value);
-            delegate.stringField(fieldInfo, value);
-        }
-
-        @Override
-        public void intField(final FieldInfo fieldInfo, final int value) throws IOException {
-            fieldReadCallback.numericFieldRead(fieldInfo, value);
-            delegate.intField(fieldInfo, value);
-        }
-
-        @Override
-        public void longField(final FieldInfo fieldInfo, final long value) throws IOException {
-            fieldReadCallback.numericFieldRead(fieldInfo, value);
-            delegate.longField(fieldInfo, value);
-        }
-
-        @Override
-        public void floatField(final FieldInfo fieldInfo, final float value) throws IOException {
-            fieldReadCallback.numericFieldRead(fieldInfo, value);
-            delegate.floatField(fieldInfo, value);
-        }
-
-        @Override
-        public void doubleField(final FieldInfo fieldInfo, final double value) throws IOException {
-            fieldReadCallback.numericFieldRead(fieldInfo, value);
-            delegate.doubleField(fieldInfo, value);
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            return delegate.equals(obj);
-        }
-
-        @Override
-        public String toString() {
-            return delegate.toString();
-        }
-
-        public void finished() {
-            fieldReadCallback.finished();
-            fieldReadCallback = null;
-        }
-
-    }*/
 
     private class FlsStoredFieldVisitor extends StoredFieldVisitor {
 
@@ -716,7 +636,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         @Override
         public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
             try {
-                // TODO complianceAware...
                 if (maskFields) {
                     visitor = new HashingStoredFieldVisitor(visitor);
                 }
@@ -727,11 +646,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
                 delegate.visitDocument(docID, visitor);
 
-                /* TODO
-                if (complianceAwareStoredFieldVisitor != null) {
-                    complianceAwareStoredFieldVisitor.finished();
-                }
-                */
             } catch (RuntimeException e) {
                 log.error("Error in SearchGuardStoredFieldsReader.visitDocument()", e);
                 throw e;
