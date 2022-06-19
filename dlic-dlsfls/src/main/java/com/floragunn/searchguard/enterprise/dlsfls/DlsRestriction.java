@@ -92,6 +92,15 @@ public class DlsRestriction {
         return false;
     }
 
+    @Override
+    public String toString() {
+        if (isUnrestricted()) {
+            return "DLS:<none>";
+        } else {
+            return "DLS:" + queries;
+        }
+    }
+
     private static void handleNested(QueryShardContext searchExecutionContext, BooleanQuery.Builder dlsQueryBuilder, Query parentQuery) {
         BitSetProducer parentDocumentsFilter = searchExecutionContext.bitsetFilter(NON_NESTED_QUERY);
         dlsQueryBuilder.add(new ToChildBlockJoinQuery(parentQuery, parentDocumentsFilter), Occur.SHOULD);

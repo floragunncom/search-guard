@@ -69,16 +69,15 @@ public class FlsDlsTestForbiddenField extends AbstractDlsFlsTest{
     public void testDls() throws Exception {
         
         setup();
-        
-        HttpResponse res;
+       
+        HttpResponse res; 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_search?pretty&size=0", encodeBasicHeader("dept_manager_fls_dls", "password"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("\"value\" : 0,\n      \"relation"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals/_search?pretty&size=0", encodeBasicHeader("admin", "admin"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("\"value\" : 2,\n      \"relation"));
-        Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
-        
+        Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));        
         
         String query =
                 

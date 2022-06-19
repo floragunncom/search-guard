@@ -35,6 +35,7 @@ import org.bouncycastle.util.encoders.Hex;
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -405,6 +406,16 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
     public static abstract class FieldMaskingRule {
         public static final FieldMaskingRule ALLOW_ALL = new FieldMaskingRule.SingleRole(ImmutableList.empty());
 
+        public static FieldMaskingRule of(DlsFlsConfig.FieldMasking fieldMaskingConfig, String... rules) throws ConfigValidationException {
+            ImmutableList.Builder<Role.Index.FieldMaskingExpression> patterns = new ImmutableList.Builder<>();
+
+            for (String rule : rules) {
+                patterns.add(new Role.Index.FieldMaskingExpression(rule));
+            }
+
+            return new SingleRole(patterns.build().map((e) -> new Field(e, fieldMaskingConfig)));
+        }
+
         public abstract Field get(String field);
 
         public abstract boolean isAllowAll();
@@ -429,7 +440,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
             }
 
             public Field get(String field) {
-                return internalGet(field);
+                return internalGet(stripKeywordSuffix(field));
             }
 
             private Field internalGet(String field) {
@@ -466,6 +477,8 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
             }
 
             public Field get(String field) {
+                field = stripKeywordSuffix(field);
+                
                 Field masking = null;
 
                 for (FieldMaskingRule.SingleRole part : parts) {
@@ -539,6 +552,11 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
                 }
             }
 
+            @Override
+            public String toString() {
+                return expression.toString();
+            }
+            
             private boolean isDefault() {
                 return expression.getAlgo() == null && expression.getRegexReplacements() == null;
             }
@@ -598,7 +616,14 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
             private String blake2bHash(String in) {
                 return new String(blake2bHash(in.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
             }
-
+        }
+        
+        static String stripKeywordSuffix(String field) {
+            if (field.endsWith(".keyword")) {
+                return field.substring(0, field.length() - ".keyword".length());
+            } else {
+                return field;
+            }
         }
     }
 

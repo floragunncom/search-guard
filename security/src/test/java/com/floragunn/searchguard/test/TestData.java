@@ -39,6 +39,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.joda.time.Instant;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.google.common.cache.Cache;
@@ -99,7 +100,9 @@ public class TestData {
         Random random = new Random(subRandomSeed);
         long start = System.currentTimeMillis();
 
-        client.admin().indices().create(new CreateIndexRequest(name).settings(settings)).actionGet();
+        client.admin().indices()
+                .create(new CreateIndexRequest(name).settings(settings).mapping("_doc", "timestamp", "type=date,format=date_optional_time"))
+                .actionGet();
         int nextRefresh = (int) Math.floor((random.nextGaussian() * 0.5 + 0.5) * refreshAfter);
         int i = 0;
 
@@ -135,8 +138,10 @@ public class TestData {
         Map<String, Map<String, ?>> allDocuments = new HashMap<>(size);
 
         for (int i = 0; i < size; i++) {
-            ImmutableMap<String, Object> document = ImmutableMap.of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random),
-                    "source_loc", randomLocationName(random), "dest_loc", randomLocationName(random), "dept", randomDepartmentName(random));
+            ImmutableMap<String, Object> document = ImmutableMap
+                    .<String, Object>of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random), "source_loc",
+                            randomLocationName(random), "dest_loc", randomLocationName(random), "dept", randomDepartmentName(random))
+                    .with("timestamp", randomTimestamp(random));
 
             if (additionalAttributes != null && additionalAttributes.size() != 0) {
                 document = document.with(additionalAttributes);
@@ -160,9 +165,9 @@ public class TestData {
             deletedDocuments.add(id);
             retainedDocuments.remove(id);
         }
-        
+
         Map<String, Map<String, Map<String, ?>>> documentsByDepartment = new HashMap<>();
-        
+
         for (Map.Entry<String, Map<String, ?>> entry : retainedDocuments.entrySet()) {
             String dept = (String) entry.getValue().get("dept");
             documentsByDepartment.computeIfAbsent(dept, (k) -> new HashMap<>()).put(entry.getKey(), entry.getValue());
@@ -223,6 +228,10 @@ public class TestData {
         return departments[random.nextInt(departments.length)];
     }
 
+    private String randomTimestamp(Random random) {
+        return Instant.ofEpochMilli(random.nextLong()).toString();
+    }
+
     private static String randomId(Random random) {
         UUID uuid = new UUID(random.nextLong(), random.nextLong());
         ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[16]);
@@ -256,16 +265,16 @@ public class TestData {
 
         return new TestDocument(entry.getKey(), entry.getValue());
     }
-    
+
     public TestDocument anyDocumentForDepartment(String dept) {
         Map<String, Map<String, ?>> docs = this.documentsByDepartment.get(dept);
-        
+
         if (docs == null) {
             return null;
         }
-        
+
         Map.Entry<String, Map<String, ?>> entry = docs.entrySet().iterator().next();
-        
+
         return new TestDocument(entry.getKey(), entry.getValue());
     }
 
@@ -418,6 +427,10 @@ public class TestData {
 
         public Map<String, ?> getContent() {
             return content;
+        }
+        
+        public String getUri(String index) {
+            return "/" + index + "/_doc/" + id; 
         }
     }
 }
