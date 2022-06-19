@@ -68,7 +68,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
         this.componentState.updateStateFromParts();
 
         if (metricsLevel.basicEnabled()) {
-            this.componentState.addMetrics("statful_index_rebuilds", statefulIndexRebuild);
+            this.componentState.addMetrics("stateful_index_rebuilds", statefulIndexRebuild);
         }
     }
 
