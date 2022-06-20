@@ -38,7 +38,7 @@ public class Status implements ToXContentObject {
         this.code = code;
         this.detail = detail;
     }
-    
+
     public Status(Code code, SeverityLevel severityLevel, String detail) {
         this.code = code;
         this.detail = detail;
@@ -91,7 +91,7 @@ public class Status implements ToXContentObject {
             return String.valueOf(code);
         } else {
             StringBuilder result = new StringBuilder(String.valueOf(code));
-            
+
             if (severityLevel != null) {
                 if (severityLevel == SeverityLevel.NONE) {
                     result.append(" [OK]");
@@ -99,11 +99,11 @@ public class Status implements ToXContentObject {
                     result.append(" [").append(severityLevel.getId().toUpperCase()).append("]");
                 }
             }
-            
+
             if (detail != null) {
                 result.append(" ").append(detail);
             }
-            
+
             return result.toString();
         }
     }
@@ -123,7 +123,7 @@ public class Status implements ToXContentObject {
 
         if (jsonNode.hasNonNull("severity")) {
             try {
-                severityLevel = SeverityLevel.valueOf(jsonNode.getAsString("severity"));
+                severityLevel = SeverityLevel.getById(jsonNode.getAsString("severity"));
             } catch (Exception e) {
                 log.error("Invalid severity level in " + jsonNode + "; ignoring", e);
             }
