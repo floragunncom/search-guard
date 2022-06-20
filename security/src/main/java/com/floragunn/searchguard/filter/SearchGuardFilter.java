@@ -26,34 +26,19 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.DocWriteRequest.OpType;
-import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkShardRequest;
-import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.core.Tuple;
-import org.elasticsearch.index.engine.VersionConflictEngineException;
-import org.elasticsearch.index.reindex.DeleteByQueryRequest;
-import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -70,7 +55,6 @@ import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
@@ -92,7 +76,6 @@ public class SearchGuardFilter implements ActionFilter {
     private final AuditLog auditLog;
     private final ThreadContext threadContext;
     private final ClusterService cs;
-    private final ComplianceConfig complianceConfig;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
     private final ExtendedActionHandlingService extendedActionHandlingService;
     private final DiagnosticContext diagnosticContext;
@@ -102,7 +85,7 @@ public class SearchGuardFilter implements ActionFilter {
 
     public SearchGuardFilter(AuthorizationService authorizationService, PrivilegesEvaluator evalp, AdminDNs adminDns,
             ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters, AuditLog auditLog, ThreadPool threadPool, ClusterService cs,
-            DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, Actions actions,
+            DiagnosticContext diagnosticContext, Actions actions,
             ActionRequestIntrospector actionRequestIntrospector,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
             ExtendedActionHandlingService extendedActionHandlingService, NamedXContentRegistry namedXContentRegistry) {
@@ -112,7 +95,6 @@ public class SearchGuardFilter implements ActionFilter {
         this.auditLog = auditLog;
         this.threadContext = threadPool.getThreadContext();
         this.cs = cs;
-        this.complianceConfig = complianceConfig;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
         this.extendedActionHandlingService = extendedActionHandlingService;
         this.diagnosticContext = diagnosticContext;
@@ -123,7 +105,7 @@ public class SearchGuardFilter implements ActionFilter {
 
     @Override
     public int order() {
-        return Integer.MIN_VALUE;
+        return Integer.MIN_VALUE + 1;
     }
 
     @Override
@@ -154,9 +136,8 @@ public class SearchGuardFilter implements ActionFilter {
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.LOCAL.toString());
             }
 
-            if (complianceConfig != null && complianceConfig.isEnabled()) {
-                attachSourceFieldContext(request);
-            }
+            // TODO move to dlic
+            attachSourceFieldContext(request);
 
             User user = threadContext.getTransient(ConfigConstants.SG_USER);
             final boolean userIsAdmin = isUserAdmin(user, adminDns);
@@ -230,33 +211,6 @@ public class SearchGuardFilter implements ActionFilter {
             }
 
             Action action = actions.get(actionName);
-
-            if (complianceConfig != null && complianceConfig.isEnabled()) {
-
-                Tuple<ImmutableState, ActionListener> immutableResult;
-
-                if (request instanceof BulkShardRequest) {
-                    for (BulkItemRequest bsr : ((BulkShardRequest) request).items()) {
-                        immutableResult = checkImmutableIndices(bsr.request(), request, listener, actionName, task, auditLog);
-                        if (immutableResult != null && immutableResult.v1() == ImmutableState.FAILURE) {
-                            return;
-                        }
-
-                        if (immutableResult != null && immutableResult.v1() == ImmutableState.LISTENER) {
-                            listener = immutableResult.v2();
-                        }
-                    }
-                } else {
-                    immutableResult = checkImmutableIndices(request, request, listener, actionName, task, auditLog);
-                    if (immutableResult != null && immutableResult.v1() == ImmutableState.FAILURE) {
-                        return;
-                    }
-
-                    if (immutableResult != null && immutableResult.v1() == ImmutableState.LISTENER) {
-                        listener = immutableResult.v2();
-                    }
-                }
-            }
 
             if (Origin.LOCAL.toString().equals(threadContext.getTransient(ConfigConstants.SG_ORIGIN))
                     && (interClusterRequest || HeaderHelper.isDirectRequest(threadContext) && (specialPrivilegesEvaluationContext == null
@@ -368,82 +322,5 @@ public class SearchGuardFilter implements ActionFilter {
                 threadContext.putHeader("_sg_source_field_context", serializedSourceFieldContext);
             }
         }
-    }
-
-    private static class ImmutableIndexActionListener<Response> implements ActionListener<Response> {
-
-        private final ActionListener<Response> originalListener;
-        private final AuditLog auditLog;
-        private TransportRequest originalRequest;
-        private String action;
-        private Task task;
-
-        public ImmutableIndexActionListener(ActionListener<Response> originalListener, AuditLog auditLog, TransportRequest originalRequest,
-                String action, Task task) {
-            super();
-            this.originalListener = originalListener;
-            this.auditLog = auditLog;
-            this.originalRequest = originalRequest;
-            this.action = action;
-            this.task = task;
-        }
-
-        @Override
-        public void onResponse(Response response) {
-            originalListener.onResponse(response);
-        }
-
-        @Override
-        public void onFailure(Exception e) {
-
-            if (e instanceof VersionConflictEngineException) {
-                auditLog.logImmutableIndexAttempt(originalRequest, action, task);
-                originalListener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
-            } else {
-                originalListener.onFailure(e);
-            }
-        }
-    }
-
-    private enum ImmutableState {
-        FAILURE, LISTENER
-    }
-
-    @SuppressWarnings("rawtypes")
-    private Tuple<ImmutableState, ActionListener> checkImmutableIndices(Object request, TransportRequest originalRequest,
-            ActionListener originalListener, String action, Task task, AuditLog auditLog) {
-
-        if (request instanceof DeleteRequest || request instanceof UpdateRequest || request instanceof UpdateByQueryRequest
-                || request instanceof DeleteByQueryRequest || request instanceof DeleteIndexRequest || request instanceof RestoreSnapshotRequest
-                || request instanceof CloseIndexRequest || request instanceof IndicesAliasesRequest //TODO only remove index
-        ) {
-
-            if (complianceConfig != null && complianceConfig.isIndexImmutable(action, request)) {
-
-                //check index for type = remove index
-                //IndicesAliasesRequest iar = (IndicesAliasesRequest) request;
-                //for(AliasActions aa: iar.getAliasActions()) {
-                //    if(aa.actionType() == Type.REMOVE_INDEX) {
-
-                //    }
-                //}
-
-                auditLog.logImmutableIndexAttempt(originalRequest, action, task);
-
-                originalListener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
-                return new Tuple<ImmutableState, ActionListener>(ImmutableState.FAILURE, originalListener);
-            }
-        }
-
-        if (request instanceof IndexRequest) {
-            if (complianceConfig != null && complianceConfig.isIndexImmutable(action, request)) {
-                ((IndexRequest) request).opType(OpType.CREATE);
-                return new Tuple<ImmutableState, ActionListener>(ImmutableState.LISTENER,
-                        new ImmutableIndexActionListener(originalListener, auditLog, originalRequest, action, task));
-            }
-        }
-
-        return null;
-    }
-
+    } 
 }

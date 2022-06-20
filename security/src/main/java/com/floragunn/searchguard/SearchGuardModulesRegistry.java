@@ -36,6 +36,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -83,6 +84,7 @@ public class SearchGuardModulesRegistry {
     private ImmutableList<SearchOperationListener> searchOperationListeners;
     private ImmutableList<IndexingOperationListener> indexOperationListeners;
     private ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters;
+    private ImmutableList<ActionFilter> actionFilters;
     private ImmutableList<Function<String, Predicate<String>>> fieldFilters;
     private ImmutableList<QueryCacheWeightProvider> queryCacheWeightProviders;
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForNormalOperations;
@@ -228,7 +230,7 @@ public class SearchGuardModulesRegistry {
 
         return result;
     }
-        
+
     public ImmutableList<SearchOperationListener> getSearchOperationListeners() {
 
         ImmutableList<SearchOperationListener> result = this.searchOperationListeners;
@@ -262,7 +264,7 @@ public class SearchGuardModulesRegistry {
 
         return result;
     }
-    
+
     public ImmutableList<SyncAuthorizationFilter> getSyncAuthorizationFilters() {
         ImmutableList<SyncAuthorizationFilter> result = this.syncAuthorizationFilters;
 
@@ -272,6 +274,24 @@ public class SearchGuardModulesRegistry {
             for (SearchGuardModule module : modules) {
                 result = result.with(module.getSyncAuthorizationFilters());
             }
+
+            this.syncAuthorizationFilters = result;
+        }
+
+        return result;
+    }
+
+    public ImmutableList<ActionFilter> getActionFilters() {
+        ImmutableList<ActionFilter> result = this.actionFilters;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getActionFilters());
+            }
+
+            this.actionFilters = result;
         }
 
         return result;
@@ -324,16 +344,16 @@ public class SearchGuardModulesRegistry {
 
         return result.build();
     }
-    
+
     public AuditLog getAuditLog() {
         for (SearchGuardModule module : modules) {
             AuditLog auditLog = module.getAuditLog();
-            
+
             if (auditLog != null) {
                 return auditLog;
             }
         }
-        
+
         return null;
     }
 

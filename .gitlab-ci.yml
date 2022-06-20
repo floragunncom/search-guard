@@ -355,6 +355,26 @@ test_dlic_auditlog:
       - .m2/repository
     policy: pull
 
+test_dlic_immudoc:
+  stage: test
+  interruptible: true
+  tags:
+    - aws-runner
+  script:
+    - mvn $MAVEN_CLI_OPTS -pl dlic-doc-immutability test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo
+    paths:
+      - .m2/repository
+    policy: pull
+
 test_dlic_signals:
   stage: test
   interruptible: true

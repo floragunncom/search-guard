@@ -272,7 +272,13 @@
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
 					<version>${project.version}</version>
-				</dependency>								
+				</dependency>			
+				
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>dlic-search-guard-flx-doc-immutability</artifactId>
+                    <version>${project.version}</version>
+                </dependency>   									
 				
 				<!-- necessary for sgadmin-standalone. we should find a different solution 
 					for this -->
@@ -396,6 +402,12 @@
 					<artifactId>dlic-search-guard-flx-security-legacy</artifactId>
 					<version>${project.version}</version>
 				</dependency>
+				
+               <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>dlic-search-guard-flx-doc-immutability</artifactId>
+                    <version>${project.version}</version>
+                </dependency>       				
 			</dependencies>
 		</profile>
 	</profiles>

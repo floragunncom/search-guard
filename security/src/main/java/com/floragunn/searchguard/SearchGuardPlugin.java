@@ -137,7 +137,6 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.AuthorizationConfigApi;
 import com.floragunn.searchguard.authz.indices.SearchGuardDirectoryReaderWrapper;
-import com.floragunn.searchguard.compliance.ComplianceConfig;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -201,7 +200,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private final boolean sslOnly;
     private boolean sslCertReloadEnabled;
     private final List<String> demoCertHashes = new ArrayList<String>(3);
-    private volatile ComplianceConfig complianceConfig;
     private volatile ActionRequestIntrospector actionRequestIntrospector;
     private ScriptService scriptService;
 
@@ -262,7 +260,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             this.enterpriseModulesEnabled = false;
             this.sslOnly = false;
             this.sslCertReloadEnabled = false;
-            complianceConfig = null;
             SearchGuardPlugin.protectedIndices = new ProtectedIndices();
             log.warn("Search Guard plugin installed but disabled. This can expose your configuration (including passwords) to the public.");
             return;
@@ -273,7 +270,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (sslOnly) {
             this.enterpriseModulesEnabled = false;
             this.sslCertReloadEnabled = false;
-            complianceConfig = null;
             SearchGuardPlugin.protectedIndices = new ProtectedIndices();
             log.warn("Search Guard plugin run in ssl only mode. No authentication or authorization is performed");
             return;
@@ -392,7 +388,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     "com.floragunn.searchguard.authtoken.AuthTokenModule", "com.floragunn.dlic.auth.LegacyEnterpriseSecurityModule",
                     "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule", "com.floragunn.searchguard.enterprise.dlsfls.DlsFlsModule",
                     "com.floragunn.searchguard.enterprise.dlsfls.legacy.LegacyDlsFlsModule",
-                    "com.floragunn.searchguard.enterprise.auditlog.AuditLogModule");
+                    "com.floragunn.searchguard.enterprise.auditlog.AuditLogModule",
+                    "com.floragunn.searchguard.enterprise.immudoc.ImmuDocModule");
         }
 
         moduleRegistry.add(SessionModule.class.getName());
@@ -670,12 +667,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
     @Override
     public List<ActionFilter> getActionFilters() {
-        List<ActionFilter> filters = new ArrayList<>(1);
+        List<ActionFilter> filters = new ArrayList<>();
         if (!client && !disabled && !sslOnly) {
             ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedIndices, evaluator, settings);
             ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
             SearchGuardFilter searchGuardFilter = new SearchGuardFilter(authorizationService, evaluator, adminDns,
-                    moduleRegistry.getSyncAuthorizationFilters(), auditLog, threadPool, clusterService, diagnosticContext, complianceConfig, actions,
+                    moduleRegistry.getSyncAuthorizationFilters(), auditLog, threadPool, clusterService, diagnosticContext, actions,
                     actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry);
 
             filters.add(searchGuardFilter);
@@ -685,6 +682,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             if (actionTraceFilter != null) {
                 filters.add(actionTraceFilter);
             }
+            
+            filters.addAll(moduleRegistry.getActionFilters());
         }
         return filters;
     }
@@ -825,9 +824,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
        
         sslExceptionHandler = new AuditLogSslExceptionHandler(auditLog);
 
-        complianceConfig = new ComplianceConfig(environment, actionRequestIntrospector, cr);
-
-        licenseRepository.subscribeOnLicenseChange(complianceConfig);
         moduleRegistry.addComponentStateProvider(licenseRepository);
         
         Actions actions = new Actions(moduleRegistry);
@@ -1101,8 +1097,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     Function.identity(), Property.NodeScope)); //not filtered here
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_DISABLE_ANONYMOUS_AUTHENTICATION, false, Property.NodeScope,
                     Property.Filtered));
-            settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, Collections.emptyList(), Function.identity(),
-                    Property.NodeScope)); //not filtered here
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT, Property.NodeScope, Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, false, Property.NodeScope,
                     Property.Filtered));

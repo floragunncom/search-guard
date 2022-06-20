@@ -30,6 +30,7 @@ import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -97,7 +98,7 @@ public interface SearchGuardModule {
     default ImmutableSet<String> getPublicCapabilities() {
         return ImmutableSet.empty();
     }
-    
+
     /**
      * These readers are not executed when an admin certificate user has initiated the operation
      */
@@ -111,12 +112,16 @@ public interface SearchGuardModule {
     default ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> getDirectoryReaderWrappersForAllOperations() {
         return ImmutableList.empty();
     }
-    
+
     default ImmutableList<SearchOperationListener> getSearchOperationListeners() {
         return ImmutableList.empty();
     }
 
     default ImmutableList<IndexingOperationListener> getIndexOperationListeners() {
+        return ImmutableList.empty();
+    }
+
+    default ImmutableList<ActionFilter> getActionFilters() {
         return ImmutableList.empty();
     }
 

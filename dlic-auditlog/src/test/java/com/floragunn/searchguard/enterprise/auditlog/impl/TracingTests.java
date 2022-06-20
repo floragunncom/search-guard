@@ -32,8 +32,8 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
-import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
@@ -370,47 +370,4 @@ public class TracingTests extends SingleClusterTest {
         System.out.println(rh.executeGetRequest("myindex1/_search", encodeBasicHeader("admin", "admin")).getStatusCode());
 
     }
-    
-    @Test
-    public void testImmutableIndex() throws Exception {
-        Settings settings = Settings.builder()
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, "myindex1")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
-        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
-
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.admin().indices().create(new CreateIndexRequest("myindex1")
-            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
-            tc.admin().indices().create(new CreateIndexRequest("myindex2")
-            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
-        }
-
-        RestHelper rh = nonSslRestHelper();
-        System.out.println("############ immutable 1");
-        String data1 = FileHelper.loadFile("auditlog/data1.json");
-        String data2 = FileHelper.loadFile("auditlog/data1mod.json");
-        HttpResponse res = rh.executePutRequest("myindex1/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(201, res.getStatusCode());
-        res = rh.executePutRequest("myindex1/_doc/1?refresh", data2, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(403, res.getStatusCode());
-        res = rh.executeDeleteRequest("myindex1/_doc/1?refresh", encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(403, res.getStatusCode());
-        res = rh.executeGetRequest("myindex1/_doc/1", encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(200, res.getStatusCode());
-        Assert.assertFalse(res.getBody().contains("city"));
-        Assert.assertTrue(res.getBody().contains("\"found\":true,"));
-        
-        System.out.println("############ immutable 2");
-        res = rh.executePutRequest("myindex2/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(201, res.getStatusCode());
-        res = rh.executePutRequest("myindex2/_doc/1?refresh", data2, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(200, res.getStatusCode());
-        res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
-        Assert.assertTrue(res.getBody().contains("city"));
-        res = rh.executeDeleteRequest("myindex2/_doc/1?refresh", encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(200, res.getStatusCode());
-        res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(404, res.getStatusCode());
-    }
-
 }

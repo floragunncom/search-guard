@@ -697,7 +697,8 @@
 				<module>dlic-dlsfls</module>				
 				<module>dlic-dlsfls-legacy</module>											
 				<module>dlic-security-legacy</module>		
-				<module>dlic-fe-multi-tenancy</module>										
+				<module>dlic-fe-multi-tenancy</module>			
+				<module>dlic-doc-immutability</module>                                      							
 				<module>plugin</module>
 			</modules>
 		</profile>

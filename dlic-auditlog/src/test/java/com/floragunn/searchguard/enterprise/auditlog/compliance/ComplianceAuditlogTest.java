@@ -18,7 +18,6 @@ import java.time.Duration;
 
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -26,7 +25,6 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -35,11 +33,9 @@ import org.junit.Test;
 import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
-import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchsupport.junit.AsyncAssert;
 
@@ -340,49 +336,6 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.sb.toString().split(".*audit_compliance_diff_content.*replace.*").length == 2, Duration.ofSeconds(2));
         System.out.println(TestAuditlogImpl.sb.toString());
     }
-    
-    @Test
-    public void testImmutableIndex() throws Exception {
-        Settings settings = Settings.builder()
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, "myindex1")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
-        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
-
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.admin().indices().create(new CreateIndexRequest("myindex1")
-            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
-            tc.admin().indices().create(new CreateIndexRequest("myindex2")
-            .mapping("_doc", FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
-        }
-
-        RestHelper rh = nonSslRestHelper();
-        System.out.println("############ immutable 1");
-        String data1 = FileHelper.loadFile("auditlog/data1.json");
-        String data2 = FileHelper.loadFile("auditlog/data1mod.json");
-        HttpResponse res = rh.executePutRequest("myindex1/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(201, res.getStatusCode());
-        res = rh.executePutRequest("myindex1/_doc/1?refresh", data2, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(403, res.getStatusCode());
-        res = rh.executeDeleteRequest("myindex1/_doc/1?refresh", encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(403, res.getStatusCode());
-        res = rh.executeGetRequest("myindex1/_doc/1", encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(200, res.getStatusCode());
-        Assert.assertFalse(res.getBody().contains("city"));
-        Assert.assertTrue(res.getBody().contains("\"found\":true,"));
-        
-        System.out.println("############ immutable 2");
-        res = rh.executePutRequest("myindex2/_doc/1?refresh", data1, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(201, res.getStatusCode());
-        res = rh.executePutRequest("myindex2/_doc/1?refresh", data2, encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(200, res.getStatusCode());
-        res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
-        Assert.assertTrue(res.getBody().contains("city"));
-        res = rh.executeDeleteRequest("myindex2/_doc/1?refresh", encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(200, res.getStatusCode());
-        res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
-        Assert.assertEquals(404, res.getStatusCode());
-    }
-    
     
     @Test
     public void testInternalConfigRead() throws Exception {
