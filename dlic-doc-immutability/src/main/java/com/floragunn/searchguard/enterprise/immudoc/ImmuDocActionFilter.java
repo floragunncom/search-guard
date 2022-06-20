@@ -152,29 +152,33 @@ public class ImmuDocActionFilter implements ActionFilter, ComponentStateProvider
                         chain.proceed(task, action, request, listener);
                     }
                 } else if (request instanceof IndexRequest) {
-                    ((IndexRequest) request).opType(OpType.CREATE);
+                    if (isImmutable(action, request, config)) {
+                        ((IndexRequest) request).opType(OpType.CREATE);
 
-                    chain.proceed(task, action, request, new ActionListener<Response>() {
+                        chain.proceed(task, action, request, new ActionListener<Response>() {
 
-                        @Override
-                        public void onResponse(Response response) {
-                            listener.onResponse(response);
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            if (e instanceof VersionConflictEngineException) {
-                                auditLog.logImmutableIndexAttempt(request, action, task);
-                                listener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
-                                if (config.getMetricsLevel().basicEnabled()) {
-                                    blockedRequestCount.increment();
-                                }
-                            } else {
-                                listener.onFailure(e);
+                            @Override
+                            public void onResponse(Response response) {
+                                listener.onResponse(response);
                             }
-                        }
 
-                    });
+                            @Override
+                            public void onFailure(Exception e) {
+                                if (e instanceof VersionConflictEngineException) {
+                                    auditLog.logImmutableIndexAttempt(request, action, task);
+                                    listener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
+                                    if (config.getMetricsLevel().basicEnabled()) {
+                                        blockedRequestCount.increment();
+                                    }
+                                } else {
+                                    listener.onFailure(e);
+                                }
+                            }
+
+                        });
+                    } else {
+                        chain.proceed(task, action, request, listener);
+                    }
                 } else {
                     chain.proceed(task, action, request, listener);
                 }
