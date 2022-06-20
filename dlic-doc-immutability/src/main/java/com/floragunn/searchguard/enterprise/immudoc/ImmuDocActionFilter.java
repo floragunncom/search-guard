@@ -16,6 +16,8 @@ package com.floragunn.searchguard.enterprise.immudoc;
 
 import java.util.function.Supplier;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -52,6 +54,7 @@ import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
 public class ImmuDocActionFilter implements ActionFilter, ComponentStateProvider {
+    private static final Logger log = LogManager.getLogger(ImmuDocActionFilter.class);
 
     private final ComponentState componentState = new ComponentState(1, null, "action_filter", ImmuDocActionFilter.class).requiresEnterpriseLicense()
             .initialized();
@@ -92,85 +95,91 @@ public class ImmuDocActionFilter implements ActionFilter, ComponentStateProvider
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
-        User user = authInfoService.peekCurrentUser();
+        try {
+            User user = authInfoService.peekCurrentUser();
 
-        if (user != null && adminDns.isAdmin(user)) {
-            chain.proceed(task, action, request, listener);
-            return;
-        }
+            if (user != null && adminDns.isAdmin(user)) {
+                chain.proceed(task, action, request, listener);
+                return;
+            }
 
-        if (!this.enabled.get()) {
-            chain.proceed(task, action, request, listener);
-            return;
-        }
+            if (!this.enabled.get()) {
+                chain.proceed(task, action, request, listener);
+                return;
+            }
 
-        ImmuDocConfig config = this.config.get();
+            ImmuDocConfig config = this.config.get();
 
-        if (config == null || config.getImmutableIndicesPattern().isBlank()) {
-            chain.proceed(task, action, request, listener);
-            return;
-        }
+            if (config == null || config.getImmutableIndicesPattern().isBlank()) {
+                chain.proceed(task, action, request, listener);
+                return;
+            }
 
-        if (config.getMetricsLevel().basicEnabled()) {
-            this.requestCount.increment();
-        }
+            if (config.getMetricsLevel().basicEnabled()) {
+                this.requestCount.increment();
+            }
 
-        try (Meter meter = Meter.detail(config.getMetricsLevel(), applyTimeAggregation)) {
-            if (request instanceof BulkShardRequest) {
-                for (BulkItemRequest item : ((BulkShardRequest) request).items()) {
-                    if (!handleItem(action, item.request(), config)) {
+            try (Meter meter = Meter.detail(config.getMetricsLevel(), applyTimeAggregation)) {
+                if (request instanceof BulkShardRequest) {
+                    for (BulkItemRequest item : ((BulkShardRequest) request).items()) {
+                        if (!handleItem(action, item.request(), config)) {
+                            auditLog.logImmutableIndexAttempt(request, action, task);
+                            listener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
+
+                            if (config.getMetricsLevel().basicEnabled()) {
+                                this.blockedRequestCount.increment();
+                            }
+
+                            return;
+                        }
+                    }
+
+                    chain.proceed(task, action, request, listener);
+                } else if (request instanceof DeleteRequest || request instanceof UpdateRequest || request instanceof UpdateByQueryRequest
+                        || request instanceof DeleteByQueryRequest || request instanceof DeleteIndexRequest
+                        || request instanceof RestoreSnapshotRequest || request instanceof CloseIndexRequest
+                        || request instanceof IndicesAliasesRequest) {
+
+                    if (isImmutable(action, request, config)) {
                         auditLog.logImmutableIndexAttempt(request, action, task);
+
                         listener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
 
                         if (config.getMetricsLevel().basicEnabled()) {
                             this.blockedRequestCount.increment();
                         }
-
-                        return;
+                    } else {
+                        chain.proceed(task, action, request, listener);
                     }
-                }
+                } else if (request instanceof IndexRequest) {
+                    ((IndexRequest) request).opType(OpType.CREATE);
 
-                chain.proceed(task, action, request, listener);
-            } else if (request instanceof DeleteRequest || request instanceof UpdateRequest || request instanceof UpdateByQueryRequest
-                    || request instanceof DeleteByQueryRequest || request instanceof DeleteIndexRequest || request instanceof RestoreSnapshotRequest
-                    || request instanceof CloseIndexRequest || request instanceof IndicesAliasesRequest) {
+                    chain.proceed(task, action, request, new ActionListener<Response>() {
 
-                if (isImmutable(action, request, config)) {
-                    auditLog.logImmutableIndexAttempt(request, action, task);
-
-                    listener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
-
-                    if (config.getMetricsLevel().basicEnabled()) {
-                        this.blockedRequestCount.increment();
-                    }
-                } else {
-                    chain.proceed(task, action, request, listener);
-                }
-            } else if (request instanceof IndexRequest) {
-                ((IndexRequest) request).opType(OpType.CREATE);
-
-                chain.proceed(task, action, request, new ActionListener<Response>() {
-
-                    @Override
-                    public void onResponse(Response response) {
-                        listener.onResponse(response);
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
-                        if (e instanceof VersionConflictEngineException) {
-                            auditLog.logImmutableIndexAttempt(request, action, task);
-                            listener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
-                            if (config.getMetricsLevel().basicEnabled()) {
-                                blockedRequestCount.increment();
-                            }
-                        } else {
-                            listener.onFailure(e);
+                        @Override
+                        public void onResponse(Response response) {
+                            listener.onResponse(response);
                         }
-                    }
 
-                });
+                        @Override
+                        public void onFailure(Exception e) {
+                            if (e instanceof VersionConflictEngineException) {
+                                auditLog.logImmutableIndexAttempt(request, action, task);
+                                listener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
+                                if (config.getMetricsLevel().basicEnabled()) {
+                                    blockedRequestCount.increment();
+                                }
+                            } else {
+                                listener.onFailure(e);
+                            }
+                        }
+
+                    });
+                }
             }
+        } catch (RuntimeException e) {
+            log.error("Error in ImmuDocActionFilter", e);
+            throw e;
         }
     }
 
