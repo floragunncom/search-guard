@@ -92,7 +92,7 @@ public class ImmuDocActionFilter implements ActionFilter, ComponentStateProvider
     @Override
     public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
-        User user = authInfoService.getCurrentUser();
+        User user = authInfoService.peekCurrentUser();
 
         if (user != null && adminDns.isAdmin(user)) {
             chain.proceed(task, action, request, listener);
