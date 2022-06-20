@@ -175,6 +175,8 @@ public class ImmuDocActionFilter implements ActionFilter, ComponentStateProvider
                         }
 
                     });
+                } else {
+                    chain.proceed(task, action, request, listener);
                 }
             }
         } catch (RuntimeException e) {
