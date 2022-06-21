@@ -179,7 +179,7 @@ public class ConfigurationLoader {
                             SgDynamicConfiguration<?> config = toConfig(type, item.getResponse());
 
                             if (staticSgConfig != null) {
-                                staticSgConfig.addTo(config);
+                                config = staticSgConfig.addTo(config);
                             }
 
                             configMapBuilder.with(config);

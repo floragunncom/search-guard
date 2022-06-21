@@ -126,11 +126,6 @@ public class ConfigHistoryService implements ComponentStateProvider {
                 throw new IllegalStateException("Could not get configuration of type " + configurationType + " from configuration repository");
             }
 
-            if (configuration.getDocVersion() <= 0) {
-                throw new IllegalStateException("Illegal config version " + configuration.getVersion() + " in " + configuration);
-
-            }
-
             configByType.put(configurationType, configuration.withoutStatic());
         }
 
@@ -265,19 +260,19 @@ public class ConfigHistoryService implements ComponentStateProvider {
     }
 
     private ConfigModel createConfigModelForSnapshot(ConfigSnapshot configSnapshot) {
-        SgDynamicConfiguration<Role> roles = configSnapshot.getConfigByType(Role.class).copy();
+        SgDynamicConfiguration<Role> roles = configSnapshot.getConfigByType(Role.class);
         SgDynamicConfiguration<RoleMapping> roleMappings = configSnapshot.getConfigByType(RoleMapping.class);
-        SgDynamicConfiguration<ActionGroup> actionGroups = configSnapshot.getConfigByType(ActionGroup.class).copy();
-        SgDynamicConfiguration<Tenant> tenants = configSnapshot.getConfigByType(Tenant.class).copy();
+        SgDynamicConfiguration<ActionGroup> actionGroups = configSnapshot.getConfigByType(ActionGroup.class);
+        SgDynamicConfiguration<Tenant> tenants = configSnapshot.getConfigByType(Tenant.class);
         SgDynamicConfiguration<Blocks> blocks = configSnapshot.getConfigByType(Blocks.class);
 
         if (blocks == null) {
             blocks = SgDynamicConfiguration.empty(CType.BLOCKS);
         }
 
-        staticSgConfig.addTo(roles);
-        staticSgConfig.addTo(actionGroups);
-        staticSgConfig.addTo(tenants);
+        roles = staticSgConfig.addTo(roles);
+        actionGroups = staticSgConfig.addTo(actionGroups);
+        tenants = staticSgConfig.addTo(tenants);
 
         ConfigModel configModel = new ConfigModel(roles, roleMappings, actionGroups, tenants, blocks, actions, privilegesEvaluator.getResolver(),
                 privilegesEvaluator.getClusterService());

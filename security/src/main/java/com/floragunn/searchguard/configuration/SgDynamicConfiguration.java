@@ -42,12 +42,14 @@ import org.opensearch.index.seqno.SequenceNumbers;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.RedactableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
@@ -60,37 +62,31 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     private final CType<T> ctype;
     private final ComponentState componentState;
 
-    private final Map<String, T> centries = new LinkedHashMap<>();
+    private final OrderedImmutableMap<String, T> centries;
     private long seqNo = SequenceNumbers.UNASSIGNED_SEQ_NO;
     private long primaryTerm = SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
     private String uninterpolatedJson;
-
-    /**
-     * This is the version of the config type! If you are looking for the version of the config document, see docVersion!
-     */
-    private int version = -1;
     private long docVersion = -1;
     private ValidationErrors validationErrors;
 
     public static <T> SgDynamicConfiguration<T> empty(CType<T> type) {
-        return new SgDynamicConfiguration<T>(type);
+        return new SgDynamicConfiguration<T>(type, OrderedImmutableMap.empty());
     }
 
     public static <T> SgDynamicConfiguration<T> of(CType<T> type, String k1, T v1) {
-        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<T>(type);
-        result.centries.put(k1, v1);
-        return result;
+        return new SgDynamicConfiguration<T>(type, OrderedImmutableMap.of(k1, v1));
     }
 
     public static <T> SgDynamicConfiguration<T> of(CType<T> type, String k1, T v1, String k2, T v2) {
-        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<T>(type);
-        result.centries.put(k1, v1);
-        result.centries.put(k2, v2);
-        return result;
+        return new SgDynamicConfiguration<T>(type, OrderedImmutableMap.of(k1, v1, k2, v2));
     }
 
+    public static <T> SgDynamicConfiguration<T> of(CType<T> type, Map<String, T> entries) {
+        return new SgDynamicConfiguration<T>(type, OrderedImmutableMap.of(entries));
+    }
+    
     public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm,
-            ConfigurationRepository.Context parserContext) throws IOException, ConfigValidationException {
+            ConfigurationRepository.Context parserContext) throws DocumentParseException, ConfigValidationException {
         String jsonString;
 
         if (ctype.isReplaceLegacyEnvVars()) {
@@ -105,33 +101,19 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
 
     public static <T> SgDynamicConfiguration<T> fromMap(Map<String, ?> map, CType<T> ctype, ConfigurationRepository.Context parserContext)
             throws ConfigValidationException {
-        return fromMap(map, ctype, -1, -1, -1, parserContext);
-    }
-
-    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, ?> map, CType<T> ctype, long docVersion, long seqNo, long primaryTerm,
-            ConfigurationRepository.Context parserContext) throws ConfigValidationException {
-        return fromDocNode(DocNode.wrap(map), null, ctype, docVersion, seqNo, primaryTerm, parserContext);
+        return fromDocNode(DocNode.wrap(map), null, ctype, -1, -1, -1, parserContext);
     }
 
     public static <T> SgDynamicConfiguration<T> fromDocNode(DocNode docNode, String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo,
             long primaryTerm, ConfigurationRepository.Context parserContext) throws ConfigValidationException {
-        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<>(ctype);
-        result.seqNo = seqNo;
-        result.primaryTerm = primaryTerm;
-        result.docVersion = docVersion;
-        result.version = 2;
-        result.uninterpolatedJson = uninterpolatedJson;
-        result.componentState.setConfigVersion(docVersion);
-
-        if (docNode.hasNonNull("_sg_meta")) {
-            result._sg_meta = Meta.parse(docNode.getAsNode("_sg_meta"));
-        }
 
         Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser = ctype.getParser();
 
         if (parser == null) {
             throw new IllegalArgumentException("Unsupported ctype " + ctype);
         }
+
+        OrderedImmutableMap.Builder<String, T> entries = new OrderedImmutableMap.Builder<>(docNode.size());
 
         ValidationErrors validationErrors = new ValidationErrors();
 
@@ -147,7 +129,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
                 ValidationResult<T> parsedEntry = parser.parse(DocNode.wrap(entry.getValue()), parserContext);
 
                 if (parsedEntry.hasResult()) {
-                    result.centries.put(id, parsedEntry.peek());
+                    entries.put(id, parsedEntry.peek());
                 }
 
                 validationErrors.add(ctype.getArity() == CType.Arity.SINGLE ? null : id, parsedEntry.getValidationErrors());
@@ -160,101 +142,92 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         // TODO clean up overloads and return ValidationResult
         // validationErrors.throwExceptionForPresentErrors();
 
-        if (validationErrors.hasErrors()) {
-            log.error("Errors in configuration " + ctype + "\n" + validationErrors.toDebugString());
-            result.componentState.setState(State.PARTIALLY_INITIALIZED, "has_errors");
-            result.componentState.addDetail(validationErrors.toBasicObject());
-        } else {
-            result.componentState.initialized();
-        }
-
-        result.validationErrors = validationErrors;
-
-        return result;
+        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
 
     }
 
-    public SgDynamicConfiguration(CType<T> ctype) {
+    private SgDynamicConfiguration(CType<T> ctype, OrderedImmutableMap<String, T> entries) {
         this.ctype = ctype;
+        this.centries = entries;
         this.componentState = new ComponentState(0, "config", ctype.getName());
     }
 
-    private Meta _sg_meta;
+    private SgDynamicConfiguration(CType<T> ctype, OrderedImmutableMap<String, T> entries, long seqNo, long primaryTerm, long docVersion,
+            String uninterpolatedJson, ValidationErrors validationErrors) {
+        super();
+        this.centries = entries;
+        this.ctype = ctype;
+        this.seqNo = seqNo;
+        this.primaryTerm = primaryTerm;
+        this.uninterpolatedJson = uninterpolatedJson;
+        this.docVersion = docVersion;
+        this.validationErrors = validationErrors;
 
-    public Meta get_sg_meta() {
-        return _sg_meta;
-    }
+        this.componentState = new ComponentState(0, "config", ctype.getName());
+        this.componentState.setConfigVersion(docVersion);
 
-    public void set_sg_meta(Meta _sg_meta) {
-        this._sg_meta = _sg_meta;
+        if (validationErrors.hasErrors()) {
+            log.error("Errors in configuration " + ctype + "\n" + validationErrors.toDebugString());
+            this.componentState.setState(State.PARTIALLY_INITIALIZED, "has_errors");
+            this.componentState.addDetail(validationErrors.toBasicObject());
+        } else {
+            this.componentState.initialized();
+        }
     }
 
     public String getETag() {
         return primaryTerm + "." + seqNo;
     }
 
-    void setCEntries(String key, T value) {
-        putCEntry(key, value);
-    }
-
-    public Map<String, T> getCEntries() {
+    public OrderedImmutableMap<String, T> getCEntries() {
         return centries;
     }
 
-    public void removeHidden() {
-        uninterpolatedJson = null;
+    public SgDynamicConfiguration<T> with(String key, T entry) {
+        return new SgDynamicConfiguration<>(ctype, centries.with(key, entry), seqNo, primaryTerm, docVersion, null, validationErrors);
+    }
 
-        for (Entry<String, T> entry : new HashMap<String, T>(centries).entrySet()) {
-            if (entry.getValue() instanceof Hideable && ((Hideable) entry.getValue()).isHidden()) {
-                centries.remove(entry.getKey());
-            }
-        }
+    public SgDynamicConfiguration<T> with(Map<String, T> map) {
+        return new SgDynamicConfiguration<>(ctype, centries.with(OrderedImmutableMap.of(map)), seqNo, primaryTerm, docVersion, uninterpolatedJson,
+                validationErrors);
+    }
+
+    public SgDynamicConfiguration<T> without(String key) {
+        return new SgDynamicConfiguration<>(ctype, centries.without(key), seqNo, primaryTerm, docVersion, null, validationErrors);
     }
 
     public SgDynamicConfiguration<T> withoutStatic() {
-        SgDynamicConfiguration<T> result = empty(ctype);
-
-        result.version = this.version;
-        result.docVersion = this.docVersion;
-        result.seqNo = this.seqNo;
-        result.primaryTerm = this.primaryTerm;
+        OrderedImmutableMap.Builder<String, T> entries = new OrderedImmutableMap.Builder<>(centries.size());
 
         for (Entry<String, T> entry : new HashMap<String, T>(centries).entrySet()) {
             if (!(entry.getValue() instanceof StaticDefinable) || !((StaticDefinable) entry.getValue()).isStatic()) {
-                result.putCEntry(entry.getKey(), entry.getValue());
+                entries.put(entry.getKey(), entry.getValue());
             }
         }
 
-        result.uninterpolatedJson = this.uninterpolatedJson;
-
-        return result;
+        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
     }
 
-    public void removeStatic() {
+    public SgDynamicConfiguration<T> withoutHidden() {
+        OrderedImmutableMap.Builder<String, T> entries = new OrderedImmutableMap.Builder<>(centries.size());
+
         for (Entry<String, T> entry : new HashMap<String, T>(centries).entrySet()) {
-            if (entry.getValue() instanceof StaticDefinable && ((StaticDefinable) entry.getValue()).isStatic()) {
-                centries.remove(entry.getKey());
+            if (!(entry.getValue() instanceof Hideable && ((Hideable) entry.getValue()).isHidden())) {
+                entries.put(entry.getKey(), entry.getValue());
             }
         }
+
+        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
     }
 
-    public void removeOthers(String key) {
-        uninterpolatedJson = null;
+    public SgDynamicConfiguration<T> only(String key) {
+        T entry = centries.get(key);
 
-        T tmp = this.centries.get(key);
-        this.centries.clear();
-        this.centries.put(key, tmp);
-    }
-
-    public T putCEntry(String key, T value) {
-        uninterpolatedJson = null;
-        return centries.put(key, value);
-    }
-
-    public void setEntries(Map<String, T> values) {
-        uninterpolatedJson = null;
-        centries.clear();
-        centries.putAll(values);
+        if (entry == null) {
+            return empty(ctype);
+        } else {
+            return new SgDynamicConfiguration<>(ctype, OrderedImmutableMap.of(key, entry), seqNo, primaryTerm, docVersion, null, validationErrors);
+        }
     }
 
     public T getCEntry(String key) {
@@ -270,17 +243,13 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         if (primaryTerm == SequenceNumbers.UNASSIGNED_PRIMARY_TERM) {
             return ctype + "@[none]";
         } else {
-            return ctype + "@" + primaryTerm + "." + seqNo + "/v:" + version + "/n:" + centries.size();
+            return ctype + "@" + primaryTerm + "." + seqNo + "/n:" + centries.size();
         }
     }
 
     @Override
     public Object toBasicObject() {
         LinkedHashMap<String, Object> result = new LinkedHashMap<>(centries.size() + 1);
-
-        if (_sg_meta != null) {
-            result.put("_sg_meta", _sg_meta.toBasicObject());
-        }
 
         for (Map.Entry<String, T> entry : centries.entrySet()) {
             result.put(entry.getKey(), ((Document<?>) entry.getValue()).toBasicObject());
@@ -292,10 +261,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     @Override
     public Object toRedactedBasicObject() {
         LinkedHashMap<String, Object> result = new LinkedHashMap<>(centries.size() + 1);
-
-        if (_sg_meta != null) {
-            result.put("_sg_meta", _sg_meta.toBasicObject());
-        }
 
         for (Map.Entry<String, T> entry : centries.entrySet()) {
             if (entry.getValue() instanceof RedactableDocument) {
@@ -313,10 +278,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
      */
     public Object toRedactedLegacyBasicObject() {
         LinkedHashMap<String, Object> result = new LinkedHashMap<>(centries.size() + 1);
-
-        if (_sg_meta != null) {
-            result.put("_sg_meta", _sg_meta.toBasicObject());
-        }
 
         for (Map.Entry<String, T> entry : centries.entrySet()) {
             if (entry.getValue() instanceof HasLegacyFormat) {
@@ -341,10 +302,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         } else {
             builder.startObject();
 
-            if (get_sg_meta() != null) {
-                builder.field("_sg_meta", get_sg_meta().toBasicObject());
-            }
-
             for (Map.Entry<String, T> entry : centries.entrySet()) {
                 String key = entry.getKey();
                 T value = entry.getValue();
@@ -356,10 +313,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         }
 
         return builder;
-    }
-
-    public void resetUninterpolatedJson() {
-        uninterpolatedJson = null;
     }
 
     @Override
@@ -383,49 +336,12 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         return ctype;
     }
 
-    public int getVersion() {
-        return version;
-    }
-
     public Class<T> getImplementingClass() {
         if (ctype == null) {
             return null;
         }
 
         return ctype.getType();
-    }
-
-    public SgDynamicConfiguration<T> copy() {
-        SgDynamicConfiguration<T> result = new SgDynamicConfiguration<>(this.ctype);
-        result.seqNo = seqNo;
-        result.primaryTerm = primaryTerm;
-        result.docVersion = docVersion;
-        result.version = version;
-        result.uninterpolatedJson = uninterpolatedJson;
-        result.centries.putAll(this.centries);
-        return result;
-    }
-
-    public void remove(String key) {
-        this.uninterpolatedJson = null;
-        centries.remove(key);
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    public void add(SgDynamicConfiguration other) {
-        if (other.ctype == null || !other.ctype.equals(this.ctype)) {
-            throw new IllegalArgumentException("Config " + other + " has invalid ctype. Expected: " + this.ctype);
-        }
-
-        if (other.getImplementingClass() == null || !other.getImplementingClass().equals(this.getImplementingClass())) {
-            throw new IllegalArgumentException("Config " + other + " has invalid implementingClass. Expected: " + this.getImplementingClass());
-        }
-
-        if (other.version != this.version) {
-            throw new IllegalArgumentException("Config " + other + " has invalid version. Expected: " + this.version);
-        }
-
-        this.centries.putAll(other.centries);
     }
 
     public long getDocVersion() {

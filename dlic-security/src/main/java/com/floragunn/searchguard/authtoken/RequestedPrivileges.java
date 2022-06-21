@@ -171,8 +171,6 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     }
 
     SgDynamicConfiguration<Role> toRolesConfig() {
-        SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.empty(CType.ROLES);
-
         ImmutableList<Role.Index> indexPermissions = this.indexPermissions.map((p) -> p.toRoleIndex());
         ImmutableList<Role.Tenant> tenantPermissions = this.tenantPermissions.map((p) -> p.toRoleTenant());
         ImmutableList<Role.ExcludeIndex> excludeIndexPermissions = this.excludedIndexPermissions.map((p) -> p.toRoleExcludeIndex());
@@ -180,9 +178,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         Role role = new Role(null, false, false, false, "requested privileges", clusterPermissions, indexPermissions, tenantPermissions,
                 excludedClusterPermissions, excludeIndexPermissions);
 
-        roles.putCEntry(RESTRICTION_ROLE, role);
-
-        return roles;
+        
+        return SgDynamicConfiguration.of(CType.ROLES, RESTRICTION_ROLE, role);
     }
 
     @Override
