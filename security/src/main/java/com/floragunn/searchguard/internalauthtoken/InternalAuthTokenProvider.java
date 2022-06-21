@@ -137,7 +137,7 @@ public class InternalAuthTokenProvider {
             if (rolesMap == null) {
                 throw new JwtException("JWT does not contain claim sg_roles");
             }
-            SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null);
+            SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null).get();
             ImmutableSet<String> roleNames = ImmutableSet.of(rolesConfig.getCEntries().keySet());
 
             ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions,

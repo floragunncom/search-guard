@@ -84,9 +84,9 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     public static <T> SgDynamicConfiguration<T> of(CType<T> type, Map<String, T> entries) {
         return new SgDynamicConfiguration<T>(type, OrderedImmutableMap.of(entries));
     }
-    
-    public static <T> SgDynamicConfiguration<T> fromJson(String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo, long primaryTerm,
-            ConfigurationRepository.Context parserContext) throws DocumentParseException, ConfigValidationException {
+
+    public static <T> ValidationResult<SgDynamicConfiguration<T>> fromJson(String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo,
+            long primaryTerm, ConfigurationRepository.Context parserContext) throws DocumentParseException, ConfigValidationException {
         String jsonString;
 
         if (ctype.isReplaceLegacyEnvVars()) {
@@ -99,13 +99,13 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
                 docVersion, seqNo, primaryTerm, parserContext);
     }
 
-    public static <T> SgDynamicConfiguration<T> fromMap(Map<String, ?> map, CType<T> ctype, ConfigurationRepository.Context parserContext)
-            throws ConfigValidationException {
+    public static <T> ValidationResult<SgDynamicConfiguration<T>> fromMap(Map<String, ?> map, CType<T> ctype,
+            ConfigurationRepository.Context parserContext) throws ConfigValidationException {
         return fromDocNode(DocNode.wrap(map), null, ctype, -1, -1, -1, parserContext);
     }
 
-    public static <T> SgDynamicConfiguration<T> fromDocNode(DocNode docNode, String uninterpolatedJson, CType<T> ctype, long docVersion, long seqNo,
-            long primaryTerm, ConfigurationRepository.Context parserContext) throws ConfigValidationException {
+    public static <T> ValidationResult<SgDynamicConfiguration<T>> fromDocNode(DocNode docNode, String uninterpolatedJson, CType<T> ctype,
+            long docVersion, long seqNo, long primaryTerm, ConfigurationRepository.Context parserContext) {
 
         Parser.ReturningValidationResult<T, ConfigurationRepository.Context> parser = ctype.getParser();
 
@@ -139,11 +139,9 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             }
         }
 
-        // TODO clean up overloads and return ValidationResult
-        // validationErrors.throwExceptionForPresentErrors();
-
-        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
-
+        return new ValidationResult<SgDynamicConfiguration<T>>(
+                new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors),
+                validationErrors);
     }
 
     private SgDynamicConfiguration(CType<T> ctype, OrderedImmutableMap<String, T> entries) {

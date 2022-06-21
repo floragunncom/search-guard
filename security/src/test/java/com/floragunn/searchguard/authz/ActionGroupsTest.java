@@ -38,7 +38,7 @@ public class ActionGroupsTest {
     public void basicTest() throws Exception {
         TestActionGroup testActionGroups = new TestActionGroup().with("Z", "C", "A").with("A", "A1", "A2", "A3").with("B", "B1", "B2", "B3").with("C",
                 "A", "B", "C1");
-        SgDynamicConfiguration<ActionGroup> config = SgDynamicConfiguration.fromMap(testActionGroups.map, CType.ACTIONGROUPS, null);
+        SgDynamicConfiguration<ActionGroup> config = SgDynamicConfiguration.fromMap(testActionGroups.map, CType.ACTIONGROUPS, null).get();
 
         ActionGroup.FlattenedIndex actionGroups = new ActionGroup.FlattenedIndex(config);
 
@@ -51,7 +51,7 @@ public class ActionGroupsTest {
     @Test
     public void recursionTest() throws Exception {
         TestActionGroup testActionGroups = new TestActionGroup().with("A", "A1", "B").with("B", "B1", "C").with("C", "C1", "A", "D").with("D", "D1");
-        SgDynamicConfiguration<ActionGroup> config = SgDynamicConfiguration.fromMap(testActionGroups.map, CType.ACTIONGROUPS, null);
+        SgDynamicConfiguration<ActionGroup> config = SgDynamicConfiguration.fromMap(testActionGroups.map, CType.ACTIONGROUPS, null).get();
 
         ActionGroup.FlattenedIndex actionGroups = new ActionGroup.FlattenedIndex(config);
 
@@ -65,7 +65,7 @@ public class ActionGroupsTest {
     public void staticActionGroupsSmokeTest() throws Exception {
         SgDynamicConfiguration<ActionGroup> config = SgDynamicConfiguration.fromDocNode(
                 DocNode.parse(Format.YAML).from(new InputStreamReader(getClass().getResourceAsStream("/static_config/static_action_groups.yml"))),
-                null, CType.ACTIONGROUPS, 0l, 0l, 0l, null);
+                null, CType.ACTIONGROUPS, 0l, 0l, 0l, null).get();
 
         ActionGroup.FlattenedIndex actionGroups = new ActionGroup.FlattenedIndex(config);
 

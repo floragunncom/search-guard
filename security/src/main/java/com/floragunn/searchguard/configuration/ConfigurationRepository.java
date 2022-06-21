@@ -853,7 +853,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
 
             try {
-                SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, parserContext);
+                @SuppressWarnings({ "unchecked", "rawtypes" }) // XXX weird generics issue
+                ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration.fromMap(configMap, ctype, parserContext);
 
                 if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
                     validationErrors.add(ctype.toLCString(), configInstance.getValidationErrors());
@@ -863,7 +864,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 String id = ctype.toLCString();
 
                 IndexRequest indexRequest = new IndexRequest(searchGuardIndex).id(id).source(id,
-                        XContentHelper.toXContent(configInstance.withoutStatic(), XContentType.JSON, false));
+                        XContentHelper.toXContent(configInstance.peek().withoutStatic(), XContentType.JSON, false));
 
                 if (matchETag != null) {
                     try {

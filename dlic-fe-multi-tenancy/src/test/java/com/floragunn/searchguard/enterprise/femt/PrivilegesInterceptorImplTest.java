@@ -44,7 +44,7 @@ public class PrivilegesInterceptorImplTest {
                                 DocNode.of("tenant_permissions",
                                         Arrays.asList(
                                                 ImmutableMap.of("tenant_patterns", Arrays.asList("*"), "allowed_actions", Arrays.asList("*"))))),
-                        CType.ROLES, null);
+                        CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.of("my_tenant", "test");
 

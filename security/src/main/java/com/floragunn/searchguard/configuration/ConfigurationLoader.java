@@ -255,7 +255,7 @@ public class ConfigurationLoader {
             parser.nextToken();
 
             return SgDynamicConfiguration.fromJson(new String(parser.binaryValue()), type, getResponse.getVersion(), getResponse.getSeqNo(),
-                    getResponse.getPrimaryTerm(), configRepository.getParserContext());
+                    getResponse.getPrimaryTerm(), configRepository.getParserContext()).peek();
         }
     }
 
