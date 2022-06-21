@@ -14,6 +14,13 @@ compliance_2:
   variables:
     TEST: "compliance_2"
     TEST_ENVIRONMENT: "compliance_2"
+    
+compliance_3:
+  extends:
+  - .be_integration_test_ext
+  variables:
+    TEST: "compliance_3"
+    TEST_ENVIRONMENT: "compliance_3"    
 
 compliance_ccs:
   extends:
@@ -35,6 +42,13 @@ compliance_2_clientnode:
   variables:
     TEST: "compliance_2_clientnode"
     TEST_ENVIRONMENT: "compliance_2"
+
+compliance_3_clientnode:
+  extends:
+  - .be_integration_test_ext
+  variables:
+    TEST: "compliance_3_clientnode"
+    TEST_ENVIRONMENT: "compliance_3"    
 
 signals_1:
   extends:
