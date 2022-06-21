@@ -75,6 +75,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.reindex.ReindexRequest;
+import org.elasticsearch.indices.InvalidIndexNameException;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotUtils;
 import org.elasticsearch.transport.RemoteClusterService;
@@ -235,7 +236,7 @@ public final class IndexResolverReplacer implements DCFListener {
                 if (log.isDebugEnabled()) {
                     log.debug("Resolved pattern {} to {}", localRequestedPatterns, _indices);
                 }
-            } catch (IndexNotFoundException e1) {
+            } catch (IndexNotFoundException | InvalidIndexNameException e1) {
                 if (log.isDebugEnabled()) {
                     log.debug("No such indices for pattern {}, use raw value", localRequestedPatterns);
                 }
