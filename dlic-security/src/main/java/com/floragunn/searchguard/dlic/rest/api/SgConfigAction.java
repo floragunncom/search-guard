@@ -82,9 +82,9 @@ public class SgConfigAction extends PatchableResourceApiAction {
 			throws IOException {
 
 		try {
-			final SgDynamicConfiguration<?> configuration = load(getConfigName(), true);
+			SgDynamicConfiguration<?> configuration = load(getConfigName(), true);
 
-			filter(configuration);
+			configuration = filter(configuration);
 
 			successResponse(channel, configuration);
 		} catch (ConfigUnavailableException e) {

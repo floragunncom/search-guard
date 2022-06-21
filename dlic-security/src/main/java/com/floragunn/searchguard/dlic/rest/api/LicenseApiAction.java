@@ -106,8 +106,7 @@ public class LicenseApiAction extends AbstractApiAction {
         ValidationResult<SearchGuardLicenseKey> key = SearchGuardLicenseKey.parse(DocNode.of("key", licenseString), null);
 
         try {
-            SgDynamicConfiguration<SearchGuardLicenseKey> newConfig = SgDynamicConfiguration.empty(CType.LICENSE_KEY);
-            newConfig.putCEntry("default", key.get());
+            SgDynamicConfiguration<SearchGuardLicenseKey> newConfig = SgDynamicConfiguration.of(CType.LICENSE_KEY, "default", key.get());
 
             saveAnUpdateConfigs(client, request, CType.LICENSE_KEY, newConfig, new OnSucessActionListener<IndexResponse>(channel) {
 
