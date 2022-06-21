@@ -79,7 +79,7 @@ public class StaticSgConfig {
         try {
             DocNode docNode = DocNode.parse(Format.YAML).from(StaticSgConfig.class.getResourceAsStream(resourcePath));
 
-            return SgDynamicConfiguration.fromDocNode(docNode, docNode.toJsonString(), configType, 0l, 0l, 0l, null);
+            return SgDynamicConfiguration.fromDocNode(docNode, docNode.toJsonString(), configType, 0l, 0l, 0l, null).get();
         } catch (Exception e) {
             throw new RuntimeException("Error while reading static configuration from " + resourcePath, e);
         }

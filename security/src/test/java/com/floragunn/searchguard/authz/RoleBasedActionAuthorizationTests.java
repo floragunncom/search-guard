@@ -48,7 +48,7 @@ public class RoleBasedActionAuthorizationTests {
         Assert.assertTrue(nodesStatsAction.toString(), nodesStatsAction instanceof WellKnownAction);
 
         SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.fromMap(
-                DocNode.of("test_role", DocNode.of("cluster_permissions", Arrays.asList("cluster:monitor/nodes/stats*"))), CType.ROLES, null);
+                DocNode.of("test_role", DocNode.of("cluster_permissions", Arrays.asList("cluster:monitor/nodes/stats*"))), CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -70,7 +70,7 @@ public class RoleBasedActionAuthorizationTests {
         Assert.assertFalse(nodesStatsAction.toString(), nodesStatsAction instanceof WellKnownAction);
 
         SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.fromMap(
-                DocNode.of("test_role", DocNode.of("cluster_permissions", Arrays.asList("cluster:monitor/nodes/stats*"))), CType.ROLES, null);
+                DocNode.of("test_role", DocNode.of("cluster_permissions", Arrays.asList("cluster:monitor/nodes/stats*"))), CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -100,7 +100,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  - 'cluster:monitor/*'\n" + //
                         "  exclude_cluster_permissions:\n" + //
                         "  - 'cluster:monitor/nodes/stats*'\n"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -125,7 +125,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_constant_a']\n" + //
                         "    allowed_actions: ['indices:data/write/index']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -161,7 +161,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_constant_a*']\n" + //
                         "    allowed_actions: ['indices:data/write/index']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -197,7 +197,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_${user.attrs.dept_no}']\n" + //
                         "    allowed_actions: ['indices:data/write/index']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -241,7 +241,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_constant_a*']\n" + //
                         "    allowed_actions: ['indices:data/write/index']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -278,7 +278,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_constant_a*']\n" + //
                         "    allowed_actions: ['indices:data/write/index/notwellknown']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -314,7 +314,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_constant_a*']\n" + //
                         "    allowed_actions: ['indices:data/write/index/*']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -351,7 +351,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_constant_a']\n" + //
                         "    allowed_actions: ['indices:data/write/index*']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -396,7 +396,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_a*']\n" + //
                         "    allowed_actions: ['indices:data/write/index*']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -441,7 +441,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_a*']\n" + //
                         "    allowed_actions: ['indices:data/write/index*']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -487,7 +487,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['*']\n" + //
                         "    allowed_actions: ['indices:data/write/index*']"),
-                CType.ROLES, null);
+                CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
@@ -537,7 +537,7 @@ public class RoleBasedActionAuthorizationTests {
                         "  index_permissions:\n" + //
                         "  - index_patterns: ['index_a2']\n" + //
                         "    allowed_actions: ['indices:data/write/index/notWell*']\n" //
-        ), CType.ROLES, null);
+        ), CType.ROLES, null).get();
 
         ImmutableSet<String> tenants = ImmutableSet.empty();
 
