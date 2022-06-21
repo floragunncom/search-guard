@@ -33,30 +33,26 @@ public class StaticSgConfig {
         }
     }
 
-    public SgDynamicConfiguration<?> addTo(SgDynamicConfiguration<?> original) {
-        SgDynamicConfiguration<?> staticConfig = get(original);
+    public <T> SgDynamicConfiguration<T> addTo(SgDynamicConfiguration<T> original) {
+        SgDynamicConfiguration<T> staticConfig = get(original);
         
         if (staticConfig.getCEntries().isEmpty()) {
             return original;
         }
         
         checkForOverriddenEntries(original, staticConfig);
-        
-        original.add(staticConfig.copy());
+
+        SgDynamicConfiguration<T> result = original.with(staticConfig.getCEntries());
 
         if (log.isDebugEnabled()) {
             log.debug(staticConfig.getCEntries().size() + " static " + original.getCType().toLCString() + " loaded");
         }
         
-        return original;
+        return result;
     }
 
     @SuppressWarnings("unchecked")
     public <ConfigType> SgDynamicConfiguration<ConfigType> get(SgDynamicConfiguration<ConfigType> original) {
-        if (original.getVersion() != 2) {
-            return SgDynamicConfiguration.empty(original.getCType());
-        }
-
         if (original.getCType().equals(CType.ACTIONGROUPS)) {
             return (SgDynamicConfiguration<ConfigType>) staticActionGroups;
         } else if (original.getCType().equals(CType.ROLES)) {
@@ -66,7 +62,6 @@ public class StaticSgConfig {
         } else {
             return SgDynamicConfiguration.empty(original.getCType());
         }
-
     }
     
     private void checkForOverriddenEntries(SgDynamicConfiguration<?> original, SgDynamicConfiguration<?> staticConfig) {

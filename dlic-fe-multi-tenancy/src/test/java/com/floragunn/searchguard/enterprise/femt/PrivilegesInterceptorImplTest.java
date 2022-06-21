@@ -32,7 +32,8 @@ import com.floragunn.searchguard.user.User;
 
 public class PrivilegesInterceptorImplTest {
 
-    private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
+    private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(
+            SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
     private static final Actions actions = new Actions(null);
 
     @Test
@@ -43,7 +44,7 @@ public class PrivilegesInterceptorImplTest {
                                 DocNode.of("tenant_permissions",
                                         Arrays.asList(
                                                 ImmutableMap.of("tenant_patterns", Arrays.asList("*"), "allowed_actions", Arrays.asList("*"))))),
-                        CType.ROLES, -1, -1, -1, null);
+                        CType.ROLES, null);
 
         ImmutableSet<String> tenants = ImmutableSet.of("my_tenant", "test");
 

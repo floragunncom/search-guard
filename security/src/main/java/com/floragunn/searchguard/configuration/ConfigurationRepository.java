@@ -626,7 +626,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             boolean alreadyExists = configInstance.getCEntry(id) != null;
 
-            configInstance.putCEntry(id, entry);
+            configInstance = configInstance.with(id, entry);
 
             update(ctype, configInstance, matchETag);
 
@@ -689,9 +689,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 }
             };
 
-            configInstance.setEntries(doc.patch(patch, parserContext));
-
-            update(configType, configInstance, matchETag);
+            update(configType, SgDynamicConfiguration.of(configType, doc.patch(patch, parserContext)), matchETag);
 
             return new StandardResponse(200).message(configType.getUiName() + " has been updated");
 
@@ -728,9 +726,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             @SuppressWarnings("unchecked")
             PatchableDocument<T> entry = (PatchableDocument<T>) document;
 
-            configInstance.putCEntry(id, entry.patch(patch, parserContext));
-
-            update(configType, configInstance, matchETag);
+            update(configType, configInstance.with(id, entry.patch(patch, parserContext)), matchETag);
 
             String message;
 
@@ -757,9 +753,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 throw new NoSuchConfigEntryException(configType, id);
             }
 
-            configInstance.remove(id);
-
-            update(configType, configInstance, null);
+            update(configType, configInstance.without(id), null);
 
             return new StandardResponse(200).message(configType.getUiName() + " " + id + " has been deleted");
         } catch (ConfigUnavailableException e) {
@@ -773,11 +767,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
         IndexRequest indexRequest = new IndexRequest(getEffectiveSearchGuardIndexAndCreateIfNecessary());
 
         try {
-            configInstance.removeStatic();
-
             String id = ctype.toLCString();
 
-            indexRequest = indexRequest.id(id).source(id, XContentHelper.toXContent(configInstance, XContentType.JSON, false))
+            indexRequest = indexRequest.id(id).source(id, XContentHelper.toXContent(configInstance.withoutStatic(), XContentType.JSON, false))
                     .setRefreshPolicy(RefreshPolicy.IMMEDIATE);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -863,7 +855,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             try {
                 SgDynamicConfiguration<?> configInstance = SgDynamicConfiguration.fromMap(configMap, ctype, parserContext);
-                configInstance.removeStatic();
 
                 if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
                     validationErrors.add(ctype.toLCString(), configInstance.getValidationErrors());
@@ -873,7 +864,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 String id = ctype.toLCString();
 
                 IndexRequest indexRequest = new IndexRequest(searchGuardIndex).id(id).source(id,
-                        XContentHelper.toXContent(configInstance, XContentType.JSON, false));
+                        XContentHelper.toXContent(configInstance.withoutStatic(), XContentType.JSON, false));
 
                 if (matchETag != null) {
                     try {

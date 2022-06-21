@@ -168,7 +168,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		}
 		
         boolean existed = existingConfiguration.exists(name);
-        existingConfiguration.remove(name);
+        existingConfiguration = existingConfiguration.without(name);
 		
 		if (existed) {
 			saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<IndexResponse>(channel) {
@@ -215,7 +215,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         ValidationResult<?> validatedConfig = parser.parse(content, cl.getParserContext());
 
         try {
-            existingConfiguration.putCEntry(name, validatedConfig.get());
+            existingConfiguration = existingConfiguration.with(name, validatedConfig.get());
         } catch (ConfigValidationException e) {
             badRequestResponse(channel, e.toJsonString());
             return;
@@ -262,13 +262,13 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 			logComplianceEvent(configuration);
 
-			filter(configuration);
+			configuration = filter(configuration);
 
 			// no specific resource requested, return complete config
 			if (resourcename == null || resourcename.length() == 0) {			    
 			    // The legacy REST API also returns static configuration. This is a bit weird if you cannot modify it by PUT or DELETE. 
 			    // Anyway, we keep this here to support for example the Search Guard config UI
-		        staticSgConfig.addTo(configuration);
+			    configuration = staticSgConfig.addTo(configuration);
 
 				successResponse(channel, configuration);
 				return;
@@ -279,7 +279,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 				return;
 			}
 
-			configuration.removeOthers(resourcename);
+			configuration = configuration.only(resourcename);
 			successResponse(channel, configuration);
 		} catch (ConfigUnavailableException e) {
 			log.error("Error while loading configuration", e);
@@ -294,7 +294,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
             logComplianceEvent(loaded);
         }
         
-	    staticSgConfig.addTo(loaded);
+        loaded = staticSgConfig.addTo(loaded);
 	    return loaded;
 	}
 
@@ -302,9 +302,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		return cl.isIndexInitialized();
 	}
 
-	protected void filter(SgDynamicConfiguration<?> builder) {
-        builder.removeHidden();
-        builder.set_sg_meta(null);
+	protected SgDynamicConfiguration<?> filter(SgDynamicConfiguration<?> builder) {
+	    return builder.withoutHidden();
 	}
 	
 	abstract class OnSucessActionListener<Response> implements ActionListener<Response> {
@@ -324,7 +323,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	}
 
 	protected void saveAnUpdateConfigs(final Client client, final RestRequest request, final CType<?> cType,
-	        final SgDynamicConfiguration<?> configuration, OnSucessActionListener<IndexResponse> actionListener) {
+	        SgDynamicConfiguration<?> configuration, OnSucessActionListener<IndexResponse> actionListener) {
 	    String searchGuardIndex = cl.getEffectiveSearchGuardIndex();
 	    
 	    if (searchGuardIndex == null) {
@@ -336,7 +335,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		//final String type = "_doc";
 		final String id = cType.toLCString();
 
-		configuration.removeStatic();
+		configuration = configuration.withoutStatic();
 		
 		try {
             client.index(ir.id(id)
