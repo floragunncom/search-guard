@@ -174,7 +174,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         
         SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(DocNode.wrap(updated), null,
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
-                existingConfiguration.getPrimaryTerm(), cl.getParserContext());
+                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();
 
         saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
@@ -256,7 +256,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
         SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(patchedAsDocNode, null,
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
-                existingConfiguration.getPrimaryTerm(), cl.getParserContext());
+                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();
 
         saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
