@@ -46,15 +46,6 @@ fe_signals:
     TEST_ENVIRONMENT: "kibana_signals"
     TEST_KI_CONFIG: "signals"
 
-fe_authtokens:
-  extends:
-  - .fe_integration_test_features
-  variables:
-    TEST: "kibana_authtokens"
-    TEST_ENVIRONMENT: "kibana_authtokens"
-    TEST_KI_CONFIG: "authtokens"
-    TEST_COMPOSEFILE: "docker-compose-kibana-authtokens.yml"
-
 # -------------------------------------------------------------------------
 
 .fe_integration_test_features:

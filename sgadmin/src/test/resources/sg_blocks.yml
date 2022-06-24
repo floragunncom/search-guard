@@ -1,9 +1,0 @@
----
-_sg_meta:
-  type: "blocks"
-  config_version: 2
-
-demo_user_blocked:
-  type: "name"
-  value: ["Spock"] # you can also use regular expressions and wildcards, e.g. '* Spock'
-  verdict: "disallow"

@@ -173,7 +173,7 @@ public class PrivilegesEvaluationResult {
     public boolean isPending() {
         return status == Status.PENDING;
     }
-    
+
     public ImmutableSet<String> getAvailableIndices() {
         return availableIndices;
     }
@@ -181,6 +181,8 @@ public class PrivilegesEvaluationResult {
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder("");
+
+        result.append("Status: ").append(status).append("\n");
 
         if (reason != null) {
             result.append("Reason: ").append(reason).append("\n");
@@ -324,7 +326,7 @@ public class PrivilegesEvaluationResult {
             }
 
             result.addMetadata("es.user_attributes", context.getUser().getStructuredAttributes().keySet().stream().collect(Collectors.toList()));
-            
+
             if (errors != null && !errors.isEmpty()) {
                 result.addMetadata("es.errors", errors.stream().map((e) -> e.toString()).collect(Collectors.toList()));
             }

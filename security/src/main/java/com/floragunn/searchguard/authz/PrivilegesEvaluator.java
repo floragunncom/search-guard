@@ -299,7 +299,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 result = actionAuthorization.hasClusterPermission(context, action);
 
                 if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
-                    log.info("No {}-level perm match for {} {} [Action [{}]] [RolesChecked {}]:\n{}", "cluster", user, requestInfo, action0,
+                    log.info("### No cluster privileges for {} ({})\nUser: {}\nRoles: {}\n{}", action, request.getClass().getName(), user,
                             mappedRoles, result);
                     return result;
                 }
@@ -433,7 +433,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     if (log.isEnabled(Level.INFO)) {
                         log.info("### No cluster privileges for " + clusterPermission + " (" + request.getClass().getName() + ")\nUser: " + user
                                 + "\nResolved Indices: " + actionRequestInfo.getResolvedIndices() + "\nUnresolved: "
-                                + actionRequestInfo.getUnresolved() + "\nRoles: " + mappedRoles + "\nRequired Privileges: " + allIndexPermsRequired);
+                                + actionRequestInfo.getUnresolved() + "\nRoles: " + mappedRoles + "\n" + result);
                     }
 
                     return result;
