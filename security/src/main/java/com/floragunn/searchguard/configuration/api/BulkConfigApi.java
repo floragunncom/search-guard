@@ -26,9 +26,7 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocUtils;
@@ -50,16 +48,15 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.ConfigurationRepository.ConfigUpdateResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository.ConfigWithMetadata;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.variables.ConfigVar;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
-import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
 public class BulkConfigApi {
     private static final Logger log = LogManager.getLogger(BulkConfigApi.class);
@@ -106,8 +103,6 @@ public class BulkConfigApi {
             private final ConfigVarService configVarService;
             private final AuditLog auditLog;
 
-            private final static ToXContent.Params OMIT_DEFAULTS_PARAMS = new ToXContent.MapParams(ImmutableMap.of("omit_defaults", "true"));
-
             @Inject
             public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository,
                     ConfigVarService configVarService, BaseDependencies baseDependencies) {
@@ -146,7 +141,7 @@ public class BulkConfigApi {
                                     resultEntry.put("content", UnparsedDocument.fromJson(config.getUninterpolatedJson()));
                                 }
                             } else {
-                                resultEntry.put("content", ObjectTreeXContent.toObjectTree(config, OMIT_DEFAULTS_PARAMS));
+                                resultEntry.put("content", config.toBasicObject());
                             }
 
                             if (config.documentExists()) {
@@ -175,7 +170,7 @@ public class BulkConfigApi {
                 Map<String, String> fields = new LinkedHashMap<>();
 
                 for (SgDynamicConfiguration<?> config : configMap.getAll()) {
-                    fields.put(config.getCType().toLCString(), Strings.toString(config));
+                    fields.put(config.getCType().toLCString(), config.toJsonString());
                 }
 
                 auditLog.logDocumentRead(configurationRepository.getEffectiveSearchGuardIndex(), "*", null, fields);

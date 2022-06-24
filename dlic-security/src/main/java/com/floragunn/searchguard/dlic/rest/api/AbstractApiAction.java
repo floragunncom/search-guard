@@ -29,11 +29,9 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
@@ -44,7 +42,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
@@ -336,17 +333,11 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		final String id = cType.toLCString();
 
 		configuration = configuration.withoutStatic();
-		
-		try {
-            client.index(ir.id(id)
-                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .setIfSeqNo(configuration.getSeqNo())
-                    .setIfPrimaryTerm(configuration.getPrimaryTerm())
-                    .source(id, XContentHelper.toXContent(configuration, XContentType.JSON, false)),
-                    new ConfigUpdatingActionListener<IndexResponse>(client, actionListener));
-        } catch (IOException e) {
-            throw ExceptionsHelper.convertToElastic(e);
-        }
+
+        client.index(
+                ir.id(id).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setIfSeqNo(configuration.getSeqNo())
+                        .setIfPrimaryTerm(configuration.getPrimaryTerm()).source(id, configuration.toJsonString().getBytes()),
+                new ConfigUpdatingActionListener<IndexResponse>(client, actionListener));        
 	}
 	
 	private static class ConfigUpdatingActionListener<Response> implements ActionListener<Response>{
@@ -582,7 +573,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected abstract Endpoint getEndpoint();
 	
     private <T> void logComplianceEvent(SgDynamicConfiguration<T> result) {
-        Map<String, String> fields = ImmutableMap.of(result.getCType().toLCString(), Strings.toString(result));
+        Map<String, String> fields = ImmutableMap.of(result.getCType().toLCString(), result.toJsonString());
         auditLog.logDocumentRead(cl.getEffectiveSearchGuardIndex(), result.getCType().toLCString(), null, fields);
     }
 

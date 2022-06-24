@@ -24,7 +24,6 @@ import java.util.concurrent.CompletionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.DocNode;
@@ -132,7 +131,7 @@ public abstract class TypeLevelConfigApi {
             private void logComplianceEvent(SgDynamicConfiguration<?> config) {
                 Map<String, String> fields = new LinkedHashMap<>();
 
-                fields.put(config.getCType().toLCString(), Strings.toString(config));
+                fields.put(config.getCType().toLCString(), config.toJsonString());
 
                 auditLog.logDocumentRead(configurationRepository.getEffectiveSearchGuardIndex(), configType.getName(), null, fields);
             }

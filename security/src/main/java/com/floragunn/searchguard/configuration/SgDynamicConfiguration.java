@@ -17,8 +17,6 @@
 
 package com.floragunn.searchguard.configuration;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -34,10 +32,6 @@ import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
-import org.elasticsearch.index.seqno.SequenceNumbers;
-import org.elasticsearch.xcontent.ToXContent;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
@@ -53,18 +47,19 @@ import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.google.common.base.Charsets;
 
-public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, RedactableDocument, ComponentStateProvider, Destroyable {
+public class SgDynamicConfiguration<T> implements Document<Object>, RedactableDocument, ComponentStateProvider, Destroyable {
 
     private static final Logger log = LogManager.getLogger(SgDynamicConfiguration.class);
+
+    private static final int UNASSIGNED_PRIMARY_TERM = -2;
 
     private final CType<T> ctype;
     private final ComponentState componentState;
 
     private final OrderedImmutableMap<String, T> centries;
-    private long seqNo = SequenceNumbers.UNASSIGNED_SEQ_NO;
-    private long primaryTerm = SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
+    private long seqNo = UNASSIGNED_PRIMARY_TERM;
+    private long primaryTerm = 0;
     private String uninterpolatedJson;
     private long docVersion = -1;
     private ValidationErrors validationErrors;
@@ -238,7 +233,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
 
     @Override
     public String toString() {
-        if (primaryTerm == SequenceNumbers.UNASSIGNED_PRIMARY_TERM) {
+        if (primaryTerm == UNASSIGNED_PRIMARY_TERM) {
             return ctype + "@[none]";
         } else {
             return ctype + "@" + primaryTerm + "." + seqNo + "/n:" + centries.size();
@@ -288,34 +283,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         }
 
         return result;
-    }
-
-    @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-
-        if (uninterpolatedJson != null) {
-            builder.rawValue(new ByteArrayInputStream(uninterpolatedJson.getBytes(Charsets.UTF_8)), XContentType.JSON);
-        } else if (Document.class.isAssignableFrom(this.ctype.getType())) {
-            return builder.value(toBasicObject());
-        } else {
-            builder.startObject();
-
-            for (Map.Entry<String, T> entry : centries.entrySet()) {
-                String key = entry.getKey();
-                T value = entry.getValue();
-
-                builder.field(key, ((Document<?>) value).toBasicObject());
-            }
-
-            builder.endObject();
-        }
-
-        return builder;
-    }
-
-    @Override
-    public boolean isFragment() {
-        return false;
     }
 
     public boolean documentExists() {

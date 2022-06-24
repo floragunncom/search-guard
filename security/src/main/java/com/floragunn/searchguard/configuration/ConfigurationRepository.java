@@ -19,7 +19,6 @@ package com.floragunn.searchguard.configuration;
 
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,7 +53,6 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -764,16 +762,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public <T> void update(CType<T> ctype, SgDynamicConfiguration<T> configInstance, String matchETag)
             throws ConfigUpdateException, ConcurrentConfigUpdateException {
 
-        IndexRequest indexRequest = new IndexRequest(getEffectiveSearchGuardIndexAndCreateIfNecessary());
+        String id = ctype.toLCString();
 
-        try {
-            String id = ctype.toLCString();
-
-            indexRequest = indexRequest.id(id).source(id, XContentHelper.toXContent(configInstance.withoutStatic(), XContentType.JSON, false))
-                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        IndexRequest indexRequest = new IndexRequest(getEffectiveSearchGuardIndexAndCreateIfNecessary()).id(id)
+                .source(id, configInstance.withoutStatic().toJsonString().getBytes()).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
         if (matchETag != null) {
             try {
@@ -855,7 +847,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             try {
                 @SuppressWarnings({ "unchecked", "rawtypes" }) // XXX weird generics issue
-                ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration.fromMap(configMap, ctype, parserContext);
+                ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration
+                        .fromMap(configMap, ctype, parserContext);
 
                 if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
                     validationErrors.add(ctype.toLCString(), configInstance.getValidationErrors());
@@ -865,7 +858,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 String id = ctype.toLCString();
 
                 IndexRequest indexRequest = new IndexRequest(searchGuardIndex).id(id).source(id,
-                        XContentHelper.toXContent(configInstance.peek().withoutStatic(), XContentType.JSON, false));
+                        configInstance.peek().withoutStatic().toJsonString().getBytes());
 
                 if (matchETag != null) {
                     try {
@@ -899,8 +892,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 bulkRequest.add(indexRequest);
             } catch (ConfigValidationException e) {
                 validationErrors.add(ctype.toLCString(), e);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
             }
         }
 
