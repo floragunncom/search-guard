@@ -42,7 +42,8 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import com.floragunn.searchguard.rest.SearchGuardConfigUpdateAction;
+import com.floragunn.searchguard.rest.SearchGuardWhoAmIAction;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -55,7 +56,7 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -184,12 +185,11 @@ import com.google.common.collect.Lists;
 
 public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin, ScriptPlugin {
 
-    private volatile AuthenticatingRestFilter sgRestHandler;
+    private volatile AuthenticatingRestFilter searchGuardRestFilter;
     private volatile SearchGuardInterceptor sgi;
     private AuthorizationService authorizationService;
     private volatile PrivilegesEvaluator evaluator;
     private volatile ThreadPool threadPool;
-    private volatile NamedXContentRegistry xContentRegistry;
     private volatile ConfigurationRepository cr;
     private volatile AdminDNs adminDns;
     private volatile ClusterService clusterService;
@@ -218,7 +218,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private LicenseRepository licenseRepository;
     private VariableResolvers configVariableProviders = VariableResolvers.ALL_PRIVILEGED;
     private Actions actions;
-    
+    private NamedXContentRegistry xContentRegistry;
+
     @Override
     public void close() throws IOException {
         if (auditLog != null) {
@@ -500,6 +501,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(MigrateConfigIndexApi.REST_API);
                 handlers.add(new AuthenticatingRestFilter.DebugApi());
 
+                handlers.add(new SearchGuardWhoAmIAction(settings, adminDns, configPath, principalExtractor));
+                handlers.add(new SearchGuardConfigUpdateAction(settings, threadPool, adminDns, configPath, principalExtractor));
+
+
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
@@ -507,16 +512,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
         return handlers;
-    }
-
-    @Override
-    public UnaryOperator<RestHandler> getRestHandlerWrapper(final ThreadContext threadContext) {
-
-        if (client || disabled || sslOnly) {
-            return (rh) -> rh;
-        }
-
-        return (rh) -> sgRestHandler.wrap(rh);
     }
 
     @Override
@@ -759,12 +754,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         configPath, evaluateSslExceptionHandler());
                 //TODO close sghst
                 final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, bigArrays, threadPool, sgks,
-                        evaluateSslExceptionHandler(), xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory);
+                        evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory);
 
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
             } else if (!client) {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
-                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher,
+                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, searchGuardRestFilter.wrap(dispatcher),
                                 clusterSettings, sharedGroupFactory));
             }
         }
@@ -776,7 +771,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
             IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
-        
+
         if (sslOnly) {
             return super.createComponents(localClient, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry,
                     environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier);
@@ -901,12 +896,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
         }
         
-        sgRestHandler = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool,
+        searchGuardRestFilter = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool,
                 principalExtractor, evaluator, settings, configPath, diagnosticContext);
 
         evaluator.setPrivilegesInterceptor(moduleRegistry.getPrivilegesInterceptor());
 
-        moduleRegistry.addComponentStateProvider(sgRestHandler);
+        moduleRegistry.addComponentStateProvider(searchGuardRestFilter);
         
         this.actions = actions;
         
@@ -987,8 +982,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             // SG6 - Audit - Sink
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX + ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX,
-                    Property.NodeScope, Property.Filtered));
-            settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX + ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE,
                     Property.NodeScope, Property.Filtered));
 
             // External ES
@@ -1162,19 +1155,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             moduleRegistry.onNodeStarted();
             protectedConfigIndexService.onNodeStart();
         }       
-    }
-
-    //below is a hack because it seems not possible to access RepositoriesService from a non guice class
-    //the way of how deguice is organized is really a mess - hope this can be fixed in later versions
-    //TODO check if this could be removed
-    @Override
-    public Collection<Class<? extends LifecycleComponent>> getGuiceServiceClasses() {
-
-        if (client || disabled || sslOnly) {
-            return Collections.emptyList();
-        }
-
-        return Arrays.asList(GuiceDependencies.GuiceRedirector.class);
     }
 
     @Override

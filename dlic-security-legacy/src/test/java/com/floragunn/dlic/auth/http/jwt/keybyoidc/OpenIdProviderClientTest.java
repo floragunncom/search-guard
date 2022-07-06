@@ -59,6 +59,7 @@ public class OpenIdProviderClientTest {
     public static void setUp() throws Exception {
         mockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL);
         httpProxy = new BrowserUpProxyServer();
+        //Java 17 java.net.BindException: Can't assign requested address
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
 
@@ -77,7 +78,7 @@ public class OpenIdProviderClientTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void proxyTest() throws Exception {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL)

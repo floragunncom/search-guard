@@ -8,8 +8,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.nodes.BaseNodeRequest;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
+import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -18,6 +18,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -52,7 +53,7 @@ public class TransportAckWatchAction
     }
 
     @Override
-    protected NodeResponse nodeOperation(final NodeRequest request) {
+    protected NodeResponse nodeOperation(final NodeRequest request, Task task) {
 
         try {
             DiscoveryNode localNode = clusterService.localNode();
@@ -118,14 +119,12 @@ public class TransportAckWatchAction
         }
     }
 
-    public static class NodeRequest extends BaseNodeRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
         AckWatchRequest request;
 
-        public NodeRequest() {
-        }
-
         public NodeRequest(final AckWatchRequest request) {
+            super((String[]) null);
             this.request = request;
         }
 

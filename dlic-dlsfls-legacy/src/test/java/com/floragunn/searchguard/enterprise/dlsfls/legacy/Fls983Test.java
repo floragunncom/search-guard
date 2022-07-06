@@ -17,7 +17,7 @@ package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
@@ -43,11 +43,9 @@ public class Fls983Test extends AbstractDlsFlsTest{
             "\"x\" : \"y\""+
         "}}";
         
-        HttpResponse res = rh.executePostRequest("/.kibana/_update/0?pretty", doc, encodeBasicHeader("human_resources_trainee", "password"));
-        
-        Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
-        System.out.println(res.getBody());
-        Assert.assertTrue(res.getBody().contains("updated"));
-        Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+        HttpResponse res;
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/.kibana/_update/0?pretty", doc, encodeBasicHeader("human_resources_trainee", "password"))).getStatusCode());
+        Assert.assertTrue(res.getBody(), res.getBody().contains("updated"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"failed\" : 0"));
     }
 }

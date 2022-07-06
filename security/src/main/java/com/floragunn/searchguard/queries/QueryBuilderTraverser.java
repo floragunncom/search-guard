@@ -42,6 +42,7 @@ import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentParser;
+import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.json.JsonXContent;
 
 public abstract class QueryBuilderTraverser {
@@ -71,7 +72,8 @@ public abstract class QueryBuilderTraverser {
     }
 
     public boolean check(String query, NamedXContentRegistry namedXContentRegistry) throws IOException {
-        XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, query);
+        XContentParser parser = JsonXContent.jsonXContent.createParser(XContentParserConfiguration.EMPTY.withRegistry(namedXContentRegistry),
+                query);
         QueryBuilder queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
 
         return check(queryBuilder);

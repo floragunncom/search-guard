@@ -52,7 +52,10 @@ public class ConfigConstants {
 
     public static final String SG_CONF_REQUEST_HEADER = SG_CONFIG_PREFIX+"conf_request";
 
+    //TransportAdress
     public static final String SG_REMOTE_ADDRESS = SG_CONFIG_PREFIX+"remote_address";
+
+    // serialized InetSocketAddress
     public static final String SG_REMOTE_ADDRESS_HEADER = SG_CONFIG_PREFIX+"remote_address_header";
     
     public static final String SG_INITIAL_ACTION_CLASS_HEADER = SG_CONFIG_PREFIX+"initial_action_class_header";
@@ -122,7 +125,6 @@ public class ConfigConstants {
 
     // Internal / External ES
     public static final String SEARCHGUARD_AUDIT_ES_INDEX = "index";
-    public static final String SEARCHGUARD_AUDIT_ES_TYPE = "type";    
     
     // External ES
     public static final String SEARCHGUARD_AUDIT_EXTERNAL_ES_HTTP_ENDPOINTS = "http_endpoints";
@@ -190,7 +192,7 @@ public class ConfigConstants {
     
     public static final String SEARCHGUARD_SSL_CERT_RELOAD_ENABLED = "searchguard.ssl.cert_reload_enabled";
 
-   
+    public static final String UNAUTHORIZED_JSON = " {\"status\": 401, \"error\": {\"reason\":\"Unauthorized\", \"rootCause\": [], \"suppressed\": [], \"metadata\": {}}}";
 
     // REST API
     public static final String SEARCHGUARD_RESTAPI_ROLES_ENABLED = "searchguard.restapi.roles_enabled";

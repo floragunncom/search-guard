@@ -1,12 +1,12 @@
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
@@ -43,19 +43,13 @@ public class InternalAuthenticationBackendIntegrationTests {
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "nagilum")) {
-            SearchResponse searchResponse = client.search(
-                    new SearchRequest("dls_test").source(new SearchSourceBuilder().size(100).query(QueryBuilders.matchAllQuery())),
-                    RequestOptions.DEFAULT);
-
-            Assert.assertEquals(5, searchResponse.getHits().getTotalHits().value);
+            SearchResponse searchResponse = client.search("dls_test",0,100);
+            Assert.assertEquals(5L, searchResponse.hits().total().value());
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("user_with_attributes", "nagilum")) {
-            SearchResponse searchResponse = client.search(
-                    new SearchRequest("dls_test").source(new SearchSourceBuilder().size(100).query(QueryBuilders.matchAllQuery())),
-                    RequestOptions.DEFAULT);
-
-            Assert.assertEquals(3, searchResponse.getHits().getTotalHits().value);
+            SearchResponse searchResponse = client.search("dls_test",0,100);
+            Assert.assertEquals(3L, searchResponse.hits().total().value());
         }
 
     }

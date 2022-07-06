@@ -2,6 +2,7 @@ package com.floragunn.signals.execution;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -10,9 +11,8 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.script.JodaCompatibleZonedDateTime;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.quartz.DisallowConcurrentExecution;
@@ -152,7 +152,7 @@ public class WatchRunner implements Job {
 
             try {
                 Instant executionStart = Instant.now();
-                contextData.setExecutionTime(new JodaCompatibleZonedDateTime(executionStart, ZoneOffset.UTC));
+                contextData.setExecutionTime(ZonedDateTime.ofInstant(executionStart, ZoneOffset.UTC));
                 this.watchLog.setExecutionStart(Date.from(executionStart));
                 this.watchLog.setActions(new ArrayList<ActionLog>(this.watch.getActions().size()));
                 this.watchLog.setResolveActions(new ArrayList<ActionLog>(this.watch.getResolveActions().size()));

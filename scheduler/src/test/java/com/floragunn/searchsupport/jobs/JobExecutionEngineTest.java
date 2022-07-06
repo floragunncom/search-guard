@@ -11,7 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.node.PluginAwareNode;
@@ -78,7 +78,7 @@ public class JobExecutionEngineTest {
 
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void configUpdateTest() throws Exception {
 
@@ -123,7 +123,7 @@ public class JobExecutionEngineTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void triggerUpdateTest() throws Exception {
         try (Client tc = cluster.getInternalClient()) {
@@ -157,7 +157,7 @@ public class JobExecutionEngineTest {
 
             int count2 = TestJob.getCounter("basic");
 
-            System.out.println("count1: " + count1 + "; count2: " + count2);
+            //System.out.println("count1: " + count1 + "; count2: " + count2);
 
             assertTrue("count is " + count2, count2 > count1);
 

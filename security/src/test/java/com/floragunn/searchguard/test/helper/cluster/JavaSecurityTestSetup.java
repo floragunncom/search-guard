@@ -150,6 +150,14 @@ public class JavaSecurityTestSetup extends ExternalResource {
                 }
             }
 
+            String protectionDomainKey = getProtectionDomainKey(protectionDomain);
+
+            if(permission instanceof RuntimePermission
+                    && permission.getName().equals("createClassLoader")
+            && "search-guard-plugin".equals(protectionDomainKey)) {
+                return false;
+            }
+
             if (baseEsPolicy.implies(protectionDomain, permission)) {
                 return true;
             }
@@ -171,7 +179,7 @@ public class JavaSecurityTestSetup extends ExternalResource {
                 return true;
             }
 
-            String protectionDomainKey = getProtectionDomainKey(protectionDomain);
+
 
             if (permission instanceof SocketPermission && log.isTraceEnabled()) {
                 log.trace(permission + " " + protectionDomainKey + " " + protectionDomain.getCodeSource().getLocation() + " "

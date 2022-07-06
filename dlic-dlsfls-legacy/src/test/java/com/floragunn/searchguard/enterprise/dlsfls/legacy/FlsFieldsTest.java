@@ -14,29 +14,26 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
-import java.io.IOException;
-
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import java.io.IOException;
 
 public class FlsFieldsTest extends AbstractDlsFlsTest{
     
     @Override
     protected void populateData(Client tc) {
 
-
-        
         tc.admin().indices().create(new CreateIndexRequest("deals")
-        .mapping("_doc","timestamp","type=date","@timestamp","type=date")).actionGet();
+        .simpleMapping("timestamp","type=date","@timestamp","type=date")).actionGet();
         
         try {
             String doc = FileHelper.loadFile("dlsfls_legacy/doc1.json");
@@ -46,7 +43,7 @@ public class FlsFieldsTest extends AbstractDlsFlsTest{
                 tc.index(new IndexRequest("deals").id("0" + i).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(moddoc, XContentType.JSON)).actionGet();
             }
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             Assert.fail(e.toString());
         }
 
@@ -59,18 +56,18 @@ public class FlsFieldsTest extends AbstractDlsFlsTest{
 
         String query = FileHelper.loadFile("dlsfls_legacy/flsquery.json");
         
-        HttpResponse res;        
+        RestHelper.HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
-        Assert.assertTrue(res.getBody().contains("secret"));
-        Assert.assertTrue(res.getBody().contains("@timestamp"));
-        Assert.assertTrue(res.getBody().contains("\"timestamp"));
-        Assert.assertTrue(res.getBody().contains("numfield5"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("secret"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("@timestamp"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"timestamp"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("numfield5"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("fls_fields", "password"))).getStatusCode());
-        Assert.assertFalse(res.getBody().contains("customer"));
-        Assert.assertFalse(res.getBody().contains("secret"));
-        Assert.assertFalse(res.getBody().contains("timestamp"));
-        Assert.assertFalse(res.getBody().contains("numfield5"));
+        Assert.assertFalse(res.getBody(), res.getBody().contains("customer"));
+        Assert.assertFalse(res.getBody(), res.getBody().contains("secret"));
+        Assert.assertFalse(res.getBody(), res.getBody().contains("timestamp"));
+        Assert.assertFalse(res.getBody(), res.getBody().contains("numfield5"));
     }
     
     @Test
@@ -79,16 +76,16 @@ public class FlsFieldsTest extends AbstractDlsFlsTest{
 
         String query = FileHelper.loadFile("dlsfls_legacy/flsquery2.json");
         
-        HttpResponse res;        
+        RestHelper.HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty=true", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
-        Assert.assertTrue(res.getBody().contains("secret"));
-        Assert.assertTrue(res.getBody().contains("@timestamp"));
-        Assert.assertTrue(res.getBody().contains("\"timestamp"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("secret"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("@timestamp"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"timestamp"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty=true", query, encodeBasicHeader("fls_fields", "password"))).getStatusCode());
-        Assert.assertFalse(res.getBody().contains("customer"));
-        Assert.assertFalse(res.getBody().contains("secret"));
-        Assert.assertFalse(res.getBody().contains("timestamp"));
-        Assert.assertTrue(res.getBody().contains("numfield5"));
+        Assert.assertFalse(res.getBody(), res.getBody().contains("customer"));
+        Assert.assertFalse(res.getBody(), res.getBody().contains("secret"));
+        Assert.assertFalse(res.getBody(), res.getBody().contains("timestamp"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("numfield5"));
     }
 }

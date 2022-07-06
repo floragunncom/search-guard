@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.enterprise.auth.ldap.LDAPAuthenticationBackend;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -36,8 +37,6 @@ import com.floragunn.dlic.auth.http.jwt.keybyoidc.OidcConfigRestAction;
 import com.floragunn.dlic.auth.http.saml.AuthTokenProcessorAction;
 import com.floragunn.dlic.auth.http.saml.HTTPSamlAuthenticator;
 import com.floragunn.dlic.auth.kerberos.HTTPSpnegoAuthenticator;
-import com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend;
-import com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend;
 import com.floragunn.dlic.auth.ldap2.LDAPAuthenticationBackend2;
 import com.floragunn.dlic.auth.ldap2.LDAPAuthorizationBackend2;
 import com.floragunn.searchguard.BaseDependencies;
@@ -69,7 +68,7 @@ public class LegacyEnterpriseSecurityModule implements SearchGuardModule {
     public List<Info<?>> getTypedComponents() {
         if (enterpriseModulesEnabled) {
             return ImmutableList.of(HTTPJwtAuthenticator.INFO, HTTPJwtKeyByOpenIdConnectAuthenticator.INFO, HTTPSamlAuthenticator.INFO,
-                    LDAPAuthorizationBackend.INFO, LDAPAuthenticationBackend.INFO, LDAPAuthenticationBackend2.INFO, LDAPAuthorizationBackend2.INFO,
+                    LDAPAuthenticationBackend2.INFO, LDAPAuthorizationBackend2.INFO,
                     HTTPSpnegoAuthenticator.INFO);
         } else {
             return Collections.emptyList();

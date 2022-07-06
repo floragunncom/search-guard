@@ -21,7 +21,7 @@ import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
@@ -145,7 +145,6 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_CREATED, restHelper.executePutRequest("searchguard/_doc/y", "{}").getStatusCode());
         RestHelper.HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = restHelper.executeGetRequest("_searchguard/authinfo")).getStatusCode());
-        System.out.println(res.getBody());
     }
 
     @Test
@@ -187,7 +186,7 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_CREATED, restHelper.executePutRequest("searchguard/_doc/y", "{}").getStatusCode());
         RestHelper.HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = restHelper.executeGetRequest("_searchguard/authinfo")).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
     }
 
     @Test

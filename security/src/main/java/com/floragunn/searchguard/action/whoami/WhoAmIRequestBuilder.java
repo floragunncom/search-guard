@@ -18,8 +18,9 @@
 package com.floragunn.searchguard.action.whoami;
 
 import org.elasticsearch.action.ActionRequestBuilder;
-import org.elasticsearch.client.ClusterAdminClient;
-import org.elasticsearch.client.ElasticsearchClient;
+import org.elasticsearch.client.internal.ClusterAdminClient;
+import org.elasticsearch.client.internal.ElasticsearchClient;
+
 
 public class WhoAmIRequestBuilder extends
 ActionRequestBuilder<WhoAmIRequest, WhoAmIResponse> {    

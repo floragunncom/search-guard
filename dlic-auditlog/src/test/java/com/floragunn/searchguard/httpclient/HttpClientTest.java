@@ -31,6 +31,7 @@ public class HttpClientTest extends SingleClusterTest {
     }
     
     @Test
+    //TODO @Flaky SocketTimeoutException: 5.000 milliseconds timeout on connection http-outgoing
     public void testPlainConnection() throws Exception {
         
         final Settings settings = Settings.builder()
@@ -43,36 +44,37 @@ public class HttpClientTest extends SingleClusterTest {
 
         try(final HttpClient httpClient = HttpClient.builder(clusterInfo.httpHost+":"+clusterInfo.httpPort)
                 .setBasicCredentials("admin", "admin").build()) {
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", false));
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  false));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  true));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  true));
         }
         
         try(final HttpClient httpClient = HttpClient.builder("unknownhost:6654")
                 .setBasicCredentials("admin", "admin").build()) {
-            Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", false));
-            Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", true));
-            Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", true));
+            Assert.assertFalse(httpClient.index("{\"a\":5}", "index",  false));
+            Assert.assertFalse(httpClient.index("{\"a\":5}", "index",  true));
+            Assert.assertFalse(httpClient.index("{\"a\":5}", "index",  true));
         }
         
         try(final HttpClient httpClient = HttpClient.builder("unknownhost:6654", clusterInfo.httpHost+":"+clusterInfo.httpPort)
                 .enableSsl(FileHelper.getKeystoreFromClassPath("auditlog/truststore.jks","changeit"), false)
                 .setBasicCredentials("admin", "admin").build()) {
-            Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", false));
-            Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", true));
-            Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", true));
+            Assert.assertFalse(httpClient.index("{\"a\":5}", "index",  false));
+            Assert.assertFalse(httpClient.index("{\"a\":5}", "index",  true));
+            Assert.assertFalse(httpClient.index("{\"a\":5}", "index",  true));
         }
         
         try(final HttpClient httpClient = HttpClient.builder("unknownhost:6654", clusterInfo.httpHost+":"+clusterInfo.httpPort)
                 .setBasicCredentials("admin", "admin").build()) {
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", false));
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  false));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  true));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  true));
         }
         
     }
     
     @Test
+    //TODO @Flaky SocketTimeoutException: 5.000 milliseconds timeout on connection http-outgoing
     public void testSslConnection() throws Exception {
 
         final Settings settings = Settings.builder()
@@ -89,21 +91,22 @@ public class HttpClientTest extends SingleClusterTest {
         try(final HttpClient httpClient = HttpClient.builder(clusterInfo.httpHost+":"+clusterInfo.httpPort)
                 .enableSsl(FileHelper.getKeystoreFromClassPath("auditlog/truststore.jks","changeit"), false)
                 .setBasicCredentials("admin", "admin").build()) {
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", false));
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  false));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  true));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  true));
         }
         
         try(final HttpClient httpClient = HttpClient.builder(clusterInfo.httpHost+":"+clusterInfo.httpPort)
                 .setBasicCredentials("admin", "admin").build()) {
-            Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", false));
-            Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", true));
-            Assert.assertFalse(httpClient.index("{\"a\":5}", "index", "type", true));
+            Assert.assertFalse(httpClient.index("{\"a\":5}", "index",  false));
+            Assert.assertFalse(httpClient.index("{\"a\":5}", "index",  true));
+            Assert.assertFalse(httpClient.index("{\"a\":5}", "index",  true));
         }
         
     }
     
     @Test
+    //TODO @Flaky SocketTimeoutException: 5.000 milliseconds timeout on connection http-outgoing
     public void testSslConnectionPKIAuth() throws Exception {
         
         final Settings settings = Settings.builder()
@@ -122,9 +125,9 @@ public class HttpClientTest extends SingleClusterTest {
                 .enableSsl(FileHelper.getKeystoreFromClassPath("auditlog/truststore.jks","changeit"), false)
                 .setPkiCredentials(FileHelper.getKeystoreFromClassPath("auditlog/spock-keystore.jks", "changeit"), "changeit".toCharArray(), null)
                 .build()) {
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", false));
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));
-            Assert.assertTrue(httpClient.index("{\"a\":5}", "index", "type", true));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  false));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  true));
+            Assert.assertTrue(httpClient.index("{\"a\":5}", "index",  true));
         }
         
     }

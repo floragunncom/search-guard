@@ -126,10 +126,11 @@ public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
 		rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
 	}
 
-	protected String checkReadAccess(int status, String username, String password, String indexName, String id) throws Exception {
+	protected String checkReadAccess(int status, String username, String password, String indexName,
+			int id) throws Exception {
 		boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
 		rh.sendHTTPClientCertificate = false;
-		String action = indexName + "/" + "_doc" + "/" + id;
+		String action = indexName + "/_doc/" + id;
 		HttpResponse response = rh.executeGetRequest(action,
 				encodeBasicHeader(username, password));
 		int returnedStatus = response.getStatusCode();
@@ -139,11 +140,12 @@ public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
 
 	}
 
-	protected String checkWriteAccess(int status, String username, String password, String indexName, String id) throws Exception {
+	protected String checkWriteAccess(int status, String username, String password, String indexName,
+			int id) throws Exception {
 
 		boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
 		rh.sendHTTPClientCertificate = false;
-		String action = indexName + "/" + "_doc" + "/" + id;
+		String action = indexName + "/_doc/" + id;
 		String payload = "{\"value\" : \"true\"}";
 		HttpResponse response = rh.executePutRequest(action, payload,
 				encodeBasicHeader(username, password));
@@ -157,9 +159,8 @@ public abstract class AbstractRestApiUnitTest extends SingleClusterTest {
 		boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
 		rh.sendHTTPClientCertificate = true;
 		rh.executePutRequest("sf", null, new Header[0]);
-		HttpResponse response = rh.executePutRequest("sf/_doc/ships_0", "{\"number\" : \"NCC-1701-D\"}", new Header[0]);
-		Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
-		rh.executePutRequest("sf/_doc/public_0", "{\"some\" : \"value\"}", new Header[0]);
+		rh.executePutRequest("sf/_doc/0", "{\"number\" : \"NCC-1701-D\"}", new Header[0]);
+		rh.executePutRequest("sf/_doc/0", "{\"some\" : \"value\"}", new Header[0]);
 		rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
 	}
     

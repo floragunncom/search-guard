@@ -24,8 +24,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.http.HttpRequest;
+import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.xcontent.XContentParserConfiguration;
 
 public class FakeRestRequest extends RestRequest {
 
@@ -43,9 +48,62 @@ public class FakeRestRequest extends RestRequest {
     }
 
     private FakeRestRequest(Map<String, String> headers, Map<String, String> params, BytesReference content, Method method, String path) {
-        //NamedXContentRegistry xContentRegistry, Map<String, String> params, String path,
-        //Map<String, List<String>> headers, HttpRequest httpRequest, HttpChannel httpChannel
-        super(null, params, path, convert(headers), null, null);
+        super(XContentParserConfiguration.EMPTY, params, path, convert(headers), new HttpRequest() {
+            @Override
+            public Method method() {
+                return Method.GET;
+            }
+
+            @Override
+            public String uri() {
+                return "";
+            }
+
+            @Override
+            public BytesReference content() {
+                return content;
+            }
+
+            @Override
+            public Map<String, List<String>> getHeaders() {
+                return convert(headers);
+            }
+
+            @Override
+            public List<String> strictCookies() {
+                return Collections.emptyList();
+            }
+
+            @Override
+            public HttpVersion protocolVersion() {
+                return HttpVersion.HTTP_1_1;
+            }
+
+            @Override
+            public HttpRequest removeHeader(String header) {
+                return this;
+            }
+
+            @Override
+            public HttpResponse createResponse(RestStatus status, BytesReference content) {
+                return null;
+            }
+
+            @Override
+            public Exception getInboundException() {
+                return null;
+            }
+
+            @Override
+            public void release() {
+
+            }
+
+            @Override
+            public HttpRequest releaseAndCopy() {
+                return null;
+            }
+        }, null);
         //this.headers = headers;
         this.content = content;
         this.method = method;

@@ -20,18 +20,8 @@ import org.elasticsearch.rest.RestHandler;
 
 import com.floragunn.searchguard.authc.RequestMetaData;
 
+@Deprecated
 public interface TenantAwareRestHandler extends RestHandler {
-    default String getTenantParamName() {
-        return "tenant";
-    }
+    //see SignalsTenantParamResolver
 
-    default String getTenantName(RequestMetaData<?> request) {      
-        String result = request.getParam(getTenantParamName());
-        
-        if ("_main".equals(result)) {
-            return null;
-        } else {
-            return result;
-        }
-    }
 }

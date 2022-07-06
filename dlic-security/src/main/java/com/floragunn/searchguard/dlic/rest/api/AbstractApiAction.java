@@ -17,6 +17,7 @@ package com.floragunn.searchguard.dlic.rest.api;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -26,12 +27,13 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -400,6 +402,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         // dirty hack to avoid "request does not support having a body" error
         request.content();
 
+		final ThreadContext threadContext = threadPool.getThreadContext();
+
         // check if SG index has been initialized
         if (!ensureIndexExists()) {
             return channel -> internalErrorResponse(channel, ErrorType.SG_NOT_INITIALIZED.getMessage());
@@ -410,28 +414,35 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
         if (authError != null) {
             log.error("No permission to access REST API: " + authError);
-            final User user = (User) threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+            final User user = (User) threadContext.getTransient(ConfigConstants.SG_USER);
             auditLog.logMissingPrivileges(authError, user, request);
             // for rest request
             request.params().clear();
             return channel -> forbidden(channel, "No permission to access REST API: " + authError);
         }
 
-        final Object originalUser = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
-        final Object originalRemoteAddress = threadPool.getThreadContext()
-                .getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        final Object originalOrigin = threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
+        final Object originalUser = threadContext.getTransient(ConfigConstants.SG_USER);
+        final Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+        final Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+		final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
         return channel -> {
 
             threadPool.generic().submit(() -> {
 
-                try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+                try (StoredContext ctx = threadContext.stashContext()) {
 
-                    threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-                    threadPool.getThreadContext().putTransient(ConfigConstants.SG_USER, originalUser);
-                    threadPool.getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
-                    threadPool.getThreadContext().putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
+					threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+					threadContext.putTransient(ConfigConstants.SG_USER, originalUser);
+					threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
+					threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
+
+					originalResponseHeaders.entrySet().forEach(
+
+							h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+
+					);
+
 
                     handleApiRequest(channel, request, client);
 

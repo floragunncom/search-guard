@@ -108,7 +108,7 @@ public class SamlAuthenticatorTest {
                 mockSamlIdpServer.getIdpEntityId(), "frontend_base_url", FRONTEND_BASE_URL);
         Map<String, Object> inlineMetadataAuthenticatorSettings = ImmutableMap.of("idp", inlineMetadataIdpConfig);
 
-        System.out.println(inlineMetadataIdpConfig);
+        //System.out.println(inlineMetadataIdpConfig);
 
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(inlineMetadataAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);

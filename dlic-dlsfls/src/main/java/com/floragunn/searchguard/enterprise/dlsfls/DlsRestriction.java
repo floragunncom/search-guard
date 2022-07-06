@@ -59,7 +59,7 @@ public class DlsRestriction {
             return null;
         }
 
-        boolean hasNestedMapping = searchExecutionContext.hasNested();
+        boolean hasNestedMapping = !searchExecutionContext.nestedLookup().getNestedMappers().isEmpty();
 
         BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
         queryBuilder.setMinimumNumberShouldMatch(1);

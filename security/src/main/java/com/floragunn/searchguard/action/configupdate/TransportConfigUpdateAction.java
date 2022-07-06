@@ -20,11 +20,12 @@ package com.floragunn.searchguard.action.configupdate;
 import java.io.IOException;
 import java.util.List;
 
+import com.floragunn.searchguard.GuiceDependencies;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.nodes.BaseNodeRequest;
+import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -32,6 +33,9 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.repositories.RepositoriesService;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -47,16 +51,21 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
     
     @Inject
     public TransportConfigUpdateAction(final Settings settings,
-            final ThreadPool threadPool, final ClusterService clusterService, final TransportService transportService,
-            final ConfigurationRepository configurationRepository, final ActionFilters actionFilters) {        
+                                       final ThreadPool threadPool, final ClusterService clusterService, final TransportService transportService,
+                                       final ConfigurationRepository configurationRepository, final ActionFilters actionFilters, GuiceDependencies guiceDependencies,
+                                       final IndicesService indicesService, final RepositoriesService repositoriesService) {
         super(ConfigUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters,
                 ConfigUpdateRequest::new, TransportConfigUpdateAction.NodeConfigUpdateRequest::new,
                 ThreadPool.Names.MANAGEMENT, ConfigUpdateNodeResponse.class);
 
+        guiceDependencies.setTransportService(transportService);
+        guiceDependencies.setIndicesService(indicesService);
+        guiceDependencies.setRepositoriesService(repositoriesService);
+
         this.configurationRepository = configurationRepository;
     }
 
-    public static class NodeConfigUpdateRequest extends BaseNodeRequest {
+    public static class NodeConfigUpdateRequest extends BaseNodesRequest {
 
         ConfigUpdateRequest request;
         
@@ -66,6 +75,7 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
         }
 
         public NodeConfigUpdateRequest(final ConfigUpdateRequest request) {
+            super((String[]) null);
             this.request = request;
         }
 
@@ -89,7 +99,7 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
     }
 
     @Override
-    protected ConfigUpdateNodeResponse nodeOperation(final NodeConfigUpdateRequest request) {
+    protected ConfigUpdateNodeResponse nodeOperation(final NodeConfigUpdateRequest request, Task task) {
         try {
             configurationRepository.reloadConfiguration(CType.fromStringValues(request.request.getConfigTypes()), "Config Update " + request.request);
            

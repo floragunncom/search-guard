@@ -28,20 +28,25 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.Netty4Plugin;
+import org.elasticsearch.transport.netty4.Netty4Plugin;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
@@ -62,7 +67,7 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public abstract class AbstractSGUnitTest {
 
-    protected static final AtomicLong num = new AtomicLong();
+    //protected static final AtomicLong num = new AtomicLong();
     protected static boolean withRemoteCluster;
 
 	static {
@@ -99,108 +104,9 @@ public abstract class AbstractSGUnitTest {
 				(username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
 	}
 
-	@Deprecated
-	protected static class TransportClientImpl extends TransportClient {
-
-        public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, plugins);
-        }
-
-        public TransportClientImpl(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, defaultSettings, plugins, null);
-        }
-    }
-
     @SafeVarargs
     protected static Collection<Class<? extends Plugin>> asCollection(Class<? extends Plugin>... plugins) {
         return Arrays.asList(plugins);
-    }
-
-
-    @Deprecated
-    protected TransportClient getInternalTransportClient(ClusterInfo info, Settings initTransportClientSettings) {
-
-        final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-        Settings.Builder settingsBuilder = Settings.builder();
-
-        settingsBuilder.put("cluster.name", info.clustername);
-        settingsBuilder.put("searchguard.ssl.transport.enforce_hostname_verification", false);
-
-        if (initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH) == null
-                && initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH) == null) {
-            try {
-                settingsBuilder.put("searchguard.ssl.transport.truststore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"));
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException("Could not locate truststore for " + prefix);
-            }
-        }
-
-        if (initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH) == null
-                && initTransportClientSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH) == null) {
-            try {
-                settingsBuilder.put("searchguard.ssl.transport.keystore_filepath",
-                        FileHelper.getAbsoluteFilePathFromClassPath(prefix + "kirk-keystore.jks"));
-            } catch (FileNotFoundException e) {
-                throw new RuntimeException("Could not locate keystore for " + prefix);
-            }
-        }
-
-        settingsBuilder.put(initTransportClientSettings);
-
-        Settings tcSettings = settingsBuilder.build();
-
-        TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class));
-        tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
-        return tc;
-    }
-
-    @Deprecated
-    protected TransportClient getUserTransportClient(ClusterInfo info, String keyStore, Settings initTransportClientSettings) {
-
-        try {
-            final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
-
-            Settings tcSettings = Settings.builder().put("cluster.name", info.clustername)
-                    .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
-                    .put("searchguard.ssl.transport.enforce_hostname_verification", false)
-                    .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + keyStore))
-                    .put(initTransportClientSettings).build();
-
-            TransportClient tc = new TransportClientImpl(tcSettings, asCollection(Netty4Plugin.class, SearchGuardPlugin.class));
-            tc.addTransportAddress(new TransportAddress(new InetSocketAddress(info.nodeHost, info.nodePort)));
-            return tc;
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
-    
-    protected void initialize(Client tc, Settings initTransportClientSettings, DynamicSgConfig sgconfig) {
-
-        try {
-            tc.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
-        } catch (Exception e) {
-            //ignore
-        }
-
-        for (IndexRequest ir : sgconfig.getDynamicConfig(getResourceFolder())) {
-            tc.index(ir).actionGet();
-        }
-
-        ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])))
-                .actionGet();
-
-        Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
-
-        Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-        Assert.assertTrue(tc.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
-        Assert.assertTrue(tc.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
-        Assert.assertTrue(tc.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
-        Assert.assertTrue(tc.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
-        Assert.assertFalse(tc.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
-        Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-
     }
 
     protected Settings.Builder minimumSearchGuardSettingsBuilder(int node, boolean sslOnly, boolean hasCustomTransportSettings) {
@@ -250,13 +156,44 @@ public abstract class AbstractSGUnitTest {
             }
         };
     }
-
+    
     protected void initialize(Client client) {
-        initialize(client, Settings.EMPTY, new DynamicSgConfig());
+        initialize(client, new DynamicSgConfig());
     }
 
-    protected void initialize(Client client, DynamicSgConfig dynamicSgConfig) {
-        initialize(client, Settings.EMPTY, dynamicSgConfig);
+    protected void initialize(Client tc, DynamicSgConfig sgconfig) {
+        try (ThreadContext.StoredContext ctx = tc.threadPool().getThreadContext().stashContext()) {
+            tc.threadPool().getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+
+            try {
+                tc.admin().indices().create(new CreateIndexRequest("searchguard")).actionGet();
+            } catch (Exception e) {
+                //ignore
+            }
+
+            for (IndexRequest ir : sgconfig.getDynamicConfig(getResourceFolder())) {
+                IndexResponse res = tc.index(ir).actionGet();
+            }
+
+            ConfigUpdateResponse cur = tc
+                    .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])))
+                    .actionGet();
+
+            Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
+
+            SearchResponse sr = tc.search(new SearchRequest("searchguard")).actionGet();
+
+            sr = tc.search(new SearchRequest("searchguard")).actionGet();
+
+            Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
+            Assert.assertTrue(tc.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
+            Assert.assertTrue(tc.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
+            Assert.assertTrue(tc.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
+            Assert.assertTrue(tc.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
+            Assert.assertFalse(tc.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
+            Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
+
+        }
     }
 
     protected final void assertContains(HttpResponse res, String pattern) {
@@ -269,5 +206,9 @@ public abstract class AbstractSGUnitTest {
 
     protected String getResourceFolder() {
         return null;
+    }
+
+    protected final String getType() {
+        return "_doc";
     }
 }

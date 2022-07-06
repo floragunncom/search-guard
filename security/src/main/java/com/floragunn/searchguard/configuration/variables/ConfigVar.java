@@ -17,8 +17,6 @@
 
 package com.floragunn.searchguard.configuration.variables;
 
-import org.joda.time.Instant;
-
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
@@ -33,6 +31,9 @@ import com.floragunn.searchsupport.indices.IndexMapping.DisabledIndexProperty;
 import com.floragunn.searchsupport.indices.IndexMapping.DynamicIndexMapping;
 import com.floragunn.searchsupport.indices.IndexMapping.KeywordProperty;
 import com.floragunn.searchsupport.indices.IndexMapping.ObjectProperty;
+
+import java.time.Instant;
+
 
 public class ConfigVar implements Document<ConfigVar> {
 

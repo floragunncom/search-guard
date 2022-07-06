@@ -30,22 +30,20 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class DlsTest {
 
@@ -69,10 +67,10 @@ public class DlsTest {
     @Test
     public void testModuleInfo() throws Exception {
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
-            HttpResponse response = client.get("/_searchguard/license");
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/license");
 
             try {
-                Assert.assertFalse(response.getBody(), response.getBodyAsDocNode().getAsNode("modules").getAsNode("DLSFLS").isNull());
+                Assert.assertFalse(response.getBody(), response.toJsonNode().path("modules").path("DLSFLS").isMissingNode());
             } catch (Exception e) {
                 System.err.println("Error while parsing: " + response.getBody());
                 throw e;
@@ -112,11 +110,13 @@ public class DlsTest {
 
         try (GenericRestClient client = cluster.getRestClient("dept_manager", "password")) {
             GenericRestClient.HttpResponse response = client.get("/deals/_termvectors/0?pretty=true");
-            Assert.assertTrue(response.getBody().contains("\"found\" : false"));
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBody().contains("\"found\" : false"));
         }
 
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
             GenericRestClient.HttpResponse response = client.get("/deals/_termvectors/0?pretty=true");
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"found\" : true"));
         }
     }
@@ -171,17 +171,17 @@ public class DlsTest {
             Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
 
             res = dmClient.get("/deals/_doc/0?pretty");
-            Assert.assertTrue(res.getBody().contains("\"found\" : false"));
+            Assert.assertTrue(res.getBody(), res.getBody().contains("\"found\" : false"));
 
             res = dmClient.get("/deals/_doc/0?realtime=true&pretty");
-            Assert.assertTrue(res.getBody().contains("\"found\" : false"));
+            Assert.assertTrue(res.getBody(), res.getBody().contains("\"found\" : false"));
 
             res = dmClient.get("/deals/_doc/1?pretty");
-            Assert.assertTrue(res.getBody().contains("\"found\" : true"));
+            Assert.assertTrue(res.getBody(), res.getBody().contains("\"found\" : true"));
 
             Assert.assertEquals(HttpStatus.SC_OK, (res = adminClient.get("/deals/_count?pretty")).getStatusCode());
-            Assert.assertTrue(res.getBody().contains("\"count\" : 2,"));
-            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+            Assert.assertTrue(res.getBody(), res.getBody().contains("\"count\" : 2,"));
+            Assert.assertTrue(res.getBody(), res.getBody().contains("\"failed\" : 0"));
 
             Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.get("/deals/_count?pretty")).getStatusCode());
             Assert.assertTrue(res.getBody().contains("\"count\" : 1,"));
@@ -217,7 +217,7 @@ public class DlsTest {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password")) {
 
-            HttpResponse res;
+            GenericRestClient.HttpResponse res;
             String query =
 
                     "{" + "\"_source\": false," + "\"query\": {" + "\"range\" : {" + "\"amount\" : {" + "\"gte\" : 100," + "\"lte\" : 2000,"
@@ -236,7 +236,7 @@ public class DlsTest {
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
                 GenericRestClient adminClient = cluster.getRestClient("admin", "admin")) {
 
-            HttpResponse res;
+            GenericRestClient.HttpResponse res;
             Assert.assertEquals(HttpStatus.SC_OK, (res = adminClient.get("/deals/_search?pretty")).getStatusCode());
             Assert.assertTrue(res.getBody().contains("\"value\" : 2,\n      \"relation"));
             Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
@@ -257,8 +257,9 @@ public class DlsTest {
     public void testDlsWithMinDocCountZeroAggregations() throws Exception {
 
         try (Client client = cluster.getInternalNodeClient()) {
-            client.admin().indices().create(new CreateIndexRequest("logs")
-                    .mapping("_doc", ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
+
+            client.admin().indices().create(new CreateIndexRequest("logs").mapping(
+                    ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
 
             for (int i = 0; i < 3; i++) {
                 client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "A", "timestamp",
@@ -303,7 +304,7 @@ public class DlsTest {
                     + "  }\n"//
                     + "}";
 
-            HttpResponse response1 = dmClient.postJson("logs*/_search", query1);
+            GenericRestClient.HttpResponse response1 = dmClient.postJson("logs*/_search", query1);
 
             Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response1.getStatusCode());
             // Assert.assertTrue(response1.getBody(), response1.getBody().contains("min_doc_count 0 is not supported when DLS is activated"));
@@ -333,7 +334,7 @@ public class DlsTest {
                     + "  }\n"//
                     + "}";
 
-            HttpResponse response2 = dmClient.postJson("logs*/_search", query2);
+            GenericRestClient.HttpResponse response2 = dmClient.postJson("logs*/_search", query2);
 
             Assert.assertEquals(HttpStatus.SC_OK, response2.getStatusCode());
             Assert.assertTrue(response2.getBody(), response2.getBody().contains("\"key\":\"A\""));
@@ -343,7 +344,7 @@ public class DlsTest {
             Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"E\""));
 
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
-            HttpResponse response3 = adminClient.postJson("logs*/_search", query1);
+            GenericRestClient.HttpResponse response3 = adminClient.postJson("logs*/_search", query1);
 
             Assert.assertEquals(HttpStatus.SC_OK, response3.getStatusCode());
             Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"A\""));
@@ -353,7 +354,7 @@ public class DlsTest {
             Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"E\",\"doc_count\":0"));
 
             // Admin without setting "min_doc_count". Expected to have access to all buckets excluding E with 0 doc_count".
-            HttpResponse response4 = adminClient.postJson("logs*/_search", query2);
+            GenericRestClient.HttpResponse response4 = adminClient.postJson("logs*/_search", query2);
 
             Assert.assertEquals(HttpStatus.SC_OK, response4.getStatusCode());
             Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"A\""));
@@ -365,7 +366,7 @@ public class DlsTest {
             // Significant Text Aggregation is not impacted.
             // Non-admin user with setting "min_doc_count=0". Expected to only have access to buckets for dept_manager".
             String query3 = "{\"aggregations\":{\"significant_termX\":{\"significant_terms\":{\"field\":\"termX.keyword\",\"min_doc_count\":0}}}}";
-            HttpResponse response5 = dmClient.postJson("logs*/_search", query3);
+            GenericRestClient.HttpResponse response5 = dmClient.postJson("logs*/_search", query3);
 
             Assert.assertEquals(HttpStatus.SC_OK, response5.getStatusCode());
             Assert.assertTrue(response5.getBody(), response5.getBody().contains("\"termX\":\"A\""));
@@ -378,7 +379,7 @@ public class DlsTest {
             // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager".
             String query4 = "{\"aggregations\":{\"significant_termX\":{\"significant_terms\":{\"field\":\"termX.keyword\"}}}}";
 
-            HttpResponse response6 = dmClient.postJson("logs*/_search", query4);
+            GenericRestClient.HttpResponse response6 = dmClient.postJson("logs*/_search", query4);
 
             Assert.assertEquals(HttpStatus.SC_OK, response6.getStatusCode());
             Assert.assertTrue(response6.getBody(), response6.getBody().contains("\"termX\":\"A\""));
@@ -389,7 +390,7 @@ public class DlsTest {
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
 
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
-            HttpResponse response7 = adminClient.postJson("logs*/_search", query3);
+            GenericRestClient.HttpResponse response7 = adminClient.postJson("logs*/_search", query3);
 
             Assert.assertEquals(HttpStatus.SC_OK, response7.getStatusCode());
             Assert.assertTrue(response7.getBody(), response7.getBody().contains("\"termX\":\"A\""));
@@ -400,7 +401,7 @@ public class DlsTest {
             // Assert.assertTrue(response7.getBody(), response7.getBody().contains("\"termX\":\"E\""));
 
             // Admin without setting "min_doc_count". Expected to have access to all buckets".
-            HttpResponse response8 = adminClient.postJson("logs*/_search", query4);
+            GenericRestClient.HttpResponse response8 = adminClient.postJson("logs*/_search", query4);
 
             Assert.assertEquals(HttpStatus.SC_OK, response8.getStatusCode());
             Assert.assertTrue(response8.getBody(), response8.getBody().contains("\"termX\":\"A\""));
@@ -414,7 +415,7 @@ public class DlsTest {
             // Non-admin user with setting "min_doc_count=0". Expected to only have access to buckets for dept_manager".
             String query5 = "{\"aggs\":{\"amount\":{\"histogram\":{\"field\":\"amount\",\"interval\":1,\"min_doc_count\":0}}}}";
 
-            HttpResponse response9 = dmClient.postJson("logs*/_search", query5);
+            GenericRestClient.HttpResponse response9 = dmClient.postJson("logs*/_search", query5);
 
             Assert.assertEquals(HttpStatus.SC_OK, response9.getStatusCode());
             Assert.assertTrue(response9.getBody(), response9.getBody().contains("\"termX\":\"A\""));
@@ -427,7 +428,7 @@ public class DlsTest {
             // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager".
             String query6 = "{\"aggs\":{\"amount\":{\"histogram\":{\"field\":\"amount\",\"interval\":1}}}}";
 
-            HttpResponse response10 = dmClient.postJson("logs*/_search", query6);
+            GenericRestClient.HttpResponse response10 = dmClient.postJson("logs*/_search", query6);
 
             Assert.assertEquals(HttpStatus.SC_OK, response10.getStatusCode());
             Assert.assertTrue(response10.getBody(), response10.getBody().contains("\"termX\":\"A\""));
@@ -438,7 +439,7 @@ public class DlsTest {
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
 
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
-            HttpResponse response11 = adminClient.postJson("logs*/_search", query5);
+            GenericRestClient.HttpResponse response11 = adminClient.postJson("logs*/_search", query5);
 
             Assert.assertEquals(HttpStatus.SC_OK, response11.getStatusCode());
             Assert.assertTrue(response11.getBody(), response11.getBody().contains("\"termX\":\"A\""));
@@ -449,7 +450,7 @@ public class DlsTest {
             // Assert.assertTrue(response11.getBody(), response11.getBody().contains("\"termX\":\"E\""));
 
             // Admin without setting "min_doc_count". Expected to have access to all buckets".
-            HttpResponse response12 = adminClient.postJson("logs*/_search", query6);
+            GenericRestClient.HttpResponse response12 = adminClient.postJson("logs*/_search", query6);
 
             Assert.assertEquals(HttpStatus.SC_OK, response12.getStatusCode());
             Assert.assertTrue(response12.getBody(), response12.getBody().contains("\"termX\":\"A\""));
@@ -463,7 +464,7 @@ public class DlsTest {
             // Non-admin user with setting "min_doc_count=0". Expected to only have access to buckets for dept_manager".
             String query7 = "{\"aggs\":{\"timestamp\":{\"date_histogram\":{\"field\":\"timestamp\",\"calendar_interval\":\"month\",\"min_doc_count\":0}}}}";
 
-            HttpResponse response13 = dmClient.postJson("logs*/_search", query7);
+            GenericRestClient.HttpResponse response13 = dmClient.postJson("logs*/_search", query7);
 
             Assert.assertEquals(HttpStatus.SC_OK, response13.getStatusCode());
             Assert.assertTrue(response13.getBody(), response13.getBody().contains("\"termX\":\"A\""));
@@ -476,7 +477,7 @@ public class DlsTest {
             // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager".
             String query8 = "{\"aggs\":{\"timestamp\":{\"date_histogram\":{\"field\":\"timestamp\",\"calendar_interval\":\"month\"}}}}";
 
-            HttpResponse response14 = dmClient.postJson("logs*/_search", query8);
+            GenericRestClient.HttpResponse response14 = dmClient.postJson("logs*/_search", query8);
 
             Assert.assertEquals(HttpStatus.SC_OK, response14.getStatusCode());
             Assert.assertTrue(response14.getBody(), response14.getBody().contains("\"termX\":\"A\""));
@@ -487,7 +488,7 @@ public class DlsTest {
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
 
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
-            HttpResponse response15 = adminClient.postJson("logs*/_search", query7);
+            GenericRestClient.HttpResponse response15 = adminClient.postJson("logs*/_search", query7);
 
             Assert.assertEquals(HttpStatus.SC_OK, response15.getStatusCode());
             Assert.assertTrue(response15.getBody(), response15.getBody().contains("\"termX\":\"A\""));
@@ -498,7 +499,7 @@ public class DlsTest {
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
 
             // Admin without setting "min_doc_count". Expected to have access to all buckets".
-            HttpResponse response16 = adminClient.postJson("logs*/_search", query8);
+            GenericRestClient.HttpResponse response16 = adminClient.postJson("logs*/_search", query8);
 
             Assert.assertEquals(HttpStatus.SC_OK, response16.getStatusCode());
             Assert.assertTrue(response16.getBody(), response16.getBody().contains("\"termX\":\"A\""));
@@ -509,5 +510,4 @@ public class DlsTest {
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
         }
     }
-
 }

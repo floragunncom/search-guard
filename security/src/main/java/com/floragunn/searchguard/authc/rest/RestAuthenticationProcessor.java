@@ -23,6 +23,7 @@ import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
@@ -59,7 +60,7 @@ import inet.ipaddr.IPAddress;
 
 public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
-    void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
+    void authenticate(RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
             Consumer<Exception> onFailure);
 
     boolean isDebugEnabled();
@@ -124,13 +125,19 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
             }
         }
 
-        public void authenticate(RestHandler restHandler, RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
+        public void authenticate(RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
                 Consumer<Exception> onFailure) {
             Meter meter = Meter.basic(authcConfig.getMetricsLevel(), authenticateMetrics);
 
             String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
 
-            ClientIpInfo clientInfo = clientAddressAscertainer.getActualRemoteAddress(request);
+            ClientIpInfo clientInfo = null;
+            try {
+                clientInfo = clientAddressAscertainer.getActualRemoteAddress(request);
+            } catch (ElasticsearchStatusException e) {
+                onFailure.accept(e);
+                return;
+            }
             RequestMetaData<RestRequest> requestMetaData = new RestRequestMetaData(request, clientInfo, sslPrincipal);
             IPAddress remoteIpAddress = clientInfo.getOriginatingIpAddress();
 
@@ -161,12 +168,12 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
                 }
                 auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
                 meter.close();
-                channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, "Authentication finally failed"));
+                channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON));
                 onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
                 return;
             }
 
-            new RestRequestAuthenticationProcessor(restHandler, requestMetaData, authenticationDomains, adminDns, privilegesEvaluator, userCache,
+            new RestRequestAuthenticationProcessor(requestMetaData, authenticationDomains, adminDns, privilegesEvaluator, userCache,
                     impersonationCache, auditLog, blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, debug)
                             .authenticate(meter.consumer(onResult), meter.consumer(onFailure));
 

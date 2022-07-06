@@ -42,7 +42,7 @@ import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotR
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.fieldcaps.FieldCapabilitiesIndexRequest;
+import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.main.MainRequest;
@@ -116,11 +116,11 @@ public class ActionRequestIntrospector {
                 } else {
                     return new ActionRequestInfo(putMappingRequest);
                 }
-            } else if (request instanceof FieldCapabilitiesIndexRequest) {
+            } else if (request instanceof FieldCapabilitiesRequest) {
                 // FieldCapabilitiesIndexRequest implements IndicesRequest. However,  this delegates to the original indices specified in the FieldCapabilitiesIndexRequest.
                 // On the level of FieldCapabilitiesIndexRequest, it is sufficient to only consider the index stored in the index attribute. 
 
-                return new ActionRequestInfo(((FieldCapabilitiesIndexRequest) request).index(), EXACT);
+                return new ActionRequestInfo(((FieldCapabilitiesRequest) request));
             } else if (request instanceof ResizeRequest) {
                 // Note: The targetIndex of ResizeRequest gets special treatment in PrivilegesEvaluator
 
@@ -727,9 +727,9 @@ public class ActionRequestIntrospector {
             if (indicesOptions.allowNoIndices()) {
                 return indicesOptions;
             } else {
-                EnumSet<IndicesOptions.Option> newOptions = indicesOptions.getOptions().clone();
+                EnumSet<IndicesOptions.Option> newOptions = indicesOptions.options().clone();
                 newOptions.add(IndicesOptions.Option.ALLOW_NO_INDICES);
-                return new IndicesOptions(newOptions, indicesOptions.getExpandWildcards());
+                return new IndicesOptions(newOptions, indicesOptions.expandWildcards());
             }
         }
 
@@ -793,8 +793,7 @@ public class ActionRequestIntrospector {
                 RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
 
                 if (remoteClusterService.isCrossClusterSearchEnabled() && allowsRemoteIndices) {
-                    Map<String, OriginalIndices> groupedIndices = remoteClusterService.groupIndices(indicesOptions, indicesArray,
-                            idx -> resolver.hasIndexAbstraction(idx, clusterService.state()));
+                    Map<String, OriginalIndices> groupedIndices = remoteClusterService.groupIndices(indicesOptions, indicesArray);
 
                     OriginalIndices localOriginalIndices = groupedIndices.get(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY);
 

@@ -63,6 +63,7 @@ public class OidcAuthenticatorTest {
         mockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL).start();
         httpProxy = new BrowserUpProxyServer();
         httpProxy.setMitmDisabled(true);
+        //Java 17 java.net.BindException: Can't assign requested address
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
         basicAuthenticatorSettings = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "client_id",
                 "Der Klient", "client_secret", "Das Geheimnis", "pkce", false);

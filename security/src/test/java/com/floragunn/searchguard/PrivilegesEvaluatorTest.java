@@ -1,5 +1,41 @@
 package com.floragunn.searchguard;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch._types.Result;
+import co.elastic.clients.elasticsearch.core.IndexResponse;
+import co.elastic.clients.elasticsearch.core.SearchTemplateRequest;
+import co.elastic.clients.elasticsearch.core.SearchTemplateResponse;
+import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
+import co.elastic.clients.elasticsearch.indices.ShrinkResponse;
+import co.elastic.clients.json.JsonData;
+import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.google.common.collect.ImmutableMap;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.xcontent.XContentType;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+
+import java.util.Map;
+
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
@@ -7,44 +43,6 @@ import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.DocWriteResponse;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.indices.ResizeRequest;
-import org.elasticsearch.client.indices.ResizeResponse;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.script.ScriptType;
-import org.elasticsearch.script.mustache.SearchTemplateRequest;
-import org.elasticsearch.script.mustache.SearchTemplateResponse;
-import org.elasticsearch.xcontent.XContentType;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.google.common.collect.ImmutableMap;
 
 public class PrivilegesEvaluatorTest {
 
@@ -328,16 +326,16 @@ public class PrivilegesEvaluatorTest {
             Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
                     "write_exclude_test_allow_2", "write_exclude_test_disallow_1", "write_exclude_test_disallow_2"))));
 
-            IndexResponse indexResponse = client.index(new IndexRequest("write_exclude_test_allow_1").source("a", "b"), RequestOptions.DEFAULT);
+            IndexResponse indexResponse = client.index("write_exclude_test_allow_1", Map.of("a", "b"));
 
-            Assert.assertEquals(DocWriteResponse.Result.CREATED, indexResponse.getResult());
+            Assert.assertEquals(Result.Created, indexResponse.result());
 
             try {
-                client.index(new IndexRequest("write_exclude_test_disallow_1").source("a", "b"), RequestOptions.DEFAULT);
+                client.index("write_exclude_test_disallow_1", Map.of("a", "b"));
 
                 Assert.fail();
-            } catch (ElasticsearchStatusException e) {
-                Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
+            } catch (ElasticsearchException e) {
+                Assert.assertEquals(RestStatus.FORBIDDEN.getStatus(), e.status());
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
             }
 
@@ -407,16 +405,16 @@ public class PrivilegesEvaluatorTest {
             Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
                     "write_exclude_test_allow_2", "write_exclude_test_disallow_1", "write_exclude_test_disallow_2"))));
 
-            IndexResponse indexResponse = client.index(new IndexRequest("write_exclude_test_allow_1").source("a", "b"), RequestOptions.DEFAULT);
+            IndexResponse indexResponse = client.index("write_exclude_test_allow_1", Map.of("a", "b"));
 
-            Assert.assertEquals(DocWriteResponse.Result.CREATED, indexResponse.getResult());
+            Assert.assertEquals(Result.Created, indexResponse.result());
 
             try {
-                client.index(new IndexRequest("write_exclude_test_disallow_1").source("a", "b"), RequestOptions.DEFAULT);
+                client.index("write_exclude_test_disallow_1", Map.of("a", "b"));
 
                 Assert.fail();
-            } catch (ElasticsearchStatusException e) {
-                Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
+            } catch (ElasticsearchException e) {
+                Assert.assertEquals(RestStatus.FORBIDDEN.getStatus(), e.status());
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
             }
         }
@@ -486,64 +484,69 @@ public class PrivilegesEvaluatorTest {
         Thread.sleep(300);
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
-            client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
+            client.getJavaClient().indices().shrink(r->r.index("whatever").target(targetIndex));
             Assert.fail();
-        } catch (ElasticsearchStatusException e) {
+        } catch (ElasticsearchException e) {
             // Expected
             Assert.assertTrue(e.toString(),
                     e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
-            client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT);
+            client.getJavaClient().indices().shrink(r->r.index(sourceIndex).target(targetIndex));
             Assert.fail();
-        } catch (ElasticsearchStatusException e) {
+        } catch (ElasticsearchException e) {
             // Expected
             Assert.assertTrue(e.toString(),
                     e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
-            client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
+            client.getJavaClient().indices().shrink(r->r.index("whatever").target(targetIndex));
             Assert.fail();
-        } catch (ElasticsearchStatusException e) {
+        } catch (ElasticsearchException e) {
             // Expected
             Assert.assertTrue(e.toString(), e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
-            ResizeResponse resizeResponse = client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT);
-            Assert.assertTrue(resizeResponse.toString(), resizeResponse.isAcknowledged());
+            ShrinkResponse shrinkResponse = client.getJavaClient().indices().shrink(r->r.index(sourceIndex).target(targetIndex));
+            Assert.assertTrue(shrinkResponse.toString(), shrinkResponse.acknowledged());
         }
 
         try (Client client = clusterFof.getInternalNodeClient()) {
-            IndicesExistsResponse response = client.admin().indices().exists(new IndicesExistsRequest(targetIndex)).actionGet();
-            Assert.assertTrue(response.toString(), response.isExists());
+            boolean exists = client.admin().indices().getIndex(new GetIndexRequest().indices(targetIndex)).actionGet().indices().length > 0;
+            Assert.assertTrue(exists);
         }
     }
 
     @Test
     public void searchTemplate() throws Exception {
 
-        SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("resolve_test_allow_*"));
-        searchTemplateRequest.setScriptType(ScriptType.INLINE);
-        searchTemplateRequest.setScript("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }");
-        searchTemplateRequest.setScriptParams(ImmutableMap.of("x", "yy"));
+        SearchTemplateRequest searchTemplateRequest = new co.elastic.clients.elasticsearch.core.SearchTemplateRequest.Builder()
+                .index("resolve_test_allow_*")
+                .source("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }")
+                .params(Map.of("x", JsonData.of("yy")))
+                .build();
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_TEMPLATE_USER)) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+            SearchTemplateResponse<Map> searchTemplateResponse = client.getJavaClient()
+                .searchTemplate(searchTemplateRequest, Map.class);
+            HitsMetadata<Map> searchResponse = searchTemplateResponse.hits();
 
-            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 1L, searchResponse.total().value());
+
+
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_NO_TEMPLATE_USER)) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+            SearchTemplateResponse<Map> searchTemplateResponse = client.getJavaClient()
+                    .searchTemplate(searchTemplateRequest, Map.class);
+            HitsMetadata<Map> searchResponse = searchTemplateResponse.hits();
 
             Assert.fail(searchResponse.toString());
-        } catch (ElasticsearchStatusException e) {
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+        } catch (ElasticsearchException e) {
+            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN.getStatus(), e.status());
         }
     }
 

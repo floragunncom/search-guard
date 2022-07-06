@@ -25,7 +25,7 @@ import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequ
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
@@ -177,7 +177,7 @@ public class SnapshotRestoreTests extends SingleClusterTest {
     
         // Try to restore a unknown snapshot
         
-        System.out.println("---------------------------------------------------------------");
+        //System.out.println("---------------------------------------------------------------");
         
         Assert.assertEquals(500, rh.executePostRequest("_snapshot/all/unknown-snapshot/_restore?wait_for_completion=true", "", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
         // Assert.assertEquals(HttpStatus.SC_FORBIDDEN, executePostRequest("_snapshot/all/unknown-snapshot/_restore?wait_for_completion=true","{ \"indices\": \"the-unknown-index\" }", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
@@ -207,7 +207,7 @@ public class SnapshotRestoreTests extends SingleClusterTest {
             ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
             Assert.assertFalse(cur.hasFailures());
             Assert.assertEquals(currentClusterConfig.getNodes(), cur.getNodes().size());
-            System.out.println(cur.getNodesMap());
+            //System.out.println(cur.getNodesMap());
         }
     
         RestHelper rh = nonSslRestHelper();

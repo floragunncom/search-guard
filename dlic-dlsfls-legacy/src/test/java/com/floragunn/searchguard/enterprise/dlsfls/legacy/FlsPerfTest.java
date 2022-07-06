@@ -22,7 +22,7 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.StopWatch;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.json.JsonXContent;
@@ -32,7 +32,7 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 
-@Ignore
+@Ignore("subject for manual execution")
 public class FlsPerfTest extends AbstractDlsFlsTest{
     
     @Override
@@ -134,7 +134,7 @@ public class FlsPerfTest extends AbstractDlsFlsTest{
         Assert.assertTrue(res.getBody().contains("field50\""));
         Assert.assertTrue(res.getBody().contains("field997\""));
         
-        System.out.println(sw.prettyPrint());
+        //System.out.println(sw.prettyPrint());
     }
     
     @Test
@@ -181,7 +181,7 @@ public class FlsPerfTest extends AbstractDlsFlsTest{
         Assert.assertFalse(res.getBody().contains("field50\""));
         Assert.assertFalse(res.getBody().contains("field997\""));
         
-        System.out.println(sw.prettyPrint());
+        //System.out.println(sw.prettyPrint());
     }
     
     @Test
@@ -228,7 +228,7 @@ public class FlsPerfTest extends AbstractDlsFlsTest{
         Assert.assertFalse(res.getBody().contains("field50\""));
         Assert.assertFalse(res.getBody().contains("field997\""));
         
-        System.out.println(sw.prettyPrint());
+        //System.out.println(sw.prettyPrint());
     }
     
     @Test
@@ -272,6 +272,6 @@ public class FlsPerfTest extends AbstractDlsFlsTest{
         Assert.assertTrue(res.getBody().contains("field50\""));
         Assert.assertTrue(res.getBody().contains("field997\""));
         
-        System.out.println(sw.prettyPrint());
+        //System.out.println(sw.prettyPrint());
     }
 }

@@ -620,10 +620,11 @@ public abstract class AbstractAuditLog implements AuditLog {
                 } else {
                     if(searchguardIndexPattern.matches(index) && !"tattr".equals(id)) {
                         try {
-                            Map<String, String> map = fieldNameValues.entrySet().stream()
-                            .collect(Collectors.toMap(entry -> "id", entry -> new String(BaseEncoding.base64().decode(((Entry<String, String>) entry).getValue()), StandardCharsets.UTF_8)));
+                            Map<String, String> map = fieldNameValues.entrySet().stream().filter(e->e.getKey().equals(id))
+                            .collect(Collectors.toMap(entry -> "id", entry -> new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)));
                             msg.addMapToRequestBody(Utils.convertJsonToxToStructuredMap(map.get("id")));
                         } catch (Exception e) {
+                            log.error("Unexpected Exception {}", e, e);
                             msg.addMapToRequestBody(new HashMap<String, Object>(fieldNameValues));
                         }                      
                      } else {

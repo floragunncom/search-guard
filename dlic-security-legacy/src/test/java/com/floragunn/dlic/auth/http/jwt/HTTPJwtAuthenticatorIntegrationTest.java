@@ -26,11 +26,11 @@ public class HTTPJwtAuthenticatorIntegrationTest {
 
             HttpResponse response = client.get("/_searchguard/auth/config?next_url=/abc/def");
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             response = client.postJson("/_searchguard/auth/session", "{\"method\": \"jwt\", \"jwt\": \"" + TestJwts.MC_COY_SIGNED_OCT_1 + "\" }");
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
@@ -42,7 +42,7 @@ public class HTTPJwtAuthenticatorIntegrationTest {
 
                 response = tokenClient.get("/_searchguard/authinfo");
 
-                System.out.println(response.getBody());
+                //System.out.println(response.getBody());
 
             }
         }

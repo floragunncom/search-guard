@@ -88,7 +88,7 @@ public class SamlAuthenticatorIntegrationTest {
 
             HttpResponse response = client.get("/_searchguard/auth/config?next_url=/abc/def&frontend_base_url=" + FRONTEND_BASE_URL);
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             String ssoLocation = response.toJsonNode().path("auth_methods").path(0).path("sso_location").textValue();
             String ssoContext = response.toJsonNode().path("auth_methods").path(0).path("sso_context").textValue();
@@ -101,7 +101,7 @@ public class SamlAuthenticatorIntegrationTest {
             response = client.postJson("/_searchguard/auth/session", ImmutableMap.of("method", "saml", "id", id, "saml_response", encodedSamlResponse,
                     "sso_context", ssoContext, "frontend_base_url", FRONTEND_BASE_URL));
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
@@ -113,7 +113,7 @@ public class SamlAuthenticatorIntegrationTest {
 
                 response = tokenClient.get("/_searchguard/auth/session");
 
-                System.out.println(response.getBody());
+                //System.out.println(response.getBody());
 
                 String logoutAddress = response.toJsonNode().path("sso_logout_url").textValue();
 

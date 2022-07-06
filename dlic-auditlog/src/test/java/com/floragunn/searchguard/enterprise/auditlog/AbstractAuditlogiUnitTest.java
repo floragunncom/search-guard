@@ -68,8 +68,8 @@ public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
         rh.keystore = "auditlog/kirk-keystore.jks";
         rh.executePutRequest("sf", null, new Header[0]);
         rh.executePutRequest("sf/_doc/0?refresh", "{\"number\" : \"NCC-1701-D\"}", new Header[0]);
-        rh.executePutRequest("sf/_doc/0?refresh", "{\"some\" : \"value\"}", new Header[0]);
-        rh.executePutRequest("sf/_doc/0?refresh", "{\"some\" : \"value\"}", new Header[0]);
+        rh.executePutRequest("sf/_doc/1?refresh", "{\"some\" : \"value\"}", new Header[0]);
+        rh.executePutRequest("sf/_doc/2?refresh", "{\"some\" : \"value\"}", new Header[0]);
         rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
         rh.keystore = keystore;
     }
@@ -96,7 +96,7 @@ public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
             JsonNode node = DefaultObjectMapper.objectMapper.readTree(json);
             
             if(node.get("audit_request_body") != null) {
-                System.out.println("    Check audit_request_body for validity: "+node.get("audit_request_body").asText());
+                //System.out.println("    Check audit_request_body for validity: "+node.get("audit_request_body").asText());
                 DefaultObjectMapper.objectMapper.readTree(node.get("audit_request_body").asText());
             }
             

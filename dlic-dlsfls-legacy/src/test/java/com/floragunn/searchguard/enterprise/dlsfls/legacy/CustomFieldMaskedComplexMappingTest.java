@@ -20,7 +20,7 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -41,8 +41,7 @@ public class CustomFieldMaskedComplexMappingTest extends AbstractDlsFlsTest{
 
 
         try {
-            tc.admin().indices().create(new CreateIndexRequest("logs").mapping("_doc", FileHelper.loadFile("dlsfls_legacy/masked_field_mapping.json"), XContentType.JSON)).actionGet();
-
+            tc.admin().indices().create(new CreateIndexRequest("logs").mapping(FileHelper.loadFile("dlsfls_legacy/masked_field_mapping.json"))).actionGet();
 
             byte[] data = FileHelper.loadFile("dlsfls_legacy/logs_bulk_data.json").getBytes(StandardCharsets.UTF_8);
             BulkRequest br = new BulkRequest().add(data, 0, data.length, XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
@@ -74,7 +73,7 @@ public class CustomFieldMaskedComplexMappingTest extends AbstractDlsFlsTest{
 
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/logs/_search?pretty&size=0", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
 
         Assert.assertTrue(res.getBody().contains("win 8"));
         Assert.assertTrue(res.getBody().contains("win xp"));
@@ -95,7 +94,7 @@ public class CustomFieldMaskedComplexMappingTest extends AbstractDlsFlsTest{
 
         for(int i=0;i<10;i++) {
             Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/logs/_search?pretty&size=0", query, encodeBasicHeader("user_masked_nowc1", "password"))).getStatusCode());
-            System.out.println(res.getBody());
+            //System.out.println(res.getBody());
         }
 
         
@@ -103,7 +102,7 @@ public class CustomFieldMaskedComplexMappingTest extends AbstractDlsFlsTest{
         for(int i=0;i<10;i++) {
         
             Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/logs/_search?pretty&size=0", query, encodeBasicHeader("user_masked_nowc", "password"))).getStatusCode());
-            System.out.println(res.getBody());
+            //System.out.println(res.getBody());
     
             Assert.assertFalse(res.getBody().contains("\"aaa"));
             

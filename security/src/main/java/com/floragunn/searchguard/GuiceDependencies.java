@@ -25,21 +25,24 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.transport.TransportService;
 
+import java.util.function.Supplier;
+
 /**
  * Very hackish way to get hold to Guice components from Non-Guice components. Was earlier GuiceHolder in SearchGuardPlugin
  */
 public class GuiceDependencies {
+
     private RepositoriesService repositoriesService;
     private TransportService transportService;
     private IndicesService indicesService;
-    
-    /** 
+
+    /**
      * Can be only used via instance from SearchGuardPlugin
      */
     GuiceDependencies() {
-        
+
     }
-    
+
     public RepositoriesService getRepositoriesService() {
         return repositoriesService;
     }
@@ -51,41 +54,17 @@ public class GuiceDependencies {
     public IndicesService getIndicesService() {
         return indicesService;
     }
-    
-    public static class GuiceRedirector implements LifecycleComponent {
 
-        @Inject
-        public GuiceRedirector(GuiceDependencies baseDependencies, RepositoriesService repositoriesService, TransportService transportService, IndicesService indicesService) {
-            baseDependencies.repositoriesService = repositoriesService;
-            baseDependencies.transportService = transportService;
-            baseDependencies.indicesService = indicesService;
-        }
+    public void setRepositoriesService(RepositoriesService repositoriesService) {
+        this.repositoriesService = repositoriesService;
+    }
 
-        @Override
-        public void close() {
-        }
+    public void setTransportService(TransportService transportService) {
+        this.transportService = transportService;
+    }
 
-        @Override
-        public State lifecycleState() {
-            return null;
-        }
-
-        @Override
-        public void addLifecycleListener(LifecycleListener listener) {
-        }
-
-        @Override
-        public void removeLifecycleListener(LifecycleListener listener) {
-        }
-
-        @Override
-        public void start() {
-        }
-
-        @Override
-        public void stop() {
-        }
-
+    public void setIndicesService(IndicesService indicesService) {
+        this.indicesService = indicesService;
     }
 
 }

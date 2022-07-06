@@ -30,7 +30,7 @@ import java.util.Arrays;
 
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -333,7 +333,7 @@ public class IgnoreUnauthorizedIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_B)) {
             HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
 
-            System.out.println(httpResponse.getBody());
+            //System.out.println(httpResponse.getBody());
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].error.type", containsInAnyOrder("security_exception"))));
@@ -381,7 +381,7 @@ public class IgnoreUnauthorizedIntTest {
             HttpResponse httpResponse = restClient.postJson("/d*/_delete_by_query?refresh=true&wait_for_completion=true",
                     "{\"query\" : {\"match_all\" : {}}}");
 
-            System.out.println(httpResponse.getBody());
+            //System.out.println(httpResponse.getBody());
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("deleted", is(3))));
         }

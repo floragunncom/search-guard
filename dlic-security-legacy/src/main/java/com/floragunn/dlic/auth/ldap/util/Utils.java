@@ -14,9 +14,6 @@
 
 package com.floragunn.dlic.auth.ldap.util;
 
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -28,8 +25,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
-import org.ldaptive.Connection;
-import org.ldaptive.LdapAttribute;
 
 import com.unboundid.ldap.sdk.Attribute;
 
@@ -41,35 +36,6 @@ public final class Utils {
 
     }
 
-    public static void unbindAndCloseSilently(final Connection connection) {
-        if (connection == null) {
-            return;
-        }
-
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        try {
-            AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
-                @Override
-                public Object run() throws Exception {
-                    connection.close(); //this never throws an exception
-                    //see org.ldaptive.DefaultConnectionFactory.DefaultConnection#close()
-                    return null;
-                }
-            });
-        } catch (PrivilegedActionException e) {
-            // ignore
-        }
-    }
-    
-    public static List<Map.Entry<String, Settings>> getOrderedBaseSettings(Settings settings) {
-        return getOrderedBaseSettings(settings.getAsGroups());
-    }
-    
     public static List<Map.Entry<String, Settings>> getOrderedBaseSettings(Map<String, Settings> settingsMap) {
         return getOrderedBaseSettings(settingsMap.entrySet());
     }
@@ -99,20 +65,6 @@ public final class Utils {
         });
     }
 
-    public static String getSingleStringValue(LdapAttribute attribute) {
-        if(attribute == null) {
-            return null;
-        }
-        
-        if(attribute.size() > 1) {
-            if(log.isDebugEnabled()) {
-                log.debug("Multiple values found for {} ({})", attribute.getName(false), attribute);
-            }
-        }
-        
-        return attribute.getStringValue();
-    }
-    
     public static String getSingleStringValue(Attribute attribute) {
         if(attribute == null) {
             return null;

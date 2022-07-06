@@ -18,6 +18,8 @@
 package com.floragunn.searchguard.authc.session;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
@@ -25,7 +27,6 @@ import java.util.TreeMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -43,7 +44,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.io.BaseEncoding;
 
 /**
- * These log-running integration tests are unsuitable for normal CI due to their run time. Thus, these are marked as @Ignore by default.
+ * These long-running integration tests are unsuitable for normal CI due to their run time. Thus, these are marked as @Ignore by default.
  */
 public class SessionLongRunningIntegrationTest {
     private static final Logger log = LogManager.getLogger(SessionLongRunningIntegrationTest.class);
@@ -99,7 +100,7 @@ public class SessionLongRunningIntegrationTest {
 
     }
 
-    @Ignore
+    @Ignore("unsuitable for normal CI due to their run time")
     @Test
     public void multi() throws Exception {
         int sessions = 20;
@@ -118,7 +119,7 @@ public class SessionLongRunningIntegrationTest {
                     Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
                     String token = response.toJsonNode().path("token").asText();
-                    Instant timeout = Instant.now().plus(TIMEOUT.toMillis());
+                    Instant timeout = Instant.now().plus(TIMEOUT.toMillis(), ChronoUnit.MILLIS);
                     log.info("### Created new session " + getSessionId(token) + " :\n" + response.getBody());
 
                     sessionTokenToTimeoutMap.put(token, timeout);
@@ -151,26 +152,26 @@ public class SessionLongRunningIntegrationTest {
                     log.warn("@@@ Session expired: " + getSessionId(sessionToken) + " " + sessionTimeout);
                 }
 
-                if (sessionTimeout.isBefore(System.currentTimeMillis() - 1000)) {
+                if (sessionTimeout.isBefore(Instant.ofEpochMilli(System.currentTimeMillis() - 1000))) {
                     // This should be timed out
 
                     Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
 
                     sessionTokenToTimeoutMap.remove(sessionToken);
-                } else if (sessionTimeout.isAfter(System.currentTimeMillis() + 1000)) {
+                } else if (sessionTimeout.isAfter(Instant.ofEpochMilli(System.currentTimeMillis() + 1000))) {
                     // This should be active
 
                     Assert.assertEquals("Session was expired " + Instant.now() + " while it was expected to expire at " + sessionTimeout, 200,
                             response.getStatusCode());
                     Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
 
-                    sessionTimeout = Instant.now().plus(TIMEOUT.toMillis());
+                    sessionTimeout = Instant.now().plus(TIMEOUT.toMillis(), ChronoUnit.MILLIS);
                     sessionTokenToTimeoutMap.put(sessionToken, sessionTimeout);
                     scheduleRandomAccess(sessionToken, sessionTimeout, scheduledAccess);
                 } else {
                     // Grey area, be a bit tolerant here
 
-                    if (sessionTimeout.isAfterNow()) {
+                    if (sessionTimeout.isAfter(Instant.now())) {
                         log.info("Access briefly before timeout: " + response.getStatusCode());
                     } else {
                         log.info("Access briefly after timeout: " + response.getStatusCode());
@@ -205,7 +206,7 @@ public class SessionLongRunningIntegrationTest {
         if (cluster.getRandom().nextFloat() < 0.2) {
             // Let the session run into a timeout before doing the access
 
-            long nextAccess = timeout.getMillis() + cluster.getRandom().nextInt(5000) + 1000;
+            long nextAccess = timeout.toEpochMilli() + cluster.getRandom().nextInt(5000) + 1000;
 
             while (scheduledAccess.containsKey(nextAccess)) {
                 nextAccess++;
@@ -215,7 +216,7 @@ public class SessionLongRunningIntegrationTest {
         } else {
             // Do the access before the timeout
 
-            long timeSpan = timeout.getMillis() - 1000 - System.currentTimeMillis();
+            long timeSpan = timeout.toEpochMilli() - 1000 - System.currentTimeMillis();
 
             if (timeSpan <= 0) {
                 timeSpan = 100;

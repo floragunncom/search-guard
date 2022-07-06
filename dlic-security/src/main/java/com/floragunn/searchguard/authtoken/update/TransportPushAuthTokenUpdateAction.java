@@ -19,7 +19,7 @@ import java.util.List;
 
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.nodes.BaseNodeRequest;
+import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -27,6 +27,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -46,7 +47,7 @@ public class TransportPushAuthTokenUpdateAction extends
         this.authTokenService = authTokenService;
     }
 
-    public static class NodeRequest extends BaseNodeRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
         PushAuthTokenUpdateRequest request;
 
@@ -56,6 +57,7 @@ public class TransportPushAuthTokenUpdateAction extends
         }
 
         public NodeRequest(PushAuthTokenUpdateRequest request) {
+            super((String[]) null);
             this.request = request;
         }
 
@@ -79,7 +81,7 @@ public class TransportPushAuthTokenUpdateAction extends
     }
 
     @Override
-    protected PushAuthTokenUpdateNodeResponse nodeOperation(NodeRequest request) {
+    protected PushAuthTokenUpdateNodeResponse nodeOperation(NodeRequest request, Task task) {
         String status = authTokenService.pushAuthTokenUpdate(request.request);
 
         return new PushAuthTokenUpdateNodeResponse(clusterService.localNode(), status);

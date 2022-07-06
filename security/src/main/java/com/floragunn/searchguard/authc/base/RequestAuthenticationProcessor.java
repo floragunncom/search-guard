@@ -21,6 +21,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -339,10 +340,10 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                 return challengeHandled;
             }
 
-            return AuthcResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debug.get());
+            return AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON, debug.get());
         } catch (Exception e) {
             log.error("Error while handling auth failure", e);
-            return AuthcResult.stop(RestStatus.UNAUTHORIZED, "Authentication failed", debug.get());
+            return AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON, debug.get());
         }
     }
 

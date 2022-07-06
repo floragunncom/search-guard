@@ -47,8 +47,8 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 	protected LocalDate validExpiryDate = validStartDate.plusYears(100);
 	protected LocalDate notStartedExpiryDate = notStartedStartDate.plusYears(1);
 	protected LocalDate trialExpiryDate = LocalDate.now().plusDays(91);
-	
-	@Ignore
+
+	@Ignore("TODO why is this ignored?")
 	@Test
 	public void testLicenseApi() throws Exception {
 

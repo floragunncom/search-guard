@@ -112,10 +112,8 @@ public class DisabledCategoriesTest {
 
 		Assert.assertTrue(Category.values()+"#"+result, categoriesPresentInLog(result, filterComplianceCategories(Category.values())));
 
-		Assert.assertThat(result, containsString("testuser.transport.succeededlogin"));
 		Assert.assertThat(result, containsString("testuser.rest.succeededlogin"));
 		Assert.assertThat(result, containsString("testuser.rest.failedlogin"));
-		Assert.assertThat(result, containsString("testuser.transport.failedlogin"));
 		Assert.assertThat(result, containsString("privilege.missing"));
 		Assert.assertThat(result, containsString("action.indexattempt"));
 		Assert.assertThat(result, containsString("action.transport.ssl"));
@@ -173,7 +171,7 @@ public class DisabledCategoriesTest {
 		List<Category> allButDisablesCategories = new LinkedList<>(Arrays.asList(Category.values()));
 		allButDisablesCategories.removeAll(Arrays.asList(disabledCategories));
 
-		System.out.println(result+"###"+disabledCategoriesString);
+		//System.out.println(result+"###"+disabledCategoriesString);
 		Assert.assertFalse(categoriesPresentInLog(result, disabledCategories));
 		Assert.assertTrue(categoriesPresentInLog(result, filterComplianceCategories(allButDisablesCategories.toArray(new Category[] {}))));
 	}
@@ -184,7 +182,7 @@ public class DisabledCategoriesTest {
 		result = result.replaceAll(" ", "");
 		for (Category category : categories) {
 			if(!result.contains("\""+AuditMessage.CATEGORY+"\":\""+category.name()+"\"")) {
-				System.out.println("MISSING: "+category.name());
+				//System.out.println("MISSING: "+category.name());
 			    return false;
 			}
 		}

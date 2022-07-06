@@ -66,6 +66,7 @@ public class OidcAuthenticatorIntegrationTest {
 
         httpProxy = new BrowserUpProxyServer();
         httpProxy.setMitmDisabled(true);
+        //Java 17 java.net.BindException: Can't assign requested address
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
 
         TestSgConfig testSgConfig = new TestSgConfig().resources("oidc").frontendAuthc(new TestSgConfig.FrontendAuthc("oidc").label("Label").config(
@@ -102,6 +103,7 @@ public class OidcAuthenticatorIntegrationTest {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
     public void basicTest() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
@@ -110,7 +112,7 @@ public class OidcAuthenticatorIntegrationTest {
 
             HttpResponse response = client.get("/_searchguard/auth/config?next_url=" + nextUrl + "&frontend_base_url=" + FRONTEND_BASE_URL);
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             String ssoLocation = response.toJsonNode().path("auth_methods").path(0).path("sso_location").textValue();
             String ssoContext = response.toJsonNode().path("auth_methods").path(0).path("sso_context").textValue();
@@ -123,7 +125,7 @@ public class OidcAuthenticatorIntegrationTest {
             response = client.postJson("/_searchguard/auth/session", DocNode.of("method", "oidc", "id", id, "sso_result", ssoResult, "sso_context",
                     ssoContext, "frontend_base_url", FRONTEND_BASE_URL));
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
             Assert.assertEquals(nextUrl, response.toJsonNode().path("redirect_uri").textValue());
@@ -136,7 +138,7 @@ public class OidcAuthenticatorIntegrationTest {
 
                 response = tokenClient.get("/_searchguard/auth/session");
 
-                System.out.println(response.getBody());
+                //System.out.println(response.getBody());
 
                 String logoutAddress = response.toJsonNode().path("sso_logout_url").textValue();
 

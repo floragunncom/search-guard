@@ -1,4 +1,4 @@
-Copyright 2015-2021 floragunn GmbH
+Copyright 2015-2022 floragunn GmbH
 
 This product includes software developed by The Apache Software
 Foundation (http://www.apache.org/).
@@ -8,8 +8,12 @@ This product includes software developed by The Legion of the Bouncy Castle Inc.
 
 This product includes software developed by Amazon.com, Inc.
 (https://github.com/opendistro-for-elasticsearch/security)
+(https://github.com/opensearch-project/security)
 
 This product includes software developed by AOL Inc. and Groovenauts, Inc.
 (https://github.com/groovenauts/jmeter_oauth_plugin)
+
+This product includes software developed by Elasticsearch B.V.
+(https://github.com/elastic/elasticsearch)
 
 See THIRD-PARTY.txt for additional third party licenses used by this product.

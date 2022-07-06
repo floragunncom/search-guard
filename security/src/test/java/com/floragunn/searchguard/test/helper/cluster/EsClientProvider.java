@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
@@ -37,11 +38,9 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.internal.Client;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -116,7 +115,7 @@ public interface EsClientProvider {
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
 
-        HttpClientConfigCallback configCallback = httpClientBuilder -> {
+        RestClientBuilder.HttpClientConfigCallback configCallback = httpClientBuilder -> {
             httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider).setSSLStrategy(
                     new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE));
 
@@ -142,10 +141,13 @@ public interface EsClientProvider {
         return new RestHighLevelClient(builder);
     }
 
-    @Deprecated
-    default Client getAdminCertClient() {
-        return new LocalEsClusterTransportClient(getClusterName(), getTransportAddress(), getTestCertificates().getAdminCertificate(),
-                getTestCertificates().getCaCertFile().toPath());
+    default GenericRestClient createGenericClientRestClient(List<Header> headers) {
+        return new GenericRestClient(getHttpAddress(), headers, getAnyClientSslContextProvider().getSslContext(false));
+    }
+
+    default GenericRestClient createGenericAdminRestClient(List<Header> headers) {
+        //a client authentication is needed for admin because admin needs to authenticate itself (dn matching in config file)
+        return new GenericRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true));
     }
 
     default BasicHeader getBasicAuthHeader(String user, String password) {

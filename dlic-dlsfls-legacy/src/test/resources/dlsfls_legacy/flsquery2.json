@@ -27,7 +27,7 @@
       "2":{
          "date_histogram":{
             "field":"@timestamp",
-            "interval":"30s",
+            "fixed_interval":"30s",
             "time_zone":"America/New_York",
             "min_doc_count":0
          }

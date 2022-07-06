@@ -384,7 +384,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     private static final Pattern ENVBC_PATTERN = Pattern.compile("\\$\\{envbc\\.([\\w]+)((\\:\\-)?[\\w]*)\\}");
     private static final Pattern ENVBASE64_PATTERN = Pattern.compile("\\$\\{envbase64\\.([\\w]+)((\\:\\-)?[\\w]*)\\}");
 
-    @Deprecated
     private static String replaceEnvVars(String in, CType<?> ctype) {
         if (in == null || in.isEmpty()) {
             return in;
@@ -393,16 +392,12 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         return replaceEnvVarsBC(replaceEnvVarsNonBC(replaceEnvVarsBase64(in, ctype), ctype), ctype);
     }
 
-    @Deprecated
     private static String replaceEnvVarsNonBC(String in, CType<?> ctype) {
         //${env.MY_ENV_VAR}
         //${env.MY_ENV_VAR:-default}
         Matcher matcher = ENV_PATTERN.matcher(in);
         StringBuffer sb = new StringBuffer();
         while (matcher.find()) {
-            log.error("DEPRECATION WARNING: The environment variable " + matcher.group() + " in the configuration " + ctype
-                    + " is deprecated. Support will be removed in the next version. Please move to configuration variables.");
-
             final String replacement = resolveEnvVar(matcher.group(1), matcher.group(2), false);
             if (replacement != null) {
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
@@ -412,16 +407,12 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         return sb.toString();
     }
 
-    @Deprecated
     private static String replaceEnvVarsBC(String in, CType<?> ctype) {
         //${envbc.MY_ENV_VAR}
         //${envbc.MY_ENV_VAR:-default}
         Matcher matcher = ENVBC_PATTERN.matcher(in);
         StringBuffer sb = new StringBuffer();
         while (matcher.find()) {
-            log.error("DEPRECATION WARNING: The environment variable " + matcher.group() + " in the configuration " + ctype
-                    + " is deprecated. Support will be removed in the next version. Please move to configuration variables.");
-
             final String replacement = resolveEnvVar(matcher.group(1), matcher.group(2), true);
             if (replacement != null) {
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
@@ -431,16 +422,12 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         return sb.toString();
     }
 
-    @Deprecated
     private static String replaceEnvVarsBase64(String in, CType<?> ctype) {
         //${envbc.MY_ENV_VAR}
         //${envbc.MY_ENV_VAR:-default}
         Matcher matcher = ENVBASE64_PATTERN.matcher(in);
         StringBuffer sb = new StringBuffer();
         while (matcher.find()) {
-            log.error("DEPRECATION WARNING: The environment variable " + matcher.group() + " in the configuration " + ctype
-                    + " is deprecated. Support will be removed in the next version. Please move to configuration variables.");
-
             final String replacement = resolveEnvVar(matcher.group(1), matcher.group(2), false);
             if (replacement != null) {
                 matcher.appendReplacement(sb,
@@ -451,7 +438,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         return sb.toString();
     }
 
-    @Deprecated
     //${env.MY_ENV_VAR}
     //${env.MY_ENV_VAR:-default}
     private static String resolveEnvVar(String envVarName, String mode, boolean bc) {
@@ -467,7 +453,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         }
     }
 
-    @Deprecated
     private static String hash(final char[] clearTextPassword) {
         final byte[] salt = new byte[16];
         new SecureRandom().nextBytes(salt);

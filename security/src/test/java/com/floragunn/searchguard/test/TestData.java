@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.test;
 
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -36,10 +37,9 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
-import org.joda.time.Instant;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.google.common.cache.Cache;
@@ -101,7 +101,7 @@ public class TestData {
         long start = System.currentTimeMillis();
 
         client.admin().indices()
-                .create(new CreateIndexRequest(name).settings(settings).mapping("_doc", "timestamp", "type=date,format=date_optional_time"))
+                .create(new CreateIndexRequest(name).settings(settings).simpleMapping("timestamp", "type=date,format=date_optional_time"))
                 .actionGet();
         int nextRefresh = (int) Math.floor((random.nextGaussian() * 0.5 + 0.5) * refreshAfter);
         int i = 0;
@@ -229,7 +229,7 @@ public class TestData {
     }
 
     private String randomTimestamp(Random random) {
-        return Instant.ofEpochMilli(random.nextLong()).toString();
+        return Instant.ofEpochMilli(random.nextLong(-2857691960709L, 2857691960709L)).toString();
     }
 
     private static String randomId(Random random) {

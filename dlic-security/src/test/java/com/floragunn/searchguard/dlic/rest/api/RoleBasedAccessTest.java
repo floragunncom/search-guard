@@ -99,7 +99,7 @@ public class RoleBasedAccessTest extends AbstractRestApiUnitTest {
 //
 //		// Deprecated get configuration API, acessible for sarek
 //		response = rh.executeGetRequest("_searchguard/api/configuration/actiongroups", encodeBasicHeader("sarek", "sarek"));
-//		System.out.println(response.getBody());
+//		//System.out.println(response.getBody());
 //		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 //		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 //		Assert.assertEquals("", settings.getAsList("ALL.allowed_actions").get(0), "indices:*"); //mixed action groups not supported

@@ -21,14 +21,14 @@ import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
 
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
@@ -138,27 +138,18 @@ public class RestAuthenticationIntegrationTests {
     public void userAttribute_indexPattern_integration() throws Exception {
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(ALL_ACCESS)) {
-            SearchResponse searchResponse = client.search(
-                    new SearchRequest("attr_test_*").source(new SearchSourceBuilder().size(100).query(QueryBuilders.matchAllQuery())),
-                    RequestOptions.DEFAULT);
-
-            Assert.assertEquals(5, searchResponse.getHits().getTotalHits().value);
+            SearchResponse searchResponse = client.search("attr_test_*", 0, 100);
+            Assert.assertEquals(5L, searchResponse.hits().total().value());
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(USER_WITH_ATTRIBUTES)) {
-            SearchResponse searchResponse = client.search(
-                    new SearchRequest("attr_test_*").source(new SearchSourceBuilder().size(100).query(QueryBuilders.matchAllQuery())),
-                    RequestOptions.DEFAULT);
-
-            Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
+            SearchResponse searchResponse = client.search("attr_test_*", 0, 100);
+            Assert.assertEquals(1L, searchResponse.hits().total().value());
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(USER_WITH_ATTRIBUTES2)) {
-            SearchResponse searchResponse = client.search(
-                    new SearchRequest("attr_test_*").source(new SearchSourceBuilder().size(100).query(QueryBuilders.matchAllQuery())),
-                    RequestOptions.DEFAULT);
-
-            Assert.assertEquals(3, searchResponse.getHits().getTotalHits().value);
+            SearchResponse searchResponse = client.search("attr_test_*", 0, 100);
+            Assert.assertEquals(3L, searchResponse.hits().total().value());
         }
     }
 
@@ -174,6 +165,7 @@ public class RestAuthenticationIntegrationTests {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
     public void trustedOrigin_roles_integration() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient()) {
@@ -205,6 +197,7 @@ public class RestAuthenticationIntegrationTests {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
     public void trustedOrigin_additionalUserInformation_integration() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(new BasicHeader("x-proxy-user", ADDITIONAL_USER_INFORMATION_USER.getName()),
@@ -243,6 +236,7 @@ public class RestAuthenticationIntegrationTests {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
     public void skipIp_integration() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(SKIP_TEST_USER)) {
@@ -263,6 +257,7 @@ public class RestAuthenticationIntegrationTests {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
     public void anonymousAuth() throws Exception {
         try (GenericRestClient client = cluster.getRestClient()) {
             client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }));

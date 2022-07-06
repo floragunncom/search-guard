@@ -101,7 +101,6 @@ public class SinkProviderTest {
 		SinkProvider provider = new SinkProvider(settings, null, null, null);
 		InternalESSink sink = (InternalESSink)provider.defaultSink;
 		Assert.assertEquals("myownindex", sink.index);
-		Assert.assertEquals("auditevents", sink.type);
 	}
 	
 

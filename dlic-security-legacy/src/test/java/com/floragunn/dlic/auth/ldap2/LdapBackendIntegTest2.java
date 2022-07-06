@@ -55,7 +55,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
     public void testIntegLdapAuthenticationSSL() throws Exception {
         String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_ldap2.yml");
         sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(tlsLdapServer.getPort()));
-        System.out.println(sgConfigAsYamlString);
+        //System.out.println(sgConfigAsYamlString);
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfigAsYamlString(sgConfigAsYamlString), Settings.EMPTY);
         final RestHelper rh = nonSslRestHelper();
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("jacksonm", "secret")).getStatusCode());
@@ -65,7 +65,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
     public void testIntegLdapAuthenticationSSLFail() throws Exception {
         String sgConfigAsYamlString = FileHelper.loadFile("ldap/sg_config_ldap2.yml");
         sgConfigAsYamlString = sgConfigAsYamlString.replace("${ldapsPort}", String.valueOf(tlsLdapServer.getPort()));
-        System.out.println(sgConfigAsYamlString);
+        //System.out.println(sgConfigAsYamlString);
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfigAsYamlString(sgConfigAsYamlString), Settings.EMPTY);
         final RestHelper rh = nonSslRestHelper();
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", encodeBasicHeader("wrong", "wrong")).getStatusCode());
@@ -83,7 +83,7 @@ public class LdapBackendIntegTest2 extends SingleClusterTest {
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executeGetRequest("_searchguard/authinfo", new BasicHeader("sg_impersonate_as", "jacksonm")
                 ,encodeBasicHeader("spock", "spocksecret"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("ldap.dn"));
         Assert.assertTrue(res.getBody().contains("attr.ldap.entryDN"));
         Assert.assertTrue(res.getBody().contains("attr.ldap.subschemaSubentry"));

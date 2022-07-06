@@ -169,7 +169,7 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
     public void writeTo(StreamOutput out) throws IOException {
         out.writeStringCollection(this.backendRoles);
         out.writeStringCollection(this.searchGuardRoles);
-        out.writeMap(this.attributes);
+        out.writeGenericMap(this.attributes);
         out.writeOptionalWriteable(this.configVersions);
     }
 

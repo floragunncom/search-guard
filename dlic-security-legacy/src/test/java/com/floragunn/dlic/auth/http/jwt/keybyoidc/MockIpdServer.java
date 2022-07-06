@@ -291,7 +291,7 @@ public class MockIpdServer implements Closeable {
             String oldRedirectUri = this.validCodesToRedirectUri.remove(code);
             String currentRedirectUri = entityParams.get("redirect_uri");
 
-            System.out.println("redirect uri: " + oldRedirectUri + "; " + currentRedirectUri);
+            //System.out.println("redirect uri: " + oldRedirectUri + "; " + currentRedirectUri);
             
             if (!oldRedirectUri.equals(currentRedirectUri)) {
                 response.setStatusCode(400);

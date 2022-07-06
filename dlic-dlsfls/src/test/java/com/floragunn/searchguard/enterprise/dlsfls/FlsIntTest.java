@@ -16,7 +16,7 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 
 import java.util.Set;
 
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.BeforeClass;

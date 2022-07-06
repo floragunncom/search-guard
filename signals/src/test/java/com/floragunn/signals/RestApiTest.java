@@ -39,7 +39,7 @@ import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -224,7 +224,7 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testPutWatchWithSeverity() throws Exception {
         String tenant = "_main";
@@ -272,7 +272,7 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testPutWatchWithSeverityValidation() throws Exception {
         String tenant = "_main";
@@ -302,7 +302,7 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testPutWatchWithSeverity2() throws Exception {
         String tenant = "_main";
@@ -469,7 +469,7 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testPutInvalidWatch() throws Exception {
         String tenant = "_main";
@@ -743,7 +743,7 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testPutWatchWithCredentials() throws Exception {
 
@@ -1015,7 +1015,7 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testExecuteAnonymousWatchWithShowAllRuntimeAttributes() throws Exception {
 
@@ -1220,7 +1220,7 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     //FLAKY
     public void testAckWatch() throws Exception {
@@ -1306,7 +1306,7 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testUnAckOfFreshWatch() throws Exception {
         String tenant = "_main";

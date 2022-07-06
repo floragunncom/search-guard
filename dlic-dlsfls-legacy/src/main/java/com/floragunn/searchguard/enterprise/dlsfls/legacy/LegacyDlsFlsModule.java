@@ -68,7 +68,7 @@ public class LegacyDlsFlsModule implements SearchGuardModule, ComponentStateProv
         this.flsFieldFilter = new FlsFieldFilter(baseDependencies.getThreadPool(), config);
         this.flsQueryCacheWeightProvider = new FlsQueryCacheWeightProvider(baseDependencies.getThreadPool(), config);
         this.directoryReaderWrapper = (indexService) -> new SearchGuardFlsDlsIndexSearcherWrapper(indexService,
-                baseDependencies.getSettings(), baseDependencies.getClusterService(), baseDependencies.getAuditLog(), complianceConfig, config);
+                baseDependencies.getSettings(), baseDependencies.getClusterService(), baseDependencies.getAuditLog(), complianceConfig, config, baseDependencies.getxContentRegistry());
 
         ConfigurationRepository configurationRepository = baseDependencies.getConfigurationRepository();
         ClusterService clusterService = baseDependencies.getClusterService();

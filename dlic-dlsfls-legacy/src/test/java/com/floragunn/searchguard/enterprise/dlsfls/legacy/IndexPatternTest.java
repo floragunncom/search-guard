@@ -17,7 +17,7 @@ package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
@@ -49,7 +49,7 @@ public class IndexPatternTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-2016/_search?pretty", encodeBasicHeader("admin", "admin"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("\"value\" : 2,\n      \"relation"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
         Assert.assertTrue(res.getBody().contains("ipaddr"));
@@ -58,7 +58,7 @@ public class IndexPatternTest extends AbstractDlsFlsTest{
         Assert.assertTrue(res.getBody().contains("msgid"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-2016/_search?pretty", encodeBasicHeader("logstash", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
         Assert.assertFalse(res.getBody().contains("ipaddr"));
@@ -75,13 +75,13 @@ public class IndexPatternTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-2016/_field_caps?fields=*&pretty", encodeBasicHeader("admin", "admin"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("ipaddr"));
         Assert.assertTrue(res.getBody().contains("message"));
         Assert.assertTrue(res.getBody().contains("msgid"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-2016/_field_caps?fields=*&pretty", encodeBasicHeader("logstash", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertFalse(res.getBody().contains("ipaddr"));
         Assert.assertFalse(res.getBody().contains("message"));
         Assert.assertTrue(res.getBody().contains("msgid"));
@@ -95,7 +95,7 @@ public class IndexPatternTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-20*/_search?pretty", encodeBasicHeader("admin", "admin"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("\"value\" : 4,\n      \"relation"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
         Assert.assertTrue(res.getBody().contains("ipaddr"));
@@ -104,7 +104,7 @@ public class IndexPatternTest extends AbstractDlsFlsTest{
         Assert.assertTrue(res.getBody().contains("msgid"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-20*/_search?pretty", encodeBasicHeader("logstash", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("\"value\" : 2,\n      \"relation"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
         Assert.assertFalse(res.getBody().contains("ipaddr"));
@@ -121,7 +121,7 @@ public class IndexPatternTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-20*/_search?pretty", encodeBasicHeader("admin", "admin"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("\"value\" : 4,\n      \"relation"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
         Assert.assertTrue(res.getBody().contains("ipaddr"));
@@ -130,7 +130,7 @@ public class IndexPatternTest extends AbstractDlsFlsTest{
         Assert.assertTrue(res.getBody().contains("msgid"));
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/logstash-20*/_search?pretty", encodeBasicHeader("regex", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("\"value\" : 2,\n      \"relation"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
         Assert.assertFalse(res.getBody().contains("ipaddr"));

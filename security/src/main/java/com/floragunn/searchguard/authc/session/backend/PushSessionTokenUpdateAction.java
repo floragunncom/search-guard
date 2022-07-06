@@ -24,7 +24,6 @@ import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.nodes.BaseNodeRequest;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
@@ -36,6 +35,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -129,7 +129,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         }
     }
 
-    public static class NodeRequest extends BaseNodeRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
         Request request;
 
@@ -139,6 +139,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         }
 
         public NodeRequest(Request request) {
+            super((String[]) null);
             this.request = request;
         }
 
@@ -209,7 +210,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         }
 
         @Override
-        protected NodeResponse nodeOperation(NodeRequest request) {
+        protected NodeResponse nodeOperation(NodeRequest request, Task task) {
             String status;
 
             status = sessionService.pushAuthTokenUpdate(request.request);

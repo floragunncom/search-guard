@@ -59,7 +59,7 @@ public class LicenseTests extends SingleClusterTest {
         when(cs.state()).thenReturn(cstate);
     }
     
-    @Ignore // TODO test invalid license signature when uploading new license
+    @Ignore("TODO test invalid license signature when uploading new license")
     @Test
     public void testInvalidLicense() throws Exception {
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_config_invalidlic.yml"), Settings.EMPTY);
@@ -67,7 +67,7 @@ public class LicenseTests extends SingleClusterTest {
         RestHelper rh = nonSslRestHelper();
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/license?pretty")).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         assertContains(res, "*TRIAL*");
         assertContains(res, "*Invalid license signature*");
         assertNotContains(res, "*FULL*");
@@ -80,7 +80,7 @@ public class LicenseTests extends SingleClusterTest {
         RestHelper rh = nonSslRestHelper();
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/license?pretty")).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         assertContains(res, "*TRIAL*");
         assertNotContains(res, "*FULL*");
     }
@@ -92,7 +92,7 @@ public class LicenseTests extends SingleClusterTest {
         RestHelper rh = nonSslRestHelper();
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/license?pretty", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("FULL"));
         Assert.assertTrue(res.getBody().contains("is_valid\" : true"));
     }
@@ -141,7 +141,7 @@ public class LicenseTests extends SingleClusterTest {
         RestHelper rh = nonSslRestHelper();
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/license?pretty", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("FULL"));
         Assert.assertTrue(res.getBody().contains("is_valid\" : true"));
     }
@@ -153,15 +153,15 @@ public class LicenseTests extends SingleClusterTest {
         RestHelper rh = nonSslRestHelper();
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/license?pretty", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("FULL"));
         Assert.assertTrue(res.getBody().contains("is_valid\" : true"));
         
         
-        initialize(getPrivilegedInternalNodeClient(), Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_config_lic.yml"));
+        initialize(getPrivilegedInternalNodeClient(), new DynamicSgConfig().setSgConfig("sg_config_lic.yml"));
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/license?pretty", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().contains("FULL"));
         Assert.assertFalse(res.getBody().contains("TRIAL"));
         Assert.assertTrue(res.getBody().contains("is_valid\" : true"));

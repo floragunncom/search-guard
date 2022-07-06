@@ -21,9 +21,19 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch._types.Time;
+import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery;
+import co.elastic.clients.elasticsearch.async_search.DeleteAsyncSearchRequest;
+import co.elastic.clients.elasticsearch.async_search.GetAsyncSearchRequest;
+import co.elastic.clients.elasticsearch.async_search.GetAsyncSearchResponse;
+import co.elastic.clients.elasticsearch.async_search.SubmitRequest;
+import co.elastic.clients.elasticsearch.async_search.SubmitResponse;
+import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -34,11 +44,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.asyncsearch.AsyncSearchResponse;
-import org.elasticsearch.client.asyncsearch.DeleteAsyncSearchRequest;
-import org.elasticsearch.client.asyncsearch.GetAsyncSearchRequest;
-import org.elasticsearch.client.asyncsearch.SubmitAsyncSearchRequest;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -94,23 +99,24 @@ public class ResourceOwnerServiceTests {
     public void testAsyncSearch() throws Exception {
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU)) {
-            SearchSourceBuilder searchSource = new SearchSourceBuilder().query(QueryBuilders.matchAllQuery());
-            SubmitAsyncSearchRequest request = new SubmitAsyncSearchRequest(searchSource, "test1", "test2");
-            request.setWaitForCompletionTimeout(TimeValue.timeValueMillis(1));
+            SubmitRequest request = new SubmitRequest.Builder().index( "test1", "test2")
+                    .query(new MatchAllQuery.Builder().build()._toQuery())
+                    .waitForCompletionTimeout(new Time.Builder().time("1ms").build())
+                    .build();
 
-            AsyncSearchResponse response = client.asyncSearch().submit(request, RequestOptions.DEFAULT);
+            SubmitResponse<Map> response = client.getJavaClient().asyncSearch().submit(request, Map.class);
 
-            client.asyncSearch().get(new GetAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
+            client.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
 
-            client.asyncSearch().delete(new DeleteAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
+            client.getJavaClient().asyncSearch().delete(new DeleteAsyncSearchRequest.Builder().id(response.id()).build());
 
             Thread.sleep(100);
 
             try {
-                AsyncSearchResponse response2 = client.asyncSearch().get(new GetAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
+                GetAsyncSearchResponse<Map> response2 = client.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
                 Assert.fail(response2.toString());
-            } catch (ElasticsearchStatusException e) {
-                Assert.assertEquals(e.toString(), RestStatus.NOT_FOUND, e.status());
+            } catch (ElasticsearchException e) {
+                Assert.assertEquals(e.toString(), RestStatus.NOT_FOUND.getStatus(), e.status());
             }
         }
     }
@@ -119,19 +125,20 @@ public class ResourceOwnerServiceTests {
     public void testAsyncSearchUserMismatch() throws Exception {
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU);
-                RestHighLevelClient client2 = cluster.getRestHighLevelClient(EVIL_SULU);) {
-            SearchSourceBuilder searchSource = new SearchSourceBuilder().query(QueryBuilders.matchAllQuery());
-            SubmitAsyncSearchRequest request = new SubmitAsyncSearchRequest(searchSource, "test1", "test2");
-            request.setWaitForCompletionTimeout(TimeValue.timeValueMillis(1));
+             RestHighLevelClient client2 = cluster.getRestHighLevelClient(EVIL_SULU)) {
+            SubmitRequest request = new SubmitRequest.Builder().index( "test1", "test2")
+                    .query(new MatchAllQuery.Builder().build()._toQuery())
+                    .waitForCompletionTimeout(new Time.Builder().time("1ms").build())
+                    .build();
 
-            AsyncSearchResponse response = client.asyncSearch().submit(request, RequestOptions.DEFAULT);
+            SubmitResponse<Map> response = client.getJavaClient().asyncSearch().submit(request, Map.class);
 
-            client2.asyncSearch().get(new GetAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
+            client2.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
 
             Assert.fail();
-        } catch (ElasticsearchStatusException e) {
+        } catch (ElasticsearchException e) {
             Assert.assertTrue(e.toString(), e.toString().contains("is not owned by user evil_sulu"));
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN.getStatus(), e.status());
         }
     }
 
@@ -140,19 +147,20 @@ public class ResourceOwnerServiceTests {
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU);
                 RestHighLevelClient client2 = cluster.getRestHighLevelClient(ADMIN);) {
-            SearchSourceBuilder searchSource = new SearchSourceBuilder().query(QueryBuilders.matchAllQuery());
-            SubmitAsyncSearchRequest request = new SubmitAsyncSearchRequest(searchSource, "test1", "test2");
-            request.setWaitForCompletionTimeout(TimeValue.timeValueMillis(1));
 
-            AsyncSearchResponse response = client.asyncSearch().submit(request, RequestOptions.DEFAULT);
+            SubmitRequest request = new SubmitRequest.Builder().index( "test1", "test2")
+                    .query(new MatchAllQuery.Builder().build()._toQuery())
+                    .waitForCompletionTimeout(new Time.Builder().time("1ms").build())
+                    .build();
 
-            client2.asyncSearch().get(new GetAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
+            SubmitResponse<Map> response = client.getJavaClient().asyncSearch().submit(request, Map.class);
 
-            client2.asyncSearch().delete(new DeleteAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
+            client2.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
 
-        } catch (ElasticsearchStatusException e) {
-            Assert.assertTrue(e.toString(), e.toString().contains("is not owned by user evil_sulu"));
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+            client2.getJavaClient().asyncSearch().delete(new DeleteAsyncSearchRequest.Builder().id(response.id()).build());
+
+            //TODO this should be ok?
+
         }
     }
 
@@ -160,19 +168,21 @@ public class ResourceOwnerServiceTests {
     public void testAsyncSearchUserMismatchForDelete() throws Exception {
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU);
-                RestHighLevelClient client2 = cluster.getRestHighLevelClient(EVIL_SULU);) {
-            SearchSourceBuilder searchSource = new SearchSourceBuilder().query(QueryBuilders.matchAllQuery());
-            SubmitAsyncSearchRequest request = new SubmitAsyncSearchRequest(searchSource, "test1", "test2");
-            request.setWaitForCompletionTimeout(TimeValue.timeValueMillis(1));
+             RestHighLevelClient  client2 = cluster.getRestHighLevelClient(EVIL_SULU)) {
 
-            AsyncSearchResponse response = client.asyncSearch().submit(request, RequestOptions.DEFAULT);
+            SubmitRequest request = new SubmitRequest.Builder().index( "test1", "test2")
+                    .query(new MatchAllQuery.Builder().build()._toQuery())
+                    .waitForCompletionTimeout(new Time.Builder().time("1ms").build())
+                    .build();
 
-            client2.asyncSearch().delete(new DeleteAsyncSearchRequest(response.getId()), RequestOptions.DEFAULT);
+            SubmitResponse<Map> response = client.getJavaClient().asyncSearch().submit(request, Map.class);
+
+            client2.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
 
             Assert.fail();
-        } catch (ElasticsearchStatusException e) {
+        } catch (ElasticsearchException e) {
             Assert.assertTrue(e.toString(), e.toString().contains("is not owned by user evil_sulu"));
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN.getStatus(), e.status());
         }
     }
 
@@ -335,6 +345,28 @@ public class ResourceOwnerServiceTests {
             builder.field("start_time_in_millis", System.currentTimeMillis());
 
             builder.field("expiration_time_in_millis", System.currentTimeMillis());
+
+            builder.startObject("response");
+            builder.field("took", 0);
+            builder.field("timed_out", false);
+            builder.field("num_reduce_phases", 0);
+            builder.startObject("_shards");
+            builder.field("total", 1);
+            builder.field("successful", 1);
+            builder.field("skipped", 0);
+            builder.field("failed", 0);
+            builder.endObject();
+
+            builder.startObject("hits");
+            builder.startObject("total");
+            builder.field("value", 0);
+            builder.field("relation", "eq");
+            builder.endObject();
+            builder.nullField("max_score");
+            builder.startArray("hits");
+            builder.endArray();
+            builder.endObject();
+            builder.endObject();
             builder.endObject();
             return builder;
         }

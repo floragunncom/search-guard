@@ -115,7 +115,7 @@ public class BulkConfigApiTest {
             Assert.assertEquals(response.getBody(), 404, response.getStatusCode());
 
             DocNode updateRequestDoc = DocNode.of("config_vars.content", responseDoc.get("config_vars", "content"));
-            System.out.println(updateRequestDoc.toJsonString());
+            //System.out.println(updateRequestDoc.toJsonString());
             HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc);
 
             Assert.assertEquals(updateResponse.getBody(), 200, updateResponse.getStatusCode());
@@ -131,7 +131,7 @@ public class BulkConfigApiTest {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
             HttpResponse response = client.get("/_searchguard/config");
-            System.out.println(response.toString());
+            //System.out.println(response.toString());
             DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
 
             Map<String, Object> tenants = new LinkedHashMap<>(responseDoc.getAsNode("tenants").getAsNode("content"));

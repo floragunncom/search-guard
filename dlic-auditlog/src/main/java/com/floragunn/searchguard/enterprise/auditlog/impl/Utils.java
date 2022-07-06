@@ -25,6 +25,7 @@ import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentParser;
+import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xcontent.json.JsonXContent;
 
@@ -43,8 +44,8 @@ public class Utils {
     }
 
     public static Map<String, Object> convertJsonToxToStructuredMap(String jsonContent) {
-        try (XContentParser parser = XContentType.JSON.xContent().createParser(NamedXContentRegistry.EMPTY,
-                DeprecationHandler.THROW_UNSUPPORTED_OPERATION, jsonContent)) {
+        try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY.withDeprecationHandler(
+                DeprecationHandler.THROW_UNSUPPORTED_OPERATION), jsonContent)) {
             return parser.map();
         } catch (IOException e1) {
             throw ExceptionsHelper.convertToElastic(e1);

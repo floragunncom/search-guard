@@ -26,18 +26,19 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.cert.ocsp.Req;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.nodes.BaseNodeRequest;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterStateListener;
@@ -51,6 +52,7 @@ import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.ActionNotFoundTransportException;
 import org.elasticsearch.transport.RemoteTransportException;
@@ -394,18 +396,24 @@ public class SearchGuardCapabilities {
             }
         }
 
-        public static class NodeRequest extends BaseNodeRequest {
+        public static class NodeRequest extends BaseNodesRequest {
+
+            private Request request;
 
             public NodeRequest(StreamInput in) throws IOException {
                 super(in);
+                request = new Request(in);
             }
 
-            public NodeRequest() {
+            public NodeRequest(Request request) {
+                super((String[]) null);
+                this.request = request;
             }
 
             @Override
             public void writeTo(StreamOutput out) throws IOException {
                 super.writeTo(out);
+                request.writeTo(out);
             }
         }
 
@@ -465,13 +473,13 @@ public class SearchGuardCapabilities {
             }
 
             @Override
-            protected NodeResponse nodeOperation(NodeRequest request) {
+            protected NodeResponse nodeOperation(NodeRequest request, Task task) {
                 return new NodeResponse(clusterService.localNode(), capabilities.local);
             }
 
             @Override
             protected NodeRequest newNodeRequest(Request request) {
-                return new NodeRequest();
+                return new NodeRequest(request);
             }
         }
 

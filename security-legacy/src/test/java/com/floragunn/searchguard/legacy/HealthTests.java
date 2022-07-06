@@ -41,13 +41,13 @@ public class HealthTests extends SingleClusterTest {
         RestHelper rh = nonSslRestHelper();
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/health?pretty&mode=lenient")).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         assertContains(res, "*UP*");
         assertNotContains(res, "*DOWN*");
         assertNotContains(res, "*strict*");
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/health?pretty")).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         assertContains(res, "*UP*");
         assertContains(res, "*strict*");
         assertNotContains(res, "*DOWN*");
@@ -60,13 +60,13 @@ public class HealthTests extends SingleClusterTest {
         RestHelper rh = nonSslRestHelper();
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_searchguard/health?pretty&mode=lenient")).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         assertContains(res, "*UP*");
         assertNotContains(res, "*DOWN*");
         assertNotContains(res, "*strict*");
         
         Assert.assertEquals(HttpStatus.SC_SERVICE_UNAVAILABLE, (res = rh.executeGetRequest("_searchguard/health?pretty")).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         assertContains(res, "*DOWN*");
         assertContains(res, "*strict*");
         assertNotContains(res, "*UP*");

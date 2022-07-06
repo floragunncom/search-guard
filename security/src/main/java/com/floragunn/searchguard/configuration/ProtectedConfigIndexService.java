@@ -43,12 +43,12 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.action.support.nodes.BaseNodeRequest;
+import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
@@ -66,6 +66,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -232,11 +233,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
                         configIndex.moduleState.setState(ComponentState.State.INITIALIZING, "mapping_update");
 
-                        PutMappingRequest putMappingRequest = new PutMappingRequest(configIndex.getName()).type("_doc").source(patch);
-
-                        if (log.isDebugEnabled()) {
-                            log.debug(Strings.toString(putMappingRequest));
-                        }
+                        PutMappingRequest putMappingRequest = new PutMappingRequest(configIndex.getName()).source(patch);
 
                         client.admin().indices().putMapping(putMappingRequest, new ActionListener<AcknowledgedResponse>() {
 
@@ -287,13 +284,13 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             CreateIndexRequest request = new CreateIndexRequest(configIndex.getName());
 
             if (configIndex.getMapping() != null) {
-                request.mapping("_doc", configIndex.getMapping());
+                request.mapping(configIndex.getMapping());
             }
 
             request.settings(INDEX_SETTINGS);
 
             if (log.isDebugEnabled()) {
-                log.debug("Creating index " + request.index() + ":\n" + Strings.toString(request, true, true));
+                log.debug("Creating index " + request.index());
             }
 
             completedIndices.add(configIndex);
@@ -703,13 +700,14 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             }
         }
 
-        public static class NodeRequest extends BaseNodeRequest {
+        public static class NodeRequest extends BaseNodesRequest {
 
             public NodeRequest(StreamInput in) throws IOException {
                 super(in);
             }
 
             public NodeRequest() {
+                super((String[]) null);
             }
 
             @Override
@@ -735,7 +733,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             @Override
             public void writeTo(StreamOutput out) throws IOException {
                 super.writeTo(out);
-                out.writeMap(result.toMap());
+                out.writeGenericMap(result.toMap());
             }
 
             @Override
@@ -770,7 +768,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             }
 
             @Override
-            protected NodeResponse nodeOperation(NodeRequest request) {
+            protected NodeResponse nodeOperation(NodeRequest request, Task task) {
                 return new NodeResponse(clusterService.localNode(), protectedConfigIndexService.flushPendingIndices());
             }
 

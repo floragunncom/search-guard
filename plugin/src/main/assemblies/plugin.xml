@@ -15,11 +15,12 @@
     </dependencySets>
     <fileSets>
         <fileSet>
-            <directory>${basedir}${file.separator}src${file.separator}main${file.separator}assemblies${file.separator}</directory>
+            <directory>${project.basedir}${file.separator}..</directory>
             <outputDirectory>${file.separator}</outputDirectory>
             <filtered>false</filtered>
             <includes>
-                <include>LICENSE</include>
+                <include>LICENSE.txt</include>
+                <include>NOTICE.txt</include>
             </includes>
         </fileSet>
         <fileSet>
@@ -32,18 +33,11 @@
             <fileMode>0755</fileMode>
         </fileSet>
         <fileSet>
-            <directory>${project.basedir}${file.separator}..${file.separator}sgadmin</directory>
-            <outputDirectory>${file.separator}</outputDirectory>
-            <includes>
-                <include>tools${file.separator}**</include>
-            </includes>
-            <fileMode>0755</fileMode>
-        </fileSet>       
-        <fileSet>
             <outputDirectory>${file.separator}</outputDirectory>
             <includes>
                 <include>plugin-descriptor.properties</include>
                 <include>plugin-security.policy</include>
+                <include>THIRD-PARTY.txt</include>
             </includes>
         </fileSet>
     </fileSets>

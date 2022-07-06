@@ -19,6 +19,7 @@ import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.spec.ECGenParameterSpec;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -428,9 +429,7 @@ public class HTTPJwtAuthenticatorTest {
     
     @Test
     public void testES512() throws Exception {
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
-        keyGen.initialize(571);
-        KeyPair pair = keyGen.generateKeyPair();
+        KeyPair pair = Keys.keyPairFor(SignatureAlgorithm.ES512);
         PrivateKey priv = pair.getPrivate();
         PublicKey pub = pair.getPublic();
     

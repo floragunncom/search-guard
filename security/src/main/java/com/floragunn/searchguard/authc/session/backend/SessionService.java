@@ -51,6 +51,7 @@ import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
@@ -352,7 +353,13 @@ public class SessionService {
 
         Meter subMeter = meter.basic("authenticate");
 
-        ClientIpInfo clientInfo = clientAddressAscertainer.getActualRemoteAddress(restRequest);
+        ClientIpInfo clientInfo = null;
+        try {
+            clientInfo = clientAddressAscertainer.getActualRemoteAddress(restRequest);
+        } catch (ElasticsearchStatusException e) {
+            onFailure.accept(e);
+            return;
+        }
         IPAddress remoteIpAddress = clientInfo.getOriginatingIpAddress();
 
         if (log.isTraceEnabled()) {
@@ -372,7 +379,7 @@ public class SessionService {
             }
             subMeter.close();
             auditLog.logBlockedIp(restRequest, clientInfo.getOriginatingTransportAddress().address());
-            onResult.accept(new AuthcResult(AuthcResult.Status.STOP, RestStatus.UNAUTHORIZED, "Authentication finally failed"));
+            onResult.accept(new AuthcResult(AuthcResult.Status.STOP, RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON));
             return;
         }
 

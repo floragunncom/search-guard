@@ -38,6 +38,7 @@ import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentParser;
+import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.json.JsonXContent;
 
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
@@ -80,7 +81,7 @@ public class DlsQueryParser {
             return null;
         }
 
-        boolean hasNestedMapping = queryShardContext.hasNested();
+        boolean hasNestedMapping = !queryShardContext.nestedLookup().getNestedMappers().isEmpty();
 
         BooleanQuery.Builder dlsQueryBuilder = new BooleanQuery.Builder();
         dlsQueryBuilder.setMinimumNumberShouldMatch(1);
@@ -115,8 +116,8 @@ public class DlsQueryParser {
 
                 @Override
                 public QueryBuilder call() throws Exception {
-                    final XContentParser parser = JsonXContent.jsonXContent.createParser(namedXContentRegistry,
-                            DeprecationHandler.THROW_UNSUPPORTED_OPERATION, unparsedDlsQuery);
+                    final XContentParser parser = JsonXContent.jsonXContent.createParser(XContentParserConfiguration.EMPTY.withRegistry(namedXContentRegistry),
+                            unparsedDlsQuery);
                     final QueryBuilder qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
                     return qb;
                 }

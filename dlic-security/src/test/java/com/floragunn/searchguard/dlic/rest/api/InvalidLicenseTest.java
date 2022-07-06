@@ -28,7 +28,7 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class InvalidLicenseTest extends LicenseTest {
 
-    @Ignore
+	@Ignore("TODO why is this ignored?")
 	@Test
 	public void testInvalidLicenseUpload() throws Exception {
 

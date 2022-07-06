@@ -31,7 +31,7 @@ import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 public abstract class SingleClusterTest extends AbstractSGUnitTest {
 
     protected ClusterHelper clusterHelper = new ClusterHelper(
-            "utest_n" + num.incrementAndGet() + "_f" + System.getProperty("forkno") + "_t" + System.nanoTime());
+            "utest_n", 0);
     protected ClusterInfo clusterInfo;
 
     protected void setup(Settings nodeOverride) throws Exception {

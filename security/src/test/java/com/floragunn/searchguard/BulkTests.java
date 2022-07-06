@@ -17,12 +17,13 @@
 
 package com.floragunn.searchguard;
 
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
+import co.elastic.clients.elasticsearch._types.Refresh;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
+import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
+import com.floragunn.searchguard.client.RestHighLevelClient;
+
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -30,6 +31,8 @@ import org.junit.Test;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+
+import java.util.Map;
 
 public class BulkTests {
 
@@ -45,16 +48,15 @@ public class BulkTests {
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("bulk_test_user", "secret")) {
 
-            BulkRequest br = new BulkRequest();
-            br.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-            br.add(new IndexRequest("test").id("1").source("a", "b"));
-            br.add(new IndexRequest("myindex").id("1").source("a", "b"));
-
-            BulkResponse res = client.bulk(br, RequestOptions.DEFAULT);
-            Assert.assertTrue(res.hasFailures());
-            Assert.assertEquals(200, res.status().getStatus());
-            Assert.assertFalse(res.getItems()[0].isFailed());
-            Assert.assertTrue(res.getItems()[1].isFailed());
+            BulkRequest.Builder br = new BulkRequest.Builder();
+            br.refresh(Refresh.True);
+            br.operations(new BulkOperation.Builder().index(new IndexOperation.Builder<Map>().document(Map.of("a", "b")).index("test").id("1").build()).build(),
+                          new BulkOperation.Builder().index(new IndexOperation.Builder<Map>().document(Map.of("a", "b")).index("myindex").id("1").build()).build());
+            BulkResponse res = client.getJavaClient().bulk(br.build());
+            Assert.assertTrue(res.errors());
+            Assert.assertEquals(2, res.items().size());
+            Assert.assertTrue(res.items().get(0).error() == null); //ok because we have all perms for test
+            Assert.assertFalse(res.items().get(1).error() == null); //fails because no perms for myindex
         }
     }
 }

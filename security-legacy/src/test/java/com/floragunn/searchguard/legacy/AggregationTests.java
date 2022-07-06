@@ -23,7 +23,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasA
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
@@ -85,7 +85,7 @@ public class AggregationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK,
                 (res = rh.executePostRequest("_search?pretty", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",
                         encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
-        System.out.println(res.getBody());
+
         assertNotContains(res, "*xception*");
         assertNotContains(res, "*erial*");
         assertNotContains(res, "*mpty*");
@@ -100,7 +100,7 @@ public class AggregationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK,
                 (res = rh.executePostRequest("*/_search?pretty", "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}",
                         encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
-        System.out.println(res.getBody());
+
         assertNotContains(res, "*xception*");
         assertNotContains(res, "*erial*");
         assertNotContains(res, "*mpty*");

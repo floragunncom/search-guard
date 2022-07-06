@@ -36,6 +36,7 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 
@@ -711,14 +712,42 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         enabledHttpCiphersJDKProvider = new ArrayList<String>(jdkSupportedCiphers);
         enabledHttpCiphersJDKProvider.retainAll(secureHttpSSLCiphers);
 
+        List secureHttpSSLCiphersTmp = new ArrayList<>(secureHttpSSLCiphers);
+        secureHttpSSLCiphersTmp.removeAll(jdkSupportedCiphers);
+
+        if(!secureHttpSSLCiphersTmp.isEmpty()) {
+            log.warn("The following https TLS ciphers are configured but not supported by the JVM: {}", secureHttpSSLCiphersTmp);
+        }
+
         enabledTransportCiphersJDKProvider = new ArrayList<String>(jdkSupportedCiphers);
         enabledTransportCiphersJDKProvider.retainAll(secureTransportSSLCiphers);
+
+        List secureTransportSSLCiphersTmp = new ArrayList<>(secureTransportSSLCiphers);
+        secureTransportSSLCiphersTmp.removeAll(jdkSupportedCiphers);
+
+        if(!secureTransportSSLCiphersTmp.isEmpty()) {
+            log.warn("The following transport TLS ciphers are configured but not supported by the JVM: {}", secureTransportSSLCiphersTmp);
+        }
 
         enabledHttpProtocolsJDKProvider = new ArrayList<String>(jdkSupportedProtocols);
         enabledHttpProtocolsJDKProvider.retainAll(secureHttpSSLProtocols);
 
+        List secureHttpSSLProtocolsTmp = new ArrayList<>(secureHttpSSLProtocols);
+        secureHttpSSLProtocolsTmp.removeAll(jdkSupportedProtocols);
+
+        if(!secureHttpSSLProtocolsTmp.isEmpty()) {
+            log.warn("The following https TLS protocols are configured but not supported by the JVM: {}", secureHttpSSLProtocolsTmp);
+        }
+
         enabledTransportProtocolsJDKProvider = new ArrayList<String>(jdkSupportedProtocols);
         enabledTransportProtocolsJDKProvider.retainAll(secureTransportSSLProtocols);
+
+        List secureTransportSSLProtocolsTmp = new ArrayList<>(secureTransportSSLProtocols);
+        secureTransportSSLProtocolsTmp.removeAll(jdkSupportedProtocols);
+
+        if(!secureTransportSSLProtocolsTmp.isEmpty()) {
+            log.warn("The following transport TLS protocols are configured but not supported by the JVM: {}", secureTransportSSLProtocolsTmp);
+        }
     }
 
     private SslContext buildSSLServerContext(final PrivateKey _key, final X509Certificate[] _cert,

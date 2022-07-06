@@ -14,7 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;

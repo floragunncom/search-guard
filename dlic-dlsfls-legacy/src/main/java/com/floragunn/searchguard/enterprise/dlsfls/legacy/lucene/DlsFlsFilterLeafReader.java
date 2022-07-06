@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
+import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.StoredFieldsReader;
@@ -418,6 +419,81 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         return flsFieldInfos;
     }
 
+/* TODO
+    private class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
+
+        private final StoredFieldVisitor delegate;
+        private FieldReadCallback fieldReadCallback = new FieldReadCallback(threadContext, indexService, clusterService, complianceConfig, auditlog,
+                maskedFieldsKeySet, shardId);
+
+        public ComplianceAwareStoredFieldVisitor(final StoredFieldVisitor delegate) {
+            super();
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void binaryField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+            fieldReadCallback.binaryFieldRead(fieldInfo, value);
+            delegate.binaryField(fieldInfo, value);
+        }
+
+        @Override
+        public Status needsField(final FieldInfo fieldInfo) throws IOException {
+            return delegate.needsField(fieldInfo);
+        }
+
+        @Override
+        public int hashCode() {
+            return delegate.hashCode();
+        }
+
+        @Override
+        public void stringField(final FieldInfo fieldInfo, final String value) throws IOException {
+            fieldReadCallback.stringFieldRead(fieldInfo, value);
+            delegate.stringField(fieldInfo, value);
+        }
+
+        @Override
+        public void intField(final FieldInfo fieldInfo, final int value) throws IOException {
+            fieldReadCallback.numericFieldRead(fieldInfo, value);
+            delegate.intField(fieldInfo, value);
+        }
+
+        @Override
+        public void longField(final FieldInfo fieldInfo, final long value) throws IOException {
+            fieldReadCallback.numericFieldRead(fieldInfo, value);
+            delegate.longField(fieldInfo, value);
+        }
+
+        @Override
+        public void floatField(final FieldInfo fieldInfo, final float value) throws IOException {
+            fieldReadCallback.numericFieldRead(fieldInfo, value);
+            delegate.floatField(fieldInfo, value);
+        }
+
+        @Override
+        public void doubleField(final FieldInfo fieldInfo, final double value) throws IOException {
+            fieldReadCallback.numericFieldRead(fieldInfo, value);
+            delegate.doubleField(fieldInfo, value);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            return delegate.equals(obj);
+        }
+
+        @Override
+        public String toString() {
+            return delegate.toString();
+        }
+
+        public void finished() {
+            fieldReadCallback.finished();
+            fieldReadCallback = null;
+        }
+
+    }*/
+
     private class FlsStoredFieldVisitor extends StoredFieldVisitor {
 
         private final StoredFieldVisitor delegate;
@@ -466,7 +542,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         }
 
         @Override
-        public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+        public void stringField(final FieldInfo fieldInfo, final String value) throws IOException {
             delegate.stringField(fieldInfo, value);
         }
 
@@ -519,7 +595,15 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
                 Map<String, Object> filteredSource = bytesRefTuple.v2();
                 MapUtils.deepTraverseMap(filteredSource, HASH_CB);
                 final XContentBuilder xBuilder = XContentBuilder.builder(bytesRefTuple.v1().xContent()).map(filteredSource);
-                delegate.binaryField(fieldInfo, BytesReference.toBytes(BytesReference.bytes(xBuilder)));
+
+                if(delegate instanceof MaskedFieldsConsumer) {
+                    ((MaskedFieldsConsumer)delegate).binaryMaskedField(fieldInfo, BytesReference.toBytes(BytesReference.bytes(xBuilder)),
+                            (f) -> maskedFieldsKeySet != null && WildcardMatcher.getFirstMatchingPattern(maskedFieldsKeySet, f).isPresent());
+                } else {
+                    delegate.binaryField(fieldInfo, BytesReference.toBytes(BytesReference.bytes(xBuilder)));
+                }
+
+
             } else {
                 delegate.binaryField(fieldInfo, value);
             }
@@ -536,12 +620,18 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         }
 
         @Override
-        public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
-
+        public void stringField(final FieldInfo fieldInfo, final String value) throws IOException {
+            
             final Optional<String> matchedPattern = WildcardMatcher.getFirstMatchingPattern(maskedFieldsKeySet, fieldInfo.name);
 
             if (matchedPattern.isPresent()) {
-                delegate.stringField(fieldInfo, maskedFieldsMap.get(matchedPattern.get()).mask(value));
+                if(delegate instanceof MaskedFieldsConsumer) {
+                    ((MaskedFieldsConsumer)delegate).stringMaskedField(fieldInfo, maskedFieldsMap.get(matchedPattern.get()).mask(value));
+                } else {
+                    delegate.stringField(fieldInfo, maskedFieldsMap.get(matchedPattern.get()).mask(value));
+                }
+
+
             } else {
                 delegate.stringField(fieldInfo, value);
             }
@@ -631,11 +721,6 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         @Override
         public void close() throws IOException {
             delegate.close();
-        }
-
-        @Override
-        public long ramBytesUsed() {
-            return delegate.ramBytesUsed();
         }
 
         @Override
@@ -790,9 +875,19 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
             return new SortedDocValues() {
 
+//                @Override
+//                public BytesRef binaryValue() throws IOException {
+//                    return mf.mask(sortedDocValues.binaryValue());
+//                }
+
                 @Override
-                public BytesRef binaryValue() throws IOException {
-                    return mf.mask(sortedDocValues.binaryValue());
+                public boolean equals(Object obj) {
+                    return super.equals(obj);
+                }
+
+                @Override
+                public int hashCode() {
+                    return super.hashCode();
                 }
 
                 @Override

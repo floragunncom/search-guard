@@ -2027,7 +2027,7 @@ class PlaintextRequestRejectingRequestHandler extends LDAPListenerRequestHandler
     }
 
     public LDAPMessage processBindRequest(int messageID, BindRequestProtocolOp request, List<Control> controls) {
-        System.out.println(this + " " + messageID + " bind " + isTlsConnection());
+        //System.out.println(this + " " + messageID + " bind " + isTlsConnection());
         if (!isTlsConnection()) {
             return new LDAPMessage(messageID, new BindResponseProtocolOp(new LDAPResult(messageID, ResultCode.UNWILLING_TO_PERFORM)));
         }
@@ -2052,7 +2052,7 @@ class PlaintextRequestRejectingRequestHandler extends LDAPListenerRequestHandler
     }
 
     public LDAPMessage processExtendedRequest(int messageID, ExtendedRequestProtocolOp request, List<Control> controls) {
-        System.out.println(this + " " + messageID + " extend " + isTlsConnection());
+        //System.out.println(this + " " + messageID + " extend " + isTlsConnection());
 
         if (request.getOID().equals(StartTLSExtendedRequest.STARTTLS_REQUEST_OID)) {
             return delegate.processExtendedRequest(messageID, request, controls);

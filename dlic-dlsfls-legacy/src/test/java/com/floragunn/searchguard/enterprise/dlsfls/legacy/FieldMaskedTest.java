@@ -17,7 +17,7 @@ package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
@@ -218,7 +218,7 @@ public class FieldMaskedTest extends AbstractDlsFlsTest{
             Assert.assertTrue(res.getBody().contains("\"value\" : 2"));
         }
 
-        System.out.println(rh.executeGetRequest("/deals/_stats/request_cache,query_cache?human&pretty", encodeBasicHeader("admin", "admin")).getBody());
+        //System.out.println(rh.executeGetRequest("/deals/_stats/request_cache,query_cache?human&pretty", encodeBasicHeader("admin", "admin")).getBody());
         
         initialize(getPrivilegedInternalNodeClient(), new DynamicSgConfig().setSgConfig("sg_config_salt2_changed.yml"));
 

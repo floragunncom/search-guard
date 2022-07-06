@@ -23,7 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -109,6 +109,8 @@ public class SignalsStressTests {
             }, Duration.ofSeconds(10));
 
             watchRunsOnNode = restClient.get(watchPath + "/_state").toJsonNode().path("node").asText();
+
+            Assert.assertTrue("watchRunsOnNode must not be "+watchRunsOnNode,watchRunsOnNode != null && !watchRunsOnNode.isEmpty() && !watchRunsOnNode.equals("null"));
 
             log.info("Watch runs on node " + watchRunsOnNode);
 

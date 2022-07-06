@@ -294,11 +294,6 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 return new SortedDocValues() {
 
                     @Override
-                    public BytesRef binaryValue() throws IOException {
-                        return fieldMasking.apply(sortedDocValues.binaryValue());
-                    }
-
-                    @Override
                     public int lookupTerm(BytesRef key) throws IOException {
                         return sortedDocValues.lookupTerm(key);
                     }
@@ -574,11 +569,6 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 @Override
                 public void close() throws IOException {
                     delegate.close();
-                }
-
-                @Override
-                public long ramBytesUsed() {
-                    return delegate.ramBytesUsed();
                 }
 
                 @Override

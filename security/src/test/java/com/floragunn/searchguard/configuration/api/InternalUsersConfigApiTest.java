@@ -58,7 +58,7 @@ public class InternalUsersConfigApiTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void addUser_shouldFailWhenPasswordIsMissing() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {

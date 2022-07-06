@@ -17,6 +17,7 @@ package com.floragunn.searchguard.enterprise.dlsfls.filter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,13 +39,16 @@ import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.get.GetResult;
+import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -111,6 +115,8 @@ public class DlsFilterLevelActionHandler {
     private final ResolvedIndices resolved;
     private final boolean requiresIndexScoping;
     private final Client nodeClient;
+    private final ClusterService clusterService;
+    private final IndicesService indicesService;
     private final ThreadContext threadContext;
 
     private BoolQueryBuilder filterLevelQueryBuilder;
@@ -125,6 +131,8 @@ public class DlsFilterLevelActionHandler {
         this.restrictionMap = restrictionMap;
         this.resolved = resolved;
         this.nodeClient = nodeClient;
+        this.clusterService = clusterService;
+        this.indicesService = indicesService;
         this.threadContext = threadContext;
 
         this.requiresIndexScoping = resolved.isLocalAll() || resolved.getLocalAndRemoteIndices().size() != 1;
@@ -238,7 +246,7 @@ public class DlsFilterLevelActionHandler {
                     if (hits == 1) {
                         getListener.onResponse(new GetResponse(searchHitToGetResult(response.getHits().getAt(0))));
                     } else if (hits == 0) {
-                        getListener.onResponse(new GetResponse(new GetResult(searchRequest.indices()[0], "_doc", getRequest.id(),
+                        getListener.onResponse(new GetResponse(new GetResult(searchRequest.indices()[0], getRequest.id(),
                                 SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, -1, false, null, null, null)));
                     } else {
                         log.error("Unexpected hit count " + hits + " in " + response);
@@ -332,13 +340,47 @@ public class DlsFilterLevelActionHandler {
             log.debug("Converting to GetResult:\n" + hit);
         }
 
-        Map<String, DocumentField> documentFields = Collections.emptyMap();
-        Map<String, DocumentField> metadataFields = Collections.emptyMap();
+        Map<String, DocumentField> fields = hit.getFields();
+        Map<String, DocumentField> documentFields;
+        Map<String, DocumentField> metadataFields;
 
-        @SuppressWarnings("deprecation")
-        String type = hit.getType();
+        if (fields.isEmpty()) {
+            documentFields = Collections.emptyMap();
+            metadataFields = Collections.emptyMap();
+        } else {
+            IndexMetadata indexMetadata = clusterService.state().getMetadata().indices().get(hit.getIndex());
+            IndexService indexService = indexMetadata != null ? indicesService.indexService(indexMetadata.getIndex()) : null;
 
-        return new GetResult(hit.getIndex(), type, hit.getId(), hit.getSeqNo(), hit.getPrimaryTerm(), hit.getVersion(), true, hit.getSourceRef(),
+            if (indexService != null) {
+                documentFields = new HashMap<>(fields.size());
+                metadataFields = new HashMap<>();
+                MapperService mapperService = indexService.mapperService();
+
+                for (Map.Entry<String, DocumentField> entry : fields.entrySet()) {
+                    if (mapperService.isMetadataField(entry.getKey())) {
+                        metadataFields.put(entry.getKey(), entry.getValue());
+                    } else {
+                        documentFields.put(entry.getKey(), entry.getValue());
+                    }
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Partitioned fields: " + metadataFields + "; " + documentFields);
+                }
+
+            } else {
+                if (log.isWarnEnabled()) {
+                    log.warn("Could not find IndexService for " + hit.getIndex() + "; assuming all fields as document fields."
+                            + "This should not happen, however this should also not pose a big problem as ES mixes the fields again anyway.\n"
+                            + "IndexMetadata: " + indexMetadata);
+                }
+
+                documentFields = fields;
+                metadataFields = Collections.emptyMap();
+            }
+        }
+
+        return new GetResult(hit.getIndex(), hit.getId(), hit.getSeqNo(), hit.getPrimaryTerm(), hit.getVersion(), true, hit.getSourceRef(),
                 documentFields, metadataFields);
     }
 

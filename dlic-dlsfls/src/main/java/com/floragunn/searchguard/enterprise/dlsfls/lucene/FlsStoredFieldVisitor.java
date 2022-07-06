@@ -21,6 +21,7 @@ import java.io.OutputStream;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
+import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.FieldInfo;
@@ -68,7 +69,12 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
 
         if (fieldInfo.name.equals("_source")) {
             try {
-                delegate.binaryField(fieldInfo, DocumentFilter.filter(Format.JSON, value, flsRule, fieldMaskingRule));
+                if(delegate instanceof MaskedFieldsConsumer) {
+                    ((MaskedFieldsConsumer)delegate).binaryMaskedField(fieldInfo, DocumentFilter.filter(Format.JSON, value, flsRule, fieldMaskingRule), (f) -> fieldMaskingRule != null && fieldMaskingRule.get(f) != null);
+                } else {
+                    delegate.binaryField(fieldInfo, DocumentFilter.filter(Format.JSON, value, flsRule, fieldMaskingRule));
+                }
+
             } catch (DocumentParseException e) {
                 throw new ElasticsearchException("Cannot filter source of document", e);
             }
@@ -88,11 +94,16 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
     }
 
     @Override
-    public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
+    public void stringField(final FieldInfo fieldInfo, final String value) throws IOException {
         FieldMaskingRule.Field field = this.fieldMaskingRule.get(fieldInfo.name);
 
         if (field != null) {
-            delegate.stringField(fieldInfo, field.apply(value));
+            if(delegate instanceof MaskedFieldsConsumer) {
+                ((MaskedFieldsConsumer)delegate).stringMaskedField(fieldInfo, field.apply(value));
+            } else {
+                delegate.stringField(fieldInfo, field.apply(value));
+            }
+
         } else {
             delegate.stringField(fieldInfo, value);
         }

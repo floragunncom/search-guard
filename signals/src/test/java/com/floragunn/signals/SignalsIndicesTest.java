@@ -22,7 +22,7 @@ import java.util.Map;
 
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.NodeEnvironment;
@@ -61,7 +61,7 @@ public class SignalsIndicesTest {
 
         try (Client client = cluster.getInternalNodeClient()) {
             CreateIndexResponse response = client.admin().indices().create(new CreateIndexRequest(".signals_watches")
-                    .mapping("_doc", getOldWatchIndexMapping()).settings(Settings.builder().put("index.hidden", true))).actionGet();
+                    .mapping(getOldWatchIndexMapping()).settings(Settings.builder().put("index.hidden", true))).actionGet();
 
             Assert.assertTrue(response.toString(), response.isAcknowledged());
         }

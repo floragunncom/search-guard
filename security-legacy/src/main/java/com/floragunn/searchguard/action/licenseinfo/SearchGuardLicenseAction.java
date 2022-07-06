@@ -23,7 +23,7 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 import java.io.IOException;
 import java.util.List;
 
-import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestController;

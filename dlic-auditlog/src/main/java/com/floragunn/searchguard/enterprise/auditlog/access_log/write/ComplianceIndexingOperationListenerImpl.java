@@ -88,7 +88,7 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
             if (shard.isReadAllowed()) {
                 try {
     
-                    final GetResult getResult = shard.getService().getForUpdate(index.type(), index.id(),
+                    final GetResult getResult = shard.getService().getForUpdate(index.id(),
                             index.getIfSeqNo(), index.getIfPrimaryTerm());
     
                     if (getResult.isExists()) {
@@ -135,12 +135,12 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
                     //no previous content
                     if (!result.isCreated()) {
                         log.warn("No previous content and not created (its an update but do not find orig source) for {}",
-                                index.startTime() + "/" + shardId + "/" + index.type() + "/" + index.id());
+                                index.startTime() + "/" + shardId + "/" + index.id());
                     }
                     assert result.isCreated() : "No previous content and not created";
                 } else {
                     if (result.isCreated()) {
-                        log.warn("Previous content and created for {}", index.startTime() + "/" + shardId + "/" + index.type() + "/" + index.id());
+                        log.warn("Previous content and created for {}", index.startTime() + "/" + shardId + "/" + index.id());
                     }
                     assert !result.isCreated() : "Previous content and created";
                 }

@@ -35,6 +35,7 @@ import org.elasticsearch.index.query.SearchExecutionContext;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardUtils;
 import org.elasticsearch.indices.IndicesModule;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsFlsComplianceConfig;
@@ -60,12 +61,12 @@ public class SearchGuardFlsDlsIndexSearcherWrapper implements CheckedFunction<Di
     private final AtomicReference<DlsFlsProcessedConfig> config;
 
     public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings, final ClusterService clusterService,
-            final AuditLog auditlog, final DlsFlsComplianceConfig complianceConfig, AtomicReference<DlsFlsProcessedConfig> config) {
+            final AuditLog auditlog, final DlsFlsComplianceConfig complianceConfig, AtomicReference<DlsFlsProcessedConfig> config, NamedXContentRegistry xContentRegistry) {
         this.clusterService = clusterService;
         this.indexService = indexService;
         this.complianceConfig = complianceConfig;
         this.auditlog = auditlog;
-        this.dlsQueryParser = new DlsQueryParser(indexService.xContentRegistry());
+        this.dlsQueryParser = new DlsQueryParser(xContentRegistry);
         this.threadContext = indexService.getThreadPool().getThreadContext();
         this.index = indexService.index();
         this.config = config;

@@ -29,7 +29,6 @@ import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -52,7 +51,7 @@ public abstract class AbstractSGUnitTest {
     }
 
     protected final Logger log = LogManager.getLogger(this.getClass());
-    public static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name", "mock").build());
+    //public static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name", "mock").build());
 
     @Rule
     public TestName name = new TestName();
@@ -63,18 +62,6 @@ public abstract class AbstractSGUnitTest {
     public static Header encodeBasicHeader(final String username, final String password) {
         return new BasicHeader("Authorization",
                 "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-    }
-
-    @Deprecated
-    protected static class TransportClientImpl extends TransportClient {
-
-        public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, plugins);
-        }
-
-        public TransportClientImpl(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins) {
-            super(settings, defaultSettings, plugins, null);
-        }
     }
 
     @SafeVarargs
@@ -127,9 +114,5 @@ public abstract class AbstractSGUnitTest {
 
     protected String getResourceFolder() {
         return null;
-    }
-
-    protected String getType() {
-        return "_doc";
     }
 }

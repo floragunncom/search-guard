@@ -43,8 +43,9 @@ grant {
     
   permission java.security.SecurityPermission "org.apache.xml.security.register";
   permission java.util.PropertyPermission "org.apache.xml.security.ignoreLineBreaks", "write";
-  
-  permission java.lang.RuntimePermission "createClassLoader";
+
+  //not longer allowed in ES8
+  //permission java.lang.RuntimePermission "createClassLoader";
   
   //Java 9+
   permission java.lang.RuntimePermission "accessClassInPackage.com.sun.jndi.*";

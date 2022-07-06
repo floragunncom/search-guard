@@ -59,6 +59,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     public static void setUp() throws Exception {
         mockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL);
         httpProxy = new BrowserUpProxyServer();
+        //Java 17 java.net.BindException: Can't assign requested address
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
 
@@ -129,7 +130,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
             jwtAuth.handleMetaRequest(restRequest, restChannel, "/_searchguard/test/openid", "token", null);
 
             response = restChannel.response.content().utf8ToString();
-            System.out.println(response);
+            //System.out.println(response);
             parsedResponse = DocReader.json().readObject(response);
 
             Assert.assertTrue(response, parsedResponse.containsKey("id_token"));

@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -25,9 +27,8 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -135,7 +136,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(200, response.getStatusCode());
 
@@ -150,33 +151,27 @@ public class AuthTokenIntegrationTest {
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") != null);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
-                SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
-                searchResponse = client.search(
-                        new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                searchResponse = client.search("pub_test_deny");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("not_allowed_from_token", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("not_allowed_from_token", searchResponse.hits().hits().get(0).source().get("this_is"));
             }
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                            .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
 
-                    Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                    Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                    Assert.assertEquals(1, searchResponse.hits().total().value());
+                    Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
                     try {
 
-                        searchResponse = client.search(
-                                new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                                RequestOptions.DEFAULT);
+                        searchResponse = client.search("pub_test_deny");
                         Assert.fail(searchResponse.toString());
                     } catch (Exception e) {
                         Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
@@ -213,33 +208,27 @@ public class AuthTokenIntegrationTest {
             Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") == null);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
-                SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
-                searchResponse = client.search(
-                        new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                searchResponse = client.search("pub_test_deny");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("not_allowed_from_token", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("not_allowed_from_token", searchResponse.hits().hits().get(0).source().get("this_is"));
             }
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                            .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
 
-                    Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                    Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                    Assert.assertEquals(1, searchResponse.hits().total().value());
+                    Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
                     try {
 
-                        searchResponse = client.search(
-                                new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                                RequestOptions.DEFAULT);
+                        searchResponse = client.search("pub_test_deny");
                         Assert.fail(searchResponse.toString());
                     } catch (Exception e) {
                         Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
@@ -267,7 +256,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(403, response.getStatusCode());
             Assert.assertEquals("Cannot create token. Token limit per user exceeded. Max number of allowed tokens is 10",
@@ -286,7 +275,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(200, response.getStatusCode());
 
@@ -317,11 +306,11 @@ public class AuthTokenIntegrationTest {
 
             request.setTokenName("my_new_token");
 
-            System.out.println(request.toJson());
+            //System.out.println(request.toJson());
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(200, response.getStatusCode());
 
@@ -329,34 +318,26 @@ public class AuthTokenIntegrationTest {
             Assert.assertNotNull(token);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("picard", "picard")) {
-                SearchResponse searchResponse = client.search(
-                        new SearchRequest("user_attr_foo").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("user_attr_foo");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
                 try {
-                    searchResponse = client.search(
-                            new SearchRequest("user_attr_qux").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                            RequestOptions.DEFAULT);
+                    searchResponse = client.search("user_attr_qux");
                 } catch (Exception e) {
                     Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
                 }
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                SearchResponse searchResponse = client.search(
-                        new SearchRequest("user_attr_foo").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("user_attr_foo");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
                 try {
-                    searchResponse = client.search(
-                            new SearchRequest("user_attr_qux").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                            RequestOptions.DEFAULT);
+                    searchResponse = client.search("user_attr_qux");
                 } catch (Exception e) {
                     Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
                 }
@@ -381,29 +362,23 @@ public class AuthTokenIntegrationTest {
             Assert.assertNotNull(token);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
-                SearchResponse searchResponse = client.search(
-                        new SearchRequest("dls_user_attr").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("dls_user_attr");
 
-                Assert.assertEquals(2, searchResponse.getHits().getTotalHits().value);
+                Assert.assertEquals(2, searchResponse.hits().total().value());
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("picard", "picard")) {
-                SearchResponse searchResponse = client.search(
-                        new SearchRequest("dls_user_attr").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("dls_user_attr");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                SearchResponse searchResponse = client.search(
-                        new SearchRequest("dls_user_attr").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("dls_user_attr");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
             }
         }
     }
@@ -429,17 +404,14 @@ public class AuthTokenIntegrationTest {
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                            .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
 
-                    Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                    Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                    Assert.assertEquals(1, searchResponse.hits().total().value());
+                    Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
                     try {
 
-                        searchResponse = client.search(
-                                new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                                RequestOptions.DEFAULT);
+                        searchResponse = client.search("pub_test_deny");
                         Assert.fail(searchResponse.toString());
                     } catch (Exception e) {
                         Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
@@ -455,12 +427,11 @@ public class AuthTokenIntegrationTest {
 
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
 
-                    SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                            .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
                     Assert.fail(searchResponse.toString());
 
-                } catch (ElasticsearchStatusException e) {
-                    Assert.assertEquals(e.getMessage(), RestStatus.UNAUTHORIZED, e.status());
+                } catch (ElasticsearchException e) {
+                    Assert.assertEquals(e.getMessage(), RestStatus.UNAUTHORIZED.getStatus(), e.status());
                 }
             }
         }
@@ -496,11 +467,10 @@ public class AuthTokenIntegrationTest {
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                            .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
 
-                    Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                    Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                    Assert.assertEquals(1, searchResponse.hits().total().value());
+                    Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
                 }
             }
 
@@ -511,13 +481,10 @@ public class AuthTokenIntegrationTest {
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     try {
-
-                        SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                                .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                        co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
                         Assert.fail(searchResponse.toString());
-
-                    } catch (ElasticsearchStatusException e) {
-                        Assert.assertEquals(e.getMessage(), RestStatus.UNAUTHORIZED, e.status());
+                    } catch (ElasticsearchException e) {
+                        Assert.assertEquals(e.getMessage(), RestStatus.UNAUTHORIZED.getStatus(), e.status());
                     }
                 }
             }
@@ -571,7 +538,7 @@ public class AuthTokenIntegrationTest {
 
             response = restClient.postJson("/_searchguard/authtoken/_search", searchRequest);
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
@@ -661,11 +628,11 @@ public class AuthTokenIntegrationTest {
 
             request.setTokenName("my_new_token");
 
-            System.out.println(request.toJson());
+            //System.out.println(request.toJson());
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(200, response.getStatusCode());
 
@@ -677,32 +644,26 @@ public class AuthTokenIntegrationTest {
                     getJwtPayload(token).contains("spock"));
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
-                SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
-                searchResponse = client.search(
-                        new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                searchResponse = client.search("pub_test_deny");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("not_allowed_from_token", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("not_allowed_from_token", searchResponse.hits().hits().get(0).source().get("this_is"));
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
                 try {
 
-                    searchResponse = client.search(
-                            new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                            RequestOptions.DEFAULT);
+                    searchResponse = client.search("pub_test_deny");
                     Assert.fail(searchResponse.toString());
                 } catch (Exception e) {
                     Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
@@ -776,7 +737,7 @@ public class AuthTokenIntegrationTest {
 
             request.setTokenName("my_new_token");
 
-            System.out.println(request.toJson());
+            //System.out.println(request.toJson());
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
@@ -788,32 +749,26 @@ public class AuthTokenIntegrationTest {
             Assert.assertTrue(getJwtPayload(token), getJwtPayload(token).contains("spock"));
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
-                SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
-                searchResponse = client.search(
-                        new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                searchResponse = client.search("pub_test_deny");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("not_allowed_from_token", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("not_allowed_from_token", searchResponse.hits().hits().get(0).source().get("this_is"));
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
-                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.getHits().getTotalHits().value);
-                Assert.assertEquals("allowed", searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"));
+                Assert.assertEquals(1, searchResponse.hits().total().value());
+                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
 
                 try {
 
-                    searchResponse = client.search(
-                            new SearchRequest("pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                            RequestOptions.DEFAULT);
+                    searchResponse = client.search("pub_test_deny");
                     Assert.fail(searchResponse.toString());
                 } catch (Exception e) {
                     Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));

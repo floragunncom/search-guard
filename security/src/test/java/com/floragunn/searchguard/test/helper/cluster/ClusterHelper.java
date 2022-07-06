@@ -19,18 +19,21 @@ package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
@@ -38,11 +41,16 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
+import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsRequest;
+import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
+import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
+import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.node.DiscoveryNodeRole;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.core.TimeValue;
@@ -64,15 +72,19 @@ public final class ClusterHelper {
         System.setProperty("sg.default_init.dir", new File("./sgconfig").getAbsolutePath());
     }
 
+    private static final AtomicLong num = new AtomicLong();
+    private static final Random rand = new Random();
+
     protected final Logger log = LogManager.getLogger(ClusterHelper.class);
 
     protected final List<PluginAwareNode> esNodes = new LinkedList<>();
 
-    private final String clustername;
+    private final String clusternamePrefix;
 
-    public ClusterHelper(String clustername) {
+    public ClusterHelper(String prefix, int clusterNumber) {
         super();
-        this.clustername = clustername;
+        //"crl1_n"+num.incrementAndGet()+"_f"+System.getProperty("forkno")+"_t"+System.nanoTime()
+        this.clusternamePrefix = prefix+num.incrementAndGet()+"_f"+System.getProperty("forkno")+"_c"+clusterNumber+"_r"+rand.nextLong()+"_t";
     }
 
     /**
@@ -84,7 +96,7 @@ public final class ClusterHelper {
 
     public final ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration)
             throws Exception {
-        return startCluster(nodeSettingsSupplier, clusterConfiguration, null, 10, null);
+        return startCluster(nodeSettingsSupplier, clusterConfiguration, null, 100, null);
     }
 
     public final synchronized ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration,
@@ -94,7 +106,16 @@ public final class ClusterHelper {
             throw new RuntimeException("There are still " + esNodes.size() + " nodes instantiated, close them first.");
         }
 
-        FileUtils.deleteDirectory(new File("data/" + clustername));
+        final String clustername = clusternamePrefix+System.nanoTime();
+
+        File homeDir = null;
+        try {
+            homeDir = Files.createTempDirectory(clustername).toFile();
+            homeDir.deleteOnExit();
+            System.out.println("tmp home "+homeDir);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         List<NodeSettings> internalNodeSettings = clusterConfiguration.getNodeSettings();
 
@@ -115,7 +136,6 @@ public final class ClusterHelper {
         freePorts.stream().limit(clusterConfiguration.getMasterNodes()).forEach(el -> tcpMasterPortsOnly.add(el));
         freePorts.stream().limit(internalNodeSettings.size()).forEach(el -> tcpAllPorts.add(el));
 
-        //final Iterator<Integer> tcpPortsMasterOnlyIt = tcpMasterPortsOnly.iterator();
         final Iterator<Integer> tcpPortsAllIt = tcpAllPorts.iterator();
 
         final SortedSet<Integer> httpPorts = new TreeSet<Integer>();
@@ -138,8 +158,8 @@ public final class ClusterHelper {
             NodeSettings setting = internalMasterNodeSettings.get(i);
             int nodeNum = nodeNumCounter--;
             PluginAwareNode node = new PluginAwareNode(setting.masterNode,
-                    getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly,
-                            tcpPortsAllIt.next(), httpPortsIt.next())
+                    getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, tcpMasterPortsOnly,
+                            tcpPortsAllIt.next(), httpPortsIt.next(), clustername, homeDir)
                                     .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build(),
                     setting.getPlugins(additionalPlugins));
 
@@ -165,8 +185,8 @@ public final class ClusterHelper {
             NodeSettings setting = internalNonMasterNodeSettings.get(i);
             int nodeNum = nodeNumCounter--;
             PluginAwareNode node = new PluginAwareNode(setting.masterNode,
-                    getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, internalNodeSettings.size(), tcpMasterPortsOnly,
-                            tcpPortsAllIt.next(), httpPortsIt.next())
+                    getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, tcpMasterPortsOnly,
+                            tcpPortsAllIt.next(), httpPortsIt.next(), clustername, homeDir)
                                     .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build(),
                     setting.getPlugins(additionalPlugins));
 
@@ -218,20 +238,23 @@ public final class ClusterHelper {
 
     public final void stopCluster() throws Exception {
 
+        System.out.println("======================= Will stop ... =================================");
         //close non master nodes
         esNodes.stream().filter(n -> !n.isMasterEligible()).forEach(node -> closeNode(node));
 
         //close master nodes
         esNodes.stream().filter(n -> n.isMasterEligible()).forEach(node -> closeNode(node));
+
         esNodes.clear();
 
-        FileUtils.deleteDirectory(new File("data/" + clustername));
+        System.out.println("======================= Stopped =================================");
+
     }
 
     private static void closeNode(Node node) {
         try {
             node.close();
-            Thread.sleep(250);
+            node.awaitClose(10, TimeUnit.SECONDS);
         } catch (Throwable e) {
             //ignore
         }
@@ -281,9 +304,22 @@ public final class ClusterHelper {
             final ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth().setWaitForStatus(status).setTimeout(timeout)
                     .setMasterNodeTimeout(timeout).setWaitForNodes("" + expectedNodeCount).execute().actionGet();
             if (healthResponse.isTimedOut()) {
+
+                //System.out.println("-- Time out while waiting for test cluster --");
+                log.error(Strings.toString(healthResponse));
+                log.error(Strings.toString(client.admin().cluster().pendingClusterTasks(new PendingClusterTasksRequest()).actionGet()));
+                log.error(Strings.toString(client.admin().indices().getIndex(new GetIndexRequest().includeDefaults(true).features(GetIndexRequest.Feature.MAPPINGS)).actionGet()));
+                log.error(Strings.toString(client.admin().indices().stats(new IndicesStatsRequest().all()).actionGet()));
+                log.error(Strings.toString(client.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet()));
+                log.error(Strings.toString(client.admin().cluster().nodesStats(new NodesStatsRequest()).actionGet()));
+
+
                 throw new IOException(
-                        "cluster state is " + healthResponse.getStatus().name() + " with " + healthResponse.getNumberOfNodes() + " nodes");
+                        "cluster state is " + healthResponse.getStatus().name() + " with " + healthResponse.getNumberOfNodes() + " nodes: "+Strings.toString(healthResponse));
             } else {
+                System.out.println();
+                System.out.println("======================= GREEEEEN =================================");
+                System.out.println();
                 log.debug("... cluster state ok " + healthResponse.getStatus().name() + " with " + healthResponse.getNumberOfNodes() + " nodes");
             }
 
@@ -348,7 +384,8 @@ public final class ClusterHelper {
 
     // @formatter:off
     private Settings.Builder getMinimumNonSgNodeSettingsBuilder(final int nodenum, final boolean masterNode,
-            final boolean dataNode, int nodeCount, SortedSet<Integer> masterTcpPorts, /*SortedSet<Integer> nonMasterTcpPorts,*/ int tcpPort, int httpPort) {
+            final boolean dataNode, SortedSet<Integer> masterTcpPorts, int tcpPort, int httpPort,
+                                                                String clustername, File homeDir) {
         
         List<String> nodeRoles = new ArrayList<>();
         
@@ -361,34 +398,23 @@ public final class ClusterHelper {
         }
         
         nodeRoles.add("remote_cluster_client");
+
+        System.out.println("Node "+nodenum+" for cluster "+clustername+" with home "+homeDir.getAbsolutePath()+ "/" + nodenum);
         
         return Settings.builder()
                 .put("node.name", "node_"+clustername+ "_num" + nodenum)
                 .putList("node.roles", nodeRoles)
                 .put("cluster.name", clustername)
-                .put("path.data", "data/"+clustername + nodenum +"/data")
-                .put("path.logs", "data/"+clustername + nodenum +"/logs")
-                //.put("discovery.zen.minimum_master_nodes", minMasterNodes(masterTcpPorts.size()))
+                .put("path.home", homeDir.getAbsolutePath()+ "/" + nodenum)
+                .put("path.data", homeDir.getAbsolutePath() + "/" + nodenum +"/data")
+                .put("path.logs", homeDir.getAbsolutePath() + "/"  +nodenum +"/logs")
                 .putList("cluster.initial_master_nodes", masterTcpPorts.stream().map(s->"127.0.0.1:"+s).collect(Collectors.toList()))
-                //.put("discovery.zen.no_master_block", "all")
-                //.put("discovery.zen.fd.ping_timeout", "5s")
                 .put("discovery.initial_state_timeout","8s")
                 .putList("discovery.seed_hosts", masterTcpPorts.stream().map(s->"127.0.0.1:"+s).collect(Collectors.toList()))
                 .put("transport.port", tcpPort)
                 .put("http.port", httpPort)
-                //.put("http.enabled", true)
                 .put("cluster.routing.allocation.disk.threshold_enabled", false)
-                .put("http.cors.enabled", true)
-                .put("path.home", ".");
+                .put("http.cors.enabled", true);
     }
     // @formatter:on
-
-    /*private int minMasterNodes(int masterEligibleNodes) {
-        if(masterEligibleNodes <= 0) {
-            throw new IllegalArgumentException("no master eligible nodes");
-        }
-        
-        return (masterEligibleNodes/2) + 1;
-                
-    }*/
 }

@@ -22,6 +22,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.floragunn.searchguard.SignalsTenantParamResolver;
+import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.rest.RestHandler;
@@ -48,12 +50,11 @@ import com.google.common.cache.Cache;
 public class RestRequestAuthenticationProcessor extends RequestAuthenticationProcessor<HttpAuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(RestRequestAuthenticationProcessor.class);
 
-    private final RestHandler restHandler;
     private final RequestMetaData<RestRequest> request;
 
     private LinkedHashSet<String> challenges = new LinkedHashSet<>(2);
 
-    public RestRequestAuthenticationProcessor(RestHandler restHandler, RequestMetaData<RestRequest> request, 
+    public RestRequestAuthenticationProcessor(RequestMetaData<RestRequest> request,
              Collection<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, AdminDNs adminDns,
             PrivilegesEvaluator privilegesEvaluator, Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache,
             AuditLog auditLog, BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners,
@@ -61,7 +62,6 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
         super(request, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog,
                 blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, debug);
 
-        this.restHandler = restHandler;
         this.request = request;
     }
 
@@ -150,18 +150,23 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
             log.debug("Sending WWW-Authenticate: " + String.join(", ", challenges));
         }
 
-        return AuthcResult.stop(RestStatus.UNAUTHORIZED, "Unauthorized", ImmutableMap.of("WWW-Authenticate", ImmutableList.of(challenges)),
+        return AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON, ImmutableMap.of("WWW-Authenticate", ImmutableList.of(challenges)),
                 debug.get());
     }
 
     @Override
+    protected String getRequestedTenant() {
+        return SignalsTenantParamResolver.getRequestedTenant(request.getRequest());
+    }
+
+    /*@Override
     protected String getRequestedTenant() {
         if (restHandler instanceof TenantAwareRestHandler) {
             return ((TenantAwareRestHandler) restHandler).getTenantName(request);
         } else {
             return request.getHeader("sgtenant") != null ? request.getHeader("sgtenant") : request.getHeader("sg_tenant");
         }
-    }
+    }*/
 
     @Override
     protected String getImpersonationUser() {

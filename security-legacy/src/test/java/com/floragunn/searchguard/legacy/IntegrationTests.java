@@ -21,29 +21,20 @@ import java.util.TreeSet;
 
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
+
 import org.junit.Test;
 
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
-import com.floragunn.searchguard.action.whoami.WhoAmIAction;
-import com.floragunn.searchguard.action.whoami.WhoAmIRequest;
-import com.floragunn.searchguard.action.whoami.WhoAmIResponse;
 import com.floragunn.searchguard.legacy.auth.HTTPClientCertAuthenticator;
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
@@ -76,19 +67,19 @@ public class IntegrationTests extends SingleClusterTest {
         }
         
         
-        System.out.println("########search");
+        //System.out.println("########search");
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executeGetRequest("vulcangov/_search?scroll=1m&pretty=true", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
         
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         int start = res.getBody().indexOf("_scroll_id") + 15;
         String scrollid = res.getBody().substring(start, res.getBody().indexOf("\"", start+1));
-        System.out.println(scrollid);
-        System.out.println("########search scroll");
+        //System.out.println(scrollid);
+        //System.out.println("########search scroll");
         Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executePostRequest("/_search/scroll?pretty=true", "{\"scroll_id\" : \""+scrollid+"\"}", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
 
 
-        System.out.println("########search done");
+        //System.out.println("########search done");
         
         
     }
@@ -135,13 +126,7 @@ public class IntegrationTests extends SingleClusterTest {
                 .put("searchguard.cert.oid","1.2.3.4.5.6")
                 .build();
         
-        
-        Settings tcSettings = Settings.builder()
-                .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("node-untspec6-keystore.p12"))
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_TYPE, "PKCS12")
-                .build();
-        
-        setup(tcSettings, new DynamicSgConfig(), settings, true);
+        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true);
         RestHelper rh = nonSslRestHelper();
         
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("").getStatusCode());
@@ -160,14 +145,9 @@ public class IntegrationTests extends SingleClusterTest {
                 .putList("searchguard.authcz.admin_dn", "EMAILADDREss=unt@xxx.com,  cn=node-untspec6.example.com, OU=SSL,O=Te\\, st,L=Test, c=DE")
                 .put("searchguard.cert.oid","1.2.3.4.5.6")
                 .build();
+
         
-        
-        Settings tcSettings = Settings.builder()
-                .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("node-untspec6-keystore.p12"))
-                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_TYPE, "PKCS12")
-                .build();
-        
-        setup(tcSettings, new DynamicSgConfig(), settings, true);
+        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true);
         RestHelper rh = nonSslRestHelper();
         
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("").getStatusCode());
@@ -202,7 +182,7 @@ public class IntegrationTests extends SingleClusterTest {
        
        RestHelper rh = nonSslRestHelper();
        HttpResponse resc = rh.executePostRequest("_mget?refresh=true", mgetBody, encodeBasicHeader("picard", "picard"));
-       System.out.println(resc.getBody());
+       //System.out.println(resc.getBody());
        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
        Assert.assertFalse(resc.getBody().contains("type2"));
         
@@ -231,7 +211,7 @@ public class IntegrationTests extends SingleClusterTest {
         Assert.assertFalse(resp.getBody().contains("spock"));
         
         resp = rh.executeGetRequest("/_searchguard/authinfo", new BasicHeader("sg_impersonate_as", "userwhonotexists"), encodeBasicHeader("spock", "spock"));
-        System.out.println(resp.getBody());
+        //System.out.println(resp.getBody());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, resp.getStatusCode());
     
         resp = rh.executeGetRequest("/_searchguard/authinfo", new BasicHeader("sg_impersonate_as", "invalid"), encodeBasicHeader("spock", "spock"));
@@ -255,7 +235,7 @@ public class IntegrationTests extends SingleClusterTest {
         //sg_shakespeare -> picard
     
         HttpResponse resc = rh.executeGetRequest("shakespeare/_search", encodeBasicHeader("picard", "picard"));
-        System.out.println(resc.getBody());
+        //System.out.println(resc.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
         Assert.assertTrue(resc.getBody().contains("\"content\":1"));
         
@@ -365,11 +345,10 @@ public class IntegrationTests extends SingleClusterTest {
 
         HttpResponse res = rh.executePostRequest("indexc/_update/0?pretty=true&refresh=true", "{\"doc\" : {\"content\":2}}",
                 encodeBasicHeader("user_c", "user_c"));
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
     }
 
- 
     @Test
     public void testSgIndexSecurity() throws Exception {
         setup();
@@ -431,7 +410,7 @@ public class IntegrationTests extends SingleClusterTest {
                 + "{ \"field2\" : \"value2\" }\n" //
                 + "{ \"delete\" : { \"_index\" : \"searchguard\", \"_id\" : \"config\" } }\n";
         res = rh.executePostRequest("_bulk?refresh=true&pretty", bulkBody, encodeBasicHeader("nagilum", "nagilum"));
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
         
         Assert.assertEquals(4, res.getBody().split("\"status\" : 403,").length);
@@ -441,6 +420,7 @@ public class IntegrationTests extends SingleClusterTest {
     @Test
     public void testSgIndexSecurityWithSgIndexExcluded() throws Exception {
         final Settings settings = Settings.builder()
+                .put("action.destructive_requires_name",false)
                 .build();
 
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_config_dnfof.yml"), settings);

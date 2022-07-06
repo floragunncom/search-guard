@@ -14,22 +14,22 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 
 public class FlsExistsFieldsTest extends AbstractDlsFlsTest {
 
     protected void populateData(Client tc) {
 
-        tc.admin().indices().create(new CreateIndexRequest("data").mapping("_doc", 
+        tc.admin().indices().create(new CreateIndexRequest("data").simpleMapping(
                 "@timestamp", "type=date", 
                 "host", "type=text,norms=false",
                 "response", "type=text,norms=false",
@@ -96,23 +96,21 @@ public class FlsExistsFieldsTest extends AbstractDlsFlsTest {
                 "  }\n" + 
                 "}";
 
-        HttpResponse res;
+        RestHelper.HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK,
                 (res = rh.executePostRequest("/data/_search?pretty", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
-        System.out.println(res.getBody());
-        Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
-        Assert.assertTrue(res.getBody().contains("a-normal-0"));
-        Assert.assertTrue(res.getBody().contains("response"));
-        Assert.assertTrue(res.getBody().contains("404"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"value\" : 1,\n      \"relation"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("a-normal-0"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("response"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("404"));
 
         //only see's - timestamp and host field
         //therefore non-existing does not exist so we expect c-missing2-0 to be returned
         Assert.assertEquals(HttpStatus.SC_OK,
                 (res = rh.executePostRequest("/data/_search?pretty", query, encodeBasicHeader("fls_exists", "password"))).getStatusCode());
-        System.out.println(res.getBody());
-        Assert.assertTrue(res.getBody().contains("\"value\" : 2,\n      \"relation"));
-        Assert.assertTrue(res.getBody().contains("a-normal-0"));
-        Assert.assertTrue(res.getBody().contains("c-missing2-0"));
-        Assert.assertFalse(res.getBody().contains("response"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("\"value\" : 2,\n      \"relation"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("a-normal-0"));
+        Assert.assertTrue(res.getBody(), res.getBody().contains("c-missing2-0"));
+        Assert.assertFalse(res.getBody(), res.getBody().contains("response"));
     }
 }

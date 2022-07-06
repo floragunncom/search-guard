@@ -7,7 +7,7 @@ import java.util.List;
 
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.NodeEnvironment;
@@ -102,7 +102,7 @@ public class SignalsTenantTest {
 
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void initializationTest() throws Exception {
 
@@ -120,7 +120,7 @@ public class SignalsTenantTest {
         }
     }
 
-    @Ignore // TODO somethings wrong with mockito here
+    @Ignore("TODO somethings wrong with mockito here")
     @Test
     public void nodeFilterTest() throws Exception {
 
@@ -237,11 +237,11 @@ public class SignalsTenantTest {
                 tenant.shutdownHard();
             }
 
-            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            //System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
             Thread.sleep(1000);
 
-            System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            //System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
             try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
                     xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext)) {

@@ -15,17 +15,79 @@
 package com.floragunn.searchguard.enterprise.auditlog.helper;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.http.HttpRequest;
+import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.XContentParserConfiguration;
 
 public class MockRestRequest extends RestRequest {
 
     public MockRestRequest() {
         //NamedXContentRegistry xContentRegistry, Map<String, String> params, String path,
         //Map<String, List<String>> headers, HttpRequest httpRequest, HttpChannel httpChannel
-        super(NamedXContentRegistry.EMPTY, Collections.emptyMap(), "", Collections.emptyMap(), null, null);
+        super(XContentParserConfiguration.EMPTY, Collections.emptyMap(), "", Collections.emptyMap(), new HttpRequest() {
+            @Override
+            public Method method() {
+                return Method.GET;
+            }
+
+            @Override
+            public String uri() {
+                return "";
+            }
+
+            @Override
+            public BytesReference content() {
+                return new BytesArray("");
+            }
+
+            @Override
+            public Map<String, List<String>> getHeaders() {
+                return Collections.emptyMap();
+            }
+
+            @Override
+            public List<String> strictCookies() {
+                return Collections.emptyList();
+            }
+
+            @Override
+            public HttpVersion protocolVersion() {
+                return HttpVersion.HTTP_1_0;
+            }
+
+            @Override
+            public HttpRequest removeHeader(String header) {
+                return this;
+            }
+
+            @Override
+            public HttpResponse createResponse(RestStatus status, BytesReference content) {
+                return null;
+            }
+
+            @Override
+            public Exception getInboundException() {
+                return null;
+            }
+
+            @Override
+            public void release() {
+
+            }
+
+            @Override
+            public HttpRequest releaseAndCopy() {
+                return null;
+            }
+        }, null);
     }
 
     @Override

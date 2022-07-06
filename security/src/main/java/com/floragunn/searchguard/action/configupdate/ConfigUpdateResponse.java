@@ -25,8 +25,11 @@ import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
-public class ConfigUpdateResponse extends BaseNodesResponse<ConfigUpdateNodeResponse> {
+public class ConfigUpdateResponse extends BaseNodesResponse<ConfigUpdateNodeResponse> implements ToXContentObject {
 
     public ConfigUpdateResponse(StreamInput in) throws IOException {
         super(in);
@@ -44,5 +47,19 @@ public class ConfigUpdateResponse extends BaseNodesResponse<ConfigUpdateNodeResp
     @Override
     public void writeNodesTo(final StreamOutput out, List<ConfigUpdateNodeResponse> nodes) throws IOException {
         out.writeList(nodes);
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+
+        builder.startObject("configupdate_response");
+        //builder.feld("failures", failures().get(0).);
+        builder.field("nodes", getNodesMap());
+        builder.field("node_size", getNodes().size());
+        builder.field("has_failures", hasFailures());
+        builder.field("failures_size", failures().size());
+        builder.endObject();
+
+        return builder;
     }
 }

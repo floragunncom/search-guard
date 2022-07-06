@@ -14,38 +14,34 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
-import java.util.Arrays;
-import java.util.stream.Collectors;
-
+import co.elastic.clients.elasticsearch.core.MsearchRequest;
+import co.elastic.clients.elasticsearch.core.MsearchResponse;
+import co.elastic.clients.elasticsearch.core.MsearchTemplateRequest;
+import co.elastic.clients.elasticsearch.core.MsearchTemplateResponse;
+import co.elastic.clients.elasticsearch.core.SearchRequest;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.SearchTemplateRequest;
+import co.elastic.clients.elasticsearch.core.SearchTemplateResponse;
+import co.elastic.clients.elasticsearch.core.msearch.RequestItem;
+import co.elastic.clients.elasticsearch.core.search.HitsMetadata;
+import co.elastic.clients.json.JsonData;
+import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.google.common.collect.ImmutableSet;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.script.ScriptType;
-import org.elasticsearch.script.mustache.MultiSearchTemplateRequest;
-import org.elasticsearch.script.mustache.MultiSearchTemplateResponse;
-import org.elasticsearch.script.mustache.SearchTemplateRequest;
-import org.elasticsearch.script.mustache.SearchTemplateResponse;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class DlsTermsLookupTest {
 
@@ -83,210 +79,221 @@ public class DlsTermsLookupTest {
     @Test
     public void testDlsWithTermsLookupSingleIndexMatchAll() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("deals_1"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("deals_1");
 
-            Assert.assertEquals(searchResponse.toString(), 3, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 3, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("0", "1", "2"),
-                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+                    searchResponse.hits().hits().stream().map((h) -> h.id()).collect(Collectors.toSet()));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("deals_1"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("deals_1");
 
-            Assert.assertEquals(searchResponse.toString(), 2, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 2, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("1", "2"),
-                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+                    searchResponse.hits().hits().stream().map((h) -> h.id()).collect(Collectors.toSet()));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("deals_1"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("deals_1");
 
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
         }
     }
 
     @Test
     public void testDlsWithTermsLookupWildcardIndexesMatchAll() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("deals_*"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("deals_*");
 
-            Assert.assertEquals(searchResponse.toString(), 6, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 6, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("0", "1", "2", "200", "201", "202"),
-                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+                    searchResponse.hits().hits().stream().map((h) -> h.id()).collect(Collectors.toSet()));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("deals_*"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("deals_*");
 
-            Assert.assertEquals(searchResponse.toString(), 3, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 3, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("1", "2", "200"),
-                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+                    searchResponse.hits().hits().stream().map((h) -> h.id()).collect(Collectors.toSet()));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("deals_*"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("deals_*");
 
-            Assert.assertEquals(searchResponse.toString(), 2, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 2, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("201", "202"),
-                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+                    searchResponse.hits().hits().stream().map((h) -> h.id()).collect(Collectors.toSet()));
         }
     }
 
     @Test
     public void testDlsWithTermsLookupSingleIndexMatchQuery() throws Exception {
 
-        SearchRequest searchRequest = new SearchRequest("deals_1")
-                .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "test")));
+        SearchRequest searchRequest =
+                new SearchRequest.Builder()
+                        .index("deals_1")
+                        .query(q->q.term(t->t.field("keywords").value(v->v.stringValue("test")))).build();
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            Assert.assertEquals(searchResponse.toString(), 2, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 2, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("0", "1"),
-                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+                    searchResponse.hits().hits().stream().map((h) -> h.id()).collect(Collectors.toSet()));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("1"),
-                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+                    searchResponse.hits().hits().stream().map((h) -> h.id()).collect(Collectors.toSet()));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
         }
     }
 
     @Test
     public void testMultiSearch() throws Exception {
 
-        SearchRequest searchRequest1 = new SearchRequest("deals_1")
-                .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "test")));
+        RequestItem searchRequest1 = new RequestItem.Builder()
+                .body(b->b.query(bu->bu.term(t->t.field("keywords").value(v->v.stringValue("test")))))
+                .header(h->h.index("deals_1"))
+                .build();
 
-        SearchRequest searchRequest2 = new SearchRequest("deals_2")
-                .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "foo")));
+        RequestItem searchRequest2 = new RequestItem.Builder()
+                .body(b->b.query(bu->bu.term(t->t.field("keywords").value(v->v.stringValue("foo")))))
+                .header(h->h.index("deals_2"))
+                .build();
 
-        MultiSearchRequest multiSearchRequest = new MultiSearchRequest();
-        multiSearchRequest.add(searchRequest1);
-        multiSearchRequest.add(searchRequest2);
+        MsearchRequest multiSearchRequest = new MsearchRequest.Builder()
+        .searches(searchRequest1, searchRequest2)
+                .build();
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
-            MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
+            MsearchResponse<Map> multiSearchResponse = client.getJavaClient().msearch(multiSearchRequest, Map.class);
 
             Assert.assertEquals(multiSearchResponse.toString(), 2,
-                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(0).result().hits().total().value());
             Assert.assertEquals(multiSearchResponse.toString(), 3,
-                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(1).result().hits().total().value());
 
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
-            MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
-            System.out.println(Strings.toString(multiSearchResponse));
+            MsearchResponse<Map> multiSearchResponse = client.getJavaClient().msearch(multiSearchRequest, Map.class);
+            ////System.out.println(Strings.toString(multiSearchResponse));
 
             Assert.assertEquals(multiSearchResponse.toString(), 1,
-                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(0).result().hits().total().value());
             Assert.assertEquals(multiSearchResponse.toString(), 1,
-                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(1).result().hits().total().value());
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
-            MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
+            MsearchResponse<Map> multiSearchResponse = client.getJavaClient().msearch(multiSearchRequest, Map.class);
 
-            System.out.println(Strings.toString(multiSearchResponse));
+            ////System.out.println(Strings.toString(multiSearchResponse));
             Assert.assertEquals(multiSearchResponse.toString(), 0,
-                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(0).result().hits().total().value());
             Assert.assertEquals(multiSearchResponse.toString(), 2,
-                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(1).result().hits().total().value());
         }
     }
 
     @Test
     public void testMultiSearch_maxConcurrentSearchRequests() throws Exception {
 
-        SearchRequest searchRequest1 = new SearchRequest("deals_1")
-                .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "test")));
+        RequestItem searchRequest1 = new RequestItem.Builder()
+                .body(b->b.query(bu->bu.term(t->t.field("keywords").value(v->v.stringValue("test")))))
+                .header(h->h.index("deals_1"))
+                .build();
 
-        SearchRequest searchRequest2 = new SearchRequest("deals_2")
-                .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "foo")));
+        RequestItem searchRequest2 = new RequestItem.Builder()
+                .body(b->b.query(bu->bu.term(t->t.field("keywords").value(v->v.stringValue("foo")))))
+                .header(h->h.index("deals_2"))
+                .build();
 
-        MultiSearchRequest multiSearchRequest = new MultiSearchRequest();
-        multiSearchRequest.add(searchRequest1);
-        multiSearchRequest.add(searchRequest2);
-        multiSearchRequest.maxConcurrentSearchRequests(1);
+        MsearchRequest multiSearchRequest = new MsearchRequest.Builder()
+                .searches(searchRequest1, searchRequest2)
+                .maxConcurrentSearches(1l)
+                .build();
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
-            MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
+            MsearchResponse<Map> multiSearchResponse = client.getJavaClient().msearch(multiSearchRequest, Map.class);
 
             Assert.assertEquals(multiSearchResponse.toString(), 2,
-                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(0).result().hits().total().value());
             Assert.assertEquals(multiSearchResponse.toString(), 3,
-                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(1).result().hits().total().value());
 
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
-            MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
-            System.out.println(Strings.toString(multiSearchResponse));
+            MsearchResponse<Map> multiSearchResponse = client.getJavaClient().msearch(multiSearchRequest, Map.class);
+            ////System.out.println(Strings.toString(multiSearchResponse));
 
             Assert.assertEquals(multiSearchResponse.toString(), 1,
-                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(0).result().hits().total().value());
             Assert.assertEquals(multiSearchResponse.toString(), 1,
-                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(1).result().hits().total().value());
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
-            MultiSearchResponse multiSearchResponse = client.msearch(multiSearchRequest, RequestOptions.DEFAULT);
+            MsearchResponse<Map> multiSearchResponse = client.getJavaClient().msearch(multiSearchRequest, Map.class);
 
-            System.out.println(Strings.toString(multiSearchResponse));
+            ////System.out.println(Strings.toString(multiSearchResponse));
             Assert.assertEquals(multiSearchResponse.toString(), 0,
-                    multiSearchResponse.getResponses()[0].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(0).result().hits().total().value());
             Assert.assertEquals(multiSearchResponse.toString(), 2,
-                    multiSearchResponse.getResponses()[1].getResponse().getHits().getTotalHits().value);
+                    multiSearchResponse.responses().get(1).result().hits().total().value());
         }
     }
 
     
     @Test
     public void testDlsWithTermsLookupSingleIndexUnmatchedQuery() throws Exception {
-
-        SearchRequest searchRequest = new SearchRequest("deals_1")
-                .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("keywords", "xxxxxx")));
+        SearchRequest searchRequest =
+                new SearchRequest.Builder()
+                        .index("deals_1")
+                        .query(q->q.term(t->t.field("keywords").value(v->v.stringValue("xxxxxx")))).build();
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
 
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
 
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.hits().total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.shards().failed().intValue());
         }
     }
 
@@ -296,13 +303,13 @@ public class DlsTermsLookupTest {
         try (GenericRestClient client = cluster.getRestClient("sg_dls_lookup_user1", "password")) {
             GenericRestClient.HttpResponse res = client.get("/deals_1/_doc/0?pretty");
 
-            System.out.println(res.getBody());
+            //System.out.println(res.getBody());
 
             Assert.assertEquals(res.getBody(), HttpStatus.SC_NOT_FOUND, res.getStatusCode());
 
             res = client.get("/deals_1/_doc/1?pretty");
 
-            System.out.println(res.getBody());
+            //System.out.println(res.getBody());
 
             Assert.assertEquals(res.getBody(), HttpStatus.SC_OK, res.getStatusCode());
         }
@@ -311,83 +318,91 @@ public class DlsTermsLookupTest {
     @Test
     public void testSearchTemplate() throws Exception {
 
-        SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest(new SearchRequest("deals_1"));
-        searchTemplateRequest.setScriptType(ScriptType.INLINE);
-        searchTemplateRequest.setScript("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }");
-        searchTemplateRequest.setScriptParams(ImmutableMap.of("x", "test"));
+        SearchTemplateRequest searchTemplateRequest = new SearchTemplateRequest.Builder()
+                .index("deals_1")
+                .source("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }")
+                .params(Map.of("x", JsonData.of("test")))
+                .build();
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+            SearchTemplateResponse<Map> searchTemplateResponse = client.getJavaClient()
+                    .searchTemplate(searchTemplateRequest, Map.class);
+            HitsMetadata<Map> searchResponse = searchTemplateResponse.hits();
 
-            Assert.assertEquals(searchResponse.toString(), 2, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+
+
+            Assert.assertEquals(searchResponse.toString(), 2, searchResponse.total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchTemplateResponse.shards().failed().intValue());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("0", "1"),
-                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+                    searchResponse.hits().stream().map((h) -> h.id()).collect(Collectors.toSet()));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+            SearchTemplateResponse<Map> searchTemplateResponse = client.getJavaClient()
+                    .searchTemplate(searchTemplateRequest, Map.class);
+            HitsMetadata<Map> searchResponse = searchTemplateResponse.hits();
 
-            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchTemplateResponse.shards().failed().intValue());
             Assert.assertEquals(searchResponse.toString(), ImmutableSet.of("1"),
-                    Arrays.asList(searchResponse.getHits().getHits()).stream().map((h) -> h.getId()).collect(Collectors.toSet()));
+                    searchResponse.hits().stream().map((h) -> h.id()).collect(Collectors.toSet()));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
+            SearchTemplateResponse<Map> searchTemplateResponse = client.getJavaClient()
+                    .searchTemplate(searchTemplateRequest, Map.class);
+            HitsMetadata<Map> searchResponse = searchTemplateResponse.hits();
 
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getFailedShards());
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.total().value());
+            Assert.assertEquals(searchResponse.toString(), 0, searchTemplateResponse.shards().failed().intValue());
         }
     }
 
     @Test
     public void testMultiSearchTemplate() throws Exception {
 
-        SearchTemplateRequest searchTemplateRequest1 = new SearchTemplateRequest(new SearchRequest("deals_1"));
-        searchTemplateRequest1.setScriptType(ScriptType.INLINE);
-        searchTemplateRequest1.setScript("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }");
-        searchTemplateRequest1.setScriptParams(ImmutableMap.of("x", "test"));
+        MsearchTemplateRequest multiSearchRequest = new MsearchTemplateRequest.Builder()
+                .searchTemplates(
+                new co.elastic.clients.elasticsearch.core.msearch_template.RequestItem.Builder()
+                        .header(h -> h.index("deals_1"))
+                        .body(b->b
+                                .source("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }")
+                                .params(Map.of("x", JsonData.of("test")))).build())
 
-        SearchTemplateRequest searchTemplateRequest2 = new SearchTemplateRequest(new SearchRequest("deals_2"));
-        searchTemplateRequest2.setScriptType(ScriptType.INLINE);
-        searchTemplateRequest2.setScript("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }");
-        searchTemplateRequest2.setScriptParams(ImmutableMap.of("x", "foo"));
-
-        MultiSearchTemplateRequest multiSearchRequest = new MultiSearchTemplateRequest();
-        multiSearchRequest.add(searchTemplateRequest1);
-        multiSearchRequest.add(searchTemplateRequest2);
+                .searchTemplates(
+                new co.elastic.clients.elasticsearch.core.msearch_template.RequestItem.Builder()
+                        .header(h -> h.index("deals_2"))
+                        .body(b->b
+                                .source("{\"query\": {\"term\": {\"keywords\": \"{{x}}\" } } }")
+                                .params(Map.of("x", JsonData.of("foo")))).build())
+                .build();
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
-            MultiSearchTemplateResponse multiSearchTemplateResponse = client.msearchTemplate(multiSearchRequest, RequestOptions.DEFAULT);
+            MsearchTemplateResponse<Map> multiSearchTemplateResponse = client.getJavaClient().msearchTemplate(multiSearchRequest, Map.class);
 
             Assert.assertEquals(multiSearchTemplateResponse.toString(), 2,
-                    multiSearchTemplateResponse.getResponses()[0].getResponse().getResponse().getHits().getTotalHits().value);
+                    multiSearchTemplateResponse.responses().get(0).result().hits().total().value());
             Assert.assertEquals(multiSearchTemplateResponse.toString(), 3,
-                    multiSearchTemplateResponse.getResponses()[1].getResponse().getResponse().getHits().getTotalHits().value);
+                    multiSearchTemplateResponse.responses().get(1).result().hits().total().value());
 
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user1", "password")) {
-            MultiSearchTemplateResponse multiSearchTemplateResponse = client.msearchTemplate(multiSearchRequest, RequestOptions.DEFAULT);
+            MsearchTemplateResponse<Map> multiSearchTemplateResponse = client.getJavaClient().msearchTemplate(multiSearchRequest, Map.class);
 
             Assert.assertEquals(multiSearchTemplateResponse.toString(), 1,
-                    multiSearchTemplateResponse.getResponses()[0].getResponse().getResponse().getHits().getTotalHits().value);
+                    multiSearchTemplateResponse.responses().get(0).result().hits().total().value());
             Assert.assertEquals(multiSearchTemplateResponse.toString(), 1,
-                    multiSearchTemplateResponse.getResponses()[1].getResponse().getResponse().getHits().getTotalHits().value);
+                    multiSearchTemplateResponse.responses().get(1).result().hits().total().value());
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("sg_dls_lookup_user2", "password")) {
-            MultiSearchTemplateResponse multiSearchTemplateResponse = client.msearchTemplate(multiSearchRequest, RequestOptions.DEFAULT);
+            MsearchTemplateResponse<Map> multiSearchTemplateResponse = client.getJavaClient().msearchTemplate(multiSearchRequest, Map.class);
 
             Assert.assertEquals(multiSearchTemplateResponse.toString(), 0,
-                    multiSearchTemplateResponse.getResponses()[0].getResponse().getResponse().getHits().getTotalHits().value);
+                    multiSearchTemplateResponse.responses().get(0).result().hits().total().value());
             Assert.assertEquals(multiSearchTemplateResponse.toString(), 2,
-                    multiSearchTemplateResponse.getResponses()[1].getResponse().getResponse().getHits().getTotalHits().value);
+                    multiSearchTemplateResponse.responses().get(1).result().hits().total().value());
         }
     }
 
@@ -396,7 +411,6 @@ public class DlsTermsLookupTest {
 
         try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy").nodeSettings("searchguard.dls.mode", "lucene_level")
                 .enterpriseModulesEnabled().start()) {
-
             try (Client client = cluster.getInternalNodeClient()) {
 
                 client.index(new IndexRequest("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 10, \"acodes\": [6,7]}",

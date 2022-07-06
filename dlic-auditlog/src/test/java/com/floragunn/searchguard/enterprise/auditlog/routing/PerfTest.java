@@ -33,7 +33,7 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 public class PerfTest extends AbstractAuditlogiUnitTest {
 
 	@Test
-	@Ignore(value="jvm crash on cci")
+	@Ignore("jvm crash on cci")
 	public void testPerf() throws Exception {
 		Settings.Builder settingsBuilder = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/perftest.yml"));
 

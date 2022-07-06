@@ -36,13 +36,14 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
@@ -209,6 +210,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     }
 
     public void updateSgConfig(CType<?> configType, String key, Map<String, Object> value) {
+
         try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
             log.info("Updating config {}.{}:{}", configType, key, value);
             ConfigurationRepository configRepository = getInjectable(ConfigurationRepository.class);
@@ -346,6 +348,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         public Builder ignoreUnauthorizedIndices(boolean ignoreUnauthorizedIndices) {
             this.testSgConfig.ignoreUnauthorizedIndices(ignoreUnauthorizedIndices);
+            return this;
+        }
+
+        public Builder sgConfigSettings(String keyPath, Object value, Object... more) {
+            this.testSgConfig.sgConfigSettings(keyPath, value, more);
             return this;
         }
 

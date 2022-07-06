@@ -29,13 +29,14 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.http.HttpChannel;
+import org.elasticsearch.http.HttpPipelinedRequest;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.SharedGroupFactory;
+import org.elasticsearch.transport.netty4.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.documents.ContentType;
@@ -51,14 +52,19 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
 
     public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
             final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
-            final NamedXContentRegistry namedXContentRegistry, final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings,
+            final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher, ClusterSettings clusterSettings,
             SharedGroupFactory sharedGroupFactory) {
         super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
     }
 
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
-        super.incomingRequest(fixNonStandardContentType(httpRequest), httpChannel);
+        final HttpPipelinedRequest pipelinedRequest = (HttpPipelinedRequest) httpRequest;
+        final HttpPipelinedRequest copyPipelinedRequest =
+                new HttpPipelinedRequest(pipelinedRequest.getSequence()
+                        , pipelinedRequest.getDelegateRequest().releaseAndCopy());
+
+        super.incomingRequest(fixNonStandardContentType(copyPipelinedRequest), httpChannel);
     }
 
     /**

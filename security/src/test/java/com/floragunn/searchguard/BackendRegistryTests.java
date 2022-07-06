@@ -84,6 +84,7 @@ public class BackendRegistryTests {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
     public void when_ip_is_blocked_then_authentication_should_fail() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(TEST_USER)) {
             restClient.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 99 }));
@@ -100,6 +101,7 @@ public class BackendRegistryTests {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
     public void when_ip_is_blocked_from_net_then_authentication_should_fail() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(TEST_USER)) {
             restClient.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 90 }));
@@ -116,6 +118,7 @@ public class BackendRegistryTests {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
     public void when_xff_ip_is_blocked_from_net_then_authentication_should_fail() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(TEST_USER, new BasicHeader("X-Forwarded-For", "10.11.12.13"))) {
             restClient.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 44 }));
@@ -131,7 +134,7 @@ public class BackendRegistryTests {
         }
     }
 
-    @Ignore // TODO replacement
+    @Ignore("TODO replacement")
     @Test
     public void testFailureRateLimitingXff() throws Exception {
         //TestSgConfig sgConfig = new TestSgConfig()//

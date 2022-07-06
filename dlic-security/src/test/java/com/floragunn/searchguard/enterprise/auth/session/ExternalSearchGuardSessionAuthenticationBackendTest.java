@@ -68,7 +68,7 @@ public class ExternalSearchGuardSessionAuthenticationBackendTest {
             HttpResponse response = restClient.postJson("/_searchguard/auth/session",
                     DocNode.of("mode", "basic", "user", SESSION_TEST_USER.getName(), "password", SESSION_TEST_USER.getPassword()));
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
@@ -80,7 +80,7 @@ public class ExternalSearchGuardSessionAuthenticationBackendTest {
         try (GenericRestClient restClient = sessionConsumingCluster.getRestClient(new BearerAuthorization(token))) {
             HttpResponse response = restClient.get("/_searchguard/authinfo");
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertEquals(response.getBody(), SESSION_TEST_USER.getName(), response.toJsonNode().path("user_name").textValue());

@@ -24,8 +24,10 @@ import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
-public class ConfigUpdateNodeResponse extends BaseNodeResponse {
+public class ConfigUpdateNodeResponse extends BaseNodeResponse implements ToXContentObject {
     
     private String[] updatedConfigTypes;
     private String message;
@@ -59,6 +61,16 @@ public class ConfigUpdateNodeResponse extends BaseNodeResponse {
         super.writeTo(out);
         out.writeStringArray(updatedConfigTypes);
         out.writeOptionalString(message);
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
+        builder.field("updated_config_types", updatedConfigTypes);
+        builder.field("updated_config_size", updatedConfigTypes == null?0:updatedConfigTypes.length);
+        builder.field("message", message);
+        builder.endObject();
+        return builder;
     }
 
     @Override

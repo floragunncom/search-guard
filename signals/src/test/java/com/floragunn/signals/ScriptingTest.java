@@ -49,7 +49,7 @@ public class ScriptingTest {
         watchInitService = new WatchInitializationService(null, scriptService);
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testPropertyAccessForTriggeredTime() {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -72,7 +72,7 @@ public class ScriptingTest {
         Assert.assertEquals(watchExecutionContextData.getTriggerInfo().getTriggeredTime(), result);
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testPropertyAccessForWatchId() {
         ValidationErrors validationErrors = new ValidationErrors();

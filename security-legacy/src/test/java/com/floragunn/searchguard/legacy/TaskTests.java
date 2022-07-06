@@ -45,7 +45,7 @@ public class TaskTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_tasks?group_by=parents&pretty"
                 , encodeBasicHeader("nagilum", "nagilum")
                 , new BasicHeader(Task.X_OPAQUE_ID_HTTP_HEADER, "myOpaqueId12"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().split("X-Opaque-Id").length > 2);
     }
 }

@@ -24,7 +24,7 @@ import java.util.Set;
 
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.nodes.BaseNodeRequest;
+import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -32,6 +32,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -59,11 +60,12 @@ public class TransportLicenseInfoAction extends
         this.settings = settings;
     }
 
-    public static class NodeLicenseRequest extends BaseNodeRequest {
+    public static class NodeLicenseRequest extends BaseNodesRequest {
 
         LicenseInfoRequest request;
 
         public NodeLicenseRequest(final LicenseInfoRequest request) {
+            super((String[]) null);
             this.request = request;
         }
 
@@ -92,7 +94,7 @@ public class TransportLicenseInfoAction extends
     }
 
     @Override
-    protected LicenseInfoNodeResponse nodeOperation(final NodeLicenseRequest request) {
+    protected LicenseInfoNodeResponse nodeOperation(final NodeLicenseRequest request, Task task) {
         final SearchGuardLicense license = licenseRepository.getLicense();
 
         Set<ModuleInfo> moduleInfo = new HashSet<>();

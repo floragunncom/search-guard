@@ -31,6 +31,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 import org.elasticsearch.xcontent.XContentGenerator;
 import org.elasticsearch.xcontent.XContentParser;
+import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xcontent.support.filtering.FilterPath;
 
@@ -88,7 +89,7 @@ public class ObjectTreeXContent implements XContent {
 
     @Override
     public XContentType type() {
-        return null;
+        return XContentType.JSON;
     }
 
     @Override
@@ -97,49 +98,40 @@ public class ObjectTreeXContent implements XContent {
     }
 
     @Override
+    public boolean detectContent(byte[] bytes, int i, int i1) {
+        return false;
+    }
+
+    @Override
+    public boolean detectContent(CharSequence charSequence) {
+        return false;
+    }
+
+    @Override
     public XContentGenerator createGenerator(OutputStream os, Set<String> includes, Set<String> excludes) throws IOException {
         return new Generator(includes, excludes, this.mapFactory);
     }
 
     @Override
-    public XContentParser createParser(NamedXContentRegistry xContentRegistry, DeprecationHandler deprecationHandler, String content)
-            throws IOException {
+    public XContentParser createParser(XContentParserConfiguration xContentParserConfiguration, String s) throws IOException {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public XContentParser createParser(NamedXContentRegistry xContentRegistry, DeprecationHandler deprecationHandler, InputStream is)
-            throws IOException {
+    public XContentParser createParser(XContentParserConfiguration xContentParserConfiguration, InputStream inputStream) throws IOException {
         throw new UnsupportedOperationException();
-
     }
 
     @Override
-    public XContentParser createParser(NamedXContentRegistry xContentRegistry, DeprecationHandler deprecationHandler, byte[] data)
-            throws IOException {
+    public XContentParser createParser(XContentParserConfiguration xContentParserConfiguration, byte[] bytes, int i, int i1) throws IOException {
         throw new UnsupportedOperationException();
-
     }
 
     @Override
-    public XContentParser createParser(NamedXContentRegistry xContentRegistry, DeprecationHandler deprecationHandler, byte[] data, int offset,
-            int length) throws IOException {
-        throw new UnsupportedOperationException();
-
-    }
-
-    @Override
-    public XContentParser createParser(NamedXContentRegistry xContentRegistry, DeprecationHandler deprecationHandler, Reader reader)
-            throws IOException {
-        throw new UnsupportedOperationException();
-
-    }
-    
-    @Override
-    public XContentParser createParser(NamedXContentRegistry xContentRegistry, DeprecationHandler deprecationHandler, InputStream is,
-            FilterPath[] includes, FilterPath[] excludes) throws IOException {
+    public XContentParser createParser(XContentParserConfiguration xContentParserConfiguration, Reader reader) throws IOException {
         throw new UnsupportedOperationException();
     }
+
 
     static class Generator implements XContentGenerator {
 
@@ -402,8 +394,8 @@ public class ObjectTreeXContent implements XContent {
 
             writer.accept(outputStream);
 
-            try (XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(NamedXContentRegistry.EMPTY,
-                    LoggingDeprecationHandler.INSTANCE, new String(outputStream.toByteArray(), Charsets.UTF_8))) {
+            try (XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(XContentParserConfiguration.EMPTY,
+                    outputStream.toByteArray())) {
                 parser.nextToken();
                 copyCurrentStructure(parser);
             }

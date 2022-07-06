@@ -40,7 +40,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.nodes.BaseNodeRequest;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
@@ -54,6 +53,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -119,7 +119,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         }
     }
 
-    public static class NodeRequest extends BaseNodeRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
         Request request;
 
@@ -129,6 +129,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         }
 
         public NodeRequest(Request request) {
+            super((String[]) null);
             this.request = request;
         }
 
@@ -484,7 +485,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         }
 
         @Override
-        protected NodeResponse nodeOperation(NodeRequest request) {
+        protected NodeResponse nodeOperation(NodeRequest request, Task task) {
             if (request.request.moduleId != null && !request.request.moduleId.equals("_all")) {
                 ComponentState componentState = modulesRegistry.getComponentState(request.request.moduleId);
 

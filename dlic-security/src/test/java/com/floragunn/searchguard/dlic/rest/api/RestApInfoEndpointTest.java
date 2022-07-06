@@ -33,7 +33,7 @@ public class RestApInfoEndpointTest extends AbstractRestApiUnitTest {
 		rh.sendHTTPClientCertificate = false;
 
 		HttpResponse response = rh.executeGetRequest("/_searchguard/api/permissionsinfo", encodeBasicHeader("worf", "worf"));
-		System.out.println(response.getBody());
+		//System.out.println(response.getBody());
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 		Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		String enabled = (String) settings.get("has_api_access");

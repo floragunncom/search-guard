@@ -17,6 +17,9 @@
 
 package com.floragunn.searchguard.legacy;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
@@ -25,7 +28,7 @@ import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.transport.Netty4Plugin;
+import org.elasticsearch.transport.netty4.Netty4Plugin;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -44,8 +47,8 @@ public class SlowIntegrationTests extends SingleClusterTest {
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
-    @Ignore
+
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testCustomInterclusterRequestEvaluator() throws Exception {
         
@@ -64,18 +67,19 @@ public class SlowIntegrationTests extends SingleClusterTest {
         setup();
         Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
         Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
-    
-        
+
+        Path tmp = Files.createTempDirectory("sgunit");
+        tmp.toFile().deleteOnExit();
+
         final Settings tcSettings = Settings.builder()
                 .put(minimumSearchGuardSettings(Settings.EMPTY).get(0))
                 .put("cluster.name", clusterInfo.clustername)
-                .put("node.data", false)
-                .put("node.master", false)
-                .put("node.ingest", false)
-                .put("path.home", "/tmp")
+                .put("node.roles", "")
+                .put("path.home", tmp)
                 .put("node.name", "transportclient")
-                .put("discovery.initial_state_timeout","8s")
-                .putList("discovery.zen.ping.unicast.hosts", clusterInfo.nodeHost+":"+clusterInfo.nodePort)
+                .put("discovery.initial_state_timeout","18s")
+                .putList("cluster.initial_master_nodes", clusterInfo.tcpMasterPortsOnly)
+                .putList("discovery.seed_hosts",         clusterInfo.tcpMasterPortsOnly)
                 .build();
     
         log.debug("Start node client");
@@ -92,18 +96,19 @@ public class SlowIntegrationTests extends SingleClusterTest {
         setup();
         Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
         Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
-    
+
+        Path tmp = Files.createTempDirectory("sgunit");
+        tmp.toFile().deleteOnExit();
         
         final Settings tcSettings = Settings.builder()
                 .put(minimumSearchGuardSettings(Settings.EMPTY).get(0))
                 .put("cluster.name", clusterInfo.clustername)
-                .put("node.data", false)
-                .put("node.master", false)
-                .put("node.ingest", false)
-                .put("path.home", "/tmp")
+                .put("node.roles", "")
+                .put("path.home", tmp)
                 .put("node.name", "transportclient")
                 .put("discovery.initial_state_timeout","8s")
-                .putList("discovery.zen.ping.unicast.hosts", clusterInfo.nodeHost+":"+clusterInfo.nodePort)
+                .putList("cluster.initial_master_nodes", clusterInfo.tcpMasterPortsOnly)
+                .putList("discovery.seed_hosts",         clusterInfo.tcpMasterPortsOnly)
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("kirk-keystore.jks"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS,"kirk")
                 .build();
@@ -123,17 +128,19 @@ public class SlowIntegrationTests extends SingleClusterTest {
         setup();
         Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
         Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
-     
+
+        Path tmp = Files.createTempDirectory("sgunit");
+        tmp.toFile().deleteOnExit();
+
         final Settings tcSettings = Settings.builder()
                 .put(minimumSearchGuardSettings(Settings.EMPTY).get(0))
                 .put("cluster.name", clusterInfo.clustername)
-                .put("node.data", false)
-                .put("node.master", false)
-                .put("node.ingest", false)
-                .put("path.home", "/tmp")
+                .put("node.roles", "")
+                .put("path.home", tmp)
                 .put("node.name", "transportclient")
                 .put("discovery.initial_state_timeout","8s")
-                .putList("discovery.zen.ping.unicast.hosts", clusterInfo.nodeHost+":"+clusterInfo.nodePort)
+                .putList("cluster.initial_master_nodes", clusterInfo.tcpMasterPortsOnly)
+                .putList("discovery.seed_hosts",         clusterInfo.tcpMasterPortsOnly)
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("spock-keystore.jks"))
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS,"spock")
                 .build();

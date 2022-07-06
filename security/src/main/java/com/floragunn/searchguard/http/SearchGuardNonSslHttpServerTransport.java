@@ -21,10 +21,13 @@ import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpHandlingSettings;
+import org.elasticsearch.http.HttpPipelinedRequest;
+import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.SharedGroupFactory;
+import org.elasticsearch.transport.netty4.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import io.netty.channel.Channel;
@@ -36,6 +39,16 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
             final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
             final ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory) {
         super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
+    }
+
+    @Override
+    public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
+        final HttpPipelinedRequest pipelinedRequest = (HttpPipelinedRequest) httpRequest;
+        final HttpPipelinedRequest copyPipelinedRequest =
+                new HttpPipelinedRequest(pipelinedRequest.getSequence()
+                        , pipelinedRequest.getDelegateRequest().releaseAndCopy());
+
+        super.incomingRequest(copyPipelinedRequest, httpChannel);
     }
 
     @Override

@@ -17,9 +17,10 @@
 
 package com.floragunn.searchguard.test;
 
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.IndexNotFoundException;
 
 public class TestIndex {
 
@@ -34,7 +35,10 @@ public class TestIndex {
     }
 
     public void create(Client client) {
-        if (!client.admin().indices().exists(new IndicesExistsRequest(name)).actionGet().isExists()) {
+
+        try {
+            client.admin().indices().getIndex(new GetIndexRequest().indices(name)).actionGet();
+        } catch (IndexNotFoundException e) {
             testData.createIndex(client, name, settings);
         }
     }

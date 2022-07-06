@@ -14,6 +14,29 @@
 
 package com.floragunn.searchguard.httpclient;
 
+import com.google.common.collect.Lists;
+import org.apache.http.HttpHeaders;
+import org.apache.http.HttpHost;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.conn.ssl.DefaultHostnameVerifier;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.message.BasicHeader;
+import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
+import org.apache.http.ssl.PrivateKeyDetails;
+import org.apache.http.ssl.PrivateKeyStrategy;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.ssl.SSLContexts;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.client.Node;
+import org.elasticsearch.client.Request;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
@@ -29,35 +52,6 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
-
-import org.apache.http.HttpHeaders;
-import org.apache.http.HttpHost;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.conn.ssl.DefaultHostnameVerifier;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
-import org.apache.http.ssl.PrivateKeyDetails;
-import org.apache.http.ssl.PrivateKeyStrategy;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Node;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.xcontent.XContentType;
-
-import com.google.common.collect.Lists;
 
 public class HttpClient implements Closeable {
 
@@ -129,7 +123,7 @@ public class HttpClient implements Closeable {
 
     private final KeyStore trustStore;
     private final Logger log = LogManager.getLogger(this.getClass());
-    private RestHighLevelClient rclient;
+    private RestClient restClient;
     private String basicCredentials;
     private KeyStore keystore;
     private String keystoreAlias;
@@ -184,20 +178,21 @@ public class HttpClient implements Closeable {
             }
         });
         
-        rclient = new RestHighLevelClient(builder);
+        restClient = builder.build();
     }
 
-    public boolean index(final String content, final String index, final String type, final boolean refresh) {
+    public boolean index(final String content, final String index, final boolean refresh) {
 
             try {
 
-                final IndexRequest ir = type==null?new IndexRequest(index):new IndexRequest(index);
-                
-                final IndexResponse response = rclient.index(ir
-                              .setRefreshPolicy(refresh?RefreshPolicy.IMMEDIATE:RefreshPolicy.NONE)
-                              .source(content, XContentType.JSON), RequestOptions.DEFAULT);
+                final Request indexRequest = new Request("POST", "/"+index+"/_doc/");
+                indexRequest.setJsonEntity(content);
+                indexRequest.addParameter("refresh",refresh?"true":"false");
 
-                return response.getShardInfo().getSuccessful() > 0 && response.getShardInfo().getFailed() == 0;
+                final Response response = restClient.performRequest(indexRequest);
+                final int statusCode = response.getStatusLine().getStatusCode();
+
+                return statusCode >= 200 && statusCode < 300;
                 
             } catch (Exception e) {
                 log.error(e.toString(),e);
@@ -271,8 +266,8 @@ public class HttpClient implements Closeable {
 
     @Override
     public void close() throws IOException {
-        if (rclient != null) {
-            rclient.close();
+        if (restClient!= null) {
+            restClient.close();
         }
     }
 }

@@ -21,43 +21,47 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch._types.Time;
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsAggregate;
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
+import co.elastic.clients.elasticsearch.core.GetResponse;
+import co.elastic.clients.elasticsearch.core.MgetRequest;
+import co.elastic.clients.elasticsearch.core.MgetResponse;
+import co.elastic.clients.elasticsearch.core.MsearchRequest;
+import co.elastic.clients.elasticsearch.core.MsearchResponse;
+import co.elastic.clients.elasticsearch.core.ScrollResponse;
+import co.elastic.clients.elasticsearch.core.SearchRequest;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.mget.MultiGetOperation;
+import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
+import co.elastic.clients.elasticsearch.core.msearch.MultiSearchResponseItem;
+import co.elastic.clients.elasticsearch.core.msearch.RequestItem;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.get.MultiGetItemResponse;
-import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.action.search.MultiSearchResponse.Item;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.Scroll;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.Aggregations;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms.Bucket;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class DlsTermsLookupTest2 {
 
@@ -65,8 +69,9 @@ public class DlsTermsLookupTest2 {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().ignoreUnauthorizedIndices(true)
-            .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*").on("tlqdummy").indexPermissions("*").dls(
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled()
+            .sgConfigSettings("sg_config.dynamic.do_not_fail_on_forbidden", true)
+            .roles(new TestSgConfig.Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*").on("tlqdummy").indexPermissions("*").dls(
                     "{ \"terms\": { \"access_codes\": { \"index\": \"user_access_codes\", \"id\": \"${user.name}\", \"path\": \"access_codes\" } } }")
                     .on("tlqdocuments")
 
@@ -95,7 +100,7 @@ public class DlsTermsLookupTest2 {
 
             // need to have keyword for bu field since we're testing aggregations
             client.admin().indices().create(new CreateIndexRequest("tlqdocuments")).actionGet();
-            client.admin().indices().putMapping(new PutMappingRequest("tlqdocuments").type("_doc").source("bu", "type=keyword")).actionGet();
+            client.admin().indices().putMapping(new PutMappingRequest("tlqdocuments").source("bu", "type=keyword")).actionGet();
 
             // tlqdocuments, protected by TLQ
             client.index(new IndexRequest("tlqdocuments").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
@@ -137,7 +142,7 @@ public class DlsTermsLookupTest2 {
 
             // we use a "bu" field here as well to test aggregations over multiple indices (TBD)
             client.admin().indices().create(new CreateIndexRequest("tlqdummy")).actionGet();
-            client.admin().indices().putMapping(new PutMappingRequest("tlqdummy").type("_doc").source("bu", "type=keyword")).actionGet();
+            client.admin().indices().putMapping(new PutMappingRequest("tlqdummy").source("bu", "type=keyword")).actionGet();
 
             // tlqdummy, not protected by TLQ
             client.index(new IndexRequest("tlqdummy").id("101").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
@@ -161,78 +166,76 @@ public class DlsTermsLookupTest2 {
     @Test
     public void testSimpleSearch_AccessCode_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("tlqdocuments");
             // 10 docs, all need to have access code 1337    
-            Assert.assertEquals(searchResponse.toString(), 10, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 10, searchResponse.hits().total().value());
             // fields need to have 1337 access code
-            assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 1337 });
+            assertAccessCodesMatch(searchResponse.hits().hits(), new Integer[] { 1337 });
         }
     }
 
     @Test
     public void testSimpleSearch_AccessCode_42() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_42", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search(("tlqdocuments"));
             // 10 docs, all need to have access code 42    
-            Assert.assertEquals(searchResponse.toString(), 10, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 10, searchResponse.hits().total().value());
             // fields need to have 42 access code
-            assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 42 });
+            assertAccessCodesMatch(searchResponse.hits().hits(), new Integer[] { 42 });
         }
     }
 
     @Test
     public void testSimpleSearch_AccessCodes_1337_42() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337_42", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search(("tlqdocuments"));
             // 15 docs, all need to have either access code 1337 or 42    
-            Assert.assertEquals(searchResponse.toString(), 15, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 15, searchResponse.hits().total().value());
             // fields need to have 42 or 1337 access code
-            assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 42, 1337 });
+            assertAccessCodesMatch(searchResponse.hits().hits(), new Integer[] { 42, 1337 });
         }
     }
 
     @Test
     public void testSimpleSearch_AccessCodes_999() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_999", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search(("tlqdocuments"));
             // no docs match, expect empty result    
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.hits().total().value());
         }
     }
 
     @Test
     public void testSimpleSearch_AccessCodes_emptyAccessCodes() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_empty_access_codes", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search(("tlqdocuments"));
             // user has an empty array for access codes, expect no error and empty search result
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.hits().total().value());
         }
     }
 
     @Test
     public void testSimpleSearch_AccessCodes_noAccessCodes() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_no_codes", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search(("tlqdocuments"));
             // user has no access code , expect no error and empty search result
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.hits().total().value());
         }
     }
 
     @Test
     public void testSimpleSearch_AccessCodes_noEntryInUserIndex() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_no_codes", "password")) {
-            SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search(("tlqdocuments"));
             // user has no entry in user index, expect no error and empty search result
-            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
+            Assert.assertEquals(searchResponse.toString(), 0, searchResponse.hits().total().value());
         }
     }
 
     @Test
     public void testSimpleSearch_AllIndices_All_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().from(0).size(100);
-            SearchRequest request = new SearchRequest("_all").source(searchSourceBuilder);
-            SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("_all", 0, 100);
 
             // assume hits from 2 indices:
             // - tlqdocuments, must contain only docs with access code 1337
@@ -240,19 +243,19 @@ public class DlsTermsLookupTest2 {
             // no access to user_access_codes must be granted 
 
             // check all 5 tlqdummy entries present, index is not protected by DLS
-            Set<SearchHit> tlqdummyHits = Arrays.asList(searchResponse.getHits().getHits()).stream().filter((h) -> h.getIndex().equals("tlqdummy"))
+            Set<Hit<Map>>tlqdummyHits = (searchResponse.hits().hits()).stream().filter((h) -> h.index().equals("tlqdummy"))
                     .collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 5, tlqdummyHits.size());
 
             // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
-            Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
-                    .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
+            Set<Hit<Map>>tlqdocumentHits = (searchResponse.hits().hits()).stream()
+                    .filter((h) -> h.index().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
             assertAccessCodesMatch(tlqdocumentHits, new Integer[] { 1337 });
 
             // check no access to user_access_codes index
-            Set<SearchHit> userAccessCodesHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
-                    .filter((h) -> h.getIndex().equals("user_access_codes")).collect(Collectors.toSet());
+            Set<Hit<Map>>userAccessCodesHits = (searchResponse.hits().hits()).stream()
+                    .filter((h) -> h.index().equals("user_access_codes")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 0, userAccessCodesHits.size());
 
         }
@@ -261,9 +264,7 @@ public class DlsTermsLookupTest2 {
     @Test
     public void testSimpleSearch_AllIndicesWildcard_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().from(0).size(100);
-            SearchRequest request = new SearchRequest("*").source(searchSourceBuilder);
-            SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("*",0,100);
 
             // assume hits from 2 indices:
             // - tlqdocuments, must contain only docs with access code 1337
@@ -271,19 +272,19 @@ public class DlsTermsLookupTest2 {
             // no access to user_access_codes must be granted 
 
             // check all 5 tlqdummy entries present, index is not protected by DLS
-            Set<SearchHit> tlqdummyHits = Arrays.asList(searchResponse.getHits().getHits()).stream().filter((h) -> h.getIndex().equals("tlqdummy"))
+            Set<Hit<Map>>tlqdummyHits = (searchResponse.hits().hits()).stream().filter((h) -> h.index().equals("tlqdummy"))
                     .collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 5, tlqdummyHits.size());
 
             // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
-            Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
-                    .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
+            Set<Hit<Map>>tlqdocumentHits = (searchResponse.hits().hits()).stream()
+                    .filter((h) -> h.index().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
             assertAccessCodesMatch(tlqdocumentHits, new Integer[] { 1337 });
 
             // check no access to user_access_codes index
-            Set<SearchHit> userAccessCodesHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
-                    .filter((h) -> h.getIndex().equals("user_access_codes")).collect(Collectors.toSet());
+            Set<Hit<Map>>userAccessCodesHits = (searchResponse.hits().hits()).stream()
+                    .filter((h) -> h.index().equals("user_access_codes")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 0, userAccessCodesHits.size());
 
         }
@@ -292,10 +293,7 @@ public class DlsTermsLookupTest2 {
     @Test
     public void testSimpleSearch_ThreeIndicesWildcard_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
-            SearchRequest request = new SearchRequest("tlq*, user*");
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().from(0).size(100);
-            request.source(searchSourceBuilder);
-            SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("tlq*, user*", 0, 100);
 
             // assume hits from 2 indices:
             // - tlqdocuments, must contain only docs with access code 1337
@@ -303,19 +301,19 @@ public class DlsTermsLookupTest2 {
             // no access to user_access_codes must be granted 
 
             // check all 5 tlqdummy entries present, index is not protected by DLS
-            Set<SearchHit> tlqdummyHits = Arrays.asList(searchResponse.getHits().getHits()).stream().filter((h) -> h.getIndex().equals("tlqdummy"))
+            Set<Hit<Map>>tlqdummyHits = (searchResponse.hits().hits()).stream().filter((h) -> h.index().equals("tlqdummy"))
                     .collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 5, tlqdummyHits.size());
 
             // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered            
-            Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
-                    .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
+            Set<Hit<Map>>tlqdocumentHits = (searchResponse.hits().hits()).stream()
+                    .filter((h) -> h.index().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
             assertAccessCodesMatch(tlqdocumentHits, new Integer[] { 1337 });
 
             // check no access to user_access_codes index
-            Set<SearchHit> userAccessCodesHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
-                    .filter((h) -> h.getIndex().equals("user_access_codes")).collect(Collectors.toSet());
+            Set<Hit<Map>>userAccessCodesHits = (searchResponse.hits().hits()).stream()
+                    .filter((h) -> h.index().equals("user_access_codes")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 0, userAccessCodesHits.size());
 
         }
@@ -324,23 +322,20 @@ public class DlsTermsLookupTest2 {
     @Test
     public void testSimpleSearch_TwoIndicesConcreteNames_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
-            SearchRequest request = new SearchRequest("tlqdocuments,tlqdummy");
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().from(0).size(100);
-            request.source(searchSourceBuilder);
-            SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
+            SearchResponse<Map> searchResponse = client.search("tlqdocuments,tlqdummy",0,100);
 
             // assume hits from 2 indices:
             // - tlqdocuments, must contains only 10 docs with access code 1337
             // - tlqdummy, must contains all 5 documents
 
             // check all 5 tlqdummy entries present, index is not protected by DLS
-            Set<SearchHit> tlqdummyHits = Arrays.asList(searchResponse.getHits().getHits()).stream().filter((h) -> h.getIndex().equals("tlqdummy"))
+            Set<Hit<Map>>tlqdummyHits = (searchResponse.hits().hits()).stream().filter((h) -> h.index().equals("tlqdummy"))
                     .collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 5, tlqdummyHits.size());
 
             // ccheck 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered         
-            Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
-                    .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
+            Set<Hit<Map>>tlqdocumentHits = (searchResponse.hits().hits()).stream()
+                    .filter((h) -> h.index().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
             assertAccessCodesMatch(tlqdocumentHits, new Integer[] { 1337 });
         }
@@ -350,28 +345,30 @@ public class DlsTermsLookupTest2 {
     public void testMSearch_ThreeIndices_AccessCodes_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
 
-            MultiSearchRequest request = new MultiSearchRequest();
-            request.add(new SearchRequest("tlqdummy"));
-            request.add(new SearchRequest("tlqdocuments"));
-            request.add(new SearchRequest("user_access_codes"));
-            MultiSearchResponse searchResponse = client.msearch(request, RequestOptions.DEFAULT);
+            MsearchRequest.Builder multiSearchRequest = new MsearchRequest.Builder();
+            multiSearchRequest.searches(
+                    new RequestItem.Builder().body(b->b).header(h->h.index("tlqdummy")).build(),
+                    new RequestItem.Builder().body(b->b).header(h->h.index("tlqdocuments")).build(),
+                    new RequestItem.Builder().body(b->b).header(h->h.index("user_access_codes")).build());
 
-            Item[] responseItems = searchResponse.getResponses();
+            MsearchResponse<Map> searchResponse = client.getJavaClient().msearch(multiSearchRequest.build(), Map.class);
+
+            List<MultiSearchResponseItem<Map>> responseItems = searchResponse.responses();
 
             // as per API order in response is the same as in the msearch request
 
             // check all 5 tlqdummy entries present
-            List<SearchHit> tlqdummyHits = Arrays.asList(responseItems[0].getResponse().getHits().getHits());
+            List<Hit<Map>> tlqdummyHits = responseItems.get(0).result().hits().hits();
             Assert.assertEquals(searchResponse.toString(), 5, tlqdummyHits.size());
 
             // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
-            List<SearchHit> tlqdocumentHits = Arrays.asList(responseItems[1].getResponse().getHits().getHits());
+            List<Hit<Map>> tlqdocumentHits = responseItems.get(1).result().hits().hits();
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
             assertAccessCodesMatch(tlqdocumentHits, new Integer[] { 1337 });
 
             // check no access to user_access_codes index, just two indices in the response
-            Assert.assertTrue(responseItems[2].getResponse() == null);
-            Assert.assertTrue(responseItems[2].getFailure() != null);
+            Assert.assertTrue(responseItems.get(2).failure() != null);
+            Assert.assertTrue(responseItems.get(2).isFailure());
 
         }
     }
@@ -385,38 +382,32 @@ public class DlsTermsLookupTest2 {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
 
             // user has 1337, document has 1337
-            GetRequest request = new GetRequest().index("tlqdocuments").id("1");
-            GetResponse searchResponse = client.get(request, RequestOptions.DEFAULT);
+            GetResponse<Map> searchResponse = client.get("tlqdocuments", "1");
             Assert.assertTrue(searchResponse != null);
-            Assert.assertTrue(searchResponse.isExists());
-            assertAccessCodesMatch(searchResponse.getSourceAsMap(), "access_codes", new Integer[] { 1337 });
+            Assert.assertTrue(searchResponse.found());
+            assertAccessCodesMatch(searchResponse.source(), "access_codes", new Integer[] { 1337 });
 
             // user has 1337, document has 42, not visible
-            request = new GetRequest().index("tlqdocuments").id("2");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
-            Assert.assertFalse(searchResponse.isExists());
+            searchResponse = client.get("tlqdocuments", "2");
+            Assert.assertFalse(searchResponse.found());
 
             // user has 1337, document has 42 and 1337
-            request = new GetRequest().index("tlqdocuments").id("3");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
+            searchResponse = client.get("tlqdocuments", "3");
             Assert.assertTrue(searchResponse != null);
-            Assert.assertTrue(searchResponse.isExists());
-            assertAccessCodesMatch(searchResponse.getSourceAsMap(), "access_codes", new Integer[] { 1337 });
+            Assert.assertTrue(searchResponse.found());
+            assertAccessCodesMatch(searchResponse.source(), "access_codes", new Integer[] { 1337 });
 
             // user has 1337, document has no access codes, not visible
-            request = new GetRequest().index("tlqdocuments").id("16");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
-            Assert.assertFalse(searchResponse.isExists());
+            searchResponse = client.get("tlqdocuments", "16");
+            Assert.assertFalse(searchResponse.found());
 
             // user has 1337, document has 12345, not visible
-            request = new GetRequest().index("tlqdocuments").id("17");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
-            Assert.assertFalse(searchResponse.isExists());
+            searchResponse = client.get("tlqdocuments", "17");
+            Assert.assertFalse(searchResponse.found());
 
             // user has 1337, document has 12345 and 6789, not visible
-            request = new GetRequest().index("tlqdocuments").id("18");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
-            Assert.assertFalse(searchResponse.isExists());
+            searchResponse = client.get("tlqdocuments", "18");
+            Assert.assertFalse(searchResponse.found());
 
         }
     }
@@ -426,40 +417,34 @@ public class DlsTermsLookupTest2 {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337_42", "password")) {
 
             // user has 1337 and 42, document has 1337
-            GetRequest request = new GetRequest().index("tlqdocuments").id("1");
-            GetResponse searchResponse = client.get(request, RequestOptions.DEFAULT);
+            GetResponse<Map> searchResponse = client.get("tlqdocuments", "1");
             Assert.assertTrue(searchResponse != null);
-            Assert.assertTrue(searchResponse.isExists());
-            assertAccessCodesMatch(searchResponse.getSourceAsMap(), "access_codes", new Integer[] { 1337, 42 });
+            Assert.assertTrue(searchResponse.found());
+            assertAccessCodesMatch(searchResponse.source(), "access_codes", new Integer[] { 1337, 42 });
 
             // user has 1337 and 42, document has 42
-            request = new GetRequest().index("tlqdocuments").id("2");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
+            searchResponse = client.get("tlqdocuments", "2");
             Assert.assertTrue(searchResponse != null);
-            Assert.assertTrue(searchResponse.isExists());
-            assertAccessCodesMatch(searchResponse.getSourceAsMap(), "access_codes", new Integer[] { 1337, 42 });
+            Assert.assertTrue(searchResponse.found());
+            assertAccessCodesMatch(searchResponse.source(), "access_codes", new Integer[] { 1337, 42 });
 
             // user has 1337 and 42, document has 42 and 1337
-            request = new GetRequest().index("tlqdocuments").id("3");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
+            searchResponse = client.get("tlqdocuments", "3");
             Assert.assertTrue(searchResponse != null);
-            Assert.assertTrue(searchResponse.isExists());
-            assertAccessCodesMatch(searchResponse.getSourceAsMap(), "access_codes", new Integer[] { 1337, 42 });
+            Assert.assertTrue(searchResponse.found());
+            assertAccessCodesMatch(searchResponse.source(), "access_codes", new Integer[] { 1337, 42 });
 
             // user has 1337 and 42, document has no access codes, not visible
-            request = new GetRequest().index("tlqdocuments").id("16");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
-            Assert.assertFalse(searchResponse.isExists());
+            searchResponse = client.get("tlqdocuments", "16");
+            Assert.assertFalse(searchResponse.found());
 
             // user has 1337 and 42, document has 12345, not visible
-            request = new GetRequest().index("tlqdocuments").id("17");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
-            Assert.assertFalse(searchResponse.isExists());
+            searchResponse = client.get("tlqdocuments", "17");
+            Assert.assertFalse(searchResponse.found());
 
             // user has 1337 and 42, document has 12345 and 6789, not visible
-            request = new GetRequest().index("tlqdocuments").id("18");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
-            Assert.assertFalse(searchResponse.isExists());
+            searchResponse = client.get("tlqdocuments", "18");
+            Assert.assertFalse(searchResponse.found());
 
         }
     }
@@ -469,15 +454,13 @@ public class DlsTermsLookupTest2 {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
 
             // no restrictions on this index
-            GetRequest request = new GetRequest().index("tlqdummy").id("101");
-            GetResponse searchResponse = client.get(request, RequestOptions.DEFAULT);
+            GetResponse searchResponse = client.get("tlqdummy", "101");
             Assert.assertTrue(searchResponse != null);
-            Assert.assertTrue(searchResponse.isExists());
+            Assert.assertTrue(searchResponse.found());
 
-            request = new GetRequest().index("tlqdummy").id("102");
-            searchResponse = client.get(request, RequestOptions.DEFAULT);
+            searchResponse = client.get("tlqdummy", "102");
             Assert.assertTrue(searchResponse != null);
-            Assert.assertTrue(searchResponse.isExists());
+            Assert.assertTrue(searchResponse.found());
 
         }
     }
@@ -486,11 +469,10 @@ public class DlsTermsLookupTest2 {
     public void testGet_UserAccessCodesIndex_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
             // no access to user_codes index, must throw exception
-            GetRequest request = new GetRequest().index("user_access_codes").id("tlq_1337");
-            client.get(request, RequestOptions.DEFAULT);
+            client.get("user_access_codes","tlq_1337");
             Assert.fail();
-        } catch (ElasticsearchStatusException e) {
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+        } catch (ElasticsearchException e) {
+            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN.getStatus(), e.status());
         }
     }
 
@@ -498,50 +480,50 @@ public class DlsTermsLookupTest2 {
     public void testMGet_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
 
-            MultiGetRequest request = new MultiGetRequest();
-            request.add("tlqdocuments", "1");
-            request.add("tlqdocuments", "2");
-            request.add("tlqdocuments", "3");
-            request.add("tlqdocuments", "16");
-            request.add("tlqdocuments", "17");
-            request.add("tlqdocuments", "18");
-            request.add("tlqdummy", "101");
+            MgetRequest request = new MgetRequest.Builder()
+                    .docs(new MultiGetOperation.Builder().index("tlqdocuments").id("1").build(),
+                    new MultiGetOperation.Builder().index("tlqdocuments").id("2").build(),
+                    new MultiGetOperation.Builder().index("tlqdocuments").id("3").build(),
+                    new MultiGetOperation.Builder().index("tlqdocuments").id("16").build(),
+                    new MultiGetOperation.Builder().index("tlqdocuments").id("17").build(),
+                    new MultiGetOperation.Builder().index("tlqdocuments").id("18").build(),
+                    new MultiGetOperation.Builder().index("tlqdummy").id("101").build()
+                    ).build();
 
-            MultiGetResponse searchResponse = client.mget(request, RequestOptions.DEFAULT);
+            MgetResponse<Map> searchResponse = client.getJavaClient().mget(request, Map.class);
 
-            for (MultiGetItemResponse response : searchResponse.getResponses()) {
+            for (MultiGetResponseItem<Map> response : searchResponse.docs()) {
                 // no response from index "user_access_codes"
-                Assert.assertFalse(response.getIndex().equals("user_access_codes"));
-                switch (response.getIndex()) {
+                Assert.assertFalse(response.result().index().equals("user_access_codes"));
+                switch (response.result().index()) {
                 case "tlqdocuments":
-                    Assert.assertTrue(response.getId(), response.getId().equals("1") | response.getId().equals("3"));
+                    Assert.assertTrue(response.result().id(), response.result().id().equals("1") | response.result().id().equals("3"));
                     break;
                 case "tlqdummy":
-                    Assert.assertTrue(response.getId(), response.getId().equals("101"));
+                    Assert.assertTrue(response.result().id(), response.result().id().equals("101"));
                     break;
                 default:
-                    Assert.fail("Index " + response.getIndex() + " present in mget response, but should not");
+                    Assert.fail("Index " + response.result().index() + " present in mget response, but should not");
                 }
-
             }
 
-            request = new MultiGetRequest();
-            request.add("tlqdocuments", "1");
-            request.add("tlqdocuments", "2");
-            request.add("tlqdocuments", "3");
-            request.add("tlqdocuments", "16");
-            request.add("tlqdocuments", "17");
-            request.add("tlqdocuments", "18");
-            request.add("tlqdummy", "101");
-            request.add("user_access_codes", "tlq_1337");
+            request = new MgetRequest.Builder()
+                    .docs(new MultiGetOperation.Builder().index("tlqdocuments").id("1").build(),
+                            new MultiGetOperation.Builder().index("tlqdocuments").id("2").build(),
+                            new MultiGetOperation.Builder().index("tlqdocuments").id("3").build(),
+                            new MultiGetOperation.Builder().index("tlqdocuments").id("16").build(),
+                            new MultiGetOperation.Builder().index("tlqdocuments").id("17").build(),
+                            new MultiGetOperation.Builder().index("tlqdocuments").id("18").build(),
+                            new MultiGetOperation.Builder().index("tlqdummy").id("101").build(),
+                            new MultiGetOperation.Builder().index("user_access_codes").id("tlq_1337").build()
+                    ).build();
 
             try {
-                searchResponse = client.mget(request, RequestOptions.DEFAULT);
+                searchResponse = client.getJavaClient().mget(request, Map.class);
                 Assert.fail(searchResponse.toString());
-            } catch (ElasticsearchStatusException e) {
-                Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+            } catch (ElasticsearchException e) {
+                Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN.getStatus(), e.status());
             }
-
         }
     }
 
@@ -553,22 +535,25 @@ public class DlsTermsLookupTest2 {
     public void testSimpleAggregation_tlqdocuments_AccessCode_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
 
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            searchSourceBuilder.aggregation(AggregationBuilders.terms("buaggregation").field("bu"));
-            SearchRequest request = new SearchRequest("tlqdocuments").source(searchSourceBuilder);
-            SearchResponse searchResponse = client.search(request, RequestOptions.DEFAULT);
-            Aggregations aggs = searchResponse.getAggregations();
+            SearchRequest searchRequest = new SearchRequest.Builder()
+                    .index("tlqdocuments")
+                    .aggregations("buaggregation", a->a.terms(ta->ta.field("bu"))).build();
+
+            SearchResponse<Map> searchResponse = client.getJavaClient().search(searchRequest, Map.class);
+
+            Aggregate aggs = searchResponse.aggregations().get("buaggregation");
             Assert.assertNotNull(searchResponse.toString(), aggs);
-            Terms agg = aggs.get("buaggregation");
+            StringTermsAggregate agg = aggs.sterms();
             Assert.assertTrue("Expected aggregation with name 'buaggregation'", agg != null);
             // expect AAA - EEE (FFF does not match) with 2 docs each
             for (String bucketName : new String[] { "AAA", "BBB", "CCC", "DDD", "EEE" }) {
-                Bucket bucket = agg.getBucketByKey(bucketName);
-                Assert.assertNotNull("Expected bucket " + bucketName + " to be present in agregations", bucket);
-                Assert.assertTrue("Expected doc count in bucket " + bucketName + " to be 2", bucket.getDocCount() == 2);
+                Optional<StringTermsBucket> bucket = DlsTermsLookupAsserts.getBucket(agg, bucketName);
+                Assert.assertTrue(bucket.isPresent());
+                Assert.assertNotNull("Expected bucket " + bucketName + " to be present in agregations", bucket.get());
+                Assert.assertTrue("Expected doc count in bucket " + bucketName + " to be 2", bucket.get().docCount() == 2);
             }
             // expect FFF to be absent
-            Assert.assertNull("Expected bucket FFF to be absent", agg.getBucketByKey("FFF"));
+            Assert.assertFalse("Expected bucket FFF to be absent", DlsTermsLookupAsserts.getBucket(agg, "FFF").isPresent());
         }
     }
 
@@ -580,34 +565,42 @@ public class DlsTermsLookupTest2 {
     public void testSimpleSearch_Scroll_AccessCode_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
 
-            final Scroll scroll = new Scroll(TimeValue.timeValueMinutes(1L));
-            SearchRequest searchRequest = new SearchRequest("tlqdocuments");
-            searchRequest.scroll(scroll);
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            searchSourceBuilder.size(1);
-            searchRequest.source(searchSourceBuilder);
+            SearchResponse<Map> searchResponse = client.getJavaClient().search(s->s
+                    .index("tlqdocuments")
+                    .size(1)
+                    .scroll(new Time.Builder().time("1m").build()), Map.class);
 
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-            String scrollId = searchResponse.getScrollId();
-            SearchHit[] searchHits = searchResponse.getHits().getHits();
+            String scrollId = searchResponse.scrollId();
+            List<Hit<Map>> searchHits = searchResponse.hits().hits();
             int totalHits = 0;
 
             // we scroll one by one
-            while (searchHits != null && searchHits.length > 0) {
+            for(;;) {
                 // for counting the total documents
-                totalHits += searchHits.length;
+                totalHits += searchHits.size();
+
                 // only docs with access codes 1337 must be returned
-                assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 1337 });
+                Assert.assertEquals(1, searchHits.size());
+                assertAccessCodesMatch(searchHits, new Integer[] { 1337 });
+
+                if(scrollId == null) {
+                    break;
+                }
                 // fetch next
-                SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
-                scrollRequest.scroll(scroll);
-                searchResponse = client.scroll(scrollRequest, RequestOptions.DEFAULT);
-                scrollId = searchResponse.getScrollId();
-                searchHits = searchResponse.getHits().getHits();
+                final String finalScrollId = scrollId;
+                final ScrollResponse scrollResponse = client.getJavaClient().scroll(s->s.scrollId(finalScrollId)
+                        .scroll(new Time.Builder().time("1m").build()), Map.class);
+
+                scrollId = scrollResponse.scrollId();
+                searchHits = scrollResponse.hits().hits();
+
+                if(searchHits.isEmpty()) {
+                    break;
+                }
             }
 
             // assume total of 10 documents
-            Assert.assertTrue("" + totalHits, totalHits == 10);
+            Assert.assertEquals(10, totalHits);
         }
     }
 

@@ -21,8 +21,6 @@ OPTIND=1
 assumeyes=0
 initsg=0
 cluster_mode=0
-SGCTL_VERSION="0.2.5"
-SGCTL_LINK="https://maven.search-guard.com/search-guard-suite-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
 
 function show_help() {
     echo "install_demo_configuration.sh [-y] [-i] [-c]"
@@ -172,9 +170,6 @@ if [ ! -d "$ES_PLUGINS_DIR/search-guard-flx" ]; then
   exit -1
 fi
 
-ES_VERSION=("$ES_LIB_PATH/elasticsearch-*.jar")
-ES_VERSION=$(echo $ES_VERSION | sed 's/.*elasticsearch-\(.*\)\.jar/\1/')
-
 OS=$(sb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om)
 echo "Elasticsearch install type: $ES_INSTALL_TYPE on $OS"
 echo "Elasticsearch config dir: $ES_CONF_DIR"
@@ -182,7 +177,6 @@ echo "Elasticsearch config file: $ES_CONF_FILE"
 echo "Elasticsearch bin dir: $ES_BIN_DIR"
 echo "Elasticsearch plugins dir: $ES_PLUGINS_DIR"
 echo "Elasticsearch lib dir: $ES_LIB_PATH"
-echo "Detected Elasticsearch Version: $ES_VERSION"
 
 if $SUDO_CMD grep --quiet -i searchguard "$ES_CONF_FILE"; then
   echo "$ES_CONF_FILE seems to be already configured for Search Guard. Quit."
@@ -367,8 +361,8 @@ echo "searchguard.authcz.admin_dn:" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/nu
 echo "  - CN=kirk,OU=client,O=client,L=test, C=de" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
 echo "" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
 echo "searchguard.audit.type: internal_elasticsearch" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-echo "searchguard.enable_snapshot_restore_privilege: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-echo "searchguard.check_snapshot_restore_write_privileges: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+#echo "searchguard.enable_snapshot_restore_privilege: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+#echo "searchguard.check_snapshot_restore_write_privileges: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
 echo 'searchguard.restapi.roles_enabled: ["SGS_ALL_ACCESS"]' | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
 
 #cluster.routing.allocation.disk.threshold_enabled
@@ -396,13 +390,6 @@ else
     fi
 fi
 
-#node.max_local_storage_nodes
-if $SUDO_CMD grep --quiet -i "^node.max_local_storage_nodes" "$ES_CONF_FILE"; then
-	: #already present
-else
-    echo 'node.max_local_storage_nodes: 3' | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-fi
-
 #xpack.security.enabled
 if $SUDO_CMD grep --quiet -i "^xpack.security.enabled" "$ES_CONF_FILE"; then
 	: #already present
@@ -412,16 +399,20 @@ else
     fi
 fi
 
-echo "######## End Search Guard Demo Configuration ########" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
+#xpack.security.enabled
+if $SUDO_CMD grep --quiet -i "^xpack.security.autoconfiguration.enabled" "$ES_CONF_FILE"; then
+	: #already present
+else
+    if [ -d "$ES_MODULES_DIR/x-pack-security" ];then
+	    echo "xpack.security.autoconfiguration.enabled: false" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
+    fi
+fi
 
-$SUDO_CMD chmod +x "$ES_PLUGINS_DIR/search-guard-flx/tools/sgadmin.sh"
+echo "######## End Search Guard Demo Configuration ########" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
 
 ES_PLUGINS_DIR=`cd "$ES_PLUGINS_DIR" ; pwd`
 
-echo
-echo "Downloading sgctl from $SGCTL_LINK"
-curl --fail "$SGCTL_LINK" -o "$ES_PLUGINS_DIR/search-guard-flx/sgctl.sh"
-chmod u+x "$ES_PLUGINS_DIR/search-guard-flx/sgctl.sh"
+chmod u+x "$ES_PLUGINS_DIR/search-guard-flx/tools/sgctl.sh"
 
 # Setup configuration for sgctl
 
@@ -437,8 +428,6 @@ tls:
 EOM
 
 echo >~/.searchguard/sgctl-selected-config.txt demo
-
-
 
 echo "### Success"
 echo "### Execute this script now on all your nodes and then start all nodes"

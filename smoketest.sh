@@ -1,79 +1,78 @@
 #!/bin/bash
-killall -9 java
-shopt -s extglob
+
 set -e
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd $DIR
 
-ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
+MAIN_DIR=$(echo ~/searchguard-test)
+DOWNLOAD_CACHE="$MAIN_DIR/download-cache"
+INSTALL_DIR="$MAIN_DIR/es"
+REPO_DIR=$(pwd)
 
-#ES_VERSION=7.9.1
-
-rm -rf elasticsearch-$ES_VERSION
-wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
-if [ "$CI" == "true" ]; then
-    chmod 777 elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
+if [ ! -d "$REPO_DIR/plugin/target/releases" ]; then
+  mvn install -Dmaven.test.skip.exec=true
 fi
-tar -xzf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
-rm -rf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 
-if [ "$CI" == "true" ]; then
-    mvn clean package -DskipTests -s settings.xml
+mkdir -p $DOWNLOAD_CACHE
+
+ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
+
+echo "ES version: $ES_VERSION"
+
+SG_SNAPSHOT=$(echo $REPO_DIR/plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT-es-$ES_VERSION.zip)
+
+echo "Search Guard Snapshot: $SG_SNAPSHOT"
+
+if [[ "$OSTYPE"  == "linux"* ]]; then
+  ES_ARCHIVE="elasticsearch-$ES_VERSION-linux-x86_64.tar.gz"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  ES_ARCHIVE="elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz"
 else
-    mvn clean package -DskipTests
+  echo "OS type $OSTYPE not supported"
+  exit
 fi
 
-PLUGIN_FILE=($DIR/plugin/target/releases/search-guard-suite!(*sgadmin*).zip)
-URL=file://$PLUGIN_FILE
-echo $URL
-elasticsearch-$ES_VERSION/bin/elasticsearch-plugin install -b $URL
-RET=$?
-
-if [ $RET -eq 0 ]; then
-    echo Installation ok
-else
-    echo Installation failed
-    exit -1
+if [ ! -f "$DOWNLOAD_CACHE/$ES_ARCHIVE" ]; then
+	wget "https://artifacts.elastic.co/downloads/elasticsearch/$ES_ARCHIVE" -P $DOWNLOAD_CACHE
 fi
 
-if [ "$CI" == "true" ]; then
-  echo "Adding esuser user"
-  useradd esuser
-  mkdir /home/esuser
-  chown esuser:esuser /home/esuser -R
-  chown esuser:esuser $DIR/elasticsearch-$ES_VERSION -R
-  usermod -aG sudo esuser
+if [ -d "$INSTALL_DIR" ]; then
+   rm -r "$INSTALL_DIR"
 fi
+   
+mkdir -p "$INSTALL_DIR"
 
-echo "Plugin installation"
+echo "Extracting $ES_ARCHIVE to $INSTALL_DIR"
 
-chmod +x elasticsearch-$ES_VERSION/plugins/search-guard-flx/tools/install_demo_configuration.sh
-./elasticsearch-$ES_VERSION/plugins/search-guard-flx/tools/install_demo_configuration.sh -y -i -c
-#ml does not work on cci anymore since 7.2 due to something related to https://github.com/elastic/elasticsearch/issues/41867
-echo "xpack.ml.enabled: false" >> ./elasticsearch-$ES_VERSION/config/elasticsearch.yml
-echo "ES starting up"
-if [ "$CI" == "true" ]; then
-    sudo -E -u esuser elasticsearch-$ES_VERSION/bin/elasticsearch -p es-smoketest-pid &
-else
-    elasticsearch-$ES_VERSION/bin/elasticsearch -p es-smoketest-pid &
-fi
+tar xfz "$DOWNLOAD_CACHE/$ES_ARCHIVE" -C "$INSTALL_DIR" --strip-components 1
 
-while ! nc -z 127.0.0.1 9200; do
-  sleep 0.1 # wait for 1/10 of the second before check again
+cd "$INSTALL_DIR"
+
+echo "-Xms1g" >>config/jvm.options
+echo "-Xmx1g" >>config/jvm.options
+
+bin/elasticsearch-plugin install -v -b file:///$SG_SNAPSHOT
+
+chmod +x "$INSTALL_DIR/plugins/search-guard-flx/tools/install_demo_configuration.sh"
+"$INSTALL_DIR/plugins/search-guard-flx/tools/install_demo_configuration.sh" -y -i
+  
+echo "Starting ES"
+
+bin/elasticsearch &
+PID=$!
+
+while ! nc -z localhost 9200; do
+  sleep 2
+done
+
+until curl -k -Ss --fail -u "admin:admin" "https://localhost:9200/_cluster/health?wait_for_status=green&timeout=50s"; do
+sleep 5
 done
 
 sleep 10
 
-RES="$(curl -Ss --insecure -XGET -u admin:admin 'https://127.0.0.1:9200/_searchguard/authinfo' -H'Content-Type: application/json' | grep roles)"
+"$INSTALL_DIR/plugins/search-guard-flx/tools/sgctl.sh" get-config -o "$INSTALL_DIR" --debug -v
+RET=$?
 
-if [ -z "$RES" ]; then
-  echo "failed"
-  kill -SIGTERM $(cat elasticsearch-$ES_VERSION/es-smoketest-pid)
-  exit -1
-else
-  echo "$RES"
-  echo ok
-fi
+kill -9 $PID
 
-./sgadmin_demo.sh
-kill -SIGTERM $(cat elasticsearch-$ES_VERSION/es-smoketest-pid)
+echo "RET $RET"
+exit $RET

@@ -1,0 +1,87 @@
+version: 0.2
+
+env:
+  variables:
+    JAVA_HOME: "/usr/lib/jvm/temurin-17-jdk-amd64"
+phases:
+  install:
+    commands:
+      - wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | sudo apt-key add -
+      - echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
+      - apt-get update -qq -y > /dev/null 2>&1
+      - apt-get install -qq -y temurin-17-jdk maven xmlstarlet netcat > /dev/null 2>&1
+      - update-alternatives --set java /usr/lib/jvm/temurin-17-jdk-amd64/bin/java > /dev/null 2>&1
+      - update-alternatives --set javac /usr/lib/jvm/temurin-17-jdk-amd64/bin/javac > /dev/null 2>&1
+  build:
+    commands:
+      - ./dev/populate_locale_maven.sh "8.2.3" "/root/es" > /dev/null 2>&1
+      - echo "Testing $SG_MODULES"
+      - mvn install -DskipTests > mvn-${CODEBUILD_BUILD_NUMBER}-batch-${CODEBUILD_BATCH_BUILD_IDENTIFIER}-compile.log 2>&1
+      - mvn install --projects "$SG_MODULES" > mvn-${CODEBUILD_BUILD_NUMBER}-batch-${CODEBUILD_BATCH_BUILD_IDENTIFIER}-test.log 2>&1
+      #- chown -R codebuild-user .
+      #- chown -R codebuild-user /root
+
+#  post_build:
+#    run-as: codebuild-user
+#    commands:
+#      - echo ~
+#      - echo "Run smoketest"
+#      - ./smoketest.sh
+#    finally:
+#      - ls -la ~
+#      - ls -la ~/.searchguard/
+#      - cat ~/.searchguard/cluster_demo.yml
+#      - cat ~/.searchguard/sgctl-selected-config.txt
+reports:
+  SurefireReports:
+    files:
+      - '**/target/surefire-reports/**/*'
+
+artifacts:
+  files:
+    - mvn*.log
+  discard-paths: yes
+cache:
+  paths:
+    - '/root/.m2/**/*'
+    - '/root/es/**/*'
+    #- '/root/searchguard-test/download-cache/**/*'
+
+batch:
+  build-list:
+    - identifier: dlic_auditlog
+      env:
+        variables:
+          SG_MODULES: "dlic-auditlog"
+    - identifier: dlic_dlsfls
+      env:
+        variables:
+          SG_MODULES: "dlic-dlsfls"
+    - identifier: dlic_dlsfls_legacy
+      env:
+        variables:
+          SG_MODULES: "dlic-dlsfls-legacy"
+    - identifier: dlic_security
+      env:
+        variables:
+          SG_MODULES: "dlic-security"
+    - identifier: dlic_security_legacy
+      env:
+        variables:
+          SG_MODULES: "dlic-security-legacy"
+    - identifier: security
+      env:
+        variables:
+          SG_MODULES: "security"
+    - identifier: security_legacy
+      env:
+        variables:
+          SG_MODULES: "security-legacy"
+    - identifier: signals
+      env:
+        variables:
+          SG_MODULES: "signals"
+    - identifier: misc
+      env:
+        variables:
+          SG_MODULES: "dlic-fe-multi-tenancy,scheduler,dlic-signals,ssl,support"

@@ -17,7 +17,7 @@ package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
@@ -44,7 +44,7 @@ public class MFlsTest extends AbstractDlsFlsTest{
         
         HttpResponse res;
         
-        System.out.println("### normal search");
+        //System.out.println("### normal search");
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("deals,finance/_search?pretty", encodeBasicHeader("dept_manager_fls", "password"))).getStatusCode());
         Assert.assertFalse(res.getBody().contains("_sg_"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
@@ -63,7 +63,7 @@ public class MFlsTest extends AbstractDlsFlsTest{
                 "{\"index\":\"finance\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator();
         
-        System.out.println("### msearch");
+        //System.out.println("### msearch");
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("_msearch?pretty", msearchBody, encodeBasicHeader("dept_manager_fls", "password"))).getStatusCode());
         Assert.assertFalse(res.getBody().contains("_sg_"));
         Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
@@ -88,7 +88,7 @@ public class MFlsTest extends AbstractDlsFlsTest{
                 "]"+
             "}"; 
         
-        System.out.println("### mget");
+        //System.out.println("### mget");
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("_mget?pretty", mgetBody, encodeBasicHeader("dept_manager_fls", "password"))).getStatusCode());
         Assert.assertFalse(res.getBody().contains("_sg_"));
         Assert.assertTrue(res.getBody().contains("\"found\" : true"));

@@ -22,9 +22,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.ldaptive.LdapAttribute;
-import org.ldaptive.LdapEntry;
-
 import com.floragunn.dlic.auth.ldap.LdapUser.DirEntry.DirAttribute;
 import com.floragunn.dlic.auth.ldap.util.Utils;
 import com.floragunn.searchguard.support.WildcardMatcher;
@@ -95,23 +92,14 @@ public class LdapUser extends User {
     }
     
     public static final class DirEntry{
-        private LdapEntry ldaptiveEntry;
         private SearchResultEntry ubEntry;
-        
-        public DirEntry(LdapEntry ldaptiveEntry) {
-            this.ldaptiveEntry = Objects.requireNonNull(ldaptiveEntry);
-        }
         
         public DirEntry(SearchResultEntry ubEntry) {
             this.ubEntry = Objects.requireNonNull(ubEntry);
         }
         
         public String getDN() {
-            return ldaptiveEntry != null? ldaptiveEntry.getDn():ubEntry.getDN();
-        }
-        
-        public LdapEntry getLdaptiveEntry() {
-            return ldaptiveEntry;
+            return ubEntry.getDN();
         }
 
         public SearchResultEntry getUbEntry() {
@@ -119,16 +107,11 @@ public class LdapUser extends User {
         }
         
         public Collection<DirAttribute> getAttributes() {
-            if(ldaptiveEntry != null) {
-                return ldaptiveEntry.getAttributes().stream().map(attr->new DirAttribute(attr)).collect(Collectors.toList());
-            } else {
-                return ubEntry.getAttributes().stream().map(attr->new DirAttribute(attr)).collect(Collectors.toList());
-            }
+            return ubEntry.getAttributes().stream().map(attr->new DirAttribute(attr)).collect(Collectors.toList());
         }
         
         public static final class DirAttribute {
             
-            private LdapAttribute ldaptiveAttribute;
             private Attribute ubAttribute;
             
             public DirAttribute(Attribute ubAttribute) {
@@ -136,25 +119,21 @@ public class LdapUser extends User {
                 this.ubAttribute = Objects.requireNonNull(ubAttribute);
             }
 
-            public DirAttribute(LdapAttribute ldaptiveAttribute) {
-                super();
-                this.ldaptiveAttribute = Objects.requireNonNull(ldaptiveAttribute);
-            }
 
             public boolean isBinary() {
-                return ldaptiveAttribute != null? ldaptiveAttribute.isBinary():ubAttribute.needsBase64Encoding();
+                return ubAttribute.needsBase64Encoding();
             }
 
             public String getName() {
-                return ldaptiveAttribute != null? ldaptiveAttribute.getName(false):ubAttribute.getBaseName();
+                return ubAttribute.getBaseName();
             }
 
             public int size() {
-                return ldaptiveAttribute != null? ldaptiveAttribute.size():ubAttribute.size();
+                return ubAttribute.size();
             }
 
             public String getStringValue() {
-                return ldaptiveAttribute != null? Utils.getSingleStringValue(ldaptiveAttribute):Utils.getSingleStringValue(ubAttribute);
+                return Utils.getSingleStringValue(ubAttribute);
             }
         }
     }

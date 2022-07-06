@@ -650,7 +650,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     public static class HiddenAttributes {
 
         public static final List<String> LIST = Arrays.asList("_meta.auth_token", "_name");
-        public static final FetchSourceContext FETCH_SOURCE_CONTEXT = new FetchSourceContext(true, Strings.EMPTY_ARRAY, asArray());
+        public static final FetchSourceContext FETCH_SOURCE_CONTEXT = FetchSourceContext.of(true, Strings.EMPTY_ARRAY, asArray());
 
         public static String[] asArray() {
             return LIST.toArray(new String[LIST.size()]);

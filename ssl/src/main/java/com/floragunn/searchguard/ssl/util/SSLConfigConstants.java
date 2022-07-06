@@ -78,7 +78,7 @@ public final class SSLConfigConstants {
     
     public static final String JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION = "jdk.tls.rejectClientInitiatedRenegotiation";
     
-    private static final String[] _SECURE_SSL_PROTOCOLS = {"TLSv1.3", "TLSv1.2", "TLSv1.1"};
+    private static final String[] _SECURE_SSL_PROTOCOLS = {"TLSv1.3", "TLSv1.2"};
     
     public static final String[] getSecureSSLProtocols(Settings settings, boolean http)
     {
@@ -110,112 +110,33 @@ public final class SSLConfigConstants {
         //Authentication  RSA, DSA, ECDSA
         //Bulk Ciphers    RC4, 3DES, AES
         //Message Authentication  HMAC-SHA256, HMAC-SHA1, HMAC-MD5
-        
-
-        //thats what chrome 48 supports (https://cc.dcsec.uni-hannover.de/)
-        //(c0,2b)ECDHE-ECDSA-AES128-GCM-SHA256128 BitKey exchange: ECDH, encryption: AES, MAC: SHA256.
-        //(c0,2f)ECDHE-RSA-AES128-GCM-SHA256128 BitKey exchange: ECDH, encryption: AES, MAC: SHA256.
-        //(00,9e)DHE-RSA-AES128-GCM-SHA256128 BitKey exchange: DH, encryption: AES, MAC: SHA256.
-        //(cc,14)ECDHE-ECDSA-CHACHA20-POLY1305-SHA256128 BitKey exchange: ECDH, encryption: ChaCha20 Poly1305, MAC: SHA256.
-        //(cc,13)ECDHE-RSA-CHACHA20-POLY1305-SHA256128 BitKey exchange: ECDH, encryption: ChaCha20 Poly1305, MAC: SHA256.
-        //(c0,0a)ECDHE-ECDSA-AES256-SHA256 BitKey exchange: ECDH, encryption: AES, MAC: SHA1.
-        //(c0,14)ECDHE-RSA-AES256-SHA256 BitKey exchange: ECDH, encryption: AES, MAC: SHA1.
-        //(00,39)DHE-RSA-AES256-SHA256 BitKey exchange: DH, encryption: AES, MAC: SHA1.
-        //(c0,09)ECDHE-ECDSA-AES128-SHA128 BitKey exchange: ECDH, encryption: AES, MAC: SHA1.
-        //(c0,13)ECDHE-RSA-AES128-SHA128 BitKey exchange: ECDH, encryption: AES, MAC: SHA1.
-        //(00,33)DHE-RSA-AES128-SHA128 BitKey exchange: DH, encryption: AES, MAC: SHA1.
-        //(00,9c)RSA-AES128-GCM-SHA256128 BitKey exchange: RSA, encryption: AES, MAC: SHA256.
-        //(00,35)RSA-AES256-SHA256 BitKey exchange: RSA, encryption: AES, MAC: SHA1.
-        //(00,2f)RSA-AES128-SHA128 BitKey exchange: RSA, encryption: AES, MAC: SHA1.
-        //(00,0a)RSA-3DES-EDE-SHA168 BitKey exchange: RSA, encryption: 3DES, MAC: SHA1.
-        
-        //thats what firefox 42 supports (https://cc.dcsec.uni-hannover.de/)
-        //(c0,2b) ECDHE-ECDSA-AES128-GCM-SHA256
-        //(c0,2f) ECDHE-RSA-AES128-GCM-SHA256
-        //(c0,0a) ECDHE-ECDSA-AES256-SHA
-        //(c0,09) ECDHE-ECDSA-AES128-SHA
-        //(c0,13) ECDHE-RSA-AES128-SHA
-        //(c0,14) ECDHE-RSA-AES256-SHA
-        //(00,33) DHE-RSA-AES128-SHA
-        //(00,39) DHE-RSA-AES256-SHA
-        //(00,2f) RSA-AES128-SHA
-        //(00,35) RSA-AES256-SHA
-        //(00,0a) RSA-3DES-EDE-SHA
 
         //Mozilla modern browsers
         //https://wiki.mozilla.org/Security/Server_Side_TLS
-        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-        "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256",
-        "TLS_DHE_DSS_WITH_AES_128_GCM_SHA256",
-        "TLS_DHE_DSS_WITH_AES_256_GCM_SHA384",
-        "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
-        "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
-        "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
-        "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
-        "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
-        "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",
-        "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384",
-        "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
-        "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
-        "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256",
-        "TLS_DHE_RSA_WITH_AES_128_CBC_SHA",
-        "TLS_DHE_DSS_WITH_AES_128_CBC_SHA256",
-        "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256",
-        "TLS_DHE_DSS_WITH_AES_256_CBC_SHA",
-        "TLS_DHE_RSA_WITH_AES_256_CBC_SHA",
         
         //TLS 1.3
         "TLS_AES_128_GCM_SHA256",
         "TLS_AES_256_GCM_SHA384",
         "TLS_CHACHA20_POLY1305_SHA256", //Open SSL >= 1.1.1 and Java >= 12
-        
+
         //TLS 1.2 CHACHA20 POLY1305 supported by Java >= 12 and
         //OpenSSL >= 1.1.0
         "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
         "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
         "TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
-        
-        //IBM
-        "SSL_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-        "SSL_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-        "SSL_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-        "SSL_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-        "SSL_DHE_RSA_WITH_AES_128_GCM_SHA256",
-        "SSL_DHE_DSS_WITH_AES_128_GCM_SHA256",
-        "SSL_DHE_DSS_WITH_AES_256_GCM_SHA384",
-        "SSL_DHE_RSA_WITH_AES_256_GCM_SHA384",
-        "SSL_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
-        "SSL_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
-        "SSL_ECDHE_RSA_WITH_AES_128_CBC_SHA",
-        "SSL_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
-        "SSL_ECDHE_RSA_WITH_AES_256_CBC_SHA384",
-        "SSL_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384",
-        "SSL_ECDHE_RSA_WITH_AES_256_CBC_SHA",
-        "SSL_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
-        "SSL_DHE_RSA_WITH_AES_128_CBC_SHA256",
-        "SSL_DHE_RSA_WITH_AES_128_CBC_SHA",
-        "SSL_DHE_DSS_WITH_AES_128_CBC_SHA256",
-        "SSL_DHE_RSA_WITH_AES_256_CBC_SHA256",
-        "SSL_DHE_DSS_WITH_AES_256_CBC_SHA",
-        "SSL_DHE_RSA_WITH_AES_256_CBC_SHA"
-        
-        //some others
-        //"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-        //"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",
-        //"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", 
-        //"TLS_DHE_RSA_WITH_AES_256_CBC_SHA", 
-        //"TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
-        //"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", 
-        //"TLS_DHE_RSA_WITH_AES_128_GCM_SHA256",
-        //"TLS_DHE_RSA_WITH_AES_128_CBC_SHA",
-        //"TLS_RSA_WITH_AES_128_CBC_SHA256",
-        //"TLS_RSA_WITH_AES_128_GCM_SHA256",
-        //"TLS_RSA_WITH_AES_128_CBC_SHA",
-        //"TLS_RSA_WITH_AES_256_CBC_SHA",
-        };
+
+        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384"
+
+
+
+
+
+};
     // @formatter:on
     
     public static final List<String> getSecureSSLCiphers(Settings settings, boolean http) {

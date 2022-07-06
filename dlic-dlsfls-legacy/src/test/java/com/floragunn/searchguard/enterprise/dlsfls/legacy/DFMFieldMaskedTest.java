@@ -17,7 +17,7 @@ package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
@@ -81,16 +81,16 @@ public class DFMFieldMaskedTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals-outdated-*/_search?pretty", encodeBasicHeader("admin", "admin"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals-outdated-*/_search?pretty", encodeBasicHeader("dfm_user", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals-*/_search?pretty", encodeBasicHeader("dfm_user", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/deals*/_search?pretty", encodeBasicHeader("dfm_user", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
     }
 
     @Test
@@ -102,7 +102,7 @@ public class DFMFieldMaskedTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/index1-*/_search?pretty", encodeBasicHeader("admin", "admin"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
     
         // the only document in index1-1 is filtered by DLS query, so normally no hit in index-1-1
         Assert.assertTrue(res.getBody().contains("index1-1"));        
@@ -135,10 +135,10 @@ public class DFMFieldMaskedTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/_searchguard/authinfo?pretty", encodeBasicHeader("dfm_restricted_role", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/index1-*/_search?pretty", encodeBasicHeader("dfm_restricted_role", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
     
         // the only document in index1-1 is filtered by DLS query, so  no hit in index-1-1
         Assert.assertFalse(res.getBody().contains("index1-1"));        
@@ -177,7 +177,7 @@ public class DFMFieldMaskedTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/index1-*/_search?pretty", encodeBasicHeader("dfm_restricted_and_unrestricted_all_indices_role", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
     
         // the only document in index1-1 is filtered by DLS query, so normally no hit in index-1-1
         Assert.assertTrue(res.getBody().contains("index1-1"));        
@@ -212,10 +212,10 @@ public class DFMFieldMaskedTest extends AbstractDlsFlsTest{
         HttpResponse res;
 
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/_searchguard/authinfo?pretty", encodeBasicHeader("dfm_restricted_and_unrestricted_one_index_role", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/index1-*/_search?pretty", encodeBasicHeader("dfm_restricted_and_unrestricted_one_index_role", "password"))).getStatusCode());
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
     
         // we have a role that places no restrictions on index-1-1, lifting the DLS from the restricted role
         // So we expect one unrestricted hit in this index

@@ -67,6 +67,7 @@ public class RestAuthenticationIntegrationTests {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
     public void jwt_commaSeparatedRoles() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(new BasicHeader("Authorization", "bearer " + TestJwts.MC_COY_SIGNED_OCT_1))) {

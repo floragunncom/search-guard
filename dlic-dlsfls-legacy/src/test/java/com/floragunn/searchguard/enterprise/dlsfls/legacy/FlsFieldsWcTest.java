@@ -14,30 +14,26 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
-import java.io.IOException;
-
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-
+import java.io.IOException;
 
 public class FlsFieldsWcTest extends AbstractDlsFlsTest{
     
     @Override
     protected void populateData(Client tc) {
-
-
         
         tc.admin().indices().create(new CreateIndexRequest("deals")
-        .mapping("_doc","timestamp","type=date","@timestamp","type=date")).actionGet();
+        .simpleMapping("timestamp","type=date","@timestamp","type=date")).actionGet();
         
         try {
             String doc = FileHelper.loadFile("dlsfls_legacy/doc1.json");
@@ -60,7 +56,7 @@ public class FlsFieldsWcTest extends AbstractDlsFlsTest{
 
         String query = FileHelper.loadFile("dlsfls_legacy/flsquery.json");
         
-        HttpResponse res;        
+        RestHelper.HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("secret"));
         Assert.assertTrue(res.getBody().contains("@timestamp"));
@@ -79,7 +75,7 @@ public class FlsFieldsWcTest extends AbstractDlsFlsTest{
 
         String query = FileHelper.loadFile("dlsfls_legacy/flsquery2.json");
         
-        HttpResponse res;        
+        RestHelper.HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("secret"));
         Assert.assertTrue(res.getBody().contains("@timestamp"));

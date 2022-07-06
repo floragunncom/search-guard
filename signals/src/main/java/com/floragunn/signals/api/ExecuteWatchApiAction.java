@@ -8,7 +8,7 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestRequest;
@@ -53,6 +53,9 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
         try {
 
             final String id = request.param("id");
+
+            //we need to consume the tenant param here because
+            //if not ES 8 throws an exception
             request.param("tenant");
 
             final RequestBody requestBody = RequestBody.parse(new WatchInitializationService(null, scriptService), request.content().utf8ToString());

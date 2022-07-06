@@ -19,7 +19,7 @@ import java.nio.file.Path;
 
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.core.TimeValue;
@@ -35,7 +35,6 @@ public final class InternalESSink extends AuditLogSink {
 
 	private final Client clientProvider;
 	final String index;
-	final String type;
 	private DateTimeFormatter indexPattern;
 	private final ThreadPool threadPool;
 
@@ -45,7 +44,6 @@ public final class InternalESSink extends AuditLogSink {
 		Settings sinkSettings = getSinkSettings(settingsPrefix);
 		
 		this.index = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX, "'sg7-auditlog-'YYYY.MM.dd");
-		this.type = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE, null);
 
 		this.threadPool = threadPool;
 		try {
@@ -71,7 +69,9 @@ public final class InternalESSink extends AuditLogSink {
 
 		try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
 			try {
-				final IndexRequestBuilder irb = clientProvider.prepareIndex().setIndex(getExpandedIndexName(indexPattern, index)).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.getAsMap());
+
+				final IndexRequestBuilder irb = clientProvider.prepareIndex(getExpandedIndexName(indexPattern, index)).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.getAsMap());
+
 				threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
 				irb.setTimeout(TimeValue.timeValueMinutes(1));
 				irb.execute().actionGet();

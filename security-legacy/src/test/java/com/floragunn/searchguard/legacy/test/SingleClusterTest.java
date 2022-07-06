@@ -19,8 +19,9 @@ package com.floragunn.searchguard.legacy.test;
 
 import java.net.InetAddress;
 
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.transport.TransportClient;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
 
@@ -29,10 +30,11 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
+import org.junit.Assert;
 
 public abstract class SingleClusterTest extends AbstractSGUnitTest {
         
-    protected ClusterHelper clusterHelper = new ClusterHelper("utest_n"+num.incrementAndGet()+"_f"+System.getProperty("forkno")+"_t"+System.nanoTime());
+    protected ClusterHelper clusterHelper = new ClusterHelper("utest_n", 0);
     protected ClusterInfo clusterInfo;
     
     protected void setup(Settings nodeOverride) throws Exception {    
@@ -54,11 +56,29 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
     protected void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex) throws Exception {    
         setup(initTransportClientSettings, dynamicSgSettings, nodeOverride, initSearchGuardIndex, ClusterConfiguration.DEFAULT);
     }
+
+    protected void setupWithHttps(DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex) throws Exception {
+
+        final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
+
+        final Settings settings = Settings.builder()
+                .put("searchguard.ssl.http.enabled", true)
+                .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath(prefix +"node-0-keystore.jks"))
+                .put("searchguard.ssl.http.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath(prefix +"truststore.jks"))
+                .put(nodeOverride)
+                .build();
+
+        setup(Settings.EMPTY, dynamicSgSettings, settings, initSearchGuardIndex, ClusterConfiguration.DEFAULT);
+    }
+
+
+
+
     
     ClusterHelper remoteClusterHelper = null;
     private Settings ccs(Settings nodeOverride) throws Exception {
         if(withRemoteCluster) {
-        remoteClusterHelper = new ClusterHelper("crl2_n"+num.incrementAndGet()+"_f"+System.getProperty("forkno")+"_t"+System.nanoTime());
+        remoteClusterHelper = new ClusterHelper("crl2_n", 1);
         ClusterInfo cl2Info = remoteClusterHelper.startCluster(minimumSearchGuardSettings(Settings.EMPTY), ClusterConfiguration.SINGLENODE);
         Settings.Builder builder = Settings.builder()
                 .put(nodeOverride)
@@ -71,17 +91,19 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
     
     
     protected void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex, ClusterConfiguration clusterConfiguration) throws Exception {
+        Assert.assertEquals(Settings.EMPTY, initTransportClientSettings);
         clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration);
         if(initSearchGuardIndex && dynamicSgSettings != null) {
-            initialize(getPrivilegedInternalNodeClient(), initTransportClientSettings, dynamicSgSettings);
+            initialize(getPrivilegedInternalNodeClient(), dynamicSgSettings);
         }
     }
     
     protected void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride
-            , boolean initSearchGuardIndex, ClusterConfiguration clusterConfiguration, int timeout, Integer nodes) throws Exception {    
+            , boolean initSearchGuardIndex, ClusterConfiguration clusterConfiguration, int timeout, Integer nodes) throws Exception {
+        Assert.assertEquals(Settings.EMPTY, initTransportClientSettings);
         clusterInfo = clusterHelper.startCluster(minimumSearchGuardSettings(ccs(nodeOverride)), clusterConfiguration, null, timeout, nodes);
         if(initSearchGuardIndex) {
-            initialize(getPrivilegedInternalNodeClient(), initTransportClientSettings, dynamicSgSettings);
+            initialize(getPrivilegedInternalNodeClient(), dynamicSgSettings);
         }
     }
     
@@ -130,11 +152,6 @@ public abstract class SingleClusterTest extends AbstractSGUnitTest {
         RestHelper result = new RestHelper(clusterInfo, false, false, getResourceFolder());
         result.setLocalAddress(bindAddress);
         return result;
-    }
-    
-    @Deprecated
-    protected TransportClient getInternalTransportClient() {
-        return getInternalTransportClient(clusterInfo, Settings.EMPTY);
     }
     
     protected Client getNodeClient() {

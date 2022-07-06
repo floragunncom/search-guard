@@ -31,7 +31,7 @@ public class FrontendConfigIntegrationTests {
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
                 GenericRestClient.HttpResponse response = restClient.get("/_searchguard/auth/config");
 
-                System.out.println(response.getBody());
+                //System.out.println(response.getBody());
 
                 Assert.assertTrue(response.getBody(),
                         response.toJsonNode().path("auth_methods").isArray() && response.toJsonNode().path("auth_methods").size() == 1);
@@ -47,7 +47,7 @@ public class FrontendConfigIntegrationTests {
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
                 GenericRestClient.HttpResponse response = restClient.get("/_searchguard/auth/config");
 
-                System.out.println(response.getBody());
+                //System.out.println(response.getBody());
 
                 Assert.assertTrue(response.getBody(),
                         response.toJsonNode().path("auth_methods").isArray() && response.toJsonNode().path("auth_methods").size() == 1);

@@ -17,10 +17,9 @@
 
 package com.floragunn.searchguard.support;
 
-import org.elasticsearch.client.Client;
-
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
+import org.elasticsearch.client.internal.Client;
 
 public class PrivilegedConfigClient extends ContextHeaderDecoratorClient {
 

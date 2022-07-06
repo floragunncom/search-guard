@@ -197,7 +197,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                     if(!Strings.isNullOrEmpty(originalRemoteAddress)) {
                         getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, new TransportAddress((InetSocketAddress) Base64Helper.deserializeObject(originalRemoteAddress)));
                     } else {
-                        getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, request.remoteAddress());
+                        getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, new TransportAddress(request.remoteAddress()));
                     }
 
                 } else {
@@ -211,7 +211,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                         auditLog.logSucceededLogin(origPKIUser, true, null, request, task.getAction(), task);
                         org.apache.logging.log4j.ThreadContext.put("user", origPKIUser.getName());
                         getThreadContext().putTransient(ConfigConstants.SG_USER, origPKIUser);
-                        getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, request.remoteAddress());                      
+                        getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, new TransportAddress(request.remoteAddress()));
                     } else {
                         Exception e = new ElasticsearchSecurityException("Transport request from untrusted node denied", RestStatus.FORBIDDEN);
                         log.warn("Transport request from untrusted node denied. Check your trusted node configuration.", e);

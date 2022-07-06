@@ -3,7 +3,7 @@ package com.floragunn.signals.execution;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 

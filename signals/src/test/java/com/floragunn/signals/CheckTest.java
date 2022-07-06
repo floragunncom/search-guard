@@ -18,7 +18,7 @@ import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.script.ScriptService;
@@ -171,7 +171,7 @@ public class CheckTest {
     }
 
     @Test
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     public void searchWithScheduleDateTest() throws Exception {
 
         try (Client client = cluster.getInternalNodeClient()) {
@@ -440,7 +440,7 @@ public class CheckTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testConditionTrue() throws Exception {
 
@@ -460,7 +460,7 @@ public class CheckTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testConditionFalse() throws Exception {
 
@@ -480,7 +480,7 @@ public class CheckTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test(expected = CheckExecutionException.class)
     public void testInvalidCondition() throws Exception {
 
@@ -502,7 +502,7 @@ public class CheckTest {
         }
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void testCalc() throws Exception {
 

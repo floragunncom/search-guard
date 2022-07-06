@@ -25,9 +25,12 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.CuckooFilter;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestHandler;
@@ -134,23 +137,32 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
     }
 
-    public RestHandler wrap(RestHandler original) {
+    public HttpServerTransport.Dispatcher wrap(HttpServerTransport.Dispatcher original) {
         return new AuthenticatingRestHandler(original);
     }
 
-    class AuthenticatingRestHandler implements RestHandler {
-        private final RestHandler original;
+    class AuthenticatingRestHandler implements HttpServerTransport.Dispatcher {
+        private final HttpServerTransport.Dispatcher original;
 
-        AuthenticatingRestHandler(RestHandler original) {
+        AuthenticatingRestHandler(HttpServerTransport.Dispatcher original) {
             this.original = original;
         }
 
         @Override
-        public void handleRequest(RestRequest request, RestChannel channel, NodeClient client) throws Exception {
+        public void dispatchRequest(RestRequest request, RestChannel channel, ThreadContext threadContext) {
+            handleRequest(request, channel);
+        }
+
+        @Override
+        public void dispatchBadRequest(RestChannel channel, ThreadContext threadContext, Throwable cause) {
+            handleRequest(channel.request(), channel); //TODO log cause
+        }
+
+        private void handleRequest(RestRequest request, RestChannel channel) {
             org.apache.logging.log4j.ThreadContext.clearAll();
             diagnosticContext.traceActionStack(request.getHttpRequest().method() + " " + request.getHttpRequest().uri());
 
-            if (!checkRequest(original, request, channel, client)) {
+            if (!checkRequest(request, channel)) {
                 return;
             }
 
@@ -164,18 +176,18 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     User user = new User(sslPrincipal, AuthDomainInfo.TLS_CERT);
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
                     auditLog.logSucceededLogin(user, true, null, request);
-                    original.handleRequest(request, channel, client);
+                    original.dispatchRequest(request, channel, threadContext);
                     return;
                 }
 
                 if (authenticationProcessor == null) {
-                    log.error("Not yet initialized (you may need to run sgadmin)");
+                    log.error("Not yet initialized (you may need to run sgctl)");
                     channel.sendResponse(new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE,
-                            "Search Guard not initialized (SG11). See https://docs.search-guard.com/latest/sgadmin"));
+                            "Search Guard not initialized (SG11). See https://docs.search-guard.com/latest/sgctl"));
                     return;
                 }
 
-                authenticationProcessor.authenticate(original, request, channel, (result) -> {
+                authenticationProcessor.authenticate(request, channel, (result) -> {
                     if (authenticationProcessor.isDebugEnabled() && DebugApi.PATH.equals(request.path())) {
                         sendDebugInfo(channel, result);
                         return;
@@ -188,7 +200,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
 
                         try {
-                            original.handleRequest(request, channel, client);
+                            original.dispatchRequest(request, channel, threadContext);
                         } catch (Exception e) {
                             log.error("Error in " + original, e);
                             try {
@@ -218,7 +230,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     }
                 });
             } else {
-                original.handleRequest(request, channel, client);
+                original.dispatchRequest(request, channel, threadContext);
             }
         }
 
@@ -228,7 +240,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     && !("/_searchguard/auth/session".equals(request.path()) && request.method() == Method.POST);
         }
 
-        private boolean checkRequest(RestHandler restHandler, RestRequest request, RestChannel channel, NodeClient client) throws Exception {
+        private boolean checkRequest(RestRequest request, RestChannel channel) {
 
             threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.REST.toString());
 
@@ -236,7 +248,12 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
                 auditLog.logBadHeaders(request);
-                channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, exception));
+                try {
+                    channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, exception));
+                } catch (IOException e) {
+                    log.error(e,e);
+                    channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, BytesRestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                }
                 return false;
             }
 
@@ -244,7 +261,12 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
                 auditLog.logBadHeaders(request);
-                channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, exception));
+                try {
+                    channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, exception));
+                } catch (IOException e) {
+                    log.error(e,e);
+                    channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, BytesRestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                }
                 return false;
             }
 
@@ -264,7 +286,12 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             } catch (SSLPeerUnverifiedException e) {
                 log.error("No ssl info", e);
                 auditLog.logSSLException(request, e);
-                channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, e));
+                try {
+                    channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, e));
+                } catch (IOException ex) {
+                    log.error(e,e);
+                    channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, BytesRestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                }
                 return false;
             }
 
@@ -278,6 +305,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             }
             channel.sendResponse(response);
         }
+
 
     }
 

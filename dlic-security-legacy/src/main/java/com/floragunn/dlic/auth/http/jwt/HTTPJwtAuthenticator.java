@@ -91,7 +91,7 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
     
     public HTTPJwtAuthenticator(final Settings settings, final Path configPath) {
         super();
-        
+
         subjectPattern = getSubjectPattern(settings);
 
         JwtParser _jwtParser = null;
@@ -121,12 +121,20 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                     log.debug("No public ECDSA key, try other algos ({})", e.toString());
                 }
 
-                if(key != null) {
-                    _jwtParser = Jwts.parser().setSigningKey(key).deserializeJsonWith(jsonDeserializer);
-                } else {
-                    _jwtParser = Jwts.parser().setSigningKey(decoded).deserializeJsonWith(jsonDeserializer);
+                final SecurityManager sm = System.getSecurityManager();
+
+                if (sm != null) {
+                    sm.checkPermission(new SpecialPermission());
                 }
 
+                final Key finalKey = key;
+                _jwtParser = AccessController.doPrivileged((PrivilegedAction<JwtParser>) () -> {
+                    if(finalKey != null) {
+                        return Jwts.parser().setSigningKey(finalKey).deserializeJsonWith(jsonDeserializer);
+                    } else {
+                        return Jwts.parser().setSigningKey(decoded).deserializeJsonWith(jsonDeserializer);
+                    }
+                });
             }  
         } catch (Throwable e) {
             log.error("Error creating JWT authenticator: "+e+". JWT authentication will not work", e);

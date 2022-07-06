@@ -27,7 +27,6 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.script.JodaCompatibleZonedDateTime;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
@@ -43,7 +42,7 @@ public class WatchExecutionContextData implements ToXContentObject {
     private NestedValueMap item;
     private SeverityMapping.EvaluationResult severity;
     private TriggerInfo triggerInfo;
-    private JodaCompatibleZonedDateTime executionTime;
+    private ZonedDateTime executionTime;
     private WatchInfo watch;
 
     public WatchExecutionContextData() {
@@ -69,14 +68,14 @@ public class WatchExecutionContextData implements ToXContentObject {
         this.watch = watch;
     }
 
-    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime) {
+    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, ZonedDateTime executionTime) {
         this.data = data;
         this.triggerInfo = triggerInfo;
         this.executionTime = executionTime;
         this.watch = watch;
     }
 
-    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime,
+    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, ZonedDateTime executionTime,
             SeverityMapping.EvaluationResult severity) {
         this.data = data;
         this.triggerInfo = triggerInfo;
@@ -85,7 +84,7 @@ public class WatchExecutionContextData implements ToXContentObject {
         this.watch = watch;
     }
 
-    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime,
+    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, ZonedDateTime executionTime,
             SeverityMapping.EvaluationResult severity, NestedValueMap item) {
         this.data = data;
         this.triggerInfo = triggerInfo;
@@ -131,11 +130,11 @@ public class WatchExecutionContextData implements ToXContentObject {
         this.triggerInfo = triggerInfo;
     }
 
-    public JodaCompatibleZonedDateTime getExecutionTime() {
+    public ZonedDateTime getExecutionTime() {
         return executionTime;
     }
 
-    public void setExecutionTime(JodaCompatibleZonedDateTime executionTime) {
+    public void setExecutionTime(ZonedDateTime executionTime) {
         this.executionTime = executionTime;
     }
 
@@ -192,7 +191,7 @@ public class WatchExecutionContextData implements ToXContentObject {
 
         if (jsonNode.hasNonNull("execution_time")) {
             try {
-                result.executionTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("execution_time"));
+                result.executionTime = parseZonedDateTime(jsonNode.getAsString("execution_time"));
             } catch (Exception e) {
                 log.error("Error while parsing " + jsonNode.get("execution_time"), e);
             }
@@ -202,10 +201,10 @@ public class WatchExecutionContextData implements ToXContentObject {
     }
 
     public static class TriggerInfo implements ToXContentObject {
-        public final JodaCompatibleZonedDateTime triggeredTime;
-        public final JodaCompatibleZonedDateTime scheduledTime;
-        public final JodaCompatibleZonedDateTime previousScheduledTime;
-        public final JodaCompatibleZonedDateTime nextScheduledTime;
+        public final ZonedDateTime triggeredTime;
+        public final ZonedDateTime scheduledTime;
+        public final ZonedDateTime previousScheduledTime;
+        public final ZonedDateTime nextScheduledTime;
 
         public TriggerInfo() {
             this.triggeredTime = null;
@@ -214,8 +213,8 @@ public class WatchExecutionContextData implements ToXContentObject {
             this.nextScheduledTime = null;
         }
 
-        public TriggerInfo(JodaCompatibleZonedDateTime triggeredTime, JodaCompatibleZonedDateTime scheduledTime,
-                JodaCompatibleZonedDateTime previousScheduledTime, JodaCompatibleZonedDateTime nextScheduledTime) {
+        public TriggerInfo(ZonedDateTime triggeredTime, ZonedDateTime scheduledTime,
+                ZonedDateTime previousScheduledTime, ZonedDateTime nextScheduledTime) {
             this.triggeredTime = triggeredTime;
             this.scheduledTime = scheduledTime;
             this.previousScheduledTime = previousScheduledTime;
@@ -233,13 +232,13 @@ public class WatchExecutionContextData implements ToXContentObject {
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();
             builder.field("triggered_time",
-                    triggeredTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(triggeredTime.getZonedDateTime()) : null);
+                    triggeredTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(triggeredTime) : null);
             builder.field("scheduled_time",
-                    scheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(scheduledTime.getZonedDateTime()) : null);
+                    scheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(triggeredTime) : null);
             builder.field("previous_scheduled_time",
-                    previousScheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(previousScheduledTime.getZonedDateTime()) : null);
+                    previousScheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(triggeredTime) : null);
             builder.field("next_scheduled_time",
-                    nextScheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(nextScheduledTime.getZonedDateTime()) : null);
+                    nextScheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(triggeredTime) : null);
             builder.endObject();
             return builder;
         }
@@ -249,55 +248,55 @@ public class WatchExecutionContextData implements ToXContentObject {
         }
 
         public static TriggerInfo create(DocNode jsonNode) {
-            JodaCompatibleZonedDateTime triggeredTime = null;
-            JodaCompatibleZonedDateTime scheduledTime = null;
-            JodaCompatibleZonedDateTime previousScheduledTime = null;
-            JodaCompatibleZonedDateTime nextScheduledTime = null;
+            ZonedDateTime triggeredTime = null;
+            ZonedDateTime scheduledTime = null;
+            ZonedDateTime previousScheduledTime = null;
+            ZonedDateTime nextScheduledTime = null;
 
             if (jsonNode.hasNonNull("triggered_time")) {
-                triggeredTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("triggered_time"));
+                triggeredTime = parseZonedDateTime(jsonNode.getAsString("triggered_time"));
             }
             if (jsonNode.hasNonNull("scheduled_time")) {
-                scheduledTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("scheduled_time"));
+                scheduledTime = parseZonedDateTime(jsonNode.getAsString("scheduled_time"));
             }
             if (jsonNode.hasNonNull("previous_scheduled_time")) {
-                previousScheduledTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("previous_scheduled_time"));
+                previousScheduledTime = parseZonedDateTime(jsonNode.getAsString("previous_scheduled_time"));
             }
             if (jsonNode.hasNonNull("next_scheduled_time")) {
-                nextScheduledTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("next_scheduled_time"));
+                nextScheduledTime = parseZonedDateTime(jsonNode.getAsString("next_scheduled_time"));
             }
             return new TriggerInfo(triggeredTime, scheduledTime, previousScheduledTime, nextScheduledTime);
         }
 
-        public JodaCompatibleZonedDateTime getTriggeredTime() {
+        public ZonedDateTime getTriggeredTime() {
             return triggeredTime;
         }
 
-        public JodaCompatibleZonedDateTime getScheduledTime() {
+        public ZonedDateTime getScheduledTime() {
             return scheduledTime;
         }
 
-        public JodaCompatibleZonedDateTime getPreviousScheduledTime() {
+        public ZonedDateTime getPreviousScheduledTime() {
             return previousScheduledTime;
         }
 
-        public JodaCompatibleZonedDateTime getNextScheduledTime() {
+        public ZonedDateTime getNextScheduledTime() {
             return nextScheduledTime;
         }
 
-        public JodaCompatibleZonedDateTime getTriggered_time() {
+        public ZonedDateTime getTriggered_time() {
             return triggeredTime;
         }
 
-        public JodaCompatibleZonedDateTime getScheduled_time() {
+        public ZonedDateTime getScheduled_time() {
             return scheduledTime;
         }
 
-        public JodaCompatibleZonedDateTime getPrevious_scheduled_time() {
+        public ZonedDateTime getPrevious_scheduled_time() {
             return previousScheduledTime;
         }
 
-        public JodaCompatibleZonedDateTime getNext_scheduled_time() {
+        public ZonedDateTime getNext_scheduled_time() {
             return nextScheduledTime;
         }
     }
@@ -348,18 +347,18 @@ public class WatchExecutionContextData implements ToXContentObject {
         }
     }
 
-    private static JodaCompatibleZonedDateTime toJoda(Date date) {
+    private static ZonedDateTime toJoda(Date date) {
         if (date == null) {
             return null;
         } else {
-            return new JodaCompatibleZonedDateTime(date.toInstant(), ZoneOffset.UTC);
+            return ZonedDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
         }
     }
 
-    static JodaCompatibleZonedDateTime parseJodaCompatibleZonedDateTime(String value) {
+    static ZonedDateTime parseZonedDateTime(String value) {
         ZonedDateTime dt = ZonedDateTime.parse(value);
 
-        return new JodaCompatibleZonedDateTime(dt.toInstant(), dt.getZone());
+        return ZonedDateTime.ofInstant(dt.toInstant(), dt.getZone());
 
     }
 

@@ -17,6 +17,16 @@ package com.floragunn.searchguard.enterprise.femt;
 import java.util.HashMap;
 import java.util.Map;
 
+import co.elastic.clients.elasticsearch._types.Result;
+import co.elastic.clients.elasticsearch.core.GetResponse;
+import co.elastic.clients.elasticsearch.core.IndexResponse;
+import co.elastic.clients.elasticsearch.core.MgetRequest;
+import co.elastic.clients.elasticsearch.core.MgetResponse;
+import co.elastic.clients.elasticsearch.core.MsearchRequest;
+import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
+import co.elastic.clients.elasticsearch.core.msearch.RequestItem;
+import co.elastic.clients.elasticsearch.indices.UpdateAliasesResponse;
+import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.DocWriteResponse;
@@ -28,18 +38,15 @@ import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -104,65 +111,65 @@ public class MultitenancyTests {
 
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
 
-            System.out.println("#### search");
+            //System.out.println("#### search");
             GenericRestClient.HttpResponse res;
             String body = "{\"query\" : {\"term\" : { \"_id\" : \"index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b\"}}}";
             Assert.assertEquals(HttpStatus.SC_OK,
                     (res = client.postJson(".kibana/_search/?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            //System.out.println(res.getBody());
+            ////System.out.println(res.getBody());
             Assert.assertFalse(res.getBody().contains("exception"));
             Assert.assertTrue(res.getBody().contains("humanresources"));
             Assert.assertTrue(res.getBody().contains("\"value\" : 1"));
             Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
 
-            System.out.println("#### msearch");
+            //System.out.println("#### msearch");
             body = "{\"index\":\".kibana\", \"ignore_unavailable\": false}" + System.lineSeparator()
                     + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}" + System.lineSeparator();
 
             Assert.assertEquals(HttpStatus.SC_OK,
                     (res = client.postJson("_msearch/?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            //System.out.println(res.getBody());
+            ////System.out.println(res.getBody());
             Assert.assertFalse(res.getBody().contains("exception"));
             Assert.assertTrue(res.getBody().contains("humanresources"));
             Assert.assertTrue(res.getBody().contains("\"value\" : 1"));
             Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
 
-            System.out.println("#### get");
+            //System.out.println("#### get");
             Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana/_doc/index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b?pretty",
                     new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            //System.out.println(res.getBody());
+            ////System.out.println(res.getBody());
             Assert.assertFalse(res.getBody().contains("exception"));
             Assert.assertTrue(res.getBody().contains("humanresources"));
             Assert.assertTrue(res.getBody().contains("\"found\" : true"));
             Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
 
-            System.out.println("#### mget");
+            //System.out.println("#### mget");
             body = "{\"docs\" : [{\"_index\" : \".kibana\",\"_id\" : \"index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b\"}]}";
             Assert.assertEquals(HttpStatus.SC_OK,
                     (res = client.postJson("_mget/?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            //System.out.println(res.getBody());
+            ////System.out.println(res.getBody());
             Assert.assertFalse(res.getBody().contains("exception"));
             Assert.assertTrue(res.getBody().contains("humanresources"));
             Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
 
-            System.out.println("#### index");
+            //System.out.println("#### index");
             body = "{" + "\"type\" : \"index-pattern\"," + "\"updated_at\" : \"2017-09-29T08:56:59.066Z\"," + "\"index-pattern\" : {"
                     + "\"title\" : \"xyz\"" + "}}";
             Assert.assertEquals(HttpStatus.SC_CREATED,
                     (res = client.putJson(".kibana/_doc/abc?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            //System.out.println(res.getBody());
+            ////System.out.println(res.getBody());
             Assert.assertFalse(res.getBody().contains("exception"));
             Assert.assertTrue(res.getBody().contains("\"result\" : \"created\""));
             Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
 
-            System.out.println("#### bulk");
+            //System.out.println("#### bulk");
             body = "{ \"index\" : { \"_index\" : \".kibana\", \"_id\" : \"b1\" } }" + System.lineSeparator() + "{ \"field1\" : \"value1\" }"
                     + System.lineSeparator() + "{ \"index\" : { \"_index\" : \".kibana\",\"_id\" : \"b2\" } }" + System.lineSeparator()
                     + "{ \"field2\" : \"value2\" }" + System.lineSeparator();
 
             Assert.assertEquals(HttpStatus.SC_OK,
                     (res = client.putJson("_bulk?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            //System.out.println(res.getBody());
+            ////System.out.println(res.getBody());
             Assert.assertFalse(res.getBody().contains("exception"));
             Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
             Assert.assertTrue(res.getBody().contains("\"errors\" : false"));
@@ -191,7 +198,7 @@ public class MultitenancyTests {
                 Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana-6/_doc/6.2.2?pretty")).getStatusCode());
                 Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana/_doc/6.2.2?pretty")).getStatusCode());
 
-                System.out.println(res.getBody());
+                //System.out.println(res.getBody());
             }
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
@@ -224,7 +231,7 @@ public class MultitenancyTests {
                 GenericRestClient.HttpResponse res;
                 Assert.assertEquals(HttpStatus.SC_OK,
                         (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-                System.out.println(res.getBody());
+                //System.out.println(res.getBody());
                 Assert.assertTrue(res.getBody().contains(".kibana_-900636979_kibanaro"));
             }
         } finally {
@@ -272,21 +279,20 @@ public class MultitenancyTests {
     public void testAliasCreationKibana_7_12() throws Exception {
         try {
             try (RestHighLevelClient tenantClient = cluster.getRestHighLevelClient("admin", "admin", "kibana_7_12_alias_creation_test");
-                    Client client = cluster.getInternalNodeClient()) {
-                IndexResponse indexResponse = tenantClient.index(new IndexRequest(".kibana_7.12.0_001").id("test")
-                        .source(ImmutableMap.of("buildNum", 15460)).setRefreshPolicy(RefreshPolicy.IMMEDIATE), RequestOptions.DEFAULT);
-                Assert.assertEquals(indexResponse.toString(), indexResponse.getResult(), DocWriteResponse.Result.CREATED);
-                Assert.assertEquals(indexResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", indexResponse.getIndex());
+                 Client client = cluster.getInternalNodeClient()) {
+                IndexResponse indexResponse = tenantClient.index(".kibana_7.12.0_001","test", Map.of("buildNum", 15460));
+                Assert.assertEquals(indexResponse.toString(), indexResponse.result(), Result.Created);
+                Assert.assertEquals(indexResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", indexResponse.index());
 
-                AcknowledgedResponse ackResponse = tenantClient.indices().updateAliases(
-                        new IndicesAliasesRequest().addAliasAction(AliasActions.add().index(".kibana_7.12.0_001").alias(".kibana_7.12.0")),
-                        RequestOptions.DEFAULT);
+                UpdateAliasesResponse ackResponse = tenantClient.getJavaClient().indices().updateAliases(b->b.actions(
+                        a->a.add(ac->ac.index(".kibana_7.12.0_001").alias(".kibana_7.12.0")))
+                );
 
-                Assert.assertTrue(ackResponse.toString(), ackResponse.isAcknowledged());
+                Assert.assertTrue(ackResponse.toString(), ackResponse.acknowledged());
 
-                GetResponse getResponse = tenantClient.get(new GetRequest(".kibana_7.12.0", "test"), RequestOptions.DEFAULT);
+                GetResponse<Map> getResponse = tenantClient.get(".kibana_7.12.0", "test");
 
-                Assert.assertEquals(getResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", getResponse.getIndex());
+                Assert.assertEquals(getResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", getResponse.index());
 
                 GetAliasesResponse getAliasesResponse = client.admin().indices()
                         .getAliases(new GetAliasesRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0")).actionGet();
@@ -317,19 +323,20 @@ public class MultitenancyTests {
             indexSettings.put("number_of_replicas", 0);
             client.admin().indices().create(new CreateIndexRequest(indexName + "_2").alias(new Alias(indexName)).settings(indexSettings)).actionGet();
 
-            MultiGetRequest multiGetRequest = new MultiGetRequest();
+            MgetRequest.Builder multiGetRequest = new MgetRequest.Builder();
+            multiGetRequest.index(".kibana");
 
             for (int i = 0; i < 100; i++) {
                 client.index(new IndexRequest(indexName).id("d" + i).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(testDoc, XContentType.JSON))
                         .actionGet();
-                multiGetRequest.add(new Item(".kibana", "d" + i));
+                multiGetRequest.ids("d" + i);
             }
 
-            MultiGetResponse response = restClient.mget(multiGetRequest, RequestOptions.DEFAULT);
+            MgetResponse<Map> response = restClient.getJavaClient().mget(multiGetRequest.build(), Map.class);
 
-            for (MultiGetItemResponse item : response.getResponses()) {
-                if (item.getFailure() != null) {
-                    Assert.fail(item.getFailure().getMessage() + "\n" + item.getFailure());
+            for (MultiGetResponseItem<Map> item : response.docs()) {
+                if (item.result() == null || item.isFailure()) {
+                    Assert.fail(item.failure().error().reason() + "\n" + item.failure().error().stackTrace());
                 }
             }
         } finally {

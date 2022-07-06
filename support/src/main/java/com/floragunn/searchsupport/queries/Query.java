@@ -21,6 +21,7 @@ import org.elasticsearch.index.query.AbstractQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.XContentParser;
+import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.json.JsonXContent;
 
 import com.floragunn.codova.documents.Document;
@@ -35,7 +36,9 @@ public class Query implements Document<Query> {
     public Query(String source, XContentParserContext context) throws ConfigValidationException {
         try {
             this.source = source;
-            XContentParser parser = JsonXContent.jsonXContent.createParser(context.xContentRegistry(), DeprecationHandler.THROW_UNSUPPORTED_OPERATION,
+            XContentParser parser = JsonXContent.jsonXContent.createParser(XContentParserConfiguration.EMPTY
+                            .withRegistry(context.xContentRegistry())
+                            .withDeprecationHandler(DeprecationHandler.THROW_UNSUPPORTED_OPERATION),
                     source);
             this.queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
         } catch (Exception e) {

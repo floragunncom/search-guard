@@ -28,7 +28,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -129,6 +129,7 @@ public class LicenseRepository implements ComponentStateProvider {
         long created = System.currentTimeMillis();
 
         GetResponse get = privilegedClient.prepareGet().setIndex(searchguardIndex).setId("tattr").get();
+
         if (get.isExists()) {
             created = (long) get.getSource().get("val");
         } else {

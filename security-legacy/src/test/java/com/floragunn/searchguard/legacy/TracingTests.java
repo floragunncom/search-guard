@@ -26,7 +26,7 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
@@ -50,34 +50,35 @@ public class TracingTests extends SingleClusterTest {
 
         try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
-            .mapping(FileHelper.loadFile("mapping1.json"), XContentType.JSON)).actionGet();
+
+            .mapping(FileHelper.loadFile("mapping1.json"))).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")
-            .mapping(FileHelper.loadFile("mapping2.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping2.json"))).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex3")
-            .mapping(FileHelper.loadFile("mapping3.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping3.json"))).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex4")
-            .mapping(FileHelper.loadFile("mapping4.json"), XContentType.JSON)).actionGet();
+            .mapping(FileHelper.loadFile("mapping4.json"))).actionGet();
         }
 
         RestHelper rh = nonSslRestHelper();
-        System.out.println("############ write into mapping 1");
+        //System.out.println("############ write into mapping 1");
         String data1 = FileHelper.loadFile("data1.json");
-        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePutRequest("myindex1/mytype1/1?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ write into mapping 2");
-        System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println("############ write into mapping 2");
+        //System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePutRequest("myindex2/mytype2/2?refresh", data1, encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ write into mapping 3");
+        //System.out.println("############ write into mapping 3");
         String parent = FileHelper.loadFile("data2.json");
         String child = FileHelper.loadFile("data3.json");
-        System.out.println(rh.executePutRequest("myindex3/mytype3/1?refresh", parent, encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println(rh.executePutRequest("myindex3/mytype3/2?routing=1&refresh", child, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePutRequest("myindex3/mytype3/1?refresh", parent, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePutRequest("myindex3/mytype3/2?routing=1&refresh", child, encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ write into mapping 4");
-        System.out.println(rh.executePutRequest("myindex4/mytype4/1?refresh", parent, encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println(rh.executePutRequest("myindex4/mytype4/2?routing=1&refresh", child, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println("############ write into mapping 4");
+        //System.out.println(rh.executePutRequest("myindex4/mytype4/1?refresh", parent, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePutRequest("myindex4/mytype4/2?routing=1&refresh", child, encodeBasicHeader("nagilum", "nagilum")));
     }
 
     @Test
@@ -117,10 +118,10 @@ public class TracingTests extends SingleClusterTest {
 
 
         RestHelper rh = nonSslRestHelper();
-        System.out.println("############ check shards");
-        System.out.println(rh.executeGetRequest("_cat/shards?v", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println("############ check shards");
+        //System.out.println(rh.executeGetRequest("_cat/shards?v", encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ _bulk");
+        //System.out.println("############ _bulk");
         String bulkBody =
                 "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
@@ -128,9 +129,9 @@ public class TracingTests extends SingleClusterTest {
                 "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
                 "{ \"delete\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"2\" } }"+System.lineSeparator();
 
-        System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ _bulk");
+        //System.out.println("############ _bulk");
         bulkBody =
                 "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
@@ -138,51 +139,51 @@ public class TracingTests extends SingleClusterTest {
                 "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
                 "{ \"delete\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"2\" } }"+System.lineSeparator();
 
-        System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")));
 
 
-        System.out.println("############ cat indices");
+        //System.out.println("############ cat indices");
         //cluster:monitor/state
         //cluster:monitor/health
         //indices:monitor/stats
-        System.out.println(rh.executeGetRequest("_cat/indices", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executeGetRequest("_cat/indices", encodeBasicHeader("nagilum", "nagilum")));
 
 
-        System.out.println("############ _search");
+        //System.out.println("############ _search");
         //indices:data/read/search
-        System.out.println(rh.executeGetRequest("_search", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executeGetRequest("_search", encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ get 1");
+        //System.out.println("############ get 1");
         //indices:data/read/get
-        System.out.println(rh.executeGetRequest("a/b/1", encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println("############ get 5");
-        System.out.println(rh.executeGetRequest("a/b/5", encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println("############ get 17");
-        System.out.println(rh.executeGetRequest("a/b/17", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executeGetRequest("a/b/1", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println("############ get 5");
+        //System.out.println(rh.executeGetRequest("a/b/5", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println("############ get 17");
+        //System.out.println(rh.executeGetRequest("a/b/17", encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ index (+create index)");
+        //System.out.println("############ index (+create index)");
         //indices:data/write/index
         //indices:data/write/bulk
         //indices:admin/create
         //indices:data/write/bulk[s]
-        System.out.println(rh.executePostRequest("u/b/1?refresh=true", "{}",encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("u/b/1?refresh=true", "{}",encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ index only");
+        //System.out.println("############ index only");
         //indices:data/write/index
         //indices:data/write/bulk
         //indices:admin/create
         //indices:data/write/bulk[s]
-        System.out.println(rh.executePostRequest("u/b/2?refresh=true", "{}",encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("u/b/2?refresh=true", "{}",encodeBasicHeader("nagilum", "nagilum")));
 
 
-        System.out.println("############ delete");
+        //System.out.println("############ delete");
         //indices:data/write/index
         //indices:data/write/bulk
         //indices:admin/create
         //indices:data/write/bulk[s]
-        System.out.println(rh.executeDeleteRequest("u/b/2?refresh=true",encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executeDeleteRequest("u/b/2?refresh=true",encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ msearch");
+        //System.out.println("############ msearch");
         String msearchBody =
                 "{\"index\":\"a\", \"type\":\"b\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator()+
@@ -192,9 +193,9 @@ public class TracingTests extends SingleClusterTest {
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator();
 
 
-        System.out.println(rh.executePostRequest("_msearch", msearchBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("_msearch", msearchBody, encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ mget");
+        //System.out.println("############ mget");
         String mgetBody = "{"+
                 "\"docs\" : ["+
                     "{"+
@@ -219,9 +220,9 @@ public class TracingTests extends SingleClusterTest {
                 "]"+
             "}";
 
-        System.out.println(rh.executePostRequest("_mget?refresh=true", mgetBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("_mget?refresh=true", mgetBody, encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ delete by query");
+        //System.out.println("############ delete by query");
         String dbqBody = "{"+
         ""+
         "  \"query\": { "+
@@ -231,7 +232,7 @@ public class TracingTests extends SingleClusterTest {
         "  }"+
         "}";
 
-        System.out.println(rh.executePostRequest("a/b/_delete_by_query", dbqBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("a/b/_delete_by_query", dbqBody, encodeBasicHeader("nagilum", "nagilum")));
 
         Thread.sleep(5000);
     }
@@ -273,19 +274,19 @@ public class TracingTests extends SingleClusterTest {
 
         }
 
-        System.out.println("########pause1");
+        //System.out.println("########pause1");
         Thread.sleep(5000);
-        System.out.println("########end pause1");
+        //System.out.println("########end pause1");
 
-        System.out.println("########search");
+        //System.out.println("########search");
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_search", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
-        System.out.println("########search done");
+        //System.out.println("########search done");
 
-        System.out.println("########pause2");
+        //System.out.println("########pause2");
         Thread.sleep(5000);
-        System.out.println("########end pause2");
+        //System.out.println("########end pause2");
 
-        System.out.println("############ _bulk");
+        //System.out.println("############ _bulk");
         String bulkBody =
                 "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
@@ -297,8 +298,8 @@ public class TracingTests extends SingleClusterTest {
                 "{ \"index\" : { \"_index\" : \"myindex\", \"_type\" : \"myindex\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator();
 
-        System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")).getBody());
-        System.out.println("############ _end");
+        //System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")).getBody());
+        //System.out.println("############ _end");
         Thread.sleep(5000);
     }
 
@@ -326,19 +327,19 @@ public class TracingTests extends SingleClusterTest {
         }
 
 
-        System.out.println("########search");
+        //System.out.println("########search");
         HttpResponse res;
         Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executeGetRequest("vulcangov/_search?scroll=1m&pretty=true", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
 
-        System.out.println(res.getBody());
+        //System.out.println(res.getBody());
         int start = res.getBody().indexOf("_scroll_id") + 15;
         String scrollid = res.getBody().substring(start, res.getBody().indexOf("\"", start+1));
-        System.out.println(scrollid);
-        System.out.println("########search scroll");
+        //System.out.println(scrollid);
+        //System.out.println("########search scroll");
         Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executePostRequest("/_search/scroll?pretty=true", "{\"scroll_id\" : \""+scrollid+"\"}", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
 
 
-        System.out.println("########search done");
+        //System.out.println("########search done");
 
 
     }
@@ -360,10 +361,10 @@ public class TracingTests extends SingleClusterTest {
 
 
         RestHelper rh = nonSslRestHelper();
-        System.out.println("############ check shards");
-        System.out.println(rh.executeGetRequest("_cat/shards?v", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println("############ check shards");
+        //System.out.println(rh.executeGetRequest("_cat/shards?v", encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ _bulk");
+        //System.out.println("############ _bulk");
         String bulkBody =
                 "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
@@ -371,9 +372,9 @@ public class TracingTests extends SingleClusterTest {
                 "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
                 "{ \"delete\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"2\" } }"+System.lineSeparator();
 
-        System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ _bulk");
+        //System.out.println("############ _bulk");
         bulkBody =
                 "{ \"index\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"1\" } }"+System.lineSeparator()+
                 "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
@@ -381,72 +382,72 @@ public class TracingTests extends SingleClusterTest {
                 "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
                 "{ \"delete\" : { \"_index\" : \"test\", \"_type\" : \"type1\", \"_id\" : \"2\" } }"+System.lineSeparator();
 
-        System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("_bulk?refresh=true", bulkBody, encodeBasicHeader("nagilum", "nagilum")));
 
 
-        System.out.println("############ cat indices");
+        //System.out.println("############ cat indices");
         //cluster:monitor/state
         //cluster:monitor/health
         //indices:monitor/stats
-        System.out.println(rh.executeGetRequest("_cat/indices", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executeGetRequest("_cat/indices", encodeBasicHeader("nagilum", "nagilum")));
 
 
-        System.out.println("############ _search");
+        //System.out.println("############ _search");
         //indices:data/read/search
-        System.out.println(rh.executeGetRequest("_search", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executeGetRequest("_search", encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ get 1");
+        //System.out.println("############ get 1");
         //indices:data/read/get
-        System.out.println(rh.executeGetRequest("a/b/1", encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println("############ get 5");
-        System.out.println(rh.executeGetRequest("a/b/5", encodeBasicHeader("nagilum", "nagilum")));
-        System.out.println("############ get 17");
-        System.out.println(rh.executeGetRequest("a/b/17", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executeGetRequest("a/b/1", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println("############ get 5");
+        //System.out.println(rh.executeGetRequest("a/b/5", encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println("############ get 17");
+        //System.out.println(rh.executeGetRequest("a/b/17", encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ index (+create index)");
+        //System.out.println("############ index (+create index)");
         //indices:data/write/index
         //indices:data/write/bulk
         //indices:admin/create
         //indices:data/write/bulk[s]
-        System.out.println(rh.executePostRequest("u/b/1?refresh=true", "{}",encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("u/b/1?refresh=true", "{}",encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ index only");
+        //System.out.println("############ index only");
         //indices:data/write/index
         //indices:data/write/bulk
         //indices:admin/create
         //indices:data/write/bulk[s]
-        System.out.println(rh.executePostRequest("u/b/2?refresh=true", "{}",encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("u/b/2?refresh=true", "{}",encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ update");
+        //System.out.println("############ update");
         //indices:data/write/index
         //indices:data/write/bulk
         //indices:admin/create
         //indices:data/write/bulk[s]
-        System.out.println(rh.executePostRequest("u/b/2/_update?refresh=true", "{\"doc\" : {\"a\":1}}",encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("u/b/2/_update?refresh=true", "{\"doc\" : {\"a\":1}}",encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ update2");
+        //System.out.println("############ update2");
         //indices:data/write/index
         //indices:data/write/bulk
         //indices:admin/create
         //indices:data/write/bulk[s]
-        System.out.println(rh.executePostRequest("u/b/2/_update?refresh=true", "{\"doc\" : {\"a\":44, \"b\":55}}",encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("u/b/2/_update?refresh=true", "{\"doc\" : {\"a\":44, \"b\":55}}",encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ update3");
+        //System.out.println("############ update3");
         //indices:data/write/index
         //indices:data/write/bulk
         //indices:admin/create
         //indices:data/write/bulk[s]
-        System.out.println(rh.executePostRequest("u/b/2/_update?refresh=true", "{\"doc\" : {\"b\":66}}",encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("u/b/2/_update?refresh=true", "{\"doc\" : {\"b\":66}}",encodeBasicHeader("nagilum", "nagilum")));
 
 
-        System.out.println("############ delete");
+        //System.out.println("############ delete");
         //indices:data/write/index
         //indices:data/write/bulk
         //indices:admin/create
         //indices:data/write/bulk[s]
-        System.out.println(rh.executeDeleteRequest("u/b/2?refresh=true",encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executeDeleteRequest("u/b/2?refresh=true",encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ reindex");
+        //System.out.println("############ reindex");
         String reindex =
         "{"+
         "  \"source\": {"+
@@ -457,10 +458,10 @@ public class TracingTests extends SingleClusterTest {
         "  }"+
         "}";
 
-        System.out.println(rh.executePostRequest("_reindex", reindex, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("_reindex", reindex, encodeBasicHeader("nagilum", "nagilum")));
 
 
-        System.out.println("############ msearch");
+        //System.out.println("############ msearch");
         String msearchBody =
                 "{\"index\":\"a\", \"type\":\"b\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator()+
@@ -470,9 +471,9 @@ public class TracingTests extends SingleClusterTest {
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator();
 
 
-        System.out.println(rh.executePostRequest("_msearch", msearchBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("_msearch", msearchBody, encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ mget");
+        //System.out.println("############ mget");
         String mgetBody = "{"+
                 "\"docs\" : ["+
                     "{"+
@@ -497,9 +498,9 @@ public class TracingTests extends SingleClusterTest {
                 "]"+
             "}";
 
-        System.out.println(rh.executePostRequest("_mget?refresh=true", mgetBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("_mget?refresh=true", mgetBody, encodeBasicHeader("nagilum", "nagilum")));
 
-        System.out.println("############ delete by query");
+        //System.out.println("############ delete by query");
         String dbqBody = "{"+
         ""+
         "  \"query\": { "+
@@ -509,7 +510,7 @@ public class TracingTests extends SingleClusterTest {
         "  }"+
         "}";
 
-        System.out.println(rh.executePostRequest("a/b/_delete_by_query", dbqBody, encodeBasicHeader("nagilum", "nagilum")));
+        //System.out.println(rh.executePostRequest("a/b/_delete_by_query", dbqBody, encodeBasicHeader("nagilum", "nagilum")));
 
         Thread.sleep(5000);
     }

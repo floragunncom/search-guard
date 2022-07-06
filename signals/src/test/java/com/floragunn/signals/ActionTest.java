@@ -10,7 +10,7 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
@@ -282,7 +282,6 @@ public class ActionTest {
 
             Assert.fail();
         } catch (ActionExecutionException e) {
-            e.printStackTrace();
             Assert.assertTrue(e.getCause().getMessage().contains("The server certificate could not be validated using the current truststore"));
         }
     }

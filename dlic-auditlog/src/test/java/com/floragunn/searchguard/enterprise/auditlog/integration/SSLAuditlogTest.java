@@ -37,7 +37,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
     
     private ClusterInfo monitoringClusterInfo;
     private RestHelper rhMon;
-    private final ClusterHelper monitoringCluster = new ClusterHelper("mon_n"+num.incrementAndGet()+"_f"+System.getProperty("forkno")+"_t"+System.nanoTime());
+    private final ClusterHelper monitoringCluster = new ClusterHelper("mon_n", 0);
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -49,7 +49,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
     
     private void setupMonitoring() throws Exception {            
         monitoringClusterInfo =  monitoringCluster.startCluster(minimumSearchGuardSettings(defaultNodeSettings(Settings.EMPTY)), ClusterConfiguration.DEFAULT);
-        initialize(PrivilegedConfigClient.adapt(monitoringCluster.nodeClient()), Settings.EMPTY, new DynamicSgConfig());
+        initialize(PrivilegedConfigClient.adapt(monitoringCluster.nodeClient()), new DynamicSgConfig());
         rhMon = new RestHelper(monitoringClusterInfo, getResourceFolder());
     }
     
@@ -88,7 +88,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         response = rhMon.executeGetRequest("sg7-auditlog*/_search", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        System.out.println(response.getBody());
+        //System.out.println(response.getBody());
         assertNotContains(response, "*\"hits\":{\"total\":0,*");
         assertContains(response, "*\"failed\":0},\"hits\":*");
 
@@ -124,7 +124,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         response = rhMon.executeGetRequest("sg7-auditlog*/_search", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        System.out.println(response.getBody());
+        //System.out.println(response.getBody());
         assertNotContains(response, "*\"hits\":{\"total\":0,*");
         assertContains(response, "*\"failed\":0},\"hits\":*");
     }
@@ -158,7 +158,7 @@ public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         response = rhMon.executeGetRequest("sg7-auditlog-*/_search", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        System.out.println(response.getBody());
+        //System.out.println(response.getBody());
         assertNotContains(response, "*\"hits\":{\"total\":0,*");
         assertContains(response, "*\"failed\":0},\"hits\":*");
     }

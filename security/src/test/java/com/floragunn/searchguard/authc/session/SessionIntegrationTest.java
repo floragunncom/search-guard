@@ -54,7 +54,7 @@ public class SessionIntegrationTest {
         try (GenericRestClient restClient = cluster.getRestClient()) {
             HttpResponse response = restClient.postJson("/_searchguard/auth/session", basicAuthRequest(BASIC_USER));
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
@@ -79,7 +79,7 @@ public class SessionIntegrationTest {
         try (GenericRestClient restClient = cluster.getRestClient(BASIC_USER)) {
             HttpResponse response = restClient.post("/_searchguard/auth/session/with_header");
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
@@ -103,7 +103,7 @@ public class SessionIntegrationTest {
 
         try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             HttpResponse response = restClient.get("/_searchguard/auth/config?config_id=test_fe");
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
             Assert.assertEquals(response.getBody(), "test", response.toJsonNode().path("auth_methods").path(0).path("method").asText());
             Assert.assertEquals(response.getBody(), 1, response.toJsonNode().path("auth_methods").size());
         }
@@ -112,7 +112,7 @@ public class SessionIntegrationTest {
             HttpResponse response = restClient.postJson("/_searchguard/auth/session",
                     testAuthRequest("test_user", "config_id", "test_fe", "roles", "backend_role_all_access"));
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
@@ -137,7 +137,7 @@ public class SessionIntegrationTest {
             HttpResponse response = restClient.postJson("/_searchguard/auth/session",
                     testAuthRequest("test_user", "roles", "backend_role_all_access"));
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
 
@@ -149,7 +149,7 @@ public class SessionIntegrationTest {
         try (GenericRestClient restClient = cluster.getRestClient()) {
             HttpResponse response = restClient.postJson("/_searchguard/auth/session", basicAuthRequest(NO_ROLES_USER));
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 403, response.getStatusCode());
             Assert.assertEquals("The user 'no_roles_user' is not allowed to log in.", response.toJsonNode().path("error").textValue());
@@ -163,7 +163,7 @@ public class SessionIntegrationTest {
 
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
                 HttpResponse response = restClient.get("/_searchguard/auth/config");
-                System.out.println(response.getBody());
+                //System.out.println(response.getBody());
                 Assert.assertEquals(response.getBody(), "basic", response.toJsonNode().path("auth_methods").path(0).path("method").asText());
                 Assert.assertEquals(response.getBody(), 1, response.toJsonNode().path("auth_methods").size());
             }
@@ -171,7 +171,7 @@ public class SessionIntegrationTest {
             try (GenericRestClient restClient = cluster.getRestClient()) {
                 HttpResponse response = restClient.postJson("/_searchguard/auth/session", basicAuthRequest(BASIC_USER));
 
-                System.out.println(response.getBody());
+                //System.out.println(response.getBody());
 
                 Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 

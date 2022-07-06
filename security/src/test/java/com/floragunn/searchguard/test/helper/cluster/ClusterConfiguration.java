@@ -30,10 +30,10 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.reindex.ReindexPlugin;
 import org.elasticsearch.script.mustache.MustachePlugin;
 import org.elasticsearch.search.aggregations.matrix.MatrixAggregationPlugin;
-import org.elasticsearch.transport.Netty4Plugin;
 
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.google.common.collect.Lists;
+import org.elasticsearch.transport.netty4.Netty4Plugin;
 
 public enum ClusterConfiguration {
     //first one needs to be a master

@@ -4,7 +4,7 @@ import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
 import org.junit.rules.ExternalResource;
@@ -23,7 +23,7 @@ public class LocalCluster extends ExternalResource {
 
     protected static final AtomicLong num = new AtomicLong();
     protected ClusterHelper clusterHelper = new ClusterHelper(
-            "lc_utest_n" + num.incrementAndGet() + "_f" + System.getProperty("forkno") + "_t" + System.nanoTime());
+            "lc_utest_n", 0);
     protected ClusterInfo clusterInfo;
     protected final String resourceFolder;
 

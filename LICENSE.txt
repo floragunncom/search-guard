@@ -4,11 +4,11 @@ Search Guard is an Open Source project, which means that the source code is free
 
 ## Community Edition
 
-The Community Edition of Search Guard is licensed under the Apache2 license. 
+The Community Edition of Search Guard is licensed under the Apache2 license.
 It can be used for commercial and non-commercial projects free of charge. For the Community Edition, the following license terms apply:
 
 ```
-Copyright 2015-2021 by floragunn GmbH
+Copyright 2015-2022 by floragunn GmbH
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,22 +28,34 @@ The Community Edition consists of the following modules:
 * plugin
 * scheduler
 * security
+* security-legacy
 * signals
+* ssl
 * support
 
 The source code for the Community Edition is published here:
 
 https://git.floragunn.com/search-guard/search-guard-suite
 
-
 ## Enterprise Edition
 
-The Enterprise Edition of Search Guard is distributed under a commercial license. 
+The Enterprise Edition of Search Guard is distributed under a commercial license.
 If you run any parts of the Enterprise Edition in production you need to obtain a license.
+
+Usage of the software on a go-live cluster requires a valid license.
+Development systems, test systems and staging systems shall not be deemed to be go-live clusters,
+unless they are combined with a go-live cluster or are bundled with same.
+
+To obtain a valid license, contact: info@search-guard.com
 
 The Enterprise Edition consists of the following modules:
 
+* dlic-auditlog
+* dlic-dlsfls
+* dlic-dlsfls-legacy
+* dlic-fe-multi-tenancy
 * dlic-security
+* dlic-security-legacy
 * dlic-signals
 
 The source code for the Enterprise modules is published here:
@@ -56,7 +68,7 @@ For any of these files and the corresponding code the following statement applie
 
 ```
 ------------------------------------------------------------------------
-Copyright 2015-2021 by floragunn GmbH - All rights reserved
+Copyright 2015-2022 by floragunn GmbH - All rights reserved
 
 Unless required by applicable law or agreed to in writing, software
 distributed here is distributed on an "AS IS" BASIS,
@@ -72,17 +84,16 @@ info@search-guard.com
 
 ## Third-party libraries
 
-For the license of every other third-party jar file in this distribution see the LICENSE file inside the each jar.
+For the license of every other third-party jar file in this distribution see the LICENSE file inside the each jar
+and/or see THIRD-PARTY.txt.
 
-This archive includes files which are Copyright 2009-2021 Elasticsearch and which 
-are licensed under the Server Side Public License and  the Elastic License 2.0, including:
+This archive includes files which are Copyright 2009-2022 Elasticsearch and which
+are licensed under the Server Side Public License 1.0 (https://www.mongodb.com/licensing/server-side-public-license)
+and the Elastic License 2.0 (https://www.elastic.co/de/licensing/elastic-license), including:
 
-```
-elasticsearch-rest-highlevel-client-*.jar, rank-eval-client-*.jar, 
-mapper-extras-client-*.jar, lang-mustache-client-*.jar, transport-netty-4-client-*.jar.
-```
+  * transport-netty4-*.jar
 
-See the relevant files for the licenses. 
+See the relevant files for the licenses.
 
 **START ELASTIC LICENSE 2.0**
 
@@ -178,6 +189,8 @@ these terms.
 
 **use** means anything you do with the software requiring one of your licenses.
 
-**trademark** means trademarks, service marks, and similar rights. 
+**trademark** means trademarks, service marks, and similar rights.
 
-**END ELASTIC LICENSE 2.0**	
+**END ELASTIC LICENSE 2.0**
+
+

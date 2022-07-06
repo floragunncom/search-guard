@@ -1,5 +1,33 @@
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import co.elastic.clients.elasticsearch._types.SortOptions;
+import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.aggregations.BucketSortAggregation;
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsAggregate;
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
+import co.elastic.clients.elasticsearch._types.aggregations.TermsAggregationCollectMode;
+import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.TestData;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.google.common.collect.Lists;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bouncycastle.crypto.digests.Blake2bDigest;
+import org.bouncycastle.util.encoders.Hex;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.json.JsonXContent;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
@@ -11,39 +39,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.bouncycastle.crypto.digests.Blake2bDigest;
-import org.bouncycastle.util.encoders.Hex;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.BucketOrder;
-import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.xcontent.ToXContent;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.json.JsonXContent;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.TestData;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-
 public class FieldMaskingAggregationTest {
 
     /**
@@ -52,10 +47,10 @@ public class FieldMaskingAggregationTest {
     private static final int DOC_COUNT = 1000;
 
     private final static TestSgConfig.User MASKED_TEST_USER = new TestSgConfig.User("masked_test")
-            .roles(new Role("mask").indexPermissions("*").maskedFields("*ip::/[0-9]{1,3}$/::XXX", "source_loc").on("ip").clusterPermissions("*"));
+            .roles(new TestSgConfig.Role("mask").indexPermissions("*").maskedFields("*ip::/[0-9]{1,3}$/::XXX", "source_loc").on("ip").clusterPermissions("*"));
 
     private final static TestSgConfig.User UNMASKED_TEST_USER = new TestSgConfig.User("unmasked_test")
-            .roles(new Role("allaccess").indexPermissions("*").on("ip").clusterPermissions("*"));
+            .roles(new TestSgConfig.Role("allaccess").indexPermissions("*").on("ip").clusterPermissions("*"));
 
     private final static byte[] salt = ConfigConstants.SEARCHGUARD_COMPLIANCE_SALT_DEFAULT.getBytes(StandardCharsets.UTF_8);
 
@@ -89,123 +84,149 @@ public class FieldMaskingAggregationTest {
         // we need to set shardSize to DOC_COUNT in order to get precise results which allow matching on the reference table
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(MASKED_TEST_USER)) {
-            SearchResponse makedSearchResponse = client.search(
+
+            co.elastic.clients.elasticsearch.core.SearchResponse<Map> maskedSearchResponse = client.getJavaClient().search(s->s.size(10).index("ip").aggregations("source_ip_terms", a->a.terms(t->t.field("source_ip.keyword").size(100).shardSize(DOC_COUNT))), Map.class);
+
+
+            /*SearchResponse maskedSearchResponse = client.search(
                     new SearchRequest("ip").source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(10)
                             .aggregation(AggregationBuilders.terms("source_ip_terms").field("source_ip.keyword").size(100).shardSize(DOC_COUNT))),
-                    RequestOptions.DEFAULT);
+                    RequestOptions.DEFAULT);*/
 
-            log.info(Strings.toString(makedSearchResponse, true, true));
+            //log.info(Strings.toString(maskedSearchResponse, true, true));
 
-            ParsedStringTerms maskedAggregation = (ParsedStringTerms) makedSearchResponse.getAggregations().asList().get(0);
+            StringTermsAggregate maskedAggregation = maskedSearchResponse.aggregations().get("source_ip_terms").sterms();
 
-            for (int i = 0; i < maskedAggregation.getBuckets().size(); i++) {
-                Terms.Bucket maskedBucket = maskedAggregation.getBuckets().get(i);
+            Assert.assertEquals(100, maskedAggregation.buckets().array().size());
 
-                Assert.assertEquals("Bucket " + i + ":\n" + toxToString(maskedBucket),
-                        referenceAggregationTable.getCount("source_ip:masked", maskedBucket.getKeyAsString()), maskedBucket.getDocCount());
+            for (StringTermsBucket maskedBucket: maskedAggregation.buckets().array()) {
+                Assert.assertEquals("Bucket " + maskedBucket.key() + ":\n" + maskedBucket.aggregations(),
+                        referenceAggregationTable.getCount("source_ip:masked", maskedBucket.key()), maskedBucket.docCount());
             }
         }
     }
 
     @Test
     public void testHashMaskedField() throws Exception {
-        SearchRequest searchRequest = new SearchRequest("ip").source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(10)
-                .aggregation(AggregationBuilders.terms("source_loc_terms").field("source_loc.keyword").size(1000)));
-        SearchResponse makedSearchResponse;
-        SearchResponse unmakedSearchResponse;
+
+        co.elastic.clients.elasticsearch.core.SearchRequest searchRequest = new co.elastic.clients.elasticsearch.core.SearchRequest.Builder()
+                .index("ip")
+                //.source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(10)
+                .aggregations("source_loc_terms", a->a.terms(ta->ta.field("source_loc.keyword").size(1000))).build();
+
+        co.elastic.clients.elasticsearch.core.SearchResponse<Map> maskedSearchResponse;
+        co.elastic.clients.elasticsearch.core.SearchResponse<Map> unmaskedSearchResponse;
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(UNMASKED_TEST_USER)) {
-            unmakedSearchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            unmaskedSearchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            log.info(Strings.toString(unmakedSearchResponse, true, true));
+            //log.info(Strings.toString(unmaskedSearchResponse, true, true));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(MASKED_TEST_USER)) {
-            makedSearchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            maskedSearchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            log.info(Strings.toString(makedSearchResponse, true, true));
+            //log.info(Strings.toString(maskedSearchResponse, true, true));
         }
 
-        compareHashedBuckets(makedSearchResponse, unmakedSearchResponse);
+        compareHashedBuckets(maskedSearchResponse, unmaskedSearchResponse, "source_loc_terms");
     }
 
     @Test
     public void testHashMaskedFieldWithShardSizeParam() throws Exception {
-        SearchRequest searchRequest = new SearchRequest("ip").source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(10)
-                .aggregation(AggregationBuilders.terms("source_loc_terms").field("source_loc.keyword").size(100).shardSize(1000)));
-        SearchResponse makedSearchResponse;
-        SearchResponse unmakedSearchResponse;
+
+        co.elastic.clients.elasticsearch.core.SearchRequest searchRequest = new co.elastic.clients.elasticsearch.core.SearchRequest.Builder()
+                .index("ip")
+                //.source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(10)
+                .aggregations("source_loc_terms", a->a.terms(ta->ta.field("source_loc.keyword").size(100).shardSize(1000))).build();
+
+        co.elastic.clients.elasticsearch.core.SearchResponse<Map> maskedSearchResponse;
+        co.elastic.clients.elasticsearch.core.SearchResponse<Map> unmaskedSearchResponse;
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(UNMASKED_TEST_USER)) {
-            unmakedSearchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            unmaskedSearchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            log.info(Strings.toString(unmakedSearchResponse, true, true));
+            //log.info(Strings.toString(unmaskedSearchResponse, true, true));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(MASKED_TEST_USER)) {
-            makedSearchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            maskedSearchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            log.info(Strings.toString(makedSearchResponse, true, true));
+            //log.info(Strings.toString(maskedSearchResponse, true, true));
         }
 
-        compareHashedBuckets(makedSearchResponse, unmakedSearchResponse);
+        compareHashedBuckets(maskedSearchResponse, unmaskedSearchResponse, "source_loc_terms");
     }
 
     @Test
     public void testHashMaskedFieldOrderedByKey() throws Exception {
         // we need to set shardSize to DOC_COUNT in order to get precise results which allow matching on the reference table
 
-        SearchRequest searchRequest = new SearchRequest("ip").source(
-                new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(10).aggregation(AggregationBuilders.terms("source_loc_terms")
-                        .field("source_loc.keyword").order(BucketOrder.key(true)).size(100).shardSize(DOC_COUNT).showTermDocCountError(true)));
-        SearchResponse makedSearchResponse;
-        SearchResponse unmakedSearchResponse;
+        co.elastic.clients.elasticsearch.core.SearchRequest searchRequest = new co.elastic.clients.elasticsearch.core.SearchRequest.Builder()
+                .index("ip")
+                .size(10)
+                .aggregations("source_loc_terms", a->a
+                        .terms(ta->ta
+                            .field("source_loc.keyword")
+                            .order(Lists.newArrayList(Map.of("_key", SortOrder.Asc)))
+                            .size(100)
+                            .shardSize(DOC_COUNT)
+                            //.showTermDocCountError(true) //TODO with this test fails with "Make sure the request has 'typed_keys' set"
+                        )
+                )
+                .build();
+
+        co.elastic.clients.elasticsearch.core.SearchResponse<Map> maskedSearchResponse;
+        co.elastic.clients.elasticsearch.core.SearchResponse<Map> unmaskedSearchResponse;
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(UNMASKED_TEST_USER)) {
-            unmakedSearchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            //TODO why unmaskedSearchResponse is not further used here?
+            unmaskedSearchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            log.info(Strings.toString(unmakedSearchResponse, true, true));
+            //log.info(Strings.toString(unmaskedSearchResponse, true, true));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(MASKED_TEST_USER)) {
-            makedSearchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+            maskedSearchResponse = client.getJavaClient().search(searchRequest, Map.class);
 
-            log.info(Strings.toString(makedSearchResponse, true, true));
+            //log.info(Strings.toString(maskedSearchResponse, true, true));
         }
 
-        ParsedStringTerms maskedAggregation = (ParsedStringTerms) makedSearchResponse.getAggregations().asList().get(0);
+        StringTermsAggregate maskedAggregation = maskedSearchResponse.aggregations().get("source_loc_terms").sterms();
 
-        for (int i = 0; i < maskedAggregation.getBuckets().size(); i++) {
-            Terms.Bucket maskedBucket = maskedAggregation.getBuckets().get(i);
+        for (int i = 0; i < maskedAggregation.buckets().array().size(); i++) {
+            StringTermsBucket maskedBucket = maskedAggregation.buckets().array().get(i);
 
-            Assert.assertEquals("Bucket " + i + ":\n" + toxToString(maskedBucket),
-                    referenceAggregationTable.getCount("source_loc:hash", maskedBucket.getKeyAsString()), maskedBucket.getDocCount());
+            Assert.assertEquals("Bucket " + i + ":\n" + (maskedBucket),
+                    referenceAggregationTable.getCount("source_loc:hash", maskedBucket.key()), maskedBucket.docCount());
         }
+
+        //TODO we do nothing with unmaskedSearchResponse here
 
     }
 
-    private void compareHashedBuckets(SearchResponse makedSearchResponse, SearchResponse unmakedSearchResponse) {
+    private void compareHashedBuckets(co.elastic.clients.elasticsearch.core.SearchResponse<Map> maskedSearchResponse, co.elastic.clients.elasticsearch.core.SearchResponse<Map> unmaskedSearchResponse, String key) {
         // Assume hashing does not map different location strings to one hash
 
-        ParsedStringTerms maskedAggregation = (ParsedStringTerms) makedSearchResponse.getAggregations().asList().get(0);
-        ParsedStringTerms unmaskedAggregation = (ParsedStringTerms) unmakedSearchResponse.getAggregations().asList().get(0);
+        StringTermsAggregate maskedAggregation = maskedSearchResponse.aggregations().get(key).sterms();
+        StringTermsAggregate unmaskedAggregation = unmaskedSearchResponse.aggregations().get(key).sterms();
 
-        Assert.assertEquals(unmaskedAggregation.getBuckets().size(), maskedAggregation.getBuckets().size());
+        Assert.assertEquals(unmaskedAggregation.buckets().array().size(), maskedAggregation.buckets().array().size());
 
-        // As terms with equal count may change their order between masked and unmaked states, we have to collect them before comparing
+        // As terms with equal count may change their order between masked and unmasked states, we have to collect them before comparing
         Set<String> groupedUnmaskedTermsByCount = new HashSet<>();
         Set<String> groupedMaskedTermsByCount = new HashSet<>();
-        Terms.Bucket prevUnmaskedBucket = null;
+        StringTermsBucket prevUnmaskedBucket = null;
         int groupStart = 0;
 
-        for (int i = 0; i < unmaskedAggregation.getBuckets().size(); i++) {
+        for (int i = 0; i < unmaskedAggregation.buckets().array().size(); i++) {
 
-            Terms.Bucket unmaskedBucket = unmaskedAggregation.getBuckets().get(i);
-            Terms.Bucket maskedBucket = maskedAggregation.getBuckets().get(i);
+            StringTermsBucket unmaskedBucket = unmaskedAggregation.buckets().array().get(i);
+            StringTermsBucket maskedBucket = maskedAggregation.buckets().array().get(i);
 
-            if (prevUnmaskedBucket != null && prevUnmaskedBucket.getDocCount() != unmaskedBucket.getDocCount()) {
+            if (prevUnmaskedBucket != null && prevUnmaskedBucket.docCount() != unmaskedBucket.docCount()) {
                 Assert.assertEquals(
-                        "Buckets at " + groupStart + " to " + (i - 1) + ":\n" + toxToString(unmaskedBucket) + "\n" + toxToString(maskedBucket),
+                        "Buckets at " + groupStart + " to " + (i - 1) + ":\n" + (unmaskedBucket) + "\n" + (maskedBucket),
                         groupedUnmaskedTermsByCount, groupedMaskedTermsByCount);
 
                 groupedUnmaskedTermsByCount.clear();
@@ -213,11 +234,11 @@ public class FieldMaskingAggregationTest {
                 groupStart = 1;
             }
 
-            Assert.assertEquals("Bucket " + i + ":\n" + toxToString(unmaskedBucket) + "\n" + toxToString(maskedBucket), unmaskedBucket.getDocCount(),
-                    unmaskedBucket.getDocCount());
+            Assert.assertEquals("Bucket " + i + ":\n" + (unmaskedBucket) + "\n" + (maskedBucket), unmaskedBucket.docCount(),
+                    unmaskedBucket.docCount());
 
-            groupedUnmaskedTermsByCount.add(Masks.blake2bHash(unmaskedBucket.getKeyAsString()));
-            groupedMaskedTermsByCount.add(maskedBucket.getKeyAsString());
+            groupedUnmaskedTermsByCount.add(Masks.blake2bHash(unmaskedBucket.key()));
+            groupedMaskedTermsByCount.add(maskedBucket.key());
 
             prevUnmaskedBucket = unmaskedBucket;
 

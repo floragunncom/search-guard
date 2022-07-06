@@ -67,3 +67,20 @@ sg_dls_without_field_perm3:
     allowed_actions:
     - "READ"
   tenant_permissions: []
+sg_fls_audit:
+  cluster_permissions:
+  - "*"
+  index_permissions:
+    - index_patterns:
+        - "humanresources"
+      fls:
+        - "Designation"
+        - "Salary"
+        - "FirstName"
+        - "LastName"
+        - "Address"
+      masked_fields:
+        - "*Name"
+        - "Address"
+      allowed_actions:
+        - "READ"

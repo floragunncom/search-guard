@@ -48,7 +48,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
@@ -207,11 +207,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
                     }
                 });
             } else if (settings.get(BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST)) {
-                LOGGER.info("{} index does not exist yet, so no need to load config on node startup. Use sgadmin to initialize cluster",
+                LOGGER.info("{} index does not exist yet, so no need to load config on node startup. Use sgctl to initialize cluster",
                         configuredSearchguardIndexNew);
                 threadPool.generic().submit(() -> waitForConfigIndex());
             } else {
-                LOGGER.info("{} index does not exist yet, use sgadmin to initialize the cluster. We will not perform background initialization",
+                LOGGER.info("{} index does not exist yet, use sgctl to initialize the cluster. We will not perform background initialization",
                         configuredSearchguardIndexNew);
                 componentState.setState(State.SUSPENDED, "waiting_for_config_update");
             }
@@ -409,7 +409,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         }
 
         boolean ok = client.admin().indices()
-                .create(new CreateIndexRequest(searchguardIndex).settings(indexSettings).mapping("_doc", SG_INDEX_MAPPING)).actionGet()
+                .create(new CreateIndexRequest(searchguardIndex).settings(indexSettings).mapping(SG_INDEX_MAPPING)).actionGet()
                 .isAcknowledged();
 
         if (!ok) {

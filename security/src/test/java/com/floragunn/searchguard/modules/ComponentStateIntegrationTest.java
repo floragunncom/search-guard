@@ -23,7 +23,7 @@ public class ComponentStateIntegrationTest {
 
             HttpResponse response = client.get("/_searchguard/component/_all/_health");
 
-            System.out.println(response.getBody());
+            //System.out.println(response.getBody());
         }
     }
 }

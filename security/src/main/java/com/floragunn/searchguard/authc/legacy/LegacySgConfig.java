@@ -74,7 +74,7 @@ public class LegacySgConfig implements Document<LegacySgConfig> {
             return new ValidationResult<LegacySgConfig>(e.getValidationErrors());
         }
 
-        if (!vNode.get("dynamic.multi_rolespan_enabled").withDefault(false).asBoolean()) {
+        if (vNode.get("dynamic.multi_rolespan_enabled").withDefault(false).asBoolean()) {
             log.error(
                     "The option multi_rolespan_enabled is no longer supported; from now on the privilege evaluation will always work like multi_rolespan_enabled was set to true");
         }

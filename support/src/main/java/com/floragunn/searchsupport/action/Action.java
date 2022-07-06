@@ -112,9 +112,9 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             Map<String, Object> metaData = getMetaData();
 
             if (metaData != null && !metaData.isEmpty()) {
-                out.writeMap(metaData);
+                out.writeGenericMap(metaData);
             } else {
-                out.writeMap((Map<String, Object>) null);
+                out.writeGenericMap((Map<String, Object>) null);
             }
             
             Object basicObject = toBasicObject();
@@ -179,7 +179,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         public void writeTo(StreamOutput out) throws IOException {
             out.writeByte((byte) 0);
             out.writeByte((byte) 0);
-            out.writeMap(ImmutableMap.ofNonNull("status", restStatus, "etag", concurrencyControlEntityTag));
+            out.writeGenericMap(ImmutableMap.ofNonNull("status", restStatus, "etag", concurrencyControlEntityTag));
             out.writeByte(MessageType.SMILE);
             out.writeByteArray(this.toSmile());
         }

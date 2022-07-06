@@ -9,8 +9,8 @@ import java.util.List;
 
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BytesRestResponse;
@@ -48,6 +48,11 @@ public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwar
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
         String id = request.param("id");
+
+        //we need to consume the tenant param here because
+        //if not ES 8 throws an exception
+        String t = request.param("tenant");
+
 
         if (Strings.isNullOrEmpty(id)) {
             return channel -> errorResponse(channel, RestStatus.BAD_REQUEST, "No id specified");

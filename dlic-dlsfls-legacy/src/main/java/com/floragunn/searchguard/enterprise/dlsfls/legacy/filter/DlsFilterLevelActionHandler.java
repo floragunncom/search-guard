@@ -39,7 +39,7 @@ import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -249,7 +249,7 @@ public class DlsFilterLevelActionHandler {
                     if (hits == 1) {
                         getListener.onResponse(new GetResponse(searchHitToGetResult(response.getHits().getAt(0))));
                     } else if (hits == 0) {
-                        getListener.onResponse(new GetResponse(new GetResult(searchRequest.indices()[0], "_doc", getRequest.id(),
+                        getListener.onResponse(new GetResponse(new GetResult(searchRequest.indices()[0], getRequest.id(),
                                 SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, -1, false, null, null, null)));
                     } else {
                         log.error("Unexpected hit count " + hits + " in " + response);
@@ -385,10 +385,7 @@ public class DlsFilterLevelActionHandler {
             }
         }
 
-        @SuppressWarnings("deprecation")
-        String type = hit.getType();
-
-        return new GetResult(hit.getIndex(), type, hit.getId(), hit.getSeqNo(), hit.getPrimaryTerm(), hit.getVersion(), true, hit.getSourceRef(),
+        return new GetResult(hit.getIndex(), hit.getId(), hit.getSeqNo(), hit.getPrimaryTerm(), hit.getVersion(), true, hit.getSourceRef(),
                 documentFields, metadataFields);
     }
 

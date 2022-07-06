@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 

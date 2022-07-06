@@ -22,6 +22,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.function.Consumer;
 
+
+import com.floragunn.searchguard.SignalsTenantParamResolver;
+import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -51,14 +54,13 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
 
     private final MetaRequestInfo authDomainMetaRequest;
     private final boolean isAuthDomainMetaRequest;
-    private final RestHandler restHandler;
     private final RestRequest restRequest;
     private final RestChannel restChannel;
     private final ThreadContext threadContext;
 
     private LinkedHashSet<String> challenges = new LinkedHashSet<>(2);
 
-    public LegacyRestRequestAuthenticationProcessor(RestHandler restHandler, LegacyRestRequestMetaData request, RestChannel restChannel,
+    public LegacyRestRequestAuthenticationProcessor(LegacyRestRequestMetaData request, RestChannel restChannel,
             ThreadContext threadContext, Collection<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, AdminDNs adminDns,
             PrivilegesEvaluator privilegesEvaluator, Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache,
             AuditLog auditLog, BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners,
@@ -66,7 +68,6 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
         super(request, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog,
                 blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, debug);
 
-        this.restHandler = restHandler;
         this.restRequest = request.getRequest();
         this.restChannel = restChannel;
         this.authDomainMetaRequest = checkAuthDomainMetaRequest(restRequest);
@@ -163,7 +164,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
             log.debug("Sending WWW-Authenticate: " + String.join(", ", challenges));
         }
 
-        BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, "Unauthorized");
+        BytesRestResponse wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON);
 
         for (String challenge : this.challenges) {
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", challenge);
@@ -176,12 +177,16 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
 
     @Override
     protected String getRequestedTenant() {
+        return SignalsTenantParamResolver.getRequestedTenant(request.getRequest());
+    }
+
+    /*protected String getRequestedTenant() {
         if (restHandler instanceof TenantAwareRestHandler) {
             return ((TenantAwareRestHandler) restHandler).getTenantName(request);
         } else {
             return restRequest.header("sgtenant") != null ? restRequest.header("sgtenant") : restRequest.header("sg_tenant");
         }
-    }
+    }*/
 
     @Override
     protected String getImpersonationUser() {

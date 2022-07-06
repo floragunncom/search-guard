@@ -85,16 +85,13 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
 
                 public ReadLogStoredFieldsReader(StoredFieldsReader delegate) {
                     this.delegate = delegate;
+
+                    //System.out.println("RLSFR " + context.getIndex().getName());
                 }
 
                 @Override
                 public void close() throws IOException {
                     delegate.close();
-                }
-
-                @Override
-                public long ramBytesUsed() {
-                    return delegate.ramBytesUsed();
                 }
 
                 @Override

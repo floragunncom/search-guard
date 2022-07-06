@@ -21,7 +21,7 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.After;
@@ -38,8 +38,8 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 
 public class RemoteReindexTests extends AbstractSGUnitTest{
     
-    private final ClusterHelper cl1 = new ClusterHelper("crl1_n"+num.incrementAndGet()+"_f"+System.getProperty("forkno")+"_t"+System.nanoTime());
-    private final ClusterHelper cl2 = new ClusterHelper("crl2_n"+num.incrementAndGet()+"_f"+System.getProperty("forkno")+"_t"+System.nanoTime());
+    private final ClusterHelper cl1 = new ClusterHelper("crl1_n",0);
+    private final ClusterHelper cl2 = new ClusterHelper("crl2_n", 1);
     private ClusterInfo cl1Info;
     private ClusterInfo cl2Info;
     
@@ -98,8 +98,8 @@ public class RemoteReindexTests extends AbstractSGUnitTest{
                     "\"index\": \"twitter\","+
                     "\"size\": 10,"+
                     "\"query\": {"+
-                    "\"match\": {"+
-                    "\"_index\": \"twitter\""+
+                    "\"match_all\": {"+
+                        
                     "}"+
                   "}"+
             "},"+
@@ -108,14 +108,14 @@ public class RemoteReindexTests extends AbstractSGUnitTest{
             "}"+
         "}";
         
-        System.out.println(reindex);
+        //System.out.println(reindex);
         
         HttpResponse ccs = null;
         
-        System.out.println("###################### reindex");
+        //System.out.println("###################### reindex");
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("_reindex?pretty", reindex, encodeBasicHeader("nagilum","nagilum"));
-        System.out.println(ccs.getBody());
+        //System.out.println(ccs.getBody());
         Assert.assertEquals(ccs.getBody(), HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody(), ccs.getBody().contains("created\" : 1"));
+        Assert.assertTrue(ccs.getBody().contains("created\" : 1"));
     }
 }

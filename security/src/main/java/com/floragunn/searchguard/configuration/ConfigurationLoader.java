@@ -37,7 +37,7 @@ import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.get.MultiGetResponse.Failure;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.XContentHelper;
@@ -185,12 +185,12 @@ public class ConfigurationLoader {
                             configMapBuilder.with(config);
                             success(config, typeToStateMap);
                         } catch (ConfigValidationException e) {
-                            Failure failure = new Failure(searchguardIndex, item.getResponse().getType(), item.getResponse().getId(),
+                            Failure failure = new Failure(searchguardIndex, item.getResponse().getId(),
                                     new Exception(e.getValidationErrors().toString(), e));
                             failures.add(failure);
                             failure(type, failure, typeToStateMap);
                         } catch (Exception e) {
-                            Failure failure = new Failure(searchguardIndex, item.getResponse().getType(), item.getResponse().getId(), e);
+                            Failure failure = new Failure(searchguardIndex, item.getResponse().getId(), e);
                             failures.add(failure);
                             failure(type, failure, typeToStateMap);
                         }

@@ -21,6 +21,7 @@ import org.elasticsearch.script.TemplateScript;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentParser;
+import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocNode;
@@ -107,7 +108,7 @@ public abstract class AbstractSearchInput extends AbstractInput {
 
     protected SearchRequest createSearchRequest(NamedXContentRegistry xContentRegistry, String searchBody) {
 
-        try (XContentParser parser = XContentType.JSON.xContent().createParser(xContentRegistry, LoggingDeprecationHandler.INSTANCE, searchBody)) {
+        try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY.withRegistry(xContentRegistry).withDeprecationHandler(LoggingDeprecationHandler.INSTANCE), searchBody)) {
 
             SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(parser);
             SearchRequest result = new SearchRequest(this.getIndicesAsArray(), searchSourceBuilder);

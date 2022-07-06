@@ -74,7 +74,6 @@ import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
-import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction;
@@ -87,9 +86,7 @@ import org.elasticsearch.action.admin.indices.dangling.find.FindDanglingIndexAct
 import org.elasticsearch.action.admin.indices.dangling.import_index.ImportDanglingIndexAction;
 import org.elasticsearch.action.admin.indices.dangling.list.ListDanglingIndicesAction;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsAction;
 import org.elasticsearch.action.admin.indices.flush.FlushAction;
-import org.elasticsearch.action.admin.indices.flush.SyncedFlushAction;
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexAction;
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsAction;
@@ -120,9 +117,6 @@ import org.elasticsearch.action.admin.indices.template.post.SimulateTemplateActi
 import org.elasticsearch.action.admin.indices.template.put.PutComponentTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.PutComposableIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction;
-import org.elasticsearch.action.admin.indices.upgrade.get.UpgradeStatusAction;
-import org.elasticsearch.action.admin.indices.upgrade.post.UpgradeAction;
-import org.elasticsearch.action.admin.indices.upgrade.post.UpgradeSettingsAction;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkShardRequest;
@@ -239,7 +233,7 @@ public class Actions {
         index(GetIndexAction.INSTANCE);
         index(OpenIndexAction.INSTANCE);
         index(CloseIndexAction.INSTANCE);
-        index(IndicesExistsAction.INSTANCE);
+        //TODO: check ES 8 index(IndicesExistsAction.INSTANCE);
         index(AddIndexBlockAction.INSTANCE);
         index(GetMappingsAction.INSTANCE);
         index(GetFieldMappingsAction.INSTANCE);
@@ -327,15 +321,14 @@ public class Actions {
         index(RefreshAction.INSTANCE);
         index(TransportShardRefreshAction.NAME);
         index(FlushAction.INSTANCE);
-        index(SyncedFlushAction.INSTANCE);
         index(ForceMergeAction.INSTANCE);
-        index(UpgradeAction.INSTANCE);
-        index(UpgradeStatusAction.INSTANCE);
-        index(UpgradeSettingsAction.INSTANCE);
+        //TODO: check ES 8 index(UpgradeAction.INSTANCE);
+        //TODO: check ES 8 index(UpgradeStatusAction.INSTANCE);
+        //TODO: check ES 8 index(UpgradeSettingsAction.INSTANCE);
         index(ClearIndicesCacheAction.INSTANCE);
 
         index(GetAliasesAction.INSTANCE);
-        index(AliasesExistAction.INSTANCE);
+        //TODO: check ES 8 index(AliasesExistAction.INSTANCE);
         index(GetSettingsAction.INSTANCE);
 
         index(FieldCapabilitiesAction.INSTANCE);

@@ -177,7 +177,7 @@ public class SeverityMappingTest {
         Assert.assertEquals(new SeverityMapping.Element(new BigDecimal("1.0"), SeverityLevel.ERROR), element);
     }
 
-    @Ignore
+    @Ignore("TODO why is this ignored?")
     @Test
     public void evaluationResultTest() throws Exception {
         WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService);
