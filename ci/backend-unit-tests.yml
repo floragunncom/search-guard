@@ -6,6 +6,12 @@ test_security:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl security test
@@ -30,6 +36,12 @@ test_security_legacy:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl security-legacy test
@@ -54,6 +66,12 @@ test_ssl:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl ssl test
@@ -78,6 +96,12 @@ test_signals:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl signals test
@@ -102,6 +126,12 @@ test_scheduler:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl scheduler test
@@ -126,6 +156,12 @@ test_support:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl support test
@@ -150,6 +186,12 @@ test_dlic_security:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-security test
@@ -174,6 +216,12 @@ test_dlic_security_legacy:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
@@ -198,6 +246,12 @@ test_dlic_dlsfls:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test
@@ -222,6 +276,12 @@ test_dlic_dlsfls_legacy:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls-legacy test
@@ -246,6 +306,12 @@ test_dlic_femt:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test
@@ -270,6 +336,12 @@ test_dlic_auditlog:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
@@ -294,6 +366,12 @@ test_dlic_signals:
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
     - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
