@@ -19,6 +19,10 @@
       <username>${env.ARTIFACTORY_USER}</username>
       <password>${env.ARTIFACTORY_PASSWORD}</password>
     </server>
-
+    <server>
+      <id>third-party</id>
+      <username>${env.ARTIFACTORY_USER}</username>
+      <password>${env.ARTIFACTORY_PASSWORD}</password>
+    </server>
   </servers>
 </settings>

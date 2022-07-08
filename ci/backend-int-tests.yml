@@ -3,165 +3,112 @@ community:
   extends:
   - .be_integration_test
   variables:
-    TEST: "community"
-    TEST_ENVIRONMENT: "community"
+    TEST_DEFINITIONS: ".*community.*"
 
 enterprise_1:
   extends:
   - .be_integration_test
   variables:
-    TEST: "enterprise_1"
-    TEST_ENVIRONMENT: "enterprise_1"
-    
-enterprise_1_authc:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_1_sg_authc"
-    TEST_ENVIRONMENT: "enterprise_1"    
+    TEST_DEFINITIONS: ".*enterprise_1.*"  
 
 enterprise_2:
   extends:
   - .be_integration_test
   variables:
-    TEST: "enterprise_2"
-    TEST_ENVIRONMENT: "enterprise_2"
+    TEST_DEFINITIONS: ".*enterprise_2.*"
 
 enterprise_3:
   extends:
   - .be_integration_test
   variables:
-    TEST: "enterprise_3"
-    TEST_ENVIRONMENT: "enterprise_3"
+    TEST_DEFINITIONS: ".*enterprise_3.*"
 
-enterprise_1_clientnode:
+ccs_1:
   extends:
   - .be_integration_test
   variables:
-    TEST: "enterprise_1_clientnode"
-    TEST_ENVIRONMENT: "enterprise_1"
+    TEST_DEFINITIONS: ".*ccs_1.*"
 
-enterprise_2_clientnode:
+ccs_2:
   extends:
   - .be_integration_test
   variables:
-    TEST: "enterprise_2_clientnode"
-    TEST_ENVIRONMENT: "enterprise_2"
+    TEST_DEFINITIONS: ".*ccs_2.*"
 
-enterprise_3_clientnode:
+ccs_3:
   extends:
   - .be_integration_test
   variables:
-    TEST: "enterprise_3_clientnode"
-    TEST_ENVIRONMENT: "enterprise_3"
+    TEST_DEFINITIONS: ".*ccs_3.*"
 
-ccs_1_roundtrips_false:
+
+compliance_1:
   extends:
   - .be_integration_test
   variables:
-    TEST: "ccs_1_roundtrips_false"
-    TEST_ENVIRONMENT: "ccs_1"
+    TEST_DEFINITIONS: ".*compliance_1.*"
 
-ccs_2_roundtrips_false:
+compliance_2:
   extends:
   - .be_integration_test
   variables:
-    TEST: "ccs_2_roundtrips_false"
-    TEST_ENVIRONMENT: "ccs_2"
+    TEST_DEFINITIONS: ".*compliance_2.*"
 
-ccs_2_roundtrips_true:
+compliance_3:
   extends:
   - .be_integration_test
   variables:
-    TEST: "ccs_2_roundtrips_true"
-    TEST_ENVIRONMENT: "ccs_2"
+    TEST_DEFINITIONS: ".*compliance_3.*"
 
-ccs_3_roundtrips_false:
+compliance_ccs:
   extends:
   - .be_integration_test
   variables:
-    TEST: "ccs_3_roundtrips_false"
-    TEST_ENVIRONMENT: "ccs_3"
+    TEST_DEFINITIONS: ".*compliance_ccs.*"
 
-ccs_3_roundtrips_true:
+signals:
   extends:
   - .be_integration_test
   variables:
-    TEST: "ccs_3_roundtrips_true"
-    TEST_ENVIRONMENT: "ccs_3"
+    TEST_DEFINITIONS: ".*signals.*"
 
 .be_integration_test:
+  allow_failure: false
   stage: "Backend Int Tests Core"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-      when: always      
-  variables:
-    TEST: "«TBD»"
-    TEST_ENVIRONMENT: "default"
-    TEST_COMPOSEFILE: "docker-compose-kibana.yml"
-    TEST_SG_ES_PLUGIN: "$SG_ES_PLUGIN"
-    TEST_SG_ADMIN: "$SG_ADMIN"
-    TEST_ES_VERSION: "$ES_VERSION"
-    TEST_IT_BRANCH: "$IT_BRANCH"
-  image: floragunncom/ci-docker-compose-openjdk11:19.03.1
-  before_script:
-    - sudo sysctl -w vm.max_map_count=262144
-    - docker-compose --version
-    - apk update
-    - apk add jq curl zip  openssh-client
-    - apk add python python-dev python py3-setuptools py-pip git
-    - pip install awscli --upgrade || true
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
+    - if: $FORCE_SGI
+      when: always
+  image: docker:${DOCKER_VERSION}
   services:
-    - docker:19.03-dind
-  tags:
-    - aws-runner
+    - docker:${DOCKER_VERSION}-dind
   script:
     - |
-       echo "============================================="
+       #apk update
+       #apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo
+       
+       sudo sysctl -w vm.max_map_count=262144
+       echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION"
+       echo "TEST_DEFINITIONS $TEST_DEFINITIONS"
+       echo "ES_VERSION_POM: $ES_VERSION_POM"
+       MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
+       TEST_IT_BRANCH="${MAJOR}.x"
        echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
-       echo "TEST_SG_ES_PLUGIN: $TEST_SG_ES_PLUGIN"
-       echo "TEST_ES_VERSION: $TEST_ES_VERSION"
-       echo "============================================="
-       echo "export SG_SNAPSHOT=${TEST_SG_ES_PLUGIN}" >> environment.env
-       echo "export SGADMIN_SNAPSHOT=${TEST_SG_ADMIN}" >> environment.env
-       echo "export SG_VERSION=whatever" >> environment.env
-       echo "export BASEIMAGE=0.9.3-open-jdk-11" >> environment.env
-       echo "export ES_VERSION=$TEST_ES_VERSION" >> environment.env
-       echo "export KI_SOURCE=none" >> environment.env
-       if [[ "$TEST_SG_ES_PLUGIN" =~ .*staging.* ]]; then
-         echo "export SG_SOURCE=staging" >> $CI_PROJECT_DIR/environment.env
-       else
-         echo "export SG_SOURCE=snapshot" >> $CI_PROJECT_DIR/environment.env
-       fi   
-       cat environment.env
-       echo "============================================="
-       . ./environment.env
-       git clone --depth 1 --branch $TEST_IT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git > /dev/null
-       cd search-guard-integration-tests
-       echo "Copying variables file"
-       cp ../environment.env ./
-       echo "Copying scripts for CI test execution"
-       cp ci-tools/*.sh ./
-       echo "Executing submit_test.sh"
-       ./submit_test.sh "$TEST" ""
-  needs:
-    - job: deploy_snapshot
-      artifacts: true
-      optional: true
-    - job: deploy_staging
-      artifacts: true
-      optional: true
+       git clone --depth 1 --branch $TEST_IT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/sgi8.git > /dev/null
+       cd sgi8/server
+       rm docker/elasticsearch/search-guard.zip
+       cp -a plugin/target/releases/search-guard-flx-elasticsearch-plugin-${SNAPSHOT_REVISION}.zip docker/elasticsearch/search-guard.zip
+       ./run_test_definition.sh "$TEST_DEFINITIONS"
   artifacts:
     when: always
     paths:
-      - search-guard-integration-tests/test/logs/
-      - search-guard-integration-tests/test/testresults/
-      - search-guard-integration-tests/environment.env
+      - sgi8/client/test/testresults**/**/*
     reports:
       junit:
-        - "search-guard-integration-tests/test/testresults/junit/Test*.xml"
+        - "sgi8/client/test/testresults**/junit/Test*.xml"
     expire_in: 30 days
