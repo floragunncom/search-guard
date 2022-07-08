@@ -12,6 +12,8 @@ variables:
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -q"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
+
+  GIT_DEPTH: 10
   
 default:
   image: $SG_BUILD_IMAGE
@@ -111,8 +113,8 @@ build:
   artifacts:
     when: on_success
     paths:
-      - "plugin/target/releases"
-      #- ".m2/repository/com/floragunn/*"
+      - "plugin/target/releases/"
+      - "snapshot.env"
     expire_in: 12h
     reports:
       dotenv: snapshot.env
@@ -131,6 +133,11 @@ deploy_release:
     - ./dev/setup_gpg.sh
     - |
       
+      set +e
+      ls -la
+      ls -la plugin/target/releases/
+      set -e
+
       DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
       
       MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"

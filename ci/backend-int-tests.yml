@@ -84,6 +84,10 @@ signals:
       when: always
     - if: $FORCE_SGI
       when: always
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-SGI.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
   image: docker:${DOCKER_VERSION}
   services:
     - docker:${DOCKER_VERSION}-dind
@@ -91,6 +95,11 @@ signals:
     - |
        #apk update
        #apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo
+
+       set +e
+       ls -la
+       ls -la plugin/target/releases/
+       set -e
        
        sudo sysctl -w vm.max_map_count=262144
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION"

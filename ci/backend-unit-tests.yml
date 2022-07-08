@@ -1,6 +1,12 @@
 test_security:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl security test
   artifacts:
@@ -19,6 +25,12 @@ test_security:
 test_security_legacy:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl security-legacy test
   artifacts:
@@ -37,6 +49,12 @@ test_security_legacy:
 test_ssl:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl ssl test
   artifacts:
@@ -55,6 +73,12 @@ test_ssl:
 test_signals:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl signals test
   artifacts:
@@ -73,6 +97,12 @@ test_signals:
 test_scheduler:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl scheduler test
   artifacts:
@@ -91,6 +121,12 @@ test_scheduler:
 test_support:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl support test
   artifacts:
@@ -109,6 +145,12 @@ test_support:
 test_dlic_security:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-security test
   artifacts:
@@ -127,6 +169,12 @@ test_dlic_security:
 test_dlic_security_legacy:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
   artifacts:
@@ -145,6 +193,12 @@ test_dlic_security_legacy:
 test_dlic_dlsfls:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test
   artifacts:
@@ -163,6 +217,12 @@ test_dlic_dlsfls:
 test_dlic_dlsfls_legacy:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls-legacy test
   artifacts:
@@ -181,6 +241,12 @@ test_dlic_dlsfls_legacy:
 test_dlic_femt:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test
   artifacts:
@@ -199,6 +265,12 @@ test_dlic_femt:
 test_dlic_auditlog:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
   artifacts:
@@ -217,6 +289,12 @@ test_dlic_auditlog:
 test_dlic_signals:
   stage: test
   interruptible: true
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
+      when: never
+    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
   artifacts:
