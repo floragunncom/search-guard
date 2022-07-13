@@ -150,6 +150,8 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
 
     @Override
     public void clusterConfigChanged(ClusterChangedEvent event) {
+        log.debug("Cluster config changed; shutdown: " + shutdown);
+        
         if (shutdown) {
             return;
         }
@@ -1226,6 +1228,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             periodicMaintenanceExecutor.getQueue().clear();
             initJobs();
             signaler.signalSchedulingChange(0L);
+            log.debug("Finished reinitializing jobs for " + IndexJobStateStore.this);
         } catch (Exception e) {
             try {
                 // Let a potential cluster shutdown catch up
