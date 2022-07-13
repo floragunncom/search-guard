@@ -162,26 +162,51 @@ public class SingleElementBlockingQueue<E> implements BlockingQueue<E> {
         if (e == null) {
             throw new IllegalArgumentException("null not allowed");
         }
-        element.set(e);
-        notEmpty.signal();
+
+        takeLock.lock();
+        try {
+            element.set(e);
+            notEmpty.signal();
+        } finally {
+            takeLock.unlock();
+        }
 
         return true;
     }
 
     @Override
     public boolean offer(E e) {
-        element.set(e);
+        takeLock.lock();
+        try {
+            element.set(e);
+            notEmpty.signal();
+        } finally {
+            takeLock.unlock();
+        }
+
         return true;
     }
 
     @Override
     public void put(E e) throws InterruptedException {
-        element.set(e);
+        takeLock.lock();
+        try {
+            element.set(e);
+            notEmpty.signal();
+        } finally {
+            takeLock.unlock();
+        }
     }
 
     @Override
     public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
-        element.set(e);
+        takeLock.lock();
+        try {
+            element.set(e);
+            notEmpty.signal();
+        } finally {
+            takeLock.unlock();
+        }
         return true;
     }
 
