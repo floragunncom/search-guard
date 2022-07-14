@@ -2094,7 +2094,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         private InternalJobDetail jobDetail;
 
         InternalOperableTrigger(IndexJobStateStore<?> jobStore, TriggerKey key) {
-            this.key = key;
+            this.key = java.util.Objects.requireNonNull(key, "TriggerKey must not be null");
             this.keyString = jobStore.quartzKeyToKeyString(key);
             this.jobStore = jobStore;
         }
@@ -2193,6 +2193,9 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         }
 
         public TriggerKey getKey() {
+            if(delegate == null) {
+                return key;
+            }
             return delegate.getKey();
         }
 
