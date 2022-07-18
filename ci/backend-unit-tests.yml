@@ -16,7 +16,7 @@ test_security:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl security test
   artifacts:
     when: always
@@ -49,7 +49,7 @@ test_security_legacy:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl security-legacy test
   artifacts:
     when: always
@@ -82,7 +82,7 @@ test_ssl:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl ssl test
   artifacts:
     when: always
@@ -115,7 +115,7 @@ test_signals:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl signals test
   artifacts:
     when: always
@@ -148,7 +148,7 @@ test_scheduler:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl scheduler test
   artifacts:
     when: always
@@ -181,7 +181,7 @@ test_support:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl support test
   artifacts:
     when: always
@@ -214,7 +214,7 @@ test_dlic_security:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl dlic-security test
   artifacts:
     when: always
@@ -247,7 +247,7 @@ test_dlic_security_legacy:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl dlic-security-legacy test
   artifacts:
     when: always
@@ -280,7 +280,7 @@ test_dlic_dlsfls:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl dlic-dlsfls test
   artifacts:
     when: always
@@ -313,7 +313,7 @@ test_dlic_dlsfls_legacy:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl dlic-dlsfls-legacy test
   artifacts:
     when: always
@@ -346,7 +346,7 @@ test_dlic_femt:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl dlic-fe-multi-tenancy test
   artifacts:
     when: always
@@ -379,7 +379,7 @@ test_dlic_auditlog:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl dlic-auditlog test
   artifacts:
     when: always
@@ -412,7 +412,7 @@ test_dlic_signals:
   script:
     - UUID=$(uuidgen)
     - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install
+    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT clean install -DskipTests
     - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -pl dlic-signals test
   artifacts:
     when: always
