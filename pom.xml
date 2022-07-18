@@ -387,13 +387,6 @@
 
       <dependency>
         <groupId>com.floragunn</groupId>
-        <artifactId>sgctl</artifactId>
-        <version>${sgctl.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
         <artifactId>dlic-search-guard-flx-auditlog</artifactId>
         <version>${project.version}</version>
         <scope>provided</scope>
@@ -540,6 +533,13 @@
             <artifactId>jackson-core</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>sgctl</artifactId>
+        <version>${sgctl.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>
