@@ -21,18 +21,22 @@ import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
 import org.elasticsearch.client.internal.Client;
 
-public class PrivilegedConfigClient extends ContextHeaderDecoratorClient {
+public final class PrivilegedConfigClient extends ContextHeaderDecoratorClient {
 
-    public PrivilegedConfigClient(Client in) {
-        super(in, ConfigConstants.SG_CONF_REQUEST_HEADER, "true", InternalAuthTokenProvider.TOKEN_HEADER, "",
+    private PrivilegedConfigClient(Client in, String[] keepTransients) {
+        super(in,keepTransients, ConfigConstants.SG_CONF_REQUEST_HEADER, "true", InternalAuthTokenProvider.TOKEN_HEADER, "",
                 InternalAuthTokenProvider.AUDIENCE_HEADER, "");
     }
 
     public static PrivilegedConfigClient adapt(Client client) {
+        return adapt(client, null);
+    }
+
+    public static PrivilegedConfigClient adapt(Client client, String[] keepTransients) {
         if (client instanceof PrivilegedConfigClient) {
             return (PrivilegedConfigClient) client;
         } else {
-            return new PrivilegedConfigClient(client);
+            return new PrivilegedConfigClient(client, keepTransients);
         }
     }
 }

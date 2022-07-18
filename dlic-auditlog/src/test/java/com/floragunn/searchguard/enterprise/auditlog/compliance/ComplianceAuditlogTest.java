@@ -14,6 +14,9 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.compliance;
 
+import java.io.File;
+import java.net.URL;
+import java.nio.file.Files;
 import java.time.Duration;
 
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -21,20 +24,17 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.sgctl.SgctlTool;
 import com.floragunn.searchguard.user.User;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -429,6 +429,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
         setup(additionalSettings);
         TestAuditlogImpl.clear();
+        System.out.println("=== Start Test ===");
         initializeSgIndex(getNodeClient(), new DynamicSgConfig());
         AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
                 () ->
@@ -439,6 +440,69 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                                 TestAuditlogImpl.sb.toString().contains("internalusers")
                 ,
                 Duration.ofSeconds(2));
+    }
+
+    @Test
+    public void testReadWriteSourceSgIndexSgctl() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED,true)
+                .put("searchguard.allow_default_init_sgindex",false)
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+
+        setup(additionalSettings);
+        TestAuditlogImpl.clear();
+        System.out.println("=== Start Test ===");
+
+        URL url = this.getClass().getResource("/" + getResourceFolder()+"/kirk.key.pem");
+        String path = new File(url.toURI()).getParent();
+
+        final String configDir = Files.createTempDirectory("sgctl-test-config").toString();
+        int rc = SgctlTool.exec("connect", "-h", clusterInfo.httpHost, "-p", String.valueOf(clusterInfo.httpPort), "--cert", path+"/kirk.crtfull.pem",
+                "--key", path+"/kirk.key.pem", "--ca-cert", path+"/root-ca.pem", "--debug", "--sgctl-config-dir", configDir);
+
+        Assert.assertEquals(0, rc);
+        rc = SgctlTool.exec("update-config", "--sgctl-config-dir", configDir, "--debug", path+"/sg_config.yml", path+"/sg_roles.yml", path+"/sg_internal_users.yml");
+        Assert.assertEquals(0, rc);
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
+                () ->
+                        !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
+                                TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE") &&
+                                TestAuditlogImpl.sb.toString().contains("sg_all_access") &&
+                                TestAuditlogImpl.sb.toString().contains("internalusers")
+                ,
+                Duration.ofSeconds(2));
+
+        TestAuditlogImpl.clear();
+        final String outputDir = Files.createTempDirectory("sgctl-test-output").toString();
+        rc = SgctlTool.exec("get-config", "--sgctl-config-dir", configDir, "--debug", "-o", outputDir);
+        Assert.assertEquals(0, rc);
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
+                () ->
+                        !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
+                                TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ") &&
+                                TestAuditlogImpl.sb.toString().contains("sg_all_access") &&
+                                TestAuditlogImpl.sb.toString().contains("internalusers")
+                ,
+                Duration.ofSeconds(5));
+
+        TestAuditlogImpl.clear();
+        rc = SgctlTool.exec("get-config", "--sgctl-config-dir", configDir, "--debug", "-o", outputDir);
+        Assert.assertEquals(0, rc);
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
+                () ->
+                        !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
+                                TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ") &&
+                                TestAuditlogImpl.sb.toString().contains("sg_all_access") &&
+                                TestAuditlogImpl.sb.toString().contains("internalusers")
+                ,
+                Duration.ofSeconds(5));
+
     }
 
     private void initializeSgIndex(Client tc, DynamicSgConfig sgconfig) {

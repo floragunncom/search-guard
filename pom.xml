@@ -49,6 +49,9 @@
   </distributionManagement>
 
   <properties>
+
+    <sgctl.version>1.0.0-beta-2</sgctl.version>
+
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <maven.compiler.release>17</maven.compiler.release>
 
@@ -379,6 +382,13 @@
             <artifactId>slf4j-api</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>sgctl</artifactId>
+        <version>${sgctl.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>

@@ -318,7 +318,7 @@ public final class ClusterHelper {
                         "cluster state is " + healthResponse.getStatus().name() + " with " + healthResponse.getNumberOfNodes() + " nodes: "+Strings.toString(healthResponse));
             } else {
                 System.out.println();
-                System.out.println("======================= GREEEEEN =================================");
+                System.out.println("======================= Cluster is green =================================");
                 System.out.println();
                 log.debug("... cluster state ok " + healthResponse.getStatus().name() + " with " + healthResponse.getNumberOfNodes() + " nodes");
             }
