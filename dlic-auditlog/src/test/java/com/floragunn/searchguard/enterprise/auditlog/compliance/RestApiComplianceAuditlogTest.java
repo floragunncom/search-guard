@@ -50,12 +50,13 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
         setup(additionalSettings);
         TestAuditlogImpl.clear();
+        System.out.println("===== Test start ======");
         String body = "{ \"password\":\"test\",\"backend_roles\":[\"role1\",\"role2\"] }";
         HttpResponse response = rh.executePutRequest("_searchguard/api/internalusers/compuser?pretty", body, encodeBasicHeader("admin", "admin"));
         Thread.sleep(1500);
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
-        Assert.assertTrue(TestAuditlogImpl.messages.size()+"",TestAuditlogImpl.messages.size() == 1);      
+        Assert.assertTrue(TestAuditlogImpl.messages.size()+": "+TestAuditlogImpl.messages,TestAuditlogImpl.messages.size() == 1);
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_request_effective_user"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
@@ -91,7 +92,7 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Thread.sleep(1500);
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
-        Assert.assertTrue(TestAuditlogImpl.messages.size()+"",TestAuditlogImpl.messages.size() == 1);      
+        Assert.assertTrue(TestAuditlogImpl.messages.size()+": "+TestAuditlogImpl.messages,TestAuditlogImpl.messages.size() == 1);
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_request_effective_user"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
@@ -158,7 +159,7 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Thread.sleep(1500);
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
-        Assert.assertTrue(TestAuditlogImpl.messages.size()+"", TestAuditlogImpl.messages.isEmpty());      
+        Assert.assertTrue(TestAuditlogImpl.messages.size()+": "+TestAuditlogImpl.messages, TestAuditlogImpl.messages.isEmpty());
     }
     
     @Test
