@@ -618,13 +618,19 @@ public abstract class AbstractAuditLog implements AuditLog {
                         log.error(e.toString(), e);
                     }
                 } else {
-                    if(searchguardIndexPattern.matches(index) && !"tattr".equals(id)) {
+                    if(searchguardIndexPattern.matches(index)
+                            && !"tattr".equals(id)
+                            && !"*".equals(id)
+                    ) {
                         try {
                             Map<String, String> map = fieldNameValues.entrySet().stream().filter(e->e.getKey().equals(id))
-                            .collect(Collectors.toMap(entry -> "id", entry -> new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)));
+                            .collect(Collectors.toMap(entry -> "id", entry ->
+                                new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)));
                             msg.addMapToRequestBody(Utils.convertJsonToxToStructuredMap(map.get("id")));
                         } catch (Exception e) {
-                            log.error("Unexpected Exception {}", e, e);
+                            if(log.isTraceEnabled()) {
+                                log.trace("Unexpected but uncritical problem {}", e, e);
+                            }
                             msg.addMapToRequestBody(new HashMap<String, Object>(fieldNameValues));
                         }                      
                      } else {

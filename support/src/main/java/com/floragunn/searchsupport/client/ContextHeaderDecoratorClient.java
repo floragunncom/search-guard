@@ -19,32 +19,51 @@ import com.floragunn.searchsupport.diag.LogContextPreservingActionListener;
 public class ContextHeaderDecoratorClient extends FilterClient {
 
     private Map<String, String> headers;
+    private String[] keepTransients;
 
-    public ContextHeaderDecoratorClient(Client in, Map<String, String> headers) {
+    public ContextHeaderDecoratorClient(Client in, String[] keepTransients, Map<String, String> headers) {
         super(in);
+        this.keepTransients = keepTransients;
         this.headers = headers != null ? headers : Collections.emptyMap();
+
     }
 
-    public ContextHeaderDecoratorClient(Client in, String... headers) {
-        this(in, arrayToMap(headers));
+    public ContextHeaderDecoratorClient(Client in, String[] keepTransients, String... headers) {
+        this(in, keepTransients, arrayToMap(headers));
     }
 
     @Override
     protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(ActionType<Response> action, Request request,
-            ActionListener<Response> listener) {
+                                                                                              ActionListener<Response> listener) {
 
         ThreadContext threadContext = threadPool().getThreadContext();
         LogContextPreservingActionListener<Response> wrappedListener = LogContextPreservingActionListener.wrapPreservingContext(listener, threadContext);
         String actionStack = DiagnosticContext.getActionStack(threadContext);
-        
+
+        Map<String, Object> transients;
+
+        if(keepTransients == null || keepTransients.length == 0) {
+            transients = Collections.emptyMap();
+        } else {
+            transients = new HashMap<>(keepTransients.length);
+            for(String transientName: keepTransients) {
+                transients.put(transientName, threadContext.getTransient(transientName));
+            }
+        }
+
         try (StoredContext ctx = threadContext.stashContext()) {
             threadContext.putHeader(this.headers);
-            
+
+            for(Map.Entry<String, Object> transientEntry: transients.entrySet()) {
+                threadContext.putTransient(transientEntry.getKey(), transientEntry.getValue());
+
+            }
+
             if (actionStack != null) {
                 threadContext.putHeader(DiagnosticContext.ACTION_STACK_HEADER, actionStack);
                 DiagnosticContext.fixupLoggingContext(threadContext);
             }
-            
+
 
             super.doExecute(action, request, wrappedListener);
         }

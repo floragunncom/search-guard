@@ -33,6 +33,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -166,7 +167,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.settings = settings;
         this.clusterService = clusterService;
         this.configurationChangedListener = new ArrayList<>();
-        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
+        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client, ConfigConstants.SG_STANDARD_TRANSIENTS);
         this.componentState.setMandatory(true);
         this.mainConfigLoader = new ConfigurationLoader(client, componentState, this, staticSgConfig);
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
@@ -440,7 +441,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             return new StandardResponse(412, "Search Guard already uses the new-style index: " + effectiveSearchGuardIndex);
         }
 
-        PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
+        PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client, ConfigConstants.SG_STANDARD_TRANSIENTS);
 
         SearchResponse searchResponse = null;
 

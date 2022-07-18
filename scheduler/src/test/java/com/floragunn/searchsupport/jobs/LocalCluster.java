@@ -87,7 +87,7 @@ public class LocalCluster extends ExternalResource {
     }
 
     public Client getPrivilegedConfigNodeClient() {
-        return new ContextHeaderDecoratorClient(getNodeClient(), ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+        return new ContextHeaderDecoratorClient(getNodeClient(), null, ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
     }
 
     private void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex,
