@@ -19,10 +19,7 @@
 	<artifactId>dlic-search-guard-flx-auditlog</artifactId>
 	<packaging>jar</packaging>
 	<name>Search Guard FLX: Audit Logging (Enterprise)</name>
-
-	<properties>
-	</properties>
-
+	
 	<dependencies>
 		<!-- Security -->
 		<dependency>
@@ -72,6 +69,12 @@
 					<artifactId>log4j-api</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>sgctl</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 		<!-- Security Test -->

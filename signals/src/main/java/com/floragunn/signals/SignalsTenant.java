@@ -117,7 +117,7 @@ public class SignalsTenant implements Closeable {
         this.configIndexName = settings.getStaticSettings().getIndexNames().getWatches();
         this.watchIdPrefix = name.replace("/", "\\/") + "/";
         this.client = client;
-        this.privilegedConfigClient = new PrivilegedConfigClient(client);
+        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.clusterService = clusterService;
         this.nodeEnvironment = nodeEnvironment;
         this.scriptService = scriptService;
