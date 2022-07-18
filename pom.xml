@@ -115,6 +115,7 @@
     <maven.site.plugin.version>4.0.0-M2</maven.site.plugin.version>
     <spotless.maven.plugin.version>2.22.8</spotless.maven.plugin.version>
     <eclipse.formatter.version>4.21.0</eclipse.formatter.version>
+    <maven.build.helper.plugin.version>3.3.0</maven.build.helper.plugin.version>
 
     <!-- Reporting plugins -->
     <maven.project.info.reports.version>3.3.0</maven.project.info.reports.version>

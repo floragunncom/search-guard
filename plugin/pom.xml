@@ -47,6 +47,25 @@
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
+            <id>copy-test-instance-installer</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <outputDirectory>${project.build.directory}/releases/</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${basedir}/src/main/assemblies/</directory>
+                  <includes>
+                    <include>searchguard-test-instance-installer.sh</include>
+                  </includes>
+                  <filtering>true</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
             <id>copy-resources</id>
             <goals>
               <goal>copy-resources</goal>
@@ -168,6 +187,30 @@
 
       <build>
         <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <version>${maven.build.helper.plugin.version}</version>
+            <executions>
+              <execution>
+                <id>attach-artifacts</id>
+                <goals>
+                  <goal>attach-artifact</goal>
+                </goals>
+                <phase>package</phase>
+                <configuration>
+                  <artifacts>
+                    <artifact>
+                      <file>${basedir}/target/releases/searchguard-test-instance-installer.sh</file>
+                      <type>sh</type>
+                      <classifier>demo-installer</classifier>
+                    </artifact>
+                  </artifacts>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
           <plugin>
             <groupId>com.floragunn</groupId>
             <artifactId>checksum-maven-plugin</artifactId>
