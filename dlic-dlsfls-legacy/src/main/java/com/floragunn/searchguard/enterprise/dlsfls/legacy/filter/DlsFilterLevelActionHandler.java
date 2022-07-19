@@ -21,11 +21,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.util.LocalClusternameExtractor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -44,6 +47,7 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.document.DocumentField;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.index.IndexService;
@@ -73,8 +77,8 @@ import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 public class DlsFilterLevelActionHandler {
     private static final Logger log = LogManager.getLogger(DlsFilterLevelActionHandler.class);
 
-    private static final Function<SearchRequest, String> LOCAL_CLUSTER_ALIAS_GETTER = ReflectiveAttributeAccessors
-            .protectedObjectAttr("localClusterAlias", String.class);
+    //private static final Function<SearchRequest, String> LOCAL_CLUSTER_ALIAS_GETTER = ReflectiveAttributeAccessors
+    //        .protectedObjectAttr("localClusterAlias", String.class);
 
     public static SyncAuthorizationFilter.Result handle(String action, ActionRequest request, ActionListener<?> listener,
             EvaluatedDlsFlsConfig evaluatedDlsFlsConfig, ResolvedIndices resolved, Client nodeClient, ClusterService clusterService,
@@ -179,12 +183,14 @@ public class DlsFilterLevelActionHandler {
         }
     }
 
+
+
     private SyncAuthorizationFilter.Result handle(SearchRequest searchRequest, StoredContext ctx) {
         if (documentWhitelist != null) {
             documentWhitelist.applyTo(threadContext);
         }
 
-        String localClusterAlias = LOCAL_CLUSTER_ALIAS_GETTER.apply(searchRequest);
+        String localClusterAlias = LocalClusternameExtractor.getLocalClusterAliasFromSearchRequest(searchRequest);
 
         if (localClusterAlias != null) {
             try {

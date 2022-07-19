@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.util.LocalClusternameExtractor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -70,10 +71,11 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 
 public class DlsFilterLevelActionHandler {
+
     private static final Logger log = LogManager.getLogger(DlsFilterLevelActionHandler.class);
 
-    private static final Function<SearchRequest, String> LOCAL_CLUSTER_ALIAS_GETTER = ReflectiveAttributeAccessors
-            .protectedObjectAttr("localClusterAlias", String.class);
+    //private static final Function<SearchRequest, String> LOCAL_CLUSTER_ALIAS_GETTER = ReflectiveAttributeAccessors
+    //        .protectedObjectAttr("localClusterAlias", String.class);
 
     public static SyncAuthorizationFilter.Result handle(Action action, ActionRequest request, ActionListener<?> listener,
             DlsRestriction.IndexMap restrictionMap, ResolvedIndices resolved, Client nodeClient, ClusterService clusterService,
@@ -182,7 +184,7 @@ public class DlsFilterLevelActionHandler {
             documentWhitelist.applyTo(threadContext);
         }
 
-        String localClusterAlias = LOCAL_CLUSTER_ALIAS_GETTER.apply(searchRequest);
+        String localClusterAlias = LocalClusternameExtractor.getLocalClusterAliasFromSearchRequest(searchRequest);
 
         if (localClusterAlias != null) {
             try {
