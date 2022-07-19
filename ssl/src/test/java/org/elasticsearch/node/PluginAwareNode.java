@@ -30,7 +30,7 @@ public class PluginAwareNode extends Node {
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings) {
         super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, Collections.emptyMap(),
                 null, () -> System.getenv("HOSTNAME")),
-                settings -> new SgAwarePluginsService(settings), true);
+                settings -> new SgAwarePluginsService(settings, Collections.emptyList()), true);
         this.masterEligible = masterEligible;
     }
     public boolean isMasterEligible() {

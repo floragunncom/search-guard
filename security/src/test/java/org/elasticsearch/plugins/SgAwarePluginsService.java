@@ -1,7 +1,6 @@
 package org.elasticsearch.plugins;
 
 import com.floragunn.searchguard.SearchGuardPlugin;
-import com.google.common.collect.Lists;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.join.ParentJoinPlugin;
@@ -14,113 +13,75 @@ import org.elasticsearch.transport.netty4.Netty4Plugin;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class SgAwarePluginsService extends PluginsService {
 
-    private final List<LoadedPlugin> loadedPlugins;
-    public List<Class<? extends Plugin>> plugins = Lists.newArrayList(Netty4Plugin.class, MatrixAggregationPlugin.class,
-            MustachePlugin.class, ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
+    private final List<LoadedPlugin> loadedPlugins = new ArrayList<>();
+    private static final List<Class<? extends Plugin>> STANDARD_PLUGINS = List.of(
+            Netty4Plugin.class,
+            MatrixAggregationPlugin.class,
+            MustachePlugin.class,
+            ParentJoinPlugin.class,
+            PercolatorPlugin.class,
+            ReindexPlugin.class);
 
 
     public SgAwarePluginsService(Settings settings, List<Class<? extends Plugin>> additionalPlugins) {
         super(settings, null, null, null);
-        loadedPlugins = new ArrayList<LoadedPlugin>();
-        LoadedPlugin sg =
-                new LoadedPlugin(new PluginDescriptor(
-                        "sgflx",
-                        "sgflx",
-                        "0.0.0",
-                        Version.CURRENT,
-                        "17",
-                        SearchGuardPlugin.class.getSimpleName(),
-                        "",
-                        Collections.emptyList(),
-                        false,
-                        PluginType.ISOLATED,
-                        "",
-                        false),
-                        new SearchGuardPlugin(settings, null)
-                );
-        loadedPlugins.add(sg);
 
-        for(Class<? extends Plugin> plugin: plugins) {
+        loadSearchGuardPlugin(settings);
+        loadPainlessPluginIfAvailable();
+
+        for(Class<? extends Plugin> plugin: Stream.concat(STANDARD_PLUGINS.stream(), additionalPlugins.stream()).toList()) {
             try {
-                LoadedPlugin p =
-                        new LoadedPlugin(new PluginDescriptor(
-                                plugin.getSimpleName(),
-                                plugin.getSimpleName(),
-                                "0.0.0",
-                                Version.CURRENT,
-                                "17",
-                                plugin.getSimpleName(),
-                                "",
-                                Collections.emptyList(),
-                                false,
-                                PluginType.ISOLATED,
-                                "",
-                                false),
-                                plugin.getDeclaredConstructor().newInstance()
-                        );
-                loadedPlugins.add(p);
+                loadedPlugins.add(createLoadedPlugin(plugin));
             } catch (Throwable e) {
                 throw new RuntimeException(e);
             }
         }
+    }
 
-        for(Class<? extends Plugin> plugin: additionalPlugins) {
-            try {
-                LoadedPlugin p =
-                        new LoadedPlugin(new PluginDescriptor(
-                                plugin.getSimpleName(),
-                                plugin.getSimpleName(),
-                                "0.0.0",
-                                Version.CURRENT,
-                                "17",
-                                plugin.getSimpleName(),
-                                "",
-                                Collections.emptyList(),
-                                false,
-                                PluginType.ISOLATED,
-                                "",
-                                false),
-                                plugin.getDeclaredConstructor().newInstance()
-                        );
-                loadedPlugins.add(p);
-            } catch (Throwable e) {
-                throw new RuntimeException(e);
-            }
-        }
+    private void loadSearchGuardPlugin(Settings settings) {
+        loadedPlugins.add(createLoadedPlugin(new SearchGuardPlugin(settings, null)));
+    }
 
+    private void loadPainlessPluginIfAvailable() {
         try {
             Class<? extends Plugin> painlessPlugin = (Class<? extends Plugin>) Class.forName("org.elasticsearch.painless.PainlessPlugin");
-            LoadedPlugin p =
-                    new LoadedPlugin(new PluginDescriptor(
-                            painlessPlugin.getSimpleName(),
-                            painlessPlugin.getSimpleName(),
-                            "0.0.0",
-                            Version.CURRENT,
-                            "17",
-                            painlessPlugin.getSimpleName(),
-                            "",
-                            Collections.emptyList(),
-                            false,
-                            PluginType.ISOLATED,
-                            "",
-                            false),
-                            painlessPlugin.getDeclaredConstructor().newInstance()
-                    );
-            loadedPlugins.add(p);
+            loadedPlugins.add(createLoadedPlugin(painlessPlugin));
         } catch (ClassNotFoundException e) {
-            //thats ok
+            //that's ok
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
-
-
     }
 
     @Override
     protected List<LoadedPlugin> plugins() {
         return loadedPlugins;
+    }
+
+    private static LoadedPlugin createLoadedPlugin(Plugin plugin) {
+        return new LoadedPlugin(createPluginDescriptor(plugin.getClass()),plugin);
+    }
+    private static LoadedPlugin createLoadedPlugin(Class<? extends Plugin> pluginClass) throws Exception {
+        return new LoadedPlugin(createPluginDescriptor(pluginClass),pluginClass.getDeclaredConstructor().newInstance());
+    }
+
+    private static PluginDescriptor createPluginDescriptor(Class<? extends Plugin> pluginClass)  {
+        return new PluginDescriptor(
+                pluginClass.getSimpleName(),
+                pluginClass.getSimpleName(),
+                "0.0.0",
+                Version.CURRENT,
+                "17",
+                pluginClass.getSimpleName(),
+                "",
+                Collections.emptyList(),
+                false,
+                PluginType.ISOLATED,
+                "",
+                false);
     }
 }
