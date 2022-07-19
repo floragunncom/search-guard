@@ -540,6 +540,20 @@
         <artifactId>sgctl</artifactId>
         <version>${sgctl.version}</version>
         <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
