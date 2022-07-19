@@ -96,11 +96,10 @@ public final class ClusterHelper {
 
     public final ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration)
             throws Exception {
-        return startCluster(nodeSettingsSupplier, clusterConfiguration, null, 100, null);
+        return startCluster(nodeSettingsSupplier, clusterConfiguration, 100, null);
     }
 
-    public final synchronized ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration,
-            List<Class<? extends Plugin>> additionalPlugins, int timeout, Integer nodes) throws Exception {
+    public final synchronized ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration, int timeout, Integer nodes) throws Exception {
         
         if (!esNodes.isEmpty()) {
             throw new RuntimeException("There are still " + esNodes.size() + " nodes instantiated, close them first.");
@@ -160,7 +159,7 @@ public final class ClusterHelper {
             PluginAwareNode node = new PluginAwareNode(setting.masterNode,
                     getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, tcpMasterPortsOnly,
                             tcpPortsAllIt.next(), httpPortsIt.next(), clustername, homeDir)
-                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build(), additionalPlugins);
+                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build());
 
             new Thread(new Runnable() {
 
@@ -186,7 +185,7 @@ public final class ClusterHelper {
             PluginAwareNode node = new PluginAwareNode(setting.masterNode,
                     getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, tcpMasterPortsOnly,
                             tcpPortsAllIt.next(), httpPortsIt.next(), clustername, homeDir)
-                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build(), additionalPlugins);
+                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build());
 
             new Thread(new Runnable() {
 
