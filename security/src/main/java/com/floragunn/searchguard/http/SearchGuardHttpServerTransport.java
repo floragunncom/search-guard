@@ -29,9 +29,9 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.http.HttpChannel;
-import org.elasticsearch.http.HttpPipelinedRequest;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
+import org.elasticsearch.http.netty4.Netty4HttpRequest;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
@@ -50,19 +50,20 @@ import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
 public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServerTransport {
     private static final Logger log = LogManager.getLogger(SearchGuardHttpServerTransport.class);
 
-    public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
+    public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService,
             final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
             final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher, ClusterSettings clusterSettings,
             SharedGroupFactory sharedGroupFactory) {
-        super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
+        super(settings, networkService, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
     }
 
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
-        final HttpPipelinedRequest pipelinedRequest = (HttpPipelinedRequest) httpRequest;
-        final HttpPipelinedRequest copyPipelinedRequest =
-                new HttpPipelinedRequest(pipelinedRequest.getSequence()
-                        , pipelinedRequest.getDelegateRequest().releaseAndCopy());
+        final Netty4HttpRequest copyPipelinedRequest = (Netty4HttpRequest) httpRequest;
+
+        //final Netty4HttpRequest copyPipelinedRequest =
+        //        new Netty4HttpRequest(pipelinedRequest.getSequence()
+        //                , pipelinedRequest.getDelegateRequest().releaseAndCopy());
 
         super.incomingRequest(fixNonStandardContentType(copyPipelinedRequest), httpChannel);
     }

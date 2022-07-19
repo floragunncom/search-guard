@@ -160,8 +160,7 @@ public final class ClusterHelper {
             PluginAwareNode node = new PluginAwareNode(setting.masterNode,
                     getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, tcpMasterPortsOnly,
                             tcpPortsAllIt.next(), httpPortsIt.next(), clustername, homeDir)
-                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build(),
-                    setting.getPlugins(additionalPlugins));
+                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build());
 
             new Thread(new Runnable() {
 
@@ -187,8 +186,7 @@ public final class ClusterHelper {
             PluginAwareNode node = new PluginAwareNode(setting.masterNode,
                     getMinimumNonSgNodeSettingsBuilder(nodeNum, setting.masterNode, setting.dataNode, tcpMasterPortsOnly,
                             tcpPortsAllIt.next(), httpPortsIt.next(), clustername, homeDir)
-                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build(),
-                    setting.getPlugins(additionalPlugins));
+                                    .put(nodeSettingsSupplier == null ? Settings.builder().build() : nodeSettingsSupplier.get(nodeNum)).build());
 
             new Thread(new Runnable() {
 

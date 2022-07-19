@@ -17,25 +17,23 @@
 
 package org.elasticsearch.node;
 
-import java.util.Arrays;
-
-import java.util.Collections;
-
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.SgAwarePluginsService;
+
+import java.util.Collections;
 
 public class PluginAwareNode extends Node {
     
     private final boolean masterEligible;
-
-    @SafeVarargs
-    public PluginAwareNode(boolean masterEligible, final Settings preparedSettings, final Class<? extends Plugin>... plugins) {
-    	super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, Collections.emptyMap(), null, () -> System.getenv("HOSTNAME")), Arrays.asList(plugins), true);
+    
+    public PluginAwareNode(boolean masterEligible, final Settings preparedSettings) {
+        super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, Collections.emptyMap(),
+                null, () -> System.getenv("HOSTNAME")),
+                settings -> new SgAwarePluginsService(settings), true);
         this.masterEligible = masterEligible;
     }
-
     public boolean isMasterEligible() {
         return masterEligible;
     }
-
 }

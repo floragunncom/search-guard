@@ -450,7 +450,7 @@ public class SSLTest extends SingleClusterTest {
                 .put(settings)// -----
                 .build();
         
-        try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardSSLPlugin.class).start()) {
+        try (Node node = new PluginAwareNode(false, tcSettings).start()) {
             ClusterHealthResponse res = node.client().admin().cluster().health(new ClusterHealthRequest().waitForNodes("4").timeout(TimeValue.timeValueSeconds(15))).actionGet();
             Assert.assertFalse(res.isTimedOut());
             Assert.assertEquals(4, res.getNumberOfNodes());
@@ -591,7 +591,7 @@ public class SSLTest extends SingleClusterTest {
                 .put(settings)// -----
                 .build();
 
-        try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardSSLPlugin.class).start()) {
+        try (Node node = new PluginAwareNode(false, tcSettings).start()) {
             ClusterHealthResponse res = node.client().admin().cluster().health(new ClusterHealthRequest().waitForNodes("4").timeout(TimeValue.timeValueSeconds(25))).actionGet();
             Assert.assertFalse(res.isTimedOut());
             Assert.assertEquals(4, res.getNumberOfNodes());
@@ -644,7 +644,7 @@ public class SSLTest extends SingleClusterTest {
     
     }
     
-    @Test(expected=IllegalStateException.class)
+    @Test(expected=ElasticsearchSecurityException.class)
     public void testHttpsAndNodeSSLKeyPassFail() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)

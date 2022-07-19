@@ -378,6 +378,10 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 }
 
                 return new SortedSetDocValues() {
+                    @Override
+                    public long docValueCount() {
+                        return sortedSetDocValues.docValueCount();
+                    }
 
                     @Override
                     public long lookupTerm(BytesRef key) throws IOException {

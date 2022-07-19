@@ -24,7 +24,7 @@ public class BksTest extends SingleClusterTest {
             setupSslOnlyMode(settings, ClusterConfiguration.SINGLENODE);
             Assert.fail();
         } catch (Exception e) {
-            Assert.assertTrue(e.toString(), e.getCause().getCause().getMessage().contains("Keystores of type BKS-V1 are not supported"));
+            Assert.assertTrue(e.toString(), e.getMessage().contains("Keystores of type BKS-V1 are not supported"));
         }
     }
 

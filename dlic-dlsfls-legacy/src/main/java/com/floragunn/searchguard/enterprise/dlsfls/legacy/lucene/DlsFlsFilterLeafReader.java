@@ -977,6 +977,11 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             return new SortedSetDocValues() {
 
                 @Override
+                public long docValueCount() {
+                    return sortedSetDocValues.docValueCount();
+                }
+
+                @Override
                 public long lookupTerm(BytesRef key) throws IOException {
                     return sortedSetDocValues.lookupTerm(key);
                 }

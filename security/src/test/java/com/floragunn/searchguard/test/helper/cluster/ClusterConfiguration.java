@@ -87,18 +87,18 @@ public enum ClusterConfiguration {
     public static class NodeSettings {
         public boolean masterNode;
         public boolean dataNode;
-        public List<Class<? extends Plugin>> plugins = Lists.newArrayList(Netty4Plugin.class, SearchGuardPlugin.class, MatrixAggregationPlugin.class,
-                MustachePlugin.class, ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
+        //public List<Class<? extends Plugin>> plugins = Lists.newArrayList(Netty4Plugin.class, SearchGuardPlugin.class, MatrixAggregationPlugin.class,
+        //        MustachePlugin.class, ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
 
         public NodeSettings(boolean masterNode, boolean dataNode) {
             super();
             this.masterNode = masterNode;
             this.dataNode = dataNode;
 
-            tryToIncludePainless();
+            //tryToIncludePainless();
         }
 
-        public NodeSettings(boolean masterNode, boolean dataNode, List<Class<? extends Plugin>> additionalPlugins) {
+        /*public NodeSettings(boolean masterNode, boolean dataNode, List<Class<? extends Plugin>> additionalPlugins) {
             this(masterNode, dataNode);
 
             this.plugins.addAll(additionalPlugins);
@@ -130,6 +130,6 @@ public enum ClusterConfiguration {
             } catch (ClassNotFoundException e) {
 
             }
-        }
+        }*/
     }
 }

@@ -23,7 +23,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpHandlingSettings;
-import org.elasticsearch.http.HttpPipelinedRequest;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -35,20 +34,20 @@ import io.netty.channel.ChannelHandler;
 
 public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransport {
 
-    public SearchGuardNonSslHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
+    public SearchGuardNonSslHttpServerTransport(final Settings settings, final NetworkService networkService,
             final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
             final ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory) {
-        super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
+        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
     }
 
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
-        final HttpPipelinedRequest pipelinedRequest = (HttpPipelinedRequest) httpRequest;
-        final HttpPipelinedRequest copyPipelinedRequest =
-                new HttpPipelinedRequest(pipelinedRequest.getSequence()
-                        , pipelinedRequest.getDelegateRequest().releaseAndCopy());
+//        final HttpPipelinedRequest pipelinedRequest = (HttpPipelinedRequest) httpRequest;
+//        final HttpPipelinedRequest copyPipelinedRequest =
+//                new HttpPipelinedRequest(pipelinedRequest.getSequence()
+//                        , pipelinedRequest.getDelegateRequest().releaseAndCopy());
 
-        super.incomingRequest(copyPipelinedRequest, httpChannel);
+        super.incomingRequest(httpRequest, httpChannel);
     }
 
     @Override
