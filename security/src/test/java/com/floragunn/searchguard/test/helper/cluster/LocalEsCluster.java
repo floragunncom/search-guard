@@ -466,7 +466,7 @@ public class LocalEsCluster {
         CompletableFuture<String> start() {
             CompletableFuture<String> completableFuture = new CompletableFuture<>();
 
-            this.node = new PluginAwareNode(nodeSettings.masterNode, getEsSettings());
+            this.node = new PluginAwareNode(nodeSettings.masterNode, getEsSettings(), additionalPlugins);
 
             new Thread(new Runnable() {
 

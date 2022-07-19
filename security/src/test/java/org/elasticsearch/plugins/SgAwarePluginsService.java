@@ -22,7 +22,7 @@ public class SgAwarePluginsService extends PluginsService {
             MustachePlugin.class, ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
 
 
-    public SgAwarePluginsService(Settings settings) {
+    public SgAwarePluginsService(Settings settings, List<Class<? extends Plugin>> additionalPlugins) {
         super(settings, null, null, null);
         loadedPlugins = new ArrayList<LoadedPlugin>();
         LoadedPlugin sg =
@@ -44,6 +44,30 @@ public class SgAwarePluginsService extends PluginsService {
         loadedPlugins.add(sg);
 
         for(Class<? extends Plugin> plugin: plugins) {
+            try {
+                LoadedPlugin p =
+                        new LoadedPlugin(new PluginDescriptor(
+                                plugin.getSimpleName(),
+                                plugin.getSimpleName(),
+                                "0.0.0",
+                                Version.CURRENT,
+                                "17",
+                                plugin.getSimpleName(),
+                                "",
+                                Collections.emptyList(),
+                                false,
+                                PluginType.ISOLATED,
+                                "",
+                                false),
+                                plugin.getDeclaredConstructor().newInstance()
+                        );
+                loadedPlugins.add(p);
+            } catch (Throwable e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        for(Class<? extends Plugin> plugin: additionalPlugins) {
             try {
                 LoadedPlugin p =
                         new LoadedPlugin(new PluginDescriptor(

@@ -17,7 +17,6 @@
 
 package com.floragunn.searchguard.legacy;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -28,13 +27,11 @@ import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.transport.netty4.Netty4Plugin;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
