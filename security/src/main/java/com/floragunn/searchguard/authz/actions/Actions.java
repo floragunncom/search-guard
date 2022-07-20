@@ -674,12 +674,12 @@ public class Actions {
             return this;
         }
 
-        <PropertyType> ActionBuilder<RequestType, RequestItem, RequestItemType> setRequestProperty(String name, Class<PropertyType> type,
+        /*<PropertyType> ActionBuilder<RequestType, RequestItem, RequestItemType> setRequestProperty(String name, Class<PropertyType> type,
                 Function<PropertyType, PropertyType> function) {
             requestProperyModifiers.add(new RequestPropertyModifier<>(ReflectiveAttributeAccessors.objectAttr(name, type),
                     ReflectiveAttributeAccessors.setObjectAttr(name, type), type, function));
             return this;
-        }
+        }*/
 
         Action build() {
             Action.WellKnownAction.Resources resources = null;

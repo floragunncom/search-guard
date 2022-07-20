@@ -90,13 +90,6 @@ public class SearchGuardInterceptorIntegrationTests {
 
     public static class MockActionPlugin extends Plugin implements ActionPlugin {
 
-        Settings settings;
-        ThreadPool threadPool;
-
-        public MockActionPlugin(final Settings settings, final Path configPath) {
-            this.settings = settings;
-        }
-
         public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
             return Arrays.asList(new ActionHandler<>(MockTransportAction.TYPE, MockTransportAction.class));
         }

@@ -17,23 +17,11 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import org.elasticsearch.join.ParentJoinPlugin;
-import org.elasticsearch.percolator.PercolatorPlugin;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.reindex.ReindexPlugin;
-import org.elasticsearch.script.mustache.MustachePlugin;
-import org.elasticsearch.search.aggregations.matrix.MatrixAggregationPlugin;
-
-import com.floragunn.searchguard.SearchGuardPlugin;
-import com.google.common.collect.Lists;
-import org.elasticsearch.transport.netty4.Netty4Plugin;
 
 public enum ClusterConfiguration {
     //first one needs to be a master
@@ -87,49 +75,11 @@ public enum ClusterConfiguration {
     public static class NodeSettings {
         public boolean masterNode;
         public boolean dataNode;
-        public List<Class<? extends Plugin>> plugins = Lists.newArrayList(Netty4Plugin.class, SearchGuardPlugin.class, MatrixAggregationPlugin.class,
-                MustachePlugin.class, ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
 
         public NodeSettings(boolean masterNode, boolean dataNode) {
             super();
             this.masterNode = masterNode;
             this.dataNode = dataNode;
-
-            tryToIncludePainless();
-        }
-
-        public NodeSettings(boolean masterNode, boolean dataNode, List<Class<? extends Plugin>> additionalPlugins) {
-            this(masterNode, dataNode);
-
-            this.plugins.addAll(additionalPlugins);
-        }
-
-        @SuppressWarnings("unchecked")
-        public Class<? extends Plugin>[] getPlugins() {
-            return plugins.toArray(new Class[0]);
-        }
-        
-        @SuppressWarnings("unchecked")
-        public Class<? extends Plugin>[] getPlugins(List<Class<? extends Plugin>> additionalPlugins) {
-            List<Class<? extends Plugin>> plugins = new ArrayList<>(this.plugins);
-            
-            if (additionalPlugins != null) {
-                plugins.addAll(additionalPlugins);
-            }
-            
-            return plugins.toArray(new Class[0]);
-        }
-
-        private void tryToIncludePainless() {
-            try {
-                @SuppressWarnings("unchecked")
-                Class<? extends Plugin> painlessPlugin = (Class<? extends Plugin>) Class.forName("org.elasticsearch.painless.PainlessPlugin");
-
-                plugins.add(painlessPlugin);
-
-            } catch (ClassNotFoundException e) {
-
-            }
         }
     }
 }

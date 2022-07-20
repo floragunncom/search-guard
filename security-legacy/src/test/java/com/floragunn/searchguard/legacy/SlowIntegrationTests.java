@@ -17,7 +17,6 @@
 
 package com.floragunn.searchguard.legacy;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -28,13 +27,11 @@ import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.transport.netty4.Netty4Plugin;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -84,7 +81,7 @@ public class SlowIntegrationTests extends SingleClusterTest {
     
         log.debug("Start node client");
         
-        try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardPlugin.class).start()) {
+        try (Node node = new PluginAwareNode(false, tcSettings).start()) {
             Assert.assertFalse(node.client().admin().cluster().health(new ClusterHealthRequest().waitForNodes(String.valueOf(clusterInfo.numNodes+1))).actionGet().isTimedOut());
             Assert.assertEquals(clusterInfo.numNodes+1, node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());    
         }
@@ -115,7 +112,7 @@ public class SlowIntegrationTests extends SingleClusterTest {
     
         log.debug("Start node client");
 
-        try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardPlugin.class).start()) {
+        try (Node node = new PluginAwareNode(false, tcSettings).start()) {
             AsyncAssert.awaitAssert("Node has started",
                     () -> node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size() == 1,
                     Duration.ofSeconds(10));
@@ -147,7 +144,7 @@ public class SlowIntegrationTests extends SingleClusterTest {
     
         log.debug("Start node client");
         
-        try (Node node = new PluginAwareNode(false, tcSettings, Netty4Plugin.class, SearchGuardPlugin.class).start()) {
+        try (Node node = new PluginAwareNode(false, tcSettings).start()) {
             AsyncAssert.awaitAssert("Node has started",
                     () -> node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size() == 1,
                     Duration.ofSeconds(10));

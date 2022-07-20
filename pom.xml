@@ -55,11 +55,11 @@
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <maven.compiler.release>17</maven.compiler.release>
 
-    <elasticsearch.version>8.2.3</elasticsearch.version>
+    <elasticsearch.version>8.3.2</elasticsearch.version>
 
     <log4j.version>2.17.1</log4j.version>
-    <jackson.version>2.10.4</jackson.version>
-    <netty.version>4.1.74.Final</netty.version>
+    <jackson.version>2.13.2</jackson.version>
+    <netty.version>4.1.76.Final</netty.version>
 
     <bc.version>1.70</bc.version>
     <guava.version>31.1-jre</guava.version>
@@ -217,6 +217,10 @@
             <groupId>jakarta.activation</groupId>
             <artifactId>jakarta.activation-api</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -355,6 +359,10 @@
           <exclusion>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk15on</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -519,6 +527,14 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -540,6 +556,20 @@
         <artifactId>sgctl</artifactId>
         <version>${sgctl.version}</version>
         <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -614,6 +644,12 @@
         <artifactId>junit</artifactId>
         <version>${junit.version}</version>
         <scope>test</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-core</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>

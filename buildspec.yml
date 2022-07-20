@@ -14,7 +14,7 @@ phases:
       - update-alternatives --set javac /usr/lib/jvm/temurin-17-jdk-amd64/bin/javac > /dev/null 2>&1
   build:
     commands:
-      - ./dev/populate_locale_maven.sh "8.2.3" "/root/es" > /dev/null 2>&1
+      - ./dev/populate_locale_maven.sh "8.3.2" "/root/es" > /dev/null 2>&1
       - echo "Testing $SG_MODULES"
       - mvn install -DskipTests > mvn-${CODEBUILD_BUILD_NUMBER}-batch-${CODEBUILD_BATCH_BUILD_IDENTIFIER}-compile.log 2>&1
       - mvn install --projects "$SG_MODULES" > mvn-${CODEBUILD_BUILD_NUMBER}-batch-${CODEBUILD_BATCH_BUILD_IDENTIFIER}-test.log 2>&1

@@ -27,9 +27,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.http.HttpChannel;
-import org.elasticsearch.http.HttpPipelinedRequest;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.RestRequest;
@@ -45,26 +43,20 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
-import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
 
 public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServerTransport {
     private static final Logger log = LogManager.getLogger(SearchGuardHttpServerTransport.class);
 
-    public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
+    public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService,
             final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
             final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher, ClusterSettings clusterSettings,
             SharedGroupFactory sharedGroupFactory) {
-        super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
+        super(settings, networkService, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
     }
 
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
-        final HttpPipelinedRequest pipelinedRequest = (HttpPipelinedRequest) httpRequest;
-        final HttpPipelinedRequest copyPipelinedRequest =
-                new HttpPipelinedRequest(pipelinedRequest.getSequence()
-                        , pipelinedRequest.getDelegateRequest().releaseAndCopy());
-
-        super.incomingRequest(fixNonStandardContentType(copyPipelinedRequest), httpChannel);
+        super.incomingRequest(fixNonStandardContentType(httpRequest), httpChannel);
     }
 
     /**

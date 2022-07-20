@@ -584,8 +584,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 
                 indexModule.forceQueryCacheProvider((indexSettings, nodeCache) -> new QueryCache() {
 
-                    @Override
-                    public Index index() {
+                    private Index index() {
                         return indexSettings.getIndex();
                     }
 
@@ -753,13 +752,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
                         configPath, evaluateSslExceptionHandler());
                 //TODO close sghst
-                final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, bigArrays, threadPool, sgks,
+                final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, threadPool, sgks,
                         evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory);
 
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
             } else if (!client) {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
-                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, searchGuardRestFilter.wrap(dispatcher),
+                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, threadPool, xContentRegistry, searchGuardRestFilter.wrap(dispatcher),
                                 clusterSettings, sharedGroupFactory));
             }
         }

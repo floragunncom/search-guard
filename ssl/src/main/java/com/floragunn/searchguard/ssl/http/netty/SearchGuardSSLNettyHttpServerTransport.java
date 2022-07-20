@@ -44,10 +44,10 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     private final SearchGuardKeyStore sgks;
     private final SslExceptionHandler errorHandler;
 
-    public SearchGuardSSLNettyHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
+    public SearchGuardSSLNettyHttpServerTransport(final Settings settings, final NetworkService networkService,
                                                   final ThreadPool threadPool, final SearchGuardKeyStore sgks, final NamedXContentRegistry namedXContentRegistry,
                                                   final Dispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory, final SslExceptionHandler errorHandler) {
-        super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
+        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
         this.sgks = sgks;
         this.errorHandler = errorHandler;
     }
