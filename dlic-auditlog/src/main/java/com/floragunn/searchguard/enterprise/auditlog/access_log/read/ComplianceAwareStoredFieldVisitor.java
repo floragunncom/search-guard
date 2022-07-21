@@ -14,11 +14,13 @@
 package com.floragunn.searchguard.enterprise.auditlog.access_log.read;
 
 import java.io.IOException;
+import java.util.function.Function;
 
+import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.StoredFieldVisitor;
 
-public class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
+public class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor implements MaskedFieldsConsumer {
     private final StoredFieldVisitor delegate;
     private FieldReadCallback fieldReadCallback;
 
@@ -30,7 +32,7 @@ public class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
 
     @Override
     public void binaryField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
-        fieldReadCallback.binaryFieldRead(fieldInfo, value);
+        fieldReadCallback.binaryFieldRead(fieldInfo, value, (f) -> false);
         delegate.binaryField(fieldInfo, value);
     }
 
@@ -46,7 +48,7 @@ public class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
 
     @Override
     public void stringField(final FieldInfo fieldInfo, final byte[] value) throws IOException {
-        fieldReadCallback.stringFieldRead(fieldInfo, value);
+        fieldReadCallback.stringFieldRead(fieldInfo, value, (f) -> false);
         delegate.stringField(fieldInfo, value);
     }
 
@@ -89,4 +91,15 @@ public class ComplianceAwareStoredFieldVisitor extends StoredFieldVisitor {
         fieldReadCallback = null;
     }
 
+    @Override
+    public void binaryMaskedField(FieldInfo fieldInfo, byte[] value, Function<String, Boolean> masked) throws IOException {
+        fieldReadCallback.binaryFieldRead(fieldInfo, value, masked);
+        delegate.binaryField(fieldInfo, value);
+    }
+
+    @Override
+    public void stringMaskedField(FieldInfo fieldInfo, byte[] value) throws IOException {
+        fieldReadCallback.stringFieldRead(fieldInfo, value, (f) -> true);
+        delegate.stringField(fieldInfo, value);
+    }
 }

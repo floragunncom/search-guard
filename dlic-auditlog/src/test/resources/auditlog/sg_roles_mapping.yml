@@ -31,3 +31,6 @@ sg_worf:
   - "worf"
   and_backend_roles: []
   description: "Migrated from v6"
+sg_fls_audit:
+  users:
+    - "fls_audit"

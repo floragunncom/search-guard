@@ -83,7 +83,7 @@ public final class ClusterHelper {
 
     public final ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration)
             throws Exception {
-        return startCluster(nodeSettingsSupplier, clusterConfiguration, null, 10, null);
+        return startCluster(nodeSettingsSupplier, clusterConfiguration, null, 50, null);
     }
 
     public final synchronized ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration,
