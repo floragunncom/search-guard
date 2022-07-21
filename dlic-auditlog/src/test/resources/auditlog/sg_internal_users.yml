@@ -23,3 +23,6 @@ worf:
   backend_roles: []
   attributes: {}
   description: "Migrated from v6"
+fls_audit:
+  hash: "$2a$12$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+

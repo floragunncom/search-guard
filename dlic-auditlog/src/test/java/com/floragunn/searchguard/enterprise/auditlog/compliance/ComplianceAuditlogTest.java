@@ -23,12 +23,9 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
-import org.opensearch.action.get.GetRequest;
-import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.support.WriteRequest.RefreshPolicy;
 import org.opensearch.client.Client;
-import org.opensearch.common.Strings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.xcontent.XContentType;
 
@@ -382,6 +379,42 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(404, res.getStatusCode());
     }
-    
-    
+
+    @Test
+    public void testReadWriteDfm() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_METADATA_ONLY, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS,"/(?!\\.).+/")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+
+        setup(additionalSettings);
+
+
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.prepareIndex("humanresources").setId("100")
+                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .setSource("Designation", "CEO", "Plz", "10977", "FirstName",
+                            "Alex", "LastName", "Doe",
+                            "Address", "Suitland-Silver Hill, MD",
+                            "Status", "active")
+                    .execute()
+                    .actionGet();
+        }
+
+
+        HttpResponse response = rh.executeGetRequest("humanresources/_search?pretty", encodeBasicHeader("fls_audit", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(), () -> !TestAuditlogImpl.sb.toString().contains("FirstName"), Duration.ofSeconds(2));
+        TestAuditlogImpl.clear();
+
+        response = rh.executeGetRequest("humanresources/_doc/100?pretty", encodeBasicHeader("fls_audit", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(), () -> !TestAuditlogImpl.sb.toString().contains("FirstName"), Duration.ofSeconds(2));
+    }
 }

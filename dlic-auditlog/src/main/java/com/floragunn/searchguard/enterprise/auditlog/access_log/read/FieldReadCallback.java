@@ -61,13 +61,16 @@ public final class FieldReadCallback {
         }
     }
 
-    private boolean recordField(final String fieldName, boolean isStringField) {
+    private boolean recordField(final String fieldName, Function<String, Boolean> masked) {
+        if (masked.apply(fieldName)) {
+            return false;
+        }
         return context.getAuditLogConfig().readHistoryEnabledForField(index.getName(), fieldName);
     }
 
-    public void binaryFieldRead(final FieldInfo fieldInfo, byte[] fieldValue) {
+    public void binaryFieldRead(final FieldInfo fieldInfo, byte[] fieldValue, Function<String, Boolean> masked) {
         try {
-            if (!recordField(fieldInfo.name, false) && !fieldInfo.name.equals("_source") && !fieldInfo.name.equals("_id")) {
+            if (!recordField(fieldInfo.name, (f) -> false) && !fieldInfo.name.equals("_source") && !fieldInfo.name.equals("_id")) {
                 return;
             }
 
@@ -80,7 +83,7 @@ public final class FieldReadCallback {
 
                 Map<String, Object> filteredSource = new JsonFlattener(new String(fieldValue, StandardCharsets.UTF_8)).flattenAsMap();
                 for (String k : filteredSource.keySet()) {
-                    if (!recordField(k, filteredSource.get(k) instanceof String)) {
+                    if (!recordField(k, (f) -> masked.apply(f) && filteredSource.get(k) instanceof String)) {
                         continue;
                     }
                     fieldRead0(k, filteredSource.get(k));
@@ -95,9 +98,9 @@ public final class FieldReadCallback {
         }
     }
 
-    public void stringFieldRead(final FieldInfo fieldInfo, final String fieldValue) {
+    public void stringFieldRead(final FieldInfo fieldInfo, final String fieldValue, Function<String, Boolean> masked) {
         try {
-            if (!recordField(fieldInfo.name, true)) {
+            if (!recordField(fieldInfo.name, masked)) {
                 return;
             }
             fieldRead0(fieldInfo.name, fieldValue);
@@ -108,7 +111,7 @@ public final class FieldReadCallback {
 
     public void numericFieldRead(final FieldInfo fieldInfo, final Number fieldValue) {
         try {
-            if (!recordField(fieldInfo.name, false)) {
+            if (!recordField(fieldInfo.name, (f) -> false)) {
                 return;
             }
             fieldRead0(fieldInfo.name, fieldValue);

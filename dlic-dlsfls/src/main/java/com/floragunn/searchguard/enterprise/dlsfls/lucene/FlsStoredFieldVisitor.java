@@ -36,6 +36,7 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
+import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
 
 /**
  * Applies FLS and field masking while reading documents
@@ -46,8 +47,8 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
     /**
      * Meta fields like _id get always included, regardless of settings
      */
-    private static final  ImmutableSet<String> META_FIELDS = ImmutableSet.of(IndicesModule.getBuiltInMetadataFields()).with("_primary_term");
-    
+    private static final ImmutableSet<String> META_FIELDS = ImmutableSet.of(IndicesModule.getBuiltInMetadataFields()).with("_primary_term");
+
     private final StoredFieldVisitor delegate;
     private final FlsRule flsRule;
     private final FieldMaskingRule fieldMaskingRule;
@@ -57,7 +58,7 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
         this.delegate = delegate;
         this.flsRule = flsRule;
         this.fieldMaskingRule = fieldMaskingRule;
-        
+
         if (log.isDebugEnabled()) {
             log.debug("Created FlsStoredFieldVisitor for " + flsRule + "; " + fieldMaskingRule);
         }
@@ -68,7 +69,14 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
 
         if (fieldInfo.name.equals("_source")) {
             try {
-                delegate.binaryField(fieldInfo, DocumentFilter.filter(Format.JSON, value, flsRule, fieldMaskingRule));
+                if (delegate instanceof MaskedFieldsConsumer) {
+                    ((MaskedFieldsConsumer) delegate).binaryMaskedField(fieldInfo,
+                            DocumentFilter.filter(Format.JSON, value, flsRule, fieldMaskingRule),
+                            (f) -> fieldMaskingRule != null && fieldMaskingRule.get(f) != null);
+                } else {
+                    delegate.binaryField(fieldInfo, DocumentFilter.filter(Format.JSON, value, flsRule, fieldMaskingRule));
+                }
+
             } catch (DocumentParseException e) {
                 throw new OpenSearchException("Cannot filter source of document", e);
             }
@@ -92,7 +100,12 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
         FieldMaskingRule.Field field = this.fieldMaskingRule.get(fieldInfo.name);
 
         if (field != null) {
-            delegate.stringField(fieldInfo, field.apply(value));
+            if (delegate instanceof MaskedFieldsConsumer) {
+                ((MaskedFieldsConsumer) delegate).stringMaskedField(fieldInfo, field.apply(value));
+            } else {
+                delegate.stringField(fieldInfo, field.apply(value));
+            }
+
         } else {
             delegate.stringField(fieldInfo, value);
         }
@@ -164,7 +177,7 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
         @SuppressWarnings("incomplete-switch")
         private void copy() throws IOException {
             boolean skipNext = false;
-            
+
             for (JsonToken token = parser.currentToken() != null ? parser.currentToken() : parser.nextToken(); token != null; token = parser
                     .nextToken()) {
 
@@ -199,8 +212,8 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
                     case FIELD_NAME:
                         this.currentName = parser.currentName();
                         this.fullCurrentName = this.fullParentName == null ? this.currentName : this.fullParentName + "." + this.currentName;
-                        
-                        if (META_FIELDS.contains(fullCurrentName) || flsRule.isAllowed(fullCurrentName)) {                       
+
+                        if (META_FIELDS.contains(fullCurrentName) || flsRule.isAllowed(fullCurrentName)) {
                             generator.writeFieldName(parser.currentName());
                         } else {
                             skipNext = true;

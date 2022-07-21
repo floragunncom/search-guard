@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
+import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.StoredFieldsReader;
@@ -519,7 +520,15 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
                 Map<String, Object> filteredSource = bytesRefTuple.v2();
                 MapUtils.deepTraverseMap(filteredSource, HASH_CB);
                 final XContentBuilder xBuilder = XContentBuilder.builder(bytesRefTuple.v1().xContent()).map(filteredSource);
-                delegate.binaryField(fieldInfo, BytesReference.toBytes(BytesReference.bytes(xBuilder)));
+
+                if(delegate instanceof MaskedFieldsConsumer) {
+                    ((MaskedFieldsConsumer)delegate).binaryMaskedField(fieldInfo, BytesReference.toBytes(BytesReference.bytes(xBuilder)),
+                            (f) -> maskedFieldsKeySet != null && WildcardMatcher.getFirstMatchingPattern(maskedFieldsKeySet, f).isPresent());
+                } else {
+                    delegate.binaryField(fieldInfo, BytesReference.toBytes(BytesReference.bytes(xBuilder)));
+                }
+
+
             } else {
                 delegate.binaryField(fieldInfo, value);
             }
@@ -541,7 +550,13 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             final Optional<String> matchedPattern = WildcardMatcher.getFirstMatchingPattern(maskedFieldsKeySet, fieldInfo.name);
 
             if (matchedPattern.isPresent()) {
-                delegate.stringField(fieldInfo, maskedFieldsMap.get(matchedPattern.get()).mask(value));
+                if(delegate instanceof MaskedFieldsConsumer) {
+                    ((MaskedFieldsConsumer)delegate).stringMaskedField(fieldInfo, maskedFieldsMap.get(matchedPattern.get()).mask(value));
+                } else {
+                    delegate.stringField(fieldInfo, maskedFieldsMap.get(matchedPattern.get()).mask(value));
+                }
+
+
             } else {
                 delegate.stringField(fieldInfo, value);
             }
