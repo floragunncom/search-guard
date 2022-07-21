@@ -75,8 +75,7 @@ signals:
 .be_integration_test:
   allow_failure: false
   stage: "Backend Int Tests Core"
-  rules:
-      when: always
+  when: always
   image: docker:${DOCKER_VERSION}
   services:
     - docker:${DOCKER_VERSION}-dind
