@@ -207,11 +207,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
                     }
                 });
             } else if (settings.get(BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST)) {
-                LOGGER.info("{} index does not exist yet, so no need to load config on node startup. Use sgadmin to initialize cluster",
+                LOGGER.info("{} index does not exist yet, so no need to load config on node startup. Use sgctl to initialize cluster",
                         configuredSearchguardIndexNew);
                 threadPool.generic().submit(() -> waitForConfigIndex());
             } else {
-                LOGGER.info("{} index does not exist yet, use sgadmin to initialize the cluster. We will not perform background initialization",
+                LOGGER.info("{} index does not exist yet, use sgctl to initialize the cluster. We will not perform background initialization",
                         configuredSearchguardIndexNew);
                 componentState.setState(State.SUSPENDED, "waiting_for_config_update");
             }
