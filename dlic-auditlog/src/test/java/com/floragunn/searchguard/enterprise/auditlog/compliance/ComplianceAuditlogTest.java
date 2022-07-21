@@ -417,4 +417,42 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
            Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
         }
     }
+
+    @Test
+    public void testReadWriteDfm() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_METADATA_ONLY, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS,"/(?!\\.).+/")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+
+        setup(additionalSettings);
+
+
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.prepareIndex("humanresources","_doc").setId("100")
+                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .setSource("Designation", "CEO", "Plz", "10977", "FirstName",
+                            "Alex", "LastName", "Doe",
+                            "Address", "Suitland-Silver Hill, MD",
+                            "Status", "active")
+                    .execute()
+                    .actionGet();
+        }
+
+
+        HttpResponse response = rh.executeGetRequest("humanresources/_search?pretty", encodeBasicHeader("fls_audit", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(), () -> !TestAuditlogImpl.sb.toString().contains("FirstName"), Duration.ofSeconds(2));
+        TestAuditlogImpl.clear();
+
+        response = rh.executeGetRequest("humanresources/_doc/100?pretty", encodeBasicHeader("fls_audit", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(), () -> !TestAuditlogImpl.sb.toString().contains("FirstName"), Duration.ofSeconds(2));
+    }
 }
