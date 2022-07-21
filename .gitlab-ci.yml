@@ -49,7 +49,6 @@ build:
   tags:
     - hetzner-online-docker
   script:
-    - sleep 300
     - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
     when: on_success
