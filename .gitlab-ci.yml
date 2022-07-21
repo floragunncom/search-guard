@@ -18,7 +18,7 @@ variables:
 default:
   image: $SG_BUILD_IMAGE
   tags:
-    - aws-runner
+    - hetzner-online-docker
   interruptible: true
   timeout: 90m
   before_script:
