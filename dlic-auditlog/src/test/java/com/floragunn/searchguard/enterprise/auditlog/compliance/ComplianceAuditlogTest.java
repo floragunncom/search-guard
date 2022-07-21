@@ -23,12 +23,19 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
+import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.support.WriteRequest.RefreshPolicy;
 import org.opensearch.client.Client;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.XContentType;
 
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
@@ -38,6 +45,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.junit.AsyncAssert;
 
 public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
@@ -416,5 +424,94 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         response = rh.executeGetRequest("humanresources/_doc/100?pretty", encodeBasicHeader("fls_audit", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(), () -> !TestAuditlogImpl.sb.toString().contains("FirstName"), Duration.ofSeconds(2));
+    }
+
+    @Test
+    public void testReadWriteSource() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_WATCHED_INDICES, "humanresources")
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS,"/(?!\\.).+/")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+
+        setup(additionalSettings);
+
+
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.prepareIndex("humanresources").setId("100")
+                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .setSource("Age", 456)
+                    .execute()
+                    .actionGet();
+        }
+
+        TestAuditlogImpl.clear();
+
+        String body = "{\"doc\": {\"Age\":123}}";
+
+        HttpResponse response = rh.executePostRequest("humanresources/_update/100?pretty", body, encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(), () -> TestAuditlogImpl.sb.toString().split("\\\\\"Age\\\\\":123").length == 2, Duration.ofSeconds(2));
+
+        body = "{\"Age\":555}";
+        TestAuditlogImpl.clear();
+        response = rh.executePostRequest("humanresources/_doc/100?pretty", body, encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(), () -> TestAuditlogImpl.sb.toString().split("\\\\\"Age\\\\\":555").length == 2, Duration.ofSeconds(2));
+
+        TestAuditlogImpl.clear();
+        response = rh.executeGetRequest("humanresources/_doc/100?pretty", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(), () -> TestAuditlogImpl.sb.toString().split("\\\\\"Age\\\\\":\\\\\"555\\\\\"").length == 2, Duration.ofSeconds(2));
+    }
+
+    @Test
+    public void testReadWriteSourceSgIndex() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED,true)
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+
+        setup(additionalSettings);
+        TestAuditlogImpl.clear();
+        initializeSgIndex(getNodeClient(), new DynamicSgConfig());
+        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
+                () ->
+                        !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
+                                TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ") &&
+                                TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE") &&
+                                TestAuditlogImpl.sb.toString().contains("sg_all_access") &&
+                                TestAuditlogImpl.sb.toString().contains("internalusers")
+                ,
+                Duration.ofSeconds(5));
+    }
+
+    private void initializeSgIndex(Client tc, DynamicSgConfig sgconfig) {
+        try (ThreadContext.StoredContext ctx = tc.threadPool().getThreadContext().stashContext()) {
+            tc.threadPool().getThreadContext().putTransient(ConfigConstants.SG_USER, new User("dummyuser"));
+            tc.threadPool().getThreadContext().putTransient(ConfigConstants.SG_ORIGIN, AuditLog.Origin.TRANSPORT.name());
+            tc.threadPool().getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+
+            for (IndexRequest ir : sgconfig.getDynamicConfig(getResourceFolder())) {
+                tc.index(ir).actionGet();
+                tc.get(new GetRequest(ir.index(), ir.id())).actionGet();
+            }
+
+            ConfigUpdateResponse cur = tc
+                    .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0])))
+                    .actionGet();
+
+            Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
+        }
     }
 }
