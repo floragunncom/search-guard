@@ -87,7 +87,7 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.core.Tuple;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.plugins.PluginInfo;
+import org.elasticsearch.plugins.PluginDescriptor;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
@@ -1244,7 +1244,7 @@ public class SearchGuardAdmin {
         }
         
         if(nir.getNodes().size() > 0) {
-            List<PluginInfo> pluginInfos = nir.getNodes().get(0).getInfo(PluginsAndModules.class).getPluginInfos();
+            List<PluginDescriptor> pluginInfos = nir.getNodes().get(0).getInfo(PluginsAndModules.class).getPluginInfos();
             String sgVersion = pluginInfos.stream().filter(p->p.getClassname().equals("com.floragunn.searchguard.SearchGuardPlugin")).map(p->p.getVersion()).findFirst().orElse("<unknown>");
             System.out.println("Search Guard Version: "+sgVersion);
         }
