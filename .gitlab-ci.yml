@@ -49,6 +49,7 @@ build:
   tags:
     - hetzner-online-docker
   script:
+    - sleep 300
     - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
     when: on_success
@@ -85,7 +86,7 @@ build_for_tag_version:
       - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
-    key: mavenrepo
+    key: mavenrepoq
     paths:
       - .m2/repository
   allow_failure: false
