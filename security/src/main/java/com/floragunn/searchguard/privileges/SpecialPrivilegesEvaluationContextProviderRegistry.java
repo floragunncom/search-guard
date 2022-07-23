@@ -50,10 +50,10 @@ public class SpecialPrivilegesEvaluationContextProviderRegistry implements Speci
                 onResult.accept(null);
             }
         } catch (Exception e) {
-            log.error(e);
+            log.error("Error in SpecialPrivilegesEvaluationContextProviderRegistry", e);
             onFailure.accept(e);
         } catch (Throwable t) {
-            log.error(t);
+            log.error("Error in SpecialPrivilegesEvaluationContextProviderRegistry", t);
             onFailure.accept(new RuntimeException(t));
         }
     }
