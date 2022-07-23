@@ -138,11 +138,11 @@ public class SearchGuardFilter implements ActionFilter {
                     try (StoredContext ctx = threadContext.newStoredContext(true)) {
                         apply0(task, action, request, listener, chain, specialPrivilegesEvaluationContext);
                     } catch (Exception e) {
-                        log.error(e);
+                        log.error("Error in apply()", e);
                         listener.onFailure(new ElasticsearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR, e));
                     }
                 }, (e) -> {
-                    log.error(e);
+                    log.error("specialPrivilegesEvaluationContextProviderRegistry.provide() failed", e);
                     listener.onFailure(new ElasticsearchSecurityException("Unexpected exception " + action, RestStatus.INTERNAL_SERVER_ERROR, e));
                 });
     }
