@@ -33,7 +33,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -56,6 +55,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -167,7 +167,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.settings = settings;
         this.clusterService = clusterService;
         this.configurationChangedListener = new ArrayList<>();
-        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client, ConfigConstants.SG_STANDARD_TRANSIENTS);
+        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.componentState.setMandatory(true);
         this.mainConfigLoader = new ConfigurationLoader(client, componentState, this, staticSgConfig);
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
@@ -248,7 +248,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     public void reloadConfiguration(Set<CType<?>> configTypes, String reason)
             throws ConfigUpdateAlreadyInProgressException, ConfigUnavailableException {
-        try {
+        // Drop user information from thread context to avoid spamming of audit log
+        try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
             if (LOCK.tryLock(60, TimeUnit.SECONDS)) {
                 try {
                     reloadConfiguration0(configTypes, reason);
@@ -441,7 +442,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             return new StandardResponse(412, "Search Guard already uses the new-style index: " + effectiveSearchGuardIndex);
         }
 
-        PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client, ConfigConstants.SG_STANDARD_TRANSIENTS);
+        PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
 
         SearchResponse searchResponse = null;
 

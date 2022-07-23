@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
@@ -58,6 +59,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -822,57 +824,73 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (log.isDebugEnabled()) {
             log.debug("AuthTokenService.provide(" + user.getName() + ") on " + authTokenId);
         }
+        
+        // We need to drop the thread context incl user information. This is necessary to avoid running in an infinite loop
+        // because we do transport action requests further down, which will hit again the SearchGuardFilter, which might branch
+        // to here again if it finds a user authenticated by an auth token
 
-        getByIdWithConfigSnapshot(authTokenId, (authToken) -> {
+        Supplier<StoredContext> restorableCtx = threadContext.newRestorableContext(true);
 
-            try {
-                if (log.isTraceEnabled()) {
-                    log.trace("Got token: " + authToken);
-                }
+        try (StoredContext ctx = threadContext.stashContext()) {
+            getByIdWithConfigSnapshot(authTokenId, (authToken) -> {
 
-                if (authToken.isRevoked()) {
-                    log.info("Using revoked auth token: " + authToken);
-                    onResult.accept(null);
-                    return;
-                }
-
-                ConfigModel configModelSnapshot;
-
-                if (authToken.getBase().getConfigSnapshot() == null) {
-                    configModelSnapshot = getCurrentConfigModel();
-                } else {
-                    if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
-                        throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
+                try {
+                    if (log.isTraceEnabled()) {
+                        log.trace("Got token: " + authToken);
                     }
 
-                    configModelSnapshot = configHistoryService.getConfigModelForSnapshot(authToken.getBase().getConfigSnapshot());
+                    if (authToken.isRevoked()) {
+                        log.info("Using revoked auth token: " + authToken);
+                        try (StoredContext restoredCtx = restorableCtx.get()) {
+                            onResult.accept(null);
+                            return;
+                        }
+                    }
+
+                    ConfigModel configModelSnapshot;
+
+                    if (authToken.getBase().getConfigSnapshot() == null) {
+                        configModelSnapshot = getCurrentConfigModel();
+                    } else {
+                        if (authToken.getBase().getConfigSnapshot().hasMissingConfigVersions()) {
+                            throw new RuntimeException("Stored config snapshot is not complete: " + authToken);
+                        }
+
+                        configModelSnapshot = configHistoryService.getConfigModelForSnapshot(authToken.getBase().getConfigSnapshot());
+                    }
+
+                    User userWithRoles = user.copy().backendRoles(authToken.getBase().getBackendRoles())
+                            .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
+                    TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+                    Set<String> mappedBaseRoles = configModelSnapshot.getRoleMapping().evaluate(userWithRoles, callerTransportAddress,
+                            privilegesEvaluator.getRolesMappingResolution());
+
+                    if (log.isDebugEnabled()) {
+                        log.debug("AuthTokenService.provide returns SpecialPrivilegesEvaluationContext for " + user + "\nuserWithRoles: "
+                                + userWithRoles + "\nmappedBaseRoles: " + mappedBaseRoles);
+                    }
+
+                    RestrictedActionAuthorization restrictedSgRoles = new RestrictedActionAuthorization(configModelSnapshot.getActionAuthorization(),
+                            authToken.getRequestedPrivileges(), configModelSnapshot.getActionGroups(), actions, null,
+                            ((RoleBasedActionAuthorization) privilegesEvaluator.getActionAuthorization()).getTenants());
+
+                    try (StoredContext restoredCtx = restorableCtx.get()) {
+                        onResult.accept(new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles,
+                                configModelSnapshot.getRolesConfig(), authToken.getRequestedPrivileges()));
+                    }
+                } catch (Exception e) {
+                    log.error("Error in provide(" + user + "); authTokenId: " + authTokenId, e);
+                    try (StoredContext restoredCtx = restorableCtx.get()) {
+                        onFailure.accept(e);
+                    }
                 }
-
-                User userWithRoles = user.copy().backendRoles(authToken.getBase().getBackendRoles())
-                        .searchGuardRoles(authToken.getBase().getSearchGuardRoles()).build();
-                TransportAddress callerTransportAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-                Set<String> mappedBaseRoles = configModelSnapshot.getRoleMapping().evaluate(userWithRoles, callerTransportAddress,
-                        privilegesEvaluator.getRolesMappingResolution());
-
-                if (log.isDebugEnabled()) {
-                    log.debug("AuthTokenService.provide returns SpecialPrivilegesEvaluationContext for " + user + "\nuserWithRoles: " + userWithRoles
-                            + "\nmappedBaseRoles: " + mappedBaseRoles);
+            }, (noSuchAuthTokenException) -> {
+                try (StoredContext restoredCtx = restorableCtx.get()) {
+                    onFailure.accept(new ElasticsearchSecurityException("Cannot authenticate user due to invalid auth token " + authTokenId,
+                            noSuchAuthTokenException));
                 }
-
-                RestrictedActionAuthorization restrictedSgRoles = new RestrictedActionAuthorization(configModelSnapshot.getActionAuthorization(),
-                        authToken.getRequestedPrivileges(), configModelSnapshot.getActionGroups(), actions, null,
-                        ((RoleBasedActionAuthorization) privilegesEvaluator.getActionAuthorization()).getTenants());
-
-                onResult.accept(new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles,
-                        configModelSnapshot.getRolesConfig(), authToken.getRequestedPrivileges()));
-            } catch (Exception e) {
-                log.error("Error in provide(" + user + "); authTokenId: " + authTokenId, e);
-                onFailure.accept(e);
-            }
-        }, (noSuchAuthTokenException) -> {
-            onFailure.accept(new ElasticsearchSecurityException("Cannot authenticate user due to invalid auth token " + authTokenId,
-                    noSuchAuthTokenException));
-        }, onFailure);
+            }, onFailure);
+        }
     }
 
     public void shutdown() {
@@ -889,11 +907,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         private final User user;
         private final ImmutableSet<String> mappedRoles;
         private final ActionAuthorization actionAuthorization;
-        private final SgDynamicConfiguration<Role> rolesConfig; 
+        private final SgDynamicConfiguration<Role> rolesConfig;
         private final RequestedPrivileges requestedPrivileges;
 
-        SpecialPrivilegesEvaluationContextImpl(User user, Set<String> mappedRoles, ActionAuthorization actionAuthorization, SgDynamicConfiguration<Role> rolesConfig,
-                RequestedPrivileges requestedPrivileges) {
+        SpecialPrivilegesEvaluationContextImpl(User user, Set<String> mappedRoles, ActionAuthorization actionAuthorization,
+                SgDynamicConfiguration<Role> rolesConfig, RequestedPrivileges requestedPrivileges) {
             this.user = user;
             this.mappedRoles = ImmutableSet.of(mappedRoles);
             this.actionAuthorization = actionAuthorization;
