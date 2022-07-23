@@ -258,7 +258,12 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		final String resourcename = request.param("name");
 		
 		try {
-			SgDynamicConfiguration<?> configuration = configLoader.loadSync(getConfigName(), "API Request");
+			SgDynamicConfiguration<?> configuration;
+			
+			// Drop user information to avoid logging audit log events. Audit log is done manually below.
+			try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+			    configuration = configLoader.loadSync(getConfigName(), "API Request");
+			}
 
 			logComplianceEvent(configuration);
 
@@ -288,7 +293,12 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	}
 
 	protected final <T> SgDynamicConfiguration<T> load(final CType<T> config, boolean logComplianceEvent) throws ConfigUnavailableException {
-        SgDynamicConfiguration<T> loaded = cl.getConfigurationFromIndex(config, "API Request");
+        SgDynamicConfiguration<T> loaded;
+        
+        // Drop user information to avoid logging audit log events. Audit log events are logged manually below.
+        try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+            loaded = cl.getConfigurationFromIndex(config, "API Request");
+        }
         
         if (logComplianceEvent) {
             logComplianceEvent(loaded);
