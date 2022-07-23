@@ -12,13 +12,14 @@ variables:
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -q -U"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
+  RUNNER_TAG: "aws-arm64"
 
   GIT_DEPTH: 10
   
 default:
   image: $SG_BUILD_IMAGE
   tags:
-    - aws-runner
+    - "${RUNNER_TAG}"
   interruptible: true
   timeout: 90m
   before_script:
