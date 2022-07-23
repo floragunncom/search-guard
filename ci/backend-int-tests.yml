@@ -95,7 +95,10 @@ signals:
     - |
        #apk update
        #apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo
-
+      
+       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+      
+      
        set +e
        ls -la
        ls -la plugin/target/releases/
