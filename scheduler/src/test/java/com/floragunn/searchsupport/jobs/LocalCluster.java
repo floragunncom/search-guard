@@ -11,13 +11,12 @@ import org.junit.rules.ExternalResource;
 
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
-import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
 
 public class LocalCluster extends ExternalResource {
 
@@ -87,7 +86,7 @@ public class LocalCluster extends ExternalResource {
     }
 
     public Client getPrivilegedConfigNodeClient() {
-        return new ContextHeaderDecoratorClient(getNodeClient(), null, ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+        return PrivilegedConfigClient.adapt(getNodeClient());
     }
 
     private void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex,
