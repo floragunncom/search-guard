@@ -50,7 +50,6 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
         setup(additionalSettings);
         TestAuditlogImpl.clear();
-        System.out.println("===== Test start ======");
         String body = "{ \"password\":\"test\",\"backend_roles\":[\"role1\",\"role2\"] }";
         HttpResponse response = rh.executePutRequest("_searchguard/api/internalusers/compuser?pretty", body, encodeBasicHeader("admin", "admin"));
         Thread.sleep(1500);

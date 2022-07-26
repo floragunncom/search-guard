@@ -525,7 +525,6 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
         setup(additionalSettings);
         TestAuditlogImpl.clear();
-        System.out.println("=== Start Test ===");
         initializeSgIndex(getNodeClient(), new DynamicSgConfig());
         AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
                 () ->
@@ -553,7 +552,6 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
         setup(additionalSettings);
         TestAuditlogImpl.clear();
-        System.out.println("=== Start Test ===");
 
         URL url = this.getClass().getResource("/" + getResourceFolder()+"/kirk.key.pem");
         String path = new File(url.toURI()).getParent();
