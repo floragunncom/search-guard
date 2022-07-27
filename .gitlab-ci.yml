@@ -72,7 +72,7 @@ veracode_scan:
       when: always
     - when: manual
   tags:
-    - openstack-runner
+    - hetzner-online-docker
   script:
     - "dev/scan_veracode.sh"
   cache:
