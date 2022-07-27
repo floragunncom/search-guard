@@ -40,7 +40,7 @@ docker run -it --rm \
         -maxretrycount 3 \
         -createprofile "false" \
         -scantimeout 60 \
-        -scanpollinginterval 30 \
+        -scanpollinginterval 60 \
         -toplevel true \
         -scanallnonfataltoplevelmodules false \
         -include "*search-guard*,*sgadmin*,*codova*,*fluent-collections*" \
