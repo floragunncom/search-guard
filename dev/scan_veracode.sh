@@ -28,7 +28,7 @@ echo ""
 echo "Upload $SCAN_FILE with a size of $((FILESIZE / 1048576)) mb"
 
 #https://docs.veracode.com/r/r_uploadandscan
-docker run -it --rm \
+docker run --rm \
     --env VERACODE_API_KEY_ID=$VERACODE_API_KEY_ID \
     --env VERACODE_API_KEY_SECRET=$VERACODE_API_KEY_SECRET \
     -v "$SCAN_FILE_DIR/:/myapp/" \
