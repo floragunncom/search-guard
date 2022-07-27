@@ -7,17 +7,15 @@
     <includeBaseDirectory>false</includeBaseDirectory>
     <dependencySets>
         <dependencySet>
-            <useStrictFiltering>true</useStrictFiltering>
-            <outputDirectory>${file.separator}elasticsearch${file.separator}</outputDirectory>
-            <useProjectAttachments>true</useProjectAttachments>
+            <useStrictFiltering>false</useStrictFiltering>
+            <outputDirectory>${file.separator}</outputDirectory>
+            <useProjectArtifact>false</useProjectArtifact>
             <useTransitiveFiltering>true</useTransitiveFiltering>
             <scope>compile</scope>
             <excludes>
                 <exclude>org.elasticsearch:jna</exclude>
                 <exclude>org.apache.lucene:lucene-backward-codecs</exclude>
-                <exclude>org.apache.logging.log4j:log4j-core</exclude>
-                <exclude>org.elasticsearch.plugin:reindex-client</exclude>
-                <exclude>io.netty</exclude> <!-- Netty version is dictated by Elasticsearch -->
+                <exclude>com.google.guava:listenablefuture</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>
