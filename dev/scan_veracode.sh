@@ -19,7 +19,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR/.."
 
 echo "Build SG with veracode flavour..."
-mvn clean package -Pveracode,dlic,enterprise -DskipTests > /dev/null 2>&1
+mvn clean package -Pveracode,dlic,enterprise -DskipTests #> /dev/null 2>&1
 SCAN_FILE_DIR="$DIR/../plugin/target/releases"
 SCAN_FILE="$SCAN_FILE_DIR/veracode_upload.zip"
 

@@ -77,7 +77,8 @@ veracode_scan:
   tags:
     - hetzner-online-docker
   script:
-    - "dev/scan_veracode.sh"
+    - apk add maven
+    - JAVA_HOME=/usr/lib/jvm/java-11-openjdk "dev/scan_veracode.sh"
   cache:
     key: mavenrepo
     paths:
