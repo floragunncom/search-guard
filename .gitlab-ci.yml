@@ -85,6 +85,25 @@ build:
     paths:
       - .m2/repository
 
+veracode_scan:
+  stage: build
+  interruptible: true
+  allow_failure: true
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+    - if: '$FORCE_VERACODE_SCAN'
+      when: always
+    - when: manual
+  tags:
+    - openstack-runner
+  script:
+    - "dev/scan_veracode.sh"
+  cache:
+    key: mavenrepo
+    paths:
+      - .m2/repository
+
 build_for_tag_version:
   stage: build
   interruptible: true

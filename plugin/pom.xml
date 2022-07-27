@@ -359,5 +359,46 @@
 				</dependency>
 			</dependencies>
 		</profile>
+		<profile>
+			<id>veracode</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.elasticsearch</groupId>
+					<artifactId>elasticsearch</artifactId>
+					<version>${elasticsearch.version}</version>
+				</dependency>
+				<dependency>
+					<groupId>org.elasticsearch.plugin</groupId>
+					<artifactId>elasticsearch-scripting-painless-spi</artifactId>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>plugin-veracode</id>
+								<phase>package</phase>
+								<configuration>
+									<appendAssemblyId>false</appendAssemblyId>
+									<tarLongFileMode>posix</tarLongFileMode>
+									<outputDirectory>${project.build.directory}/releases/</outputDirectory>
+									<finalName>veracode_upload</finalName>
+									<descriptors>
+										<descriptor>${veracode.descriptor}</descriptor>
+									</descriptors>
+								</configuration>
+								<goals>
+									<goal>single</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+
+			</build>
+		</profile>
 	</profiles>
 </project>
