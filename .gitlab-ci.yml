@@ -87,6 +87,7 @@ build:
 
 veracode_scan:
   stage: build
+  image: floragunncom/ci-docker-compose-openjdk11:19.03.1
   interruptible: true
   allow_failure: true
   rules:
@@ -95,6 +96,8 @@ veracode_scan:
     - if: '$FORCE_VERACODE_SCAN'
       when: always
     - when: manual
+  services:
+    - docker:19.03-dind
   tags:
     - hetzner-online-docker
   script:
