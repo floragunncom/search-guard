@@ -27,6 +27,15 @@ SG_PLUGIN_NAME="search-guard-flx"
 SGCTL_VERSION="1.0.0-beta-2"
 NODE_VERSION="v10.24.1"
 
+ARCH_DETECTED="$(arch)"
+ARCH_FULL="x86_64"
+ARCH_SHORT="x64"
+
+if [[ "$ARCH_DETECTED" == *"arm"* ]] || [[ "$ARCH_DETECTED" == "aarch64" ]]; then
+  ARCH="aarch64"
+  ARCH_SHORT="arm64"
+fi
+
 if [[ $SG_VERSION =~ .*-os-.* ]]; then
   OS_VERSION=$(echo $SG_VERSION | sed -n 's/^.*-os-\(.*\)*$/\1/p')
   SB_NAME="OpenSearch"
@@ -43,12 +52,12 @@ if [[ $SG_VERSION =~ .*-os-.* ]]; then
   fi
 
   if [[ "$OSTYPE"  == "linux"* ]]; then
-    SB_ARCHIVE="opensearch-min-$OS_VERSION-linux-x64.tar.gz"
-    SF_ARCHIVE="opensearch-dashboards-min-$OSD_VERSION-linux-x64.tar.gz"
+    SB_ARCHIVE="opensearch-min-$OS_VERSION-linux-$ARCH_SHORT.tar.gz"
+    SF_ARCHIVE="opensearch-dashboards-min-$OSD_VERSION-linux-$ARCH_SHORT.tar.gz"
   elif [[ "$OSTYPE" == "darwin"* ]]; then
     # since there are no Darwin-specific builds yet, we use the Linux builds
-    SB_ARCHIVE="opensearch-min-$OS_VERSION-linux-x64.tar.gz"
-    SF_ARCHIVE="opensearch-dashboards-min-$OSD_VERSION-linux-x64.tar.gz"
+    SB_ARCHIVE="opensearch-min-$OS_VERSION-linux-$ARCH_SHORT.tar.gz"
+    SF_ARCHIVE="opensearch-dashboards-min-$OSD_VERSION-linux-$ARCH_SHORT.tar.gz"
   else
     echo "OpenSearch is right now not available for type $OSTYPE"
     exit
@@ -62,11 +71,11 @@ else
   SF_LC_NAME="kibana" 
   
   if [[ "$OSTYPE"  == "linux"* ]]; then
-    SB_ARCHIVE="elasticsearch-$ES_VERSION-linux-x86_64.tar.gz"
-    SF_ARCHIVE="kibana-$ES_VERSION-linux-x86_64.tar.gz"
+    SB_ARCHIVE="elasticsearch-$ES_VERSION-linux-$ARCH.tar.gz"
+    SF_ARCHIVE="kibana-$ES_VERSION-linux-$ARCH.tar.gz"
   elif [[ "$OSTYPE" == "darwin"* ]]; then
-    SB_ARCHIVE="elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz"
-    SF_ARCHIVE="kibana-$ES_VERSION-darwin-x86_64.tar.gz"
+    SB_ARCHIVE="elasticsearch-$ES_VERSION-darwin-$ARCH.tar.gz"
+    SF_ARCHIVE="kibana-$ES_VERSION-darwin-$ARCH.tar.gz"
   else
     echo "OS type $OSTYPE not supported"
     exit
