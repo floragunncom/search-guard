@@ -432,9 +432,9 @@ echo "$SF_LC_NAME/bin/$SF_LC_NAME"
 echo
 echo "Note that $SB_NAME must be already running before you can start $SF_NAME. Upon the first start, $SF_NAME will take some time to build browser bundles before it is available."
 echo
-echo "In order to change the Search Guard configuration while $SB_NAME is running, edit one of the YML files in my-sg-config and upload it using sgctl.sh update-config my-sg-config"
+echo "In order to change the Search Guard configuration while $SB_NAME is running, edit one of the YML files in my-sg-config and upload it using ./sgctl.sh update-config my-sg-config"
 echo
-echo "You might also want to review the generated configration file at:"
+echo "You might also want to review the generated configuration files at:"
 echo "$SB_LC_NAME/config/$SB_LC_NAME.yml"
 echo "$SF_LC_NAME/config/$SF_LC_NAME_CC.yml"
 
