@@ -494,14 +494,15 @@ public class ComponentState implements Document<ComponentState> {
     public void addDetail(Object detail) {
         detailJsonElements.add(detail);
     }
-
-    public void addDetailJson(String detailJson) {
+    
+    public void setDetailJson(String detailJson) {
         try {
             Object parsedDetailJson = DocReader.json().read(detailJson);
+            detailJsonElements.clear();
             detailJsonElements.add(parsedDetailJson);
         } catch (DocumentParseException e) {
             log.error("Error while parsing detail JSON\n" + detailJson, e);
-        }
+        }        
     }
 
     @Override
