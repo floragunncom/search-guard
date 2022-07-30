@@ -49,6 +49,7 @@ import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.DereferencePolicy;
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.Filter;
+import com.unboundid.ldap.sdk.LDAPBindException;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SearchRequest;
@@ -198,6 +199,11 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             } else {
                 return null;
             }
+        } catch (LDAPBindException e) {
+            log.error("diagnostic: " + e.getBindResult().getDiagnosticMessage() + "\nresult code: " + e.getBindResult().getResultCode() + "\n" + e.getBindResult());
+            
+            throw new AuthenticatorUnavailableException("Could not bind to LDAP server", e.getMessage(), e);
+                       
         } catch (LDAPException e) {
             throw new AuthenticatorUnavailableException("LDAP user search failed", e.getMessage(), e);
         } catch (ExpressionEvaluationException e) {
