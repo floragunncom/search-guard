@@ -33,6 +33,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchsupport.PrivilegedCode;
 import com.google.common.primitives.Ints;
 import com.unboundid.ldap.sdk.AggregateLDAPConnectionPoolHealthCheck;
@@ -258,8 +259,12 @@ public final class LDAPConnectionManager implements Closeable {
         }
     }
 
-    public LDAPConnection getConnection() throws LDAPException {
-        return pool.getConnection();
+    public LDAPConnection getConnection() throws AuthenticatorUnavailableException {
+        try {
+            return pool.getConnection();
+        } catch (LDAPException e) {
+            throw new AuthenticatorUnavailableException("Error while creating connection to LDAP server", e).details(LDAP.getDetailsFrom(e));
+        }
     }
 
     @Override
