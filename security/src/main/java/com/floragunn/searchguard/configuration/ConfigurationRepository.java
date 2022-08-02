@@ -49,6 +49,8 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
@@ -57,6 +59,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
@@ -187,7 +190,23 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     public void initOnNodeStart() {
+        componentState.setState(State.INITIALIZING, "waiting_for_state_recovery");
 
+        this.clusterService.addListener(new ClusterStateListener() {
+
+            @Override
+            public void clusterChanged(ClusterChangedEvent event) {
+                if (!event.state().blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
+                    clusterService.removeListener(this);
+                    componentState.setState(State.INITIALIZING, "cluster_state_recovered");
+                    LOGGER.info("Cluster state has been recovered. Starting config index initialization.");
+                    checkIndicesNow();
+                }
+            }
+        });
+    }
+
+    private void checkIndicesNow() {
         LOGGER.debug("Check if one of the indices " + configuredSearchguardIndexNew + " or " + configuredSearchguardIndexOld + " does exist ...");
 
         try {
@@ -857,7 +876,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             try {
                 @SuppressWarnings({ "unchecked", "rawtypes" }) // XXX weird generics issue
-                ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration.fromMap(configMap, ctype, parserContext);
+                ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration
+                        .fromMap(configMap, ctype, parserContext);
 
                 if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
                     validationErrors.add(ctype.toLCString(), configInstance.getValidationErrors());
