@@ -450,14 +450,14 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
                             if (isTimedOut()) {
                                 moduleState.setFailed("Index " + name + " is has not become ready. Giving up");
-                                moduleState.addDetailJson(Strings.toString(clusterHealthResponse));
+                                moduleState.setDetailJson(Strings.toString(clusterHealthResponse));
                                 log.error("Index " + name + " is has not become ready:\n" + clusterHealthResponse + "\nGiving up.");
                                 return;
                             }
 
                             if (isLate()) {
                                 log.error("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
-                                moduleState.addDetailJson(Strings.toString(clusterHealthResponse));
+                                moduleState.setDetailJson(Strings.toString(clusterHealthResponse));
                             } else if (log.isTraceEnabled()) {
                                 log.trace("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
                             }

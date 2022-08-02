@@ -37,7 +37,7 @@ public class SearchFilter {
 
     SearchFilter(String byAttribute, Template<String> raw, String byAttributeValueSource) {
         this.byAttribute = byAttribute;
-        this.raw = raw;
+        this.raw = raw != null ? raw.stringEscapeFunction(Filter::encodeValue) : null;
         this.byAttributeValueSource = byAttributeValueSource;
     }
 
@@ -54,8 +54,6 @@ public class SearchFilter {
     }
 
     private Filter createRawFilter(AttributeSource attributeSource) throws LDAPException, ExpressionEvaluationException {
-        // Filter::encodeValue
-
         return Filter.create(raw.render(attributeSource));
     }
 

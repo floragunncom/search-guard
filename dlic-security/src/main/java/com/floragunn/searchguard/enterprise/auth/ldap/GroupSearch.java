@@ -31,6 +31,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.google.common.cache.Cache;
 import com.unboundid.ldap.sdk.DereferencePolicy;
@@ -72,8 +73,7 @@ public class GroupSearch {
         validationErrors.throwExceptionForPresentErrors();
     }
 
-    Set<Entry> search(LDAPConnection connection, String dn, AttributeSource attributeSource, Meter meter)
-            throws LDAPException, ExpressionEvaluationException {
+    Set<Entry> search(LDAPConnection connection, String dn, AttributeSource attributeSource, Meter meter) throws AuthenticatorUnavailableException {
         return new SearchState(connection, attributeSource, meter).search(dn);
     }
 
@@ -91,7 +91,7 @@ public class GroupSearch {
             this.meter = meter;
         }
 
-        Set<Entry> search(String dn) throws LDAPException, ExpressionEvaluationException {
+        Set<Entry> search(String dn) throws AuthenticatorUnavailableException {
             AttributeSource attributeSource;
 
             if (dn != null) {
@@ -100,7 +100,13 @@ public class GroupSearch {
                 attributeSource = this.attributeSource;
             }
 
-            Filter filter = searchFilter.toFilter(attributeSource);
+            Filter filter;
+
+            try {
+                filter = searchFilter.toFilter(attributeSource);
+            } catch (LDAPException | ExpressionEvaluationException e) {
+                throw new AuthenticatorUnavailableException("Could not create query for LDAP group search", e.getMessage(), e);
+            }
 
             if (searchCache != null) {
                 Set<Entry> cachedResult = searchCache.getIfPresent(filter);
@@ -114,30 +120,36 @@ public class GroupSearch {
                     SearchRequest.ALL_USER_ATTRIBUTES);
             searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
 
-            Set<String> newEntryDns = new HashSet<>();
+            try {
 
-            for (SearchResultEntry entry : connection.search(searchRequest).getSearchEntries()) {
-                foundEntries.put(entry.getDN(), entry);
+                Set<String> newEntryDns = new HashSet<>();
 
-                if (recursivePattern == null || recursivePattern.matches(entry.getDN())) {
-                    newEntryDns.add(entry.getDN());
+                for (SearchResultEntry entry : connection.search(searchRequest).getSearchEntries()) {
+                    foundEntries.put(entry.getDN(), entry);
+
+                    if (recursivePattern == null || recursivePattern.matches(entry.getDN())) {
+                        newEntryDns.add(entry.getDN());
+                    }
                 }
+
+                if (recursive && newEntryDns.size() != 0) {
+                    searchNested(newEntryDns, 0);
+                }
+
+                Set<Entry> result = ImmutableSet.of(foundEntries.values());
+
+                if (searchCache != null) {
+                    searchCache.put(filter, result);
+                }
+
+                return result;
+            } catch (LDAPException e) {
+                throw new AuthenticatorUnavailableException("LDAP group search failed", LDAP.getBetterErrorMessage(e), e)
+                        .details(LDAP.getDetailsFrom(e).with("ldap_group_base_dn", searchBaseDn).with("ldap_filter", filter.toString()));
             }
-
-            if (recursive && newEntryDns.size() != 0) {
-                searchNested(newEntryDns, 0);
-            }
-
-            Set<Entry> result = ImmutableSet.of(foundEntries.values());
-
-            if (searchCache != null) {
-                searchCache.put(filter, result);
-            }
-
-            return result;
         }
 
-        void searchNested(Set<String> dnSet, int currentDepth) throws LDAPException, ExpressionEvaluationException {
+        void searchNested(Set<String> dnSet, int currentDepth) throws AuthenticatorUnavailableException {
             Set<String> newEntryDns = new HashSet<>();
 
             try (Meter subMeter = this.meter.detail("recursive_search")) {
@@ -145,26 +157,35 @@ public class GroupSearch {
 
                 for (String dn : dnSet) {
                     AttributeSource attributeSource = AttributeSource.joined(AttributeSource.of("dn", dn), this.attributeSource);
-                    filters.add(recursiveSearchFilter.toFilter(attributeSource));
+                    try {
+                        filters.add(recursiveSearchFilter.toFilter(attributeSource));
+                    } catch (LDAPException | ExpressionEvaluationException e) {
+                        throw new AuthenticatorUnavailableException("Could not create query for LDAP group search", e.getMessage(), e);
+                    }
                 }
 
                 Filter filter = Filter.createORFilter(filters);
 
-                SearchRequest searchRequest = new SearchRequest(searchBaseDn, searchScope, filter, SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
-                        SearchRequest.ALL_USER_ATTRIBUTES);
-                searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
+                try {
+                    SearchRequest searchRequest = new SearchRequest(searchBaseDn, searchScope, filter, SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
+                            SearchRequest.ALL_USER_ATTRIBUTES);
+                    searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
 
-                for (SearchResultEntry entry : connection.search(searchRequest).getSearchEntries()) {
-                    if (!foundEntries.containsKey(entry.getDN())) {
-                        foundEntries.put(entry.getDN(), entry);
+                    for (SearchResultEntry entry : connection.search(searchRequest).getSearchEntries()) {
+                        if (!foundEntries.containsKey(entry.getDN())) {
+                            foundEntries.put(entry.getDN(), entry);
 
-                        if (recursivePattern == null || recursivePattern.matches(entry.getDN())) {
-                            newEntryDns.add(entry.getDN());
+                            if (recursivePattern == null || recursivePattern.matches(entry.getDN())) {
+                                newEntryDns.add(entry.getDN());
+                            }
                         }
                     }
+                } catch (LDAPException e) {
+                    throw new AuthenticatorUnavailableException("LDAP group search failed", LDAP.getBetterErrorMessage(e), e)
+                            .details(LDAP.getDetailsFrom(e).with("ldap_group_base_dn", searchBaseDn).with("ldap_filter", filter.toString()));
                 }
             }
-            
+
             if (newEntryDns.size() != 0 && currentDepth < maxRecusionDepth) {
                 searchNested(newEntryDns, currentDepth + 1);
             }

@@ -84,9 +84,6 @@ public class ConfigConstants {
     public static final String SG_USER = SG_CONFIG_PREFIX+"user";
     public static final String SG_USER_HEADER = SG_CONFIG_PREFIX+"user_header";
     public static final String SG_USER_NAME = SG_CONFIG_PREFIX+"user_name";
-
-    public static final String SG_INJECTED_USER = "injected_user";
-    
     public static final String SG_XFF_DONE = SG_CONFIG_PREFIX+"xff_done";
 
     public static final String SSO_LOGOUT_URL = SG_CONFIG_PREFIX+"sso_logout_url";
