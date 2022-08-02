@@ -27,7 +27,7 @@ SG_PLUGIN_NAME="search-guard-flx"
 SGCTL_VERSION="1.0.0-beta-2"
 
 ARCH_DETECTED="$(arch)"
-ARCH_FULL="x86_64"
+ARCH="x86_64"
 
 if [[ "$ARCH_DETECTED" == *"arm"* ]] || [[ "$ARCH_DETECTED" == "aarch64" ]]; then
   ARCH="aarch64"
