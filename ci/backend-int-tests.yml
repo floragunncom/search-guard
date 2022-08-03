@@ -118,7 +118,7 @@ ccs_3_roundtrips_true:
   services:
     - docker:19.03-dind
   tags:
-    - aws-runner
+    - test-large
   script:
     - |
        echo "============================================="
