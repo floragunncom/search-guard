@@ -21,8 +21,8 @@ OPTIND=1
 assumeyes=0
 initsg=0
 cluster_mode=0
-SGCTL_VERSION="0.2.5"
-SGCTL_LINK="https://maven.search-guard.com/search-guard-suite-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
+SGCTL_VERSION="1.0.0-beta-2"
+SGCTL_LINK="https://maven.search-guard.com/search-guard-flx-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
 
 function show_help() {
     echo "install_demo_configuration.sh [-y] [-i] [-c]"
@@ -367,7 +367,6 @@ echo "searchguard.authcz.admin_dn:" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/nu
 echo "  - CN=kirk,OU=client,O=client,L=test, C=de" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
 echo "" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
 echo "searchguard.audit.type: internal_elasticsearch" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
-echo "searchguard.enable_snapshot_restore_privilege: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
 echo "searchguard.check_snapshot_restore_write_privileges: true" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
 echo 'searchguard.restapi.roles_enabled: ["SGS_ALL_ACCESS"]' | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null
 
@@ -414,14 +413,12 @@ fi
 
 echo "######## End Search Guard Demo Configuration ########" | $SUDO_CMD tee -a "$ES_CONF_FILE" > /dev/null 
 
-$SUDO_CMD chmod +x "$ES_PLUGINS_DIR/search-guard-flx/tools/sgadmin.sh"
-
 ES_PLUGINS_DIR=`cd "$ES_PLUGINS_DIR" ; pwd`
 
 echo
 echo "Downloading sgctl from $SGCTL_LINK"
 curl --fail "$SGCTL_LINK" -o "$ES_PLUGINS_DIR/search-guard-flx/sgctl.sh"
-chmod u+x "$ES_PLUGINS_DIR/search-guard-flx/sgctl.sh"
+$SUDO_CMD chmod u+x "$ES_PLUGINS_DIR/search-guard-flx/sgctl.sh"
 
 # Setup configuration for sgctl
 
@@ -439,20 +436,21 @@ EOM
 echo >~/.searchguard/sgctl-selected-config.txt demo
 
 
-
 echo "### Success"
 echo "### Execute this script now on all your nodes and then start all nodes"
 
 if [ "$initsg" == 0 ]; then
 	echo "### After the whole cluster is up, you need to initialize the Search Guard configuration. You can achieve this by executing: "
-	echo "### ./sgctl.sh update-config ../sgconfig/"
+    echo "### cd plugins/search-guard-flx"
+	echo "### ./sgctl.sh update-config sgconfig/"
 	echo "### See https://git.floragunn.com/search-guard/sgctl/-/blob/main/README.md for more information on using sgctl"
     echo "### After the initial initialization is complete, roles and users can be also edited using Search Guard Configuration GUI, see http://docs.search-guard.com/latest/configuration-gui"	
 else
     echo "### Search Guard will be automatically initialized."
     echo "### If you like to change the runtime configuration "
-    echo "### change the files in ../sgconfig and execute: "
-	echo "### ./sgctl.sh update-config ../sgconfig/"
+    echo "### change the files in sgconfig and execute: "
+    echo "### cd plugins/search-guard-flx"
+	echo "### ./sgctl.sh update-config sgconfig/"
 	echo "### See https://git.floragunn.com/search-guard/sgctl/-/blob/main/README.md for more information on using sgctl"
     echo "### Roles and users can be also edited using Search Guard Configuration GUI, see http://docs.search-guard.com/latest/configuration-gui"	
 fi
