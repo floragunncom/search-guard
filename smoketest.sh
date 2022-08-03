@@ -7,15 +7,13 @@ cd $DIR
 
 ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
 
-#ES_VERSION=7.9.1
-
 rm -rf elasticsearch-$ES_VERSION
-wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
+#wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 if [ "$CI" == "true" ]; then
     chmod 777 elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 fi
 tar -xzf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
-rm -rf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
+#rm -rf elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz
 
 if [ "$CI" == "true" ]; then
     mvn clean package -DskipTests -s settings.xml
@@ -23,7 +21,7 @@ else
     mvn clean package -DskipTests
 fi
 
-PLUGIN_FILE=($DIR/plugin/target/releases/search-guard-suite!(*sgadmin*).zip)
+PLUGIN_FILE=($DIR/plugin/target/releases/search-guard-flx!(*sgadmin*).zip)
 URL=file://$PLUGIN_FILE
 echo $URL
 elasticsearch-$ES_VERSION/bin/elasticsearch-plugin install -b $URL
@@ -62,18 +60,33 @@ while ! nc -z 127.0.0.1 9200; do
   sleep 0.1 # wait for 1/10 of the second before check again
 done
 
-sleep 10
+#geo ip download takes time
+sleep 25
 
+set +e
 RES="$(curl -Ss --insecure -XGET -u admin:admin 'https://127.0.0.1:9200/_searchguard/authinfo' -H'Content-Type: application/json' | grep roles)"
 
 if [ -z "$RES" ]; then
-  echo "failed"
+  echo "$RES"
+  echo ""
+  echo ""
+  echo "FAILED ========================================================================="
+  echo ""
+  echo ""
   kill -SIGTERM $(cat elasticsearch-$ES_VERSION/es-smoketest-pid)
-  exit -1
+  exit 1
 else
   echo "$RES"
-  echo ok
+  echo ""
+  echo ""
+  echo "OK ========================================================================="
+  echo ""
+  echo ""
 fi
+set -e
+cd elasticsearch-$ES_VERSION/plugins/search-guard-flx
+./sgctl.sh update-config sgconfig/
 
-./sgadmin_demo.sh
+set +e
 kill -SIGTERM $(cat elasticsearch-$ES_VERSION/es-smoketest-pid)
+exit 0
