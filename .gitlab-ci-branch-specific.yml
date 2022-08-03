@@ -1,4 +1,4 @@
 variables:
-  # IT_BRANCH: "session-auth"
+  IT_BRANCH: "sg-flx-1.0.x-es-7.17.x"
   SG_KI_PLUGIN: "b-master-SNAPSHOT"
   # KI_VERSION: "7.16.3" 
