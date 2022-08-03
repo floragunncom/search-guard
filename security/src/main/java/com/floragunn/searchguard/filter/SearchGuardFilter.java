@@ -285,7 +285,7 @@ public class SearchGuardFilter implements ActionFilter {
             if (!eval.isInitialized()) {
                 log.error("Search Guard not initialized (SG11) for {}", actionName);
                 listener.onFailure(new ElasticsearchSecurityException(
-                        "Search Guard not initialized (SG11) for " + actionName + ". See https://docs.search-guard.com/flx/sgctl",
+                        "Search Guard not initialized (SG11) for " + actionName + ". See https://docs.search-guard.com/latest/sgctl",
                         RestStatus.SERVICE_UNAVAILABLE));
                 return;
             }
