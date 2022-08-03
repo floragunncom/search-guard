@@ -351,13 +351,13 @@
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>codova</artifactId>
-				<version>0.2.20</version>
+				<version>1.0.0</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>fluent-collections</artifactId>
-				<version>0.2.9</version>
+				<version>1.0.0</version>
 			</dependency>
 
             <dependency>
