@@ -14,7 +14,7 @@
 # If you use more than one Kibana instance, you can add additonal root entries besides the default entry. In kibana.yml you can then select the configuration
 # to be used by the config option searchguard.sg_frontend_config_id
 #
-# See https://docs.search-guard.com/tech-preview/kibana-authentication-types for detailed documentation
+# See https://docs.search-guard.com/latest/kibana-authentication-types for detailed documentation
 
 default:
   debug: false

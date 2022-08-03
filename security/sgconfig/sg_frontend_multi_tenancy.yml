@@ -7,7 +7,7 @@
 # 
 # The major configuration needs to be done in the `kibana.yml` file.
 # 
-# See https://docs.search-guard.com/tech-preview/kibana-multi-tenancy for details
+# See https://docs.search-guard.com/latest/kibana-multi-tenancy for details
 
 default:
   enabled: true
