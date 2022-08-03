@@ -171,7 +171,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 if (authenticationProcessor == null) {
                     log.error("Not yet initialized (you may need to run sgctl)");
                     channel.sendResponse(new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE,
-                            "Search Guard not initialized (SG11). See https://docs.search-guard.com/flx/sgctl"));
+                            "Search Guard not initialized (SG11). See https://docs.search-guard.com/latest/sgctl"));
                     return;
                 }
 
