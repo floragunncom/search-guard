@@ -22,10 +22,10 @@ EXAMPLE_ROLE:
     - SGS_CLUSTER_MONITOR
   index_permissions:
     - index_patterns:
-        - "myindices*"
+        - "*"
       allowed_actions:
         - SGS_INDICES_MONITOR
-      dls: '{"terms" : { "otherfield" : "myvalue"}'
+      dls: '{"term" : { "test": "myvalue"}}'
       fls:
         - 'myfields*'
         - 'otherfield'
