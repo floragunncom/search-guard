@@ -401,9 +401,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 uploadFile(privilegedConfigClient, cd, "sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, parserContext);
                 uploadFile(privilegedConfigClient, cd, "sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, parserContext);
                 uploadFile(privilegedConfigClient, cd, "sg_tenants.yml", searchguardIndex, CType.TENANTS, parserContext);
-                uploadFile(privilegedConfigClient, cd, "sg_blocks.yml", searchguardIndex, CType.BLOCKS, parserContext);
                 uploadFile(privilegedConfigClient, cd, "sg_frontend_authc.yml", searchguardIndex, CType.FRONTEND_AUTHC, parserContext);
 
+                if (new File(cd, "sg_blocks.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd, "sg_blocks.yml", searchguardIndex, CType.BLOCKS, parserContext);
+                }
+                
                 if (new File(cd, "sg_authz.yml").exists()) {
                     uploadFile(privilegedConfigClient, cd, "sg_authz.yml", searchguardIndex, CType.AUTHZ, parserContext);
                 }
