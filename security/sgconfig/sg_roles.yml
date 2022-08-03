@@ -15,25 +15,25 @@
 # or use the built-in search guard roles
 # See https://docs.search-guard.com/latest/roles-permissions
 
-#SG_MY_ROLE:
-#  description: "my search guard role"
-#  cluster_permissions:
-#    - cluster:monitor/main"
-#    - SGS_CLUSTER_MONITOR
-#  index_permissions:
-#    - index_patterns:
-#        - "myindices*"
-#      allowed_actions:
-#        - SGS_INDICES_MONITOR
-#      dls: '{"terms" : { "otherfield" : "myvalue"}'
-#      fls:
-#        - 'myfields*'
-#        - 'otherfield'
-#      masked_fields:
-#        - 'lastname'
-#        - '*ip_source::/[0-9]{1,3}$/::XXX::/^[0-9]{1,3}/::***'
-#  tenant_permissions:
-#    - tenant_patterns:
-#        - "mytenant"
-#      allowed_actions:
-#        - "SGS_KIBANA_ALL_READ"
+EXAMPLE_ROLE:
+  description: "Sample role definition for demonstration purposes"
+  cluster_permissions:
+    - cluster:monitor/main"
+    - SGS_CLUSTER_MONITOR
+  index_permissions:
+    - index_patterns:
+        - "myindices*"
+      allowed_actions:
+        - SGS_INDICES_MONITOR
+      dls: '{"terms" : { "otherfield" : "myvalue"}'
+      fls:
+        - 'myfields*'
+        - 'otherfield'
+      masked_fields:
+        - 'lastname'
+        - '*ip_source::/[0-9]{1,3}$/::XXX::/^[0-9]{1,3}/::***'
+  tenant_permissions:
+    - tenant_patterns:
+        - "mytenant"
+      allowed_actions:
+        - "SGS_KIBANA_ALL_READ"
