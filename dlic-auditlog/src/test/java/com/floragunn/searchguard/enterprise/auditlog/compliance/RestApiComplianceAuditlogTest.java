@@ -195,6 +195,12 @@ public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("UPDATE"));
+
+        //we want to see also the content (in plain json, not base64 encoded)
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_request_body"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("backend_roles"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("hash"));
+
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
 
