@@ -22,7 +22,6 @@ public class AuthDomainInfo {
     public static AuthDomainInfo UNKNOWN = new AuthDomainInfo(null, null, null);
     public static AuthDomainInfo ANON = AuthDomainInfo.forAuthenticatorType("none");
     public static AuthDomainInfo TLS_CERT = AuthDomainInfo.forAuthenticatorType("tls_cert");
-    public static AuthDomainInfo IMPERSONATION_TLS = AuthDomainInfo.forAuthenticatorType("impersonation+tls_cert");
     public static AuthDomainInfo STORED_AUTH = AuthDomainInfo.forAuthenticatorType("stored_auth");
     private final String authDomainId;
     private final String authenticatorType;

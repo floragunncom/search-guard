@@ -267,15 +267,6 @@ searchguard.audit.type: internal_elasticsearch
 #searchguard.kerberos.acceptor_principal: 'HTTP/localhost'
 
 ############## Advanced configuration settings ##############
-# Enable transport layer impersonation
-# Allow DNs (distinguished names) to impersonate as other users
-#searchguard.authcz.impersonation_dn:
-#  "CN=spock,OU=client,O=client,L=Test,C=DE":
-#    - worf
-#  "cn=webuser,ou=IT,ou=IT,dc=company,dc=com":
-#    - user2
-#    - user1
-
 # Enable rest layer impersonation
 # Allow users to impersonate as other users
 #searchguard.authcz.rest_impersonation_user:
