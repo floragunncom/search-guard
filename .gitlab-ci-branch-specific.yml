@@ -1,4 +1,0 @@
-variables:
-  # IT_BRANCH: "session-auth"
-  SG_KI_PLUGIN: "b-master-SNAPSHOT"
-  # KI_VERSION: "7.16.3" 
