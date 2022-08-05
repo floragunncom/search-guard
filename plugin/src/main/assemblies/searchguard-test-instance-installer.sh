@@ -25,6 +25,7 @@ SGSF_VERSION="${2:-$SG_VERSION_PRE}"
 SG_REPOSITORY="${3:-search-guard-flx-release}"
 SG_PLUGIN_NAME="search-guard-flx"
 SGCTL_VERSION="1.0.0"
+TLS_TOOL_VERSION="1.9.0"
 
 ARCH_DETECTED="$(arch)"
 ARCH="x86_64"
@@ -59,8 +60,8 @@ SGSF_LINK="https://maven.search-guard.com/$SG_REPOSITORY/com/floragunn/search-gu
 SGCTL_LINK="https://maven.search-guard.com/search-guard-flx-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
 
 TLS_TOOL="search-guard-tlstool"
-TLS_TOOL_ARCHIVE="$TLS_TOOL-1.8.tar.gz"
-TLS_TOOL_LINK="https://maven.search-guard.com/search-guard-tlstool/1.8/$TLS_TOOL_ARCHIVE"
+TLS_TOOL_ARCHIVE="$TLS_TOOL-${TLS_TOOL_VERSION}.tar.gz"
+TLS_TOOL_LINK="https://maven.search-guard.com/artifactory/list/search-guard-tlstool/com/floragunn/search-guard-tlstool/${TLS_TOOL_VERSION}/$TLS_TOOL_ARCHIVE"
 
 # ------------------------------------------------------------------------
 # Download all necessary components
