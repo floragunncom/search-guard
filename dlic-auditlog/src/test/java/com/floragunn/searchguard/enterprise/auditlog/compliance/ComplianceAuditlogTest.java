@@ -473,11 +473,16 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 () ->
                         !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
                                 TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE") &&
+                                !TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ") &&
                                 TestAuditlogImpl.sb.toString().contains("sg_all_access") &&
+                                TestAuditlogImpl.sb.toString().contains("\"audit_trace_doc_id\" : \"config\"") &&
+                                TestAuditlogImpl.sb.toString().contains("UPDATE") &&
                                 TestAuditlogImpl.sb.toString().contains("internalusers")
                 ,
                 Duration.ofSeconds(2));
-
+        Assert.assertEquals(3, TestAuditlogImpl.messages.size());
+        //make sure the result does not contain triple escaped json
+        //Assert.assertFalse(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("\\\\\\"));
         TestAuditlogImpl.clear();
         final String outputDir = Files.createTempDirectory("sgctl-test-output").toString();
         rc = SgctlTool.exec("get-config", "--sgctl-config-dir", configDir, "--debug", "-o", outputDir);
@@ -485,24 +490,18 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
                 () ->
                         !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
+                                !TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE") &&
                                 TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ") &&
                                 TestAuditlogImpl.sb.toString().contains("sg_all_access") &&
+                                TestAuditlogImpl.sb.toString().contains("actiongroups") &&
+                                TestAuditlogImpl.sb.toString().contains("hash") &&
+                                TestAuditlogImpl.sb.toString().contains("tenants") &&
                                 TestAuditlogImpl.sb.toString().contains("internalusers")
                 ,
                 Duration.ofSeconds(5));
-
-        TestAuditlogImpl.clear();
-        rc = SgctlTool.exec("get-config", "--sgctl-config-dir", configDir, "--debug", "-o", outputDir);
-        Assert.assertEquals(0, rc);
-        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
-                () ->
-                        !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
-                                TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ") &&
-                                TestAuditlogImpl.sb.toString().contains("sg_all_access") &&
-                                TestAuditlogImpl.sb.toString().contains("internalusers")
-                ,
-                Duration.ofSeconds(5));
-
+        Assert.assertEquals(8, TestAuditlogImpl.messages.size());
+        //make sure the result does not contain triple escaped json
+        //Assert.assertFalse(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("\\\\\\"));
     }
 
     private void initializeSgIndex(Client tc, DynamicSgConfig sgconfig) {
