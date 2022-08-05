@@ -25,7 +25,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -628,11 +627,8 @@ public abstract class AbstractAuditLog implements AuditLog {
                                 new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)));
                             msg.addMapToRequestBody(Utils.convertJsonToxToStructuredMap(map.get("id")));
                         } catch (Exception e) {
-                            if(log.isTraceEnabled()) {
-                                log.trace("Unexpected but uncritical problem {}", e, e);
-                            }
-                            msg.addMapToRequestBody(new HashMap<String, Object>(fieldNameValues));
-                        }                      
+                            log.error("Unexpected Exception {}", e, e);
+                        }
                      } else {
                         msg.addMapToRequestBody(new HashMap<String, Object>(fieldNameValues));
                      }

@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
@@ -17,7 +18,6 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchsupport.client.ContextHeaderDecoratorClient;
 
 public class LocalCluster extends ExternalResource {
 
@@ -87,7 +87,7 @@ public class LocalCluster extends ExternalResource {
     }
 
     public Client getPrivilegedConfigNodeClient() {
-        return new ContextHeaderDecoratorClient(getNodeClient(), null, ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+        return PrivilegedConfigClient.adapt(getNodeClient());
     }
 
     private void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex,

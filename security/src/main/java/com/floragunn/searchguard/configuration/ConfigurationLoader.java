@@ -282,7 +282,7 @@ public class ConfigurationLoader {
 
         if (configState != null) {
             configState.setFailed(failure.getMessage());
-            configState.addDetailJson(Strings.toString(failure));
+            configState.setDetailJson(Strings.toString(failure));
         }
     }
 }

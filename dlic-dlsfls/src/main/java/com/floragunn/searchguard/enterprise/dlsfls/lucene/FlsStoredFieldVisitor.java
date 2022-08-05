@@ -69,8 +69,10 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
 
         if (fieldInfo.name.equals("_source")) {
             try {
-                if(delegate instanceof MaskedFieldsConsumer) {
-                    ((MaskedFieldsConsumer)delegate).binaryMaskedField(fieldInfo, DocumentFilter.filter(Format.JSON, value, flsRule, fieldMaskingRule), (f) -> fieldMaskingRule != null && fieldMaskingRule.get(f) != null);
+                if (delegate instanceof MaskedFieldsConsumer) {
+                    ((MaskedFieldsConsumer) delegate).binaryMaskedField(fieldInfo,
+                            DocumentFilter.filter(Format.JSON, value, flsRule, fieldMaskingRule),
+                            (f) -> fieldMaskingRule != null && fieldMaskingRule.get(f) != null);
                 } else {
                     delegate.binaryField(fieldInfo, DocumentFilter.filter(Format.JSON, value, flsRule, fieldMaskingRule));
                 }
@@ -98,8 +100,8 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
         FieldMaskingRule.Field field = this.fieldMaskingRule.get(fieldInfo.name);
 
         if (field != null) {
-            if(delegate instanceof MaskedFieldsConsumer) {
-                ((MaskedFieldsConsumer)delegate).stringMaskedField(fieldInfo, field.apply(value));
+            if (delegate instanceof MaskedFieldsConsumer) {
+                ((MaskedFieldsConsumer) delegate).stringMaskedField(fieldInfo, field.apply(value));
             } else {
                 delegate.stringField(fieldInfo, field.apply(value));
             }

@@ -65,6 +65,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -77,6 +78,7 @@ import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.SearchGuardVersion;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.CountAggregation;
 import com.floragunn.searchsupport.indices.IndexMapping;
@@ -171,12 +173,21 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
     private void checkClusterState(ClusterState clusterState) {
         try {
             if (!ready.get()) {
+                componentState.setState(State.INITIALIZING, "waiting_for_node_started");
                 return;
             }
 
             if (log.isTraceEnabled()) {
                 log.trace("checkClusterState()\npendingIndices: " + pendingIndices);
             }
+
+            if (clusterState.blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
+                componentState.setState(State.INITIALIZING, "waiting_for_state_recovery");
+                log.trace("State not yet recovered. Waiting more.");
+                return;
+            }
+            
+            componentState.setState(State.INITIALIZING, "waiting_for_master");
 
             if (clusterState.nodes().isLocalNodeElectedMaster() || clusterState.nodes().getMasterNode() != null) {
                 flushPendingIndices(clusterState);
@@ -447,14 +458,14 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
                             if (isTimedOut()) {
                                 moduleState.setFailed("Index " + name + " is has not become ready. Giving up");
-                                moduleState.addDetailJson(Strings.toString(clusterHealthResponse));
+                                moduleState.setDetailJson(Strings.toString(clusterHealthResponse));
                                 log.error("Index " + name + " is has not become ready:\n" + clusterHealthResponse + "\nGiving up.");
                                 return;
                             }
 
                             if (isLate()) {
                                 log.error("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
-                                moduleState.addDetailJson(Strings.toString(clusterHealthResponse));
+                                moduleState.setDetailJson(Strings.toString(clusterHealthResponse));
                             } else if (log.isTraceEnabled()) {
                                 log.trace("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
                             }

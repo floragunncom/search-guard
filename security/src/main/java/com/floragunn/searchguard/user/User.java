@@ -64,12 +64,13 @@ public class User implements Serializable, UserInformation, AttributeSource {
     private String requestedTenant;
     private Map<String, String> attributes;
     private Map<String, Object> structuredAttributes;
+
+    //unused, but we keep it for java serialization interop
     private boolean isInjected = false;
     private transient boolean authzComplete = false;
 
     public User(String name, String subName, AuthDomainInfo authDomainInfo, String type, Set<String> roles, Set<String> searchGuardRoles,
-            Object specialAuthzConfig, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes,
-            boolean isInjected, boolean authzComplete) {
+            Object specialAuthzConfig, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes, boolean authzComplete) {
         super();
         this.name = name;
         this.subName = subName;
@@ -81,7 +82,6 @@ public class User implements Serializable, UserInformation, AttributeSource {
         this.requestedTenant = requestedTenant;
         this.structuredAttributes = structuredAttributes;
         this.attributes = attributes;
-        this.isInjected = isInjected;
         this.authzComplete = authzComplete;
     }
 
@@ -201,14 +201,6 @@ public class User implements Serializable, UserInformation, AttributeSource {
 
     public final void setRequestedTenant(String requestedTenant) {
         this.requestedTenant = requestedTenant;
-    }
-
-    public boolean isInjected() {
-        return isInjected;
-    }
-
-    public void setInjected(boolean isInjected) {
-        this.isInjected = isInjected;
     }
 
     public final String toStringWithAttributes() {
@@ -408,7 +400,6 @@ public class User implements Serializable, UserInformation, AttributeSource {
         builder.requestedTenant = requestedTenant;
         builder.attributes.putAll(attributes);
         builder.structuredAttributes.putAll(structuredAttributes);
-        builder.injected = isInjected;
         builder.specialAuthzConfig = specialAuthzConfig;
         builder.authzComplete = authzComplete;
 
@@ -425,7 +416,6 @@ public class User implements Serializable, UserInformation, AttributeSource {
         private String requestedTenant;
         private Map<String, String> attributes = new HashMap<>();
         private Map<String, Object> structuredAttributes = new HashMap<>();
-        private boolean injected;
         private Object specialAuthzConfig;
         private boolean authzComplete;
 
@@ -518,11 +508,6 @@ public class User implements Serializable, UserInformation, AttributeSource {
             return this;
         }
 
-        public Builder injected() {
-            this.injected = true;
-            return this;
-        }
-
         public Builder specialAuthzConfig(Object specialAuthzConfig) {
             this.specialAuthzConfig = specialAuthzConfig;
             return this;
@@ -535,7 +520,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
 
         public User build() {
             return new User(name, subName, authDomainInfo, type, backendRoles, searchGuardRoles, specialAuthzConfig, requestedTenant,
-                    structuredAttributes, attributes, injected, authzComplete);
+                    structuredAttributes, attributes, authzComplete);
         }
     }
 

@@ -75,6 +75,8 @@ signals:
 .be_integration_test:
   allow_failure: false
   stage: "Backend Int Tests Core"
+  tags:
+    - test-large
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always

@@ -4,8 +4,8 @@ set -e
 
 echo "Welcome to the Search Guard demo instance installation tool!"
 echo ""
-echo "This tool will download Search Guard and OpenSearch or Elasticsearch to the current directory on your computer and create a demo instance."
-echo "All files downloaded here can be found on https://docs.search-guard.com/latest/search-guard-versions or on the websites of Elastic or OpenSearch."
+echo "This tool will download Search Guard and Elasticsearch to the current directory on your computer and create a demo instance."
+echo "All files downloaded here can be found on https://docs.search-guard.com/latest/search-guard-versions or on the websites of Elastic."
 echo ""
 
 # ------------------------------------------------------------------------
@@ -14,8 +14,8 @@ echo ""
 # ------------------------------------------------------------------------
 # Mnemomic: 
 # - SG: Search Guard
-# - SB: Search Backend (i.e., OpenSearch/Elasticsearch)
-# - SF: Search Frontend (i.e., OpenSearch Dashboards/Kibana)
+# - SB: Search Backend (i.e., Elasticsearch)
+# - SF: Search Frontend (i.e., Kibana)
 # ------------------------------------------------------------------------
 
 BASE_DIR=$(pwd)
@@ -24,54 +24,32 @@ SG_VERSION="${1:-$SG_VERSION_PRE}"
 SGSF_VERSION="${2:-$SG_VERSION_PRE}"
 SG_REPOSITORY="${3:-search-guard-flx-release}"
 SG_PLUGIN_NAME="search-guard-flx"
-SGCTL_VERSION="${sgctl.version}"
-NODE_VERSION="v10.24.1"
+SGCTL_VERSION="1.0.0"
 
-if [[ $SG_VERSION =~ .*-os-.* ]]; then
-  OS_VERSION=$(echo $SG_VERSION | sed -n 's/^.*-os-\(.*\)*$/\1/p')
-  SB_NAME="OpenSearch"
-  SB_LC_NAME="opensearch"
-  SF_NAME="OpenSearch Dashboards"
-  SF_LC_NAME_CC="opensearch_dashboards"
-  SF_LC_NAME="opensearch-dashboards" 
+ARCH_DETECTED="$(arch)"
+ARCH="x86_64"
 
-  if [[ "$OS_VERSION" == "1.2.4" || "$OS_VERSION" == "1.2.3" || "$OS_VERSION" == "1.2.2" || "$OS_VERSION" == "1.2.1" ]]; then
-  	OSD_VERSION="1.2.0"
-  	SGSF_VERSION="${SGSF_VERSION/os-1\.2\.?/os-1.2.0}"
-  else
-  	OSD_VERSION="$OS_VERSION"
-  fi
+if [[ "$ARCH_DETECTED" == *"arm"* ]] || [[ "$ARCH_DETECTED" == "aarch64" ]]; then
+  ARCH="aarch64"
+fi
 
-  if [[ "$OSTYPE"  == "linux"* ]]; then
-    SB_ARCHIVE="opensearch-min-$OS_VERSION-linux-x64.tar.gz"
-    SF_ARCHIVE="opensearch-dashboards-min-$OSD_VERSION-linux-x64.tar.gz"
-  elif [[ "$OSTYPE" == "darwin"* ]]; then
-    # since there are no Darwin-specific builds yet, we use the Linux builds
-    SB_ARCHIVE="opensearch-min-$OS_VERSION-linux-x64.tar.gz"
-    SF_ARCHIVE="opensearch-dashboards-min-$OSD_VERSION-linux-x64.tar.gz"
-  else
-    echo "OpenSearch is right now not available for type $OSTYPE"
-    exit
-  fi
+ES_VERSION=$(echo $SG_VERSION | sed -n 's/^.*-es-\(.*\)*$/\1/p')
+SB_NAME="Elasticsearch"
+SB_LC_NAME="elasticsearch"
+SF_NAME="Kibana"
+SF_LC_NAME_CC="kibana"
+SF_LC_NAME="kibana" 
+
+if [[ "$OSTYPE"  == "linux"* ]]; then
+  SB_ARCHIVE="elasticsearch-$ES_VERSION-linux-$ARCH.tar.gz"
+  SF_ARCHIVE="kibana-$ES_VERSION-linux-$ARCH.tar.gz"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  SB_ARCHIVE="elasticsearch-$ES_VERSION-darwin-$ARCH.tar.gz"
+  SF_ARCHIVE="kibana-$ES_VERSION-darwin-$ARCH.tar.gz"
 else
-  ES_VERSION=$(echo $SG_VERSION | sed -n 's/^.*-es-\(.*\)*$/\1/p')
-  SB_NAME="Elasticsearch"
-  SB_LC_NAME="elasticsearch"
-  SF_NAME="Kibana"
-  SF_LC_NAME_CC="kibana"
-  SF_LC_NAME="kibana" 
-  
-  if [[ "$OSTYPE"  == "linux"* ]]; then
-    SB_ARCHIVE="elasticsearch-$ES_VERSION-linux-x86_64.tar.gz"
-    SF_ARCHIVE="kibana-$ES_VERSION-linux-x86_64.tar.gz"
-  elif [[ "$OSTYPE" == "darwin"* ]]; then
-    SB_ARCHIVE="elasticsearch-$ES_VERSION-darwin-x86_64.tar.gz"
-    SF_ARCHIVE="kibana-$ES_VERSION-darwin-x86_64.tar.gz"
-  else
-    echo "OS type $OSTYPE not supported"
-    exit
-  fi
-fi    
+  echo "OS type $OSTYPE not supported"
+  exit
+fi   
 
 SG_PLUGIN_FILE_NAME="search-guard-flx-$SB_LC_NAME-plugin-$SG_VERSION.zip"
 SGSF_PLUGIN_FILE_NAME="search-guard-flx-$SF_LC_NAME-plugin-$SGSF_VERSION.zip"
@@ -85,63 +63,23 @@ TLS_TOOL_ARCHIVE="$TLS_TOOL-1.8.tar.gz"
 TLS_TOOL_LINK="https://maven.search-guard.com/search-guard-tlstool/1.8/$TLS_TOOL_ARCHIVE"
 
 # ------------------------------------------------------------------------
-# MacOs / Darwin only: Sanity check, make sure we have a local Node.js
-# installation and it has the correct version. Otherwise we cannot
-# run Dashboards.
-# ------------------------------------------------------------------------
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  NODE="$(which node)"
-  if [ ! -x "$NODE" ]; then
-    echo "No local Node.js executable found. Please make sure you have Node.js version $NODE_VERSION installed and that the node executable is in your PATH."
-    exit 1
-  fi
-  echo "Local node executable found at $NODE"
-  LOCAL_NODE_VERSION=$(node -v)
-  if [[ "$NODE_VERSION" != "$LOCAL_NODE_VERSION" ]]; then
-    echo "Incompatible local node version. Required: $NODE_VERSION, Found: $LOCAL_NODE_VERSION."
-    exit 1
-  fi
-fi
-
-# ------------------------------------------------------------------------
 # Download all necessary components
 # ------------------------------------------------------------------------
 
-if [[ $SG_VERSION =~ .*-os-.* ]]; then
+echo "Downloading the Search Guard Elasticsearch plugin $SG_VERSION from $SG_LINK ... "
+curl --fail "$SG_LINK" -o $SG_PLUGIN_FILE_NAME
+echo
 
-  echo "Downloading the Search Guard OpenSearch plugin $SG_VERSION from $SG_LINK ... "
-  curl --fail "$SG_LINK" -o $SG_PLUGIN_FILE_NAME
-  echo
+echo "Downloading the Search Guard Kibana plugin from $SGSF_LINK ... "
+curl --fail "$SGSF_LINK" -o $SGSF_PLUGIN_FILE_NAME
+echo
 
-  echo "Downloading the Search Guard Search OpenSearch Dashboards plugin from $SGSF_LINK ... "
-  curl --fail "$SGSF_LINK" -o $SGSF_PLUGIN_FILE_NAME
-  echo
+echo "Downloading Elasticsearch $ES_VERSION from https://artifacts.elastic.co/downloads/elasticsearch/$SB_ARCHIVE ..."
+curl --fail "https://artifacts.elastic.co/downloads/elasticsearch/$SB_ARCHIVE" -o $SB_ARCHIVE
+echo
 
-  echo "Downloading OpenSearch Min $OS_VERSION from https://artifacts.opensearch.org/releases/core/opensearch/$OS_VERSION/$SB_ARCHIVE ..."
-  curl --fail "https://artifacts.opensearch.org/releases/core/opensearch/$OS_VERSION/$SB_ARCHIVE" -o $SB_ARCHIVE
-  echo
-
-  echo "Downloading OpenSearch Dashboards ... "
-  curl --fail "https://artifacts.opensearch.org/releases/core/opensearch-dashboards/$OSD_VERSION/$SF_ARCHIVE" -o $SF_ARCHIVE
-
-else
-
-  echo "Downloading the Search Guard Elasticsearch plugin $SG_VERSION from $SG_LINK ... "
-  curl --fail "$SG_LINK" -o $SG_PLUGIN_FILE_NAME
-  echo
-
-  echo "Downloading the Search Guard Kibana plugin from $SGSF_LINK ... "
-  curl --fail "$SGSF_LINK" -o $SGSF_PLUGIN_FILE_NAME
-  echo
-
-  echo "Downloading Elasticsearch $ES_VERSION from https://artifacts.elastic.co/downloads/elasticsearch/$SB_ARCHIVE ..."
-  curl --fail "https://artifacts.elastic.co/downloads/elasticsearch/$SB_ARCHIVE" -o $SB_ARCHIVE
-  echo
-
-  echo "Downloading Kibana $ES_VERSION from https://artifacts.elastic.co/downloads/kibana/$SF_ARCHIVE ... "
-  curl --fail "https://artifacts.elastic.co/downloads/kibana/$SF_ARCHIVE" -o $SF_ARCHIVE
-
-fi
+echo "Downloading Kibana $ES_VERSION from https://artifacts.elastic.co/downloads/kibana/$SF_ARCHIVE ... "
+curl --fail "https://artifacts.elastic.co/downloads/kibana/$SF_ARCHIVE" -o $SF_ARCHIVE
 
 echo
 echo "Downloading the TLS Tool from $TLS_TOOL_LINK ... "
@@ -286,8 +224,7 @@ cp $TLS_TOOL/certificates/admin-key.pem admin-key.pem
 cd "$SB_LC_NAME"
 
 # -----------------------------------------------------------
-# Mark the start of the generated config in opensearch.yml,
-# resp. elasticsearch.yml
+# Mark the start of the generated config in elasticsearch.yml
 # -----------------------------------------------------------
 cat >>config/$SB_LC_NAME.yml << EOM
 
@@ -298,7 +235,7 @@ cat >>config/$SB_LC_NAME.yml << EOM
 EOM
 
 # ------------------------------------------------------------
-# These entries in opensearch.yml/elasticsearch.yml make the
+# These entries in elasticsearch.yml make the
 # root CA known to Search Guard
 # ------------------------------------------------------------
 
@@ -313,7 +250,7 @@ searchguard.ssl.http.pemtrustedcas_filepath: root-ca.pem
 EOM
 
 # ------------------------------------------------------------
-# These entries in opensearch.yml/elasticsearch.yml tell the
+# These entries in elasticsearch.yml tell the
 # node to use the node certificates installed above
 # ------------------------------------------------------------
 
@@ -409,7 +346,7 @@ cd ..
 cp -r $SB_LC_NAME/plugins/$SG_PLUGIN_NAME/sgconfig my-sg-config
 
 # ------------------------------------------------------------------------
-# OpenSearch Dasboards/Kibana
+# Kibana
 # ------------------------------------------------------------------------
 
 echo
@@ -421,23 +358,6 @@ tar xfz "$SF_ARCHIVE" -C "$SF_LC_NAME" --strip-components 1
 
 cd "$SF_LC_NAME"
 SF_INSTALL_DIR=$(pwd)
-
-# ------------------------------------------------------------------------
-# MacOS / Darwin only: Since there are no Darwin-specific builds, we use the
-# Linux builds. However, the shipped Node.js binary is not compatible
-# with Darwin. We require a local Node.js installation as prerequisite.
-# To be compatible with the Dashboards start scripts and plugin install
-# scripts, set a symlink from the shipped node directory where the node executable
-# is expected to the local node executable.
-# ------------------------------------------------------------------------
-
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  echo "Using local node executable at $NODE"
-  echo "Deleting incompatible node executable at $(pwd)/node/bin/node"
-  rm -f "./node/bin/node"
-  echo "Setting symlink from $(pwd)/node/bin/node to $NODE"
-  ln -s $NODE "./node/bin/node"
-fi
 
 # ------------------------------------------------------------------------
 # Install the Search Guard Plugin
@@ -454,8 +374,7 @@ echo "Applying demo configuration ... "
 
 
 # -----------------------------------------------------------
-# Mark the start of the generated config in opensearch_dashboards.yml,
-# resp. kibana.yml
+# Mark the start of the generated config in kibana.yml
 # -----------------------------------------------------------
 cat >>config/$SF_LC_NAME_CC.yml << EOM
 
@@ -467,7 +386,7 @@ EOM
 
 
 # ------------------------------------------------------------------------
-# Tell Dashboards/Kibana to connect by TLS and to provide credentials
+# Tell Kibana to connect by TLS and to provide credentials
 # ------------------------------------------------------------------------
 cat >>config/$SF_LC_NAME_CC.yml << EOM
 # ----- 
@@ -477,8 +396,8 @@ $SB_LC_NAME.hosts: "https://localhost:9200"
 
 # -----
 # Connections to the backend must be now authenticated. This is the
-# user OpenSearch/Kibana uses for internal functionality. 
-# This user is different to the users which will log in at OpenSearch/Kibana.
+# user Kibana uses for internal functionality. 
+# This user is different to the users which will log in at Kibana.
 #
 $SB_LC_NAME.username: "kibanaserver"
 $SB_LC_NAME.password: "kibanaserver"
@@ -513,9 +432,9 @@ echo "$SF_LC_NAME/bin/$SF_LC_NAME"
 echo
 echo "Note that $SB_NAME must be already running before you can start $SF_NAME. Upon the first start, $SF_NAME will take some time to build browser bundles before it is available."
 echo
-echo "In order to change the Search Guard configuration while $SB_NAME is running, edit one of the YML files in my-sg-config and upload it using sgctl.sh update-config my-sg-config"
+echo "In order to change the Search Guard configuration while $SB_NAME is running, edit one of the YML files in my-sg-config and upload it using ./sgctl.sh update-config my-sg-config"
 echo
-echo "You might also want to review the generated configration file at:"
+echo "You might also want to review the generated configuration files at:"
 echo "$SB_LC_NAME/config/$SB_LC_NAME.yml"
 echo "$SF_LC_NAME/config/$SF_LC_NAME_CC.yml"
 

@@ -1,6 +1,8 @@
 test_security:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -34,6 +36,8 @@ test_security:
 test_security_legacy:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -67,6 +71,8 @@ test_security_legacy:
 test_ssl:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -100,6 +106,8 @@ test_ssl:
 test_signals:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -133,6 +141,8 @@ test_signals:
 test_scheduler:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -166,6 +176,8 @@ test_scheduler:
 test_support:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -199,6 +211,8 @@ test_support:
 test_dlic_security:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -232,6 +246,8 @@ test_dlic_security:
 test_dlic_security_legacy:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -265,6 +281,8 @@ test_dlic_security_legacy:
 test_dlic_dlsfls:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -298,6 +316,8 @@ test_dlic_dlsfls:
 test_dlic_dlsfls_legacy:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -331,6 +351,8 @@ test_dlic_dlsfls_legacy:
 test_dlic_femt:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -364,6 +386,8 @@ test_dlic_femt:
 test_dlic_auditlog:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -397,6 +421,8 @@ test_dlic_auditlog:
 test_dlic_signals:
   stage: test
   interruptible: true
+  tags:
+    - test
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
