@@ -624,7 +624,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                         try {
                             Map<String, String> map = fieldNameValues.entrySet().stream().filter(e->e.getKey().equals(id))
                             .collect(Collectors.toMap(entry -> "id", entry ->
-                                new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)));
+                                decodeBase64IfNecessary(entry.getValue())));
                             msg.addMapToRequestBody(Utils.convertJsonToxToStructuredMap(map.get("id")));
                         } catch (Exception e) {
                             log.error("Unexpected Exception {}", e, e);
@@ -640,6 +640,27 @@ public abstract class AbstractAuditLog implements AuditLog {
             save(msg);
         }
 
+    }
+
+    private static String decodeBase64IfNecessary(String base64EncodedOrPlainJson) {
+
+        if(base64EncodedOrPlainJson == null || base64EncodedOrPlainJson.isEmpty()) {
+            return base64EncodedOrPlainJson;
+        }
+
+        if(base64EncodedOrPlainJson.stripLeading().startsWith("{")) {
+            //is already plain json
+            return base64EncodedOrPlainJson;
+        }
+
+        //assume base64 encoded
+        //if not, fallback and return plain value
+        try {
+            return new String(BaseEncoding.base64().decode(base64EncodedOrPlainJson), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            //thrown if there is underlying decoding exception
+            return base64EncodedOrPlainJson;
+        }
     }
 
     @Override
