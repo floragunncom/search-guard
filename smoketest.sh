@@ -68,7 +68,7 @@ sleep 5
 done
 
 sleep 10
-
+chmod +x "$INSTALL_DIR/plugins/search-guard-flx/tools/sgctl.sh"
 "$INSTALL_DIR/plugins/search-guard-flx/tools/sgctl.sh" get-config -o "$INSTALL_DIR" --debug -v
 RET=$?
 

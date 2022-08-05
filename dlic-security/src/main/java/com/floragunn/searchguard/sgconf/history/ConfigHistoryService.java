@@ -365,13 +365,13 @@ public class ConfigHistoryService implements ComponentStateProvider {
 
                             onResult.accept(new ConfigSnapshot(configByType, configVersionSet));
                         } catch (Exception e) {
-                            onFailure(e);
+                            onFailure.accept(e);
                         }
                     }
 
                     @Override
                     public void onFailure(Exception e) {
-                        onFailure(e);
+                        onFailure.accept(e);
                     }
                 });
             }

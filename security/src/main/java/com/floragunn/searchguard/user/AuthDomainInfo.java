@@ -24,8 +24,6 @@ public class AuthDomainInfo {
     public static AuthDomainInfo TLS_CERT = AuthDomainInfo.forAuthenticatorType("tls_cert");
     public static AuthDomainInfo IMPERSONATION_TLS = AuthDomainInfo.forAuthenticatorType("impersonation+tls_cert");
     public static AuthDomainInfo STORED_AUTH = AuthDomainInfo.forAuthenticatorType("stored_auth");
-    public static AuthDomainInfo INJECTED = AuthDomainInfo.forAuthenticatorType("ext");
-
     private final String authDomainId;
     private final String authenticatorType;
     private final String authBackendType;

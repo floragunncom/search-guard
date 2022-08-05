@@ -30,9 +30,11 @@ import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.junit.Assert;
@@ -429,7 +431,6 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
         setup(additionalSettings);
         TestAuditlogImpl.clear();
-        System.out.println("=== Start Test ===");
         initializeSgIndex(getNodeClient(), new DynamicSgConfig());
         AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
                 () ->
@@ -457,7 +458,6 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
         setup(additionalSettings);
         TestAuditlogImpl.clear();
-        System.out.println("=== Start Test ===");
 
         URL url = this.getClass().getResource("/" + getResourceFolder()+"/kirk.key.pem");
         String path = new File(url.toURI()).getParent();
@@ -565,4 +565,41 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         res = rh.executeGetRequest("myindex2/_doc/1", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(404, res.getStatusCode());
     }
+    
+    
+    @Test
+    @Ignore("Does not makes sense for ES 8 because no getInternalTransportClient()")
+    public void testInternalConfigRead() throws Exception {
+
+        Settings settings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, true)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+
+        setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
+        TestAuditlogImpl.clear();
+
+        /*try (Client tc = getInternalTransportClient()) {
+           GetResponse response = tc.get(new GetRequest("searchguard").id("config").refresh(true).realtime(false)).actionGet();
+            
+           System.out.println("res "+Strings.toString(response));
+           
+           Thread.sleep(500);
+           System.out.println("al "+TestAuditlogImpl.sb.toString());
+           Assert.assertTrue(TestAuditlogImpl.messages.size()+"",TestAuditlogImpl.messages.size() == 1);      
+           Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_request_effective_user"));
+           Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ"));
+           Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE"));
+           Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("UPDATE"));
+           Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
+        }*/
+    }
+
 }

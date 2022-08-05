@@ -229,7 +229,9 @@ public class TestData {
     }
 
     private String randomTimestamp(Random random) {
-        return Instant.ofEpochMilli(random.nextLong(-2857691960709L, 2857691960709L)).toString();
+        long epochMillis = random.longs(1,-2857691960709L, 2857691960709L)
+                .findFirst().getAsLong();
+        return Instant.ofEpochMilli(epochMillis).toString();
     }
 
     private static String randomId(Random random) {

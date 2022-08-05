@@ -33,6 +33,7 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
@@ -124,9 +125,9 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         try (Meter subMeter = meter.detail("check_password")) {
             checkPassword(entry.getDN(), credentials.getPassword());
         } catch (LDAPException e) {
-            throw new CredentialsException(
-                    new AuthcResult.DebugInfo("ldap", false, "User could not be authenticated by password", ImmutableMap.of("user_name",
-                            credentials.getName(), "dn", entry.getDN(), "ldap_error", e.getMessage(), "ldap_rc", e.getResultCode().toString())),
+            throw new CredentialsException(new AuthcResult.DebugInfo("ldap", false, "User could not be authenticated by password",
+                    OrderedImmutableMap.<String, Object>of("user_name", credentials.getName(), "dn", entry.getDN(), "ldap_error", e.getMessage())
+                            .with(LDAP.getDetailsFrom(e))),
                     e);
         }
 
@@ -145,7 +146,8 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     }
 
     @Override
-    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter) throws AuthenticatorUnavailableException {
+    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter)
+            throws AuthenticatorUnavailableException {
         SearchResultEntry entry = PrivilegedCode.execute(() -> search(userInformation, meter), AuthenticatorUnavailableException.class);
 
         if (entry == null) {
@@ -185,34 +187,38 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     private SearchResultEntry search(AuthCredentials userName, Meter meter) throws AuthenticatorUnavailableException {
 
         try (Meter subMeter = meter.detail("user_search"); LDAPConnection connection = connectionManager.getConnection()) {
-            Filter filter = userSearchFilter.toFilter(AttributeSource.of("user.name", userName.getName()));
+            Filter filter;
+            try {
+                filter = userSearchFilter.toFilter(AttributeSource.of("user.name", userName.getName()));
+            } catch (LDAPException | ExpressionEvaluationException e) {
+                throw new AuthenticatorUnavailableException("Could not create query for LDAP user search", e.getMessage(), e);
+            }
+
             SearchRequest searchRequest = new SearchRequest(userSearchBaseDn, userSearchScope, filter, SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
                     SearchRequest.ALL_USER_ATTRIBUTES);
             searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
-            SearchResult searchResult = connection.search(searchRequest);
 
-            log.trace("User search {} yielded {} results", filter, searchResult.getEntryCount());
+            try {
+                SearchResult searchResult = connection.search(searchRequest);
 
-            if (searchResult != null && searchResult.getEntryCount() > 0) {
-                return searchResult.getSearchEntries().get(0);
-            } else {
-                return null;
+                log.trace("User search {} yielded {} results", filter, searchResult.getEntryCount());
+
+                if (searchResult != null && searchResult.getEntryCount() > 0) {
+                    return searchResult.getSearchEntries().get(0);
+                } else {
+                    return null;
+                }
+
+            } catch (LDAPException e) {
+                throw new AuthenticatorUnavailableException("LDAP user search failed", LDAP.getBetterErrorMessage(e), e)
+                        .details(LDAP.getDetailsFrom(e).with("ldap_base_dn", userSearchBaseDn).with("ldap_filter", filter.toString()));
             }
-        } catch (LDAPException e) {
-            throw new AuthenticatorUnavailableException("LDAP user search failed", e.getMessage(), e);
-        } catch (ExpressionEvaluationException e) {
-            throw new AuthenticatorUnavailableException("Could not initialize ldap query", e.getMessage(), e);
         }
     }
 
     private Set<Entry> searchGroups(SearchResultEntry entry, AuthCredentials credentials, Meter meter) throws AuthenticatorUnavailableException {
         try (Meter subMeter = meter.detail("group_search"); LDAPConnection connection = connectionManager.getConnection()) {
             return groupSearch.search(connection, entry.getDN(), AttributeSource.from(credentials.getAttributesForUserMapping()), meter);
-        } catch (LDAPException e) {
-            throw new AuthenticatorUnavailableException("Error connecting to LDAP backend", e.getMessage(), e);
-        } catch (ExpressionEvaluationException e) {
-            throw new AuthenticatorUnavailableException("Configuration error", "Error while constructing filter: " + e.getMessage(), e)
-                    .details("user_mapping_attributes", credentials.getAttributesForUserMapping());
         }
     }
 

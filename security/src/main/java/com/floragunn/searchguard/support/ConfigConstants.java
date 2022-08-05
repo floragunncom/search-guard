@@ -87,9 +87,6 @@ public class ConfigConstants {
     public static final String SG_USER = SG_CONFIG_PREFIX+"user";
     public static final String SG_USER_HEADER = SG_CONFIG_PREFIX+"user_header";
     public static final String SG_USER_NAME = SG_CONFIG_PREFIX+"user_name";
-
-    public static final String SG_INJECTED_USER = "injected_user";
-    
     public static final String SG_XFF_DONE = SG_CONFIG_PREFIX+"xff_done";
 
     public static final String SSO_LOGOUT_URL = SG_CONFIG_PREFIX+"sso_logout_url";
@@ -199,10 +196,6 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_RESTAPI_ENDPOINTS_DISABLED = "searchguard.restapi.endpoints_disabled";
     public static final String SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_REGEX = "searchguard.restapi.password_validation_regex";
     public static final String SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_ERROR_MESSAGE = "searchguard.restapi.password_validation_error_message";
-
-    //
-    public static final String[] SG_STANDARD_TRANSIENTS = new String[]{SG_USER, SG_REMOTE_ADDRESS, SG_ORIGIN};
-
 
     @Deprecated
     public static final String SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL = "searchguard.dfm_empty_overrides_all";

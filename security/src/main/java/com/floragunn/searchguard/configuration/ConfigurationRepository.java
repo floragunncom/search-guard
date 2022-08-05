@@ -50,13 +50,17 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
@@ -167,7 +171,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.settings = settings;
         this.clusterService = clusterService;
         this.configurationChangedListener = new ArrayList<>();
-        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client, ConfigConstants.SG_STANDARD_TRANSIENTS);
+        this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.componentState.setMandatory(true);
         this.mainConfigLoader = new ConfigurationLoader(client, componentState, this, staticSgConfig);
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
@@ -187,7 +191,23 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     public void initOnNodeStart() {
+        componentState.setState(State.INITIALIZING, "waiting_for_state_recovery");
 
+        this.clusterService.addListener(new ClusterStateListener() {
+
+            @Override
+            public void clusterChanged(ClusterChangedEvent event) {
+                if (!event.state().blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
+                    clusterService.removeListener(this);
+                    componentState.setState(State.INITIALIZING, "cluster_state_recovered");
+                    LOGGER.info("Cluster state has been recovered. Starting config index initialization.");
+                    checkIndicesNow();
+                }
+            }
+        });
+    }
+
+    private void checkIndicesNow() {
         LOGGER.debug("Check if one of the indices " + configuredSearchguardIndexNew + " or " + configuredSearchguardIndexOld + " does exist ...");
 
         try {
@@ -248,7 +268,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     public void reloadConfiguration(Set<CType<?>> configTypes, String reason)
             throws ConfigUpdateAlreadyInProgressException, ConfigUnavailableException {
-        try {
+        // Drop user information from thread context to avoid spamming of audit log
+        try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
             if (LOCK.tryLock(60, TimeUnit.SECONDS)) {
                 try {
                     reloadConfiguration0(configTypes, reason);
@@ -381,8 +402,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 uploadFile(privilegedConfigClient, cd, "sg_internal_users.yml", searchguardIndex, CType.INTERNALUSERS, parserContext);
                 uploadFile(privilegedConfigClient, cd, "sg_action_groups.yml", searchguardIndex, CType.ACTIONGROUPS, parserContext);
                 uploadFile(privilegedConfigClient, cd, "sg_tenants.yml", searchguardIndex, CType.TENANTS, parserContext);
-                uploadFile(privilegedConfigClient, cd, "sg_blocks.yml", searchguardIndex, CType.BLOCKS, parserContext);
                 uploadFile(privilegedConfigClient, cd, "sg_frontend_authc.yml", searchguardIndex, CType.FRONTEND_AUTHC, parserContext);
+
+                if (new File(cd, "sg_blocks.yml").exists()) {
+                    uploadFile(privilegedConfigClient, cd, "sg_blocks.yml", searchguardIndex, CType.BLOCKS, parserContext);
+                }
 
                 if (new File(cd, "sg_authz.yml").exists()) {
                     uploadFile(privilegedConfigClient, cd, "sg_authz.yml", searchguardIndex, CType.AUTHZ, parserContext);
@@ -441,7 +465,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             return new StandardResponse(412, "Search Guard already uses the new-style index: " + effectiveSearchGuardIndex);
         }
 
-        PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client, ConfigConstants.SG_STANDARD_TRANSIENTS);
+        PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
 
         SearchResponse searchResponse = null;
 
@@ -856,7 +880,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             try {
                 @SuppressWarnings({ "unchecked", "rawtypes" }) // XXX weird generics issue
-                ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration.fromMap(configMap, ctype, parserContext);
+                ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration
+                        .fromMap(configMap, ctype, parserContext);
 
                 if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
                     validationErrors.add(ctype.toLCString(), configInstance.getValidationErrors());

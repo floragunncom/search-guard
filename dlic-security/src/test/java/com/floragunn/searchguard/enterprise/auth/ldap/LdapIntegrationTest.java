@@ -282,4 +282,20 @@ public class LdapIntegrationTest {
         }
     }
 
+    
+    @Test
+    public void wrongPassword() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(KARLOTTA.getName(), "wrong-password")) {
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+        }
+    }
+    
+    @Test
+    public void userNotFound() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient("unknown-user", "password")) {
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+        }
+    }
 }

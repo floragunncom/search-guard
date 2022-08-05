@@ -25,7 +25,14 @@ import org.apache.logging.log4j.Logger;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation.Nanoseconds;
 
 public interface Meter extends AutoCloseable {
+    static final Logger log = LogManager.getLogger(Meter.class);
+
     static Meter basic(MetricsLevel level, TimeAggregation sink) {
+        if (level == null) {
+            log.error("null level supplied to Meter. Ignoring.", new Exception());
+            return NO_OP;
+        }
+        
         if (level.basicEnabled()) {
             return new SystemCurrentTimeMillisMeter(level, sink);
         } else {
@@ -34,6 +41,11 @@ public interface Meter extends AutoCloseable {
     }
 
     static Meter basic(MetricsLevel level, Measurement<?> sink) {
+        if (level == null) {
+            log.error("null level supplied to Meter. Ignoring.", new Exception());
+            return NO_OP;
+        }
+
         if (level.basicEnabled()) {
             if (sink instanceof TimeAggregation) {
                 return new SystemCurrentTimeMillisMeter(level, (TimeAggregation) sink);
@@ -48,6 +60,11 @@ public interface Meter extends AutoCloseable {
     }
 
     static Meter detail(MetricsLevel level, Measurement<?> sink) {
+        if (level == null) {
+            log.error("null level supplied to Meter. Ignoring.", new Exception());
+            return NO_OP;
+        }
+
         if (level.detailedEnabled()) {
             if (sink instanceof Nanoseconds) {
                 return new SystemNanoTimeMeter(level, (Nanoseconds) sink);

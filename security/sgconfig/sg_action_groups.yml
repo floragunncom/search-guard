@@ -5,10 +5,10 @@
 # or use the built-in groups
 # See https://docs.search-guard.com/latest/action-groups
 
-#MY_ACTION_GROUP:
-#  reserved: false
-#  allowed_actions:
-#  - "indices:data/read/search*"
-#  - "indices:data/read/msearch*"
-#  type: "index"
-#  description: "my action group"
+EXAMPLE_ACTION_GROUP:
+  reserved: false
+  allowed_actions:
+  - "indices:data/read/search*"
+  - "indices:data/read/msearch*"
+  type: "index"
+  description: "Sample action group for demonstration purposes"
