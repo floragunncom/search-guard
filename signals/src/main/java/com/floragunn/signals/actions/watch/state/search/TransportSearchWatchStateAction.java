@@ -23,6 +23,9 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 
+import java.util.List;
+import java.util.Map;
+
 public class TransportSearchWatchStateAction extends HandledTransportAction<SearchWatchStateRequest, SearchWatchStateResponse> {
 
     private final Signals signals;
@@ -58,6 +61,7 @@ public class TransportSearchWatchStateAction extends HandledTransportAction<Sear
 
             Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+            final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
             try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
 
@@ -65,6 +69,10 @@ public class TransportSearchWatchStateAction extends HandledTransportAction<Sear
                 threadContext.putTransient(ConfigConstants.SG_USER, user);
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+                originalResponseHeaders.entrySet().forEach(
+                        h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                );
 
                 SearchRequest searchRequest = new SearchRequest(signals.getSignalsSettings().getStaticSettings().getIndexNames().getWatchesState());
 

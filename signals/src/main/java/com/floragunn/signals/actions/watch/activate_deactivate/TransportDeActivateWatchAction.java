@@ -26,6 +26,9 @@ import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 
+import java.util.List;
+import java.util.Map;
+
 public class TransportDeActivateWatchAction extends HandledTransportAction<DeActivateWatchRequest, DeActivateWatchResponse> {
     private static final Logger log = LogManager.getLogger(TransportDeActivateWatchAction.class);
 
@@ -67,6 +70,7 @@ public class TransportDeActivateWatchAction extends HandledTransportAction<DeAct
 
             Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+            final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
             try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
 
@@ -74,6 +78,10 @@ public class TransportDeActivateWatchAction extends HandledTransportAction<DeAct
                 threadContext.putTransient(ConfigConstants.SG_USER, user);
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+                originalResponseHeaders.entrySet().forEach(
+                        h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                );
 
                 UpdateRequest updateRequest = new UpdateRequest(signalsTenant.getConfigIndexName(),
                         signalsTenant.getWatchIdForConfigIndex(request.getWatchId()));
