@@ -106,7 +106,7 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
     protected RestChannelConsumer handlePut(String key, RestRequest request, Client client) throws IOException {
 
         String content = request.content().utf8ToString();
-        boolean contentIsJson = request.getXContentType() == XContentType.JSON;
+        boolean contentIsJson = request.getXContentType() == XContentType.JSON || request.getXContentType() == XContentType.VND_JSON;
 
         return channel -> client.execute(PutSettingsAction.INSTANCE, new PutSettingsRequest(key, content, contentIsJson),
                 new ActionListener<PutSettingsResponse>() {

@@ -23,6 +23,9 @@ import com.floragunn.signals.accounts.NoSuchAccountException;
 import com.floragunn.signals.actions.account.config_update.DestinationConfigUpdateAction;
 import com.floragunn.signals.actions.account.delete.DeleteAccountResponse.Result;
 
+import java.util.List;
+import java.util.Map;
+
 public class TransportDeleteAccountAction extends HandledTransportAction<DeleteAccountRequest, DeleteAccountResponse> {
 
     private final Signals signals;
@@ -55,6 +58,7 @@ public class TransportDeleteAccountAction extends HandledTransportAction<DeleteA
 
             Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+            final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
             try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
 
@@ -62,6 +66,10 @@ public class TransportDeleteAccountAction extends HandledTransportAction<DeleteA
                 threadContext.putTransient(ConfigConstants.SG_USER, user);
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+                originalResponseHeaders.entrySet().forEach(
+                        h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                );
 
                 account.isInUse(client, signals.getSignalsSettings(), new ActionListener<Boolean>() {
 

@@ -118,11 +118,11 @@ public class AccountApiAction extends SignalsBaseRestHandler {
 
     protected RestChannelConsumer handlePut(String accountType, String id, RestRequest request, Client client) throws IOException {
 
-        if (request.getXContentType() != XContentType.JSON) {
-            return channel -> errorResponse(channel, RestStatus.UNPROCESSABLE_ENTITY, "Accounts must be of content type application/json");
-        }
-
         BytesReference content = request.content();
+
+        if (request.getXContentType() != XContentType.JSON && request.getXContentType() != XContentType.VND_JSON) {
+            return channel -> errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Accounts must be of content type application/json");
+        }
 
         return channel -> client.execute(PutAccountAction.INSTANCE, new PutAccountRequest(accountType, id, content, XContentType.JSON),
                 new ActionListener<PutAccountResponse>() {

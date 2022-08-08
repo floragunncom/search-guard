@@ -1,6 +1,8 @@
 package com.floragunn.signals.actions.watch.execute;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -110,12 +112,17 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
         Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+        final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
         try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
             threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
             threadContext.putTransient(ConfigConstants.SG_USER, user);
             threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
             threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+            originalResponseHeaders.entrySet().forEach(
+                    h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+            );
 
             client.prepareGet().setIndex(signalsTenant.getConfigIndexName()).setId(signalsTenant.getWatchIdForConfigIndex(request.getWatchId()))
                     .execute(new ActionListener<GetResponse>() {
@@ -137,6 +144,10 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                     threadContext.putTransient(ConfigConstants.SG_USER, user);
                                     threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
                                     threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+                                    originalResponseHeaders.entrySet().forEach(
+                                            h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                                    );
 
                                     listener.onResponse(executeWatch(watch, request, signalsTenant));
 

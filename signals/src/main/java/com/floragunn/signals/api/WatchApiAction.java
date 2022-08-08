@@ -113,11 +113,11 @@ public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwar
 
     protected RestChannelConsumer handlePut(String id, RestRequest request, Client client) throws IOException {
 
-        if (request.getXContentType() != XContentType.JSON) {
+        BytesReference content = request.content();
+
+        if (request.getXContentType() != XContentType.JSON && request.getXContentType() != XContentType.VND_JSON) {
             return channel -> errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Watches must be of content type application/json");
         }
-
-        BytesReference content = request.content();
 
         return channel -> client.execute(PutWatchAction.INSTANCE, new PutWatchRequest(id, content, XContentType.JSON),
                 new ActionListener<PutWatchResponse>() {
