@@ -25,6 +25,9 @@ import com.floragunn.signals.Signals;
 import com.floragunn.signals.accounts.Account;
 import com.floragunn.signals.actions.account.config_update.DestinationConfigUpdateAction;
 
+import java.util.List;
+import java.util.Map;
+
 public class TransportPutAccountAction extends HandledTransportAction<PutAccountRequest, PutAccountResponse> {
 
     private final Signals signals;
@@ -58,6 +61,7 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
 
             Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+            final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
             Account account = Account.parse(request.getAccountType(), request.getAccountId(), request.getBody().utf8ToString());
 
@@ -67,6 +71,10 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
                 threadContext.putTransient(ConfigConstants.SG_USER, user);
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+                originalResponseHeaders.entrySet().forEach(
+                        h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                );
 
                 account.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
 

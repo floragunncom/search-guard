@@ -21,6 +21,9 @@ import com.floragunn.signals.SignalsTenant;
 import com.floragunn.signals.SignalsUnavailableException;
 import com.floragunn.signals.watch.Watch;
 
+import java.util.List;
+import java.util.Map;
+
 public class TransportGetWatchAction extends HandledTransportAction<GetWatchRequest, GetWatchResponse> {
 
     private final Signals signals;
@@ -47,6 +50,7 @@ public class TransportGetWatchAction extends HandledTransportAction<GetWatchRequ
             Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
             SignalsTenant signalsTenant = signals.getTenant(user);
+            final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
             try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
 
@@ -54,6 +58,10 @@ public class TransportGetWatchAction extends HandledTransportAction<GetWatchRequ
                 threadContext.putTransient(ConfigConstants.SG_USER, user);
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+                originalResponseHeaders.entrySet().forEach(
+                        h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                );
 
                 client.prepareGet().setIndex(signalsTenant.getConfigIndexName()).setId(signalsTenant.getWatchIdForConfigIndex(request.getWatchId()))
                         .setFetchSource(Strings.EMPTY_ARRAY, Watch.HiddenAttributes.asArray()).execute(new ActionListener<GetResponse>() {

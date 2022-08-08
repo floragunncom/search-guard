@@ -24,6 +24,9 @@ import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 import com.floragunn.signals.watch.Watch;
 
+import java.util.List;
+import java.util.Map;
+
 public class TransportSearchWatchAction extends HandledTransportAction<SearchWatchRequest, SearchWatchResponse> {
 
     private final Signals signals;
@@ -59,6 +62,7 @@ public class TransportSearchWatchAction extends HandledTransportAction<SearchWat
 
             Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+            final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
             try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
 
@@ -66,6 +70,10 @@ public class TransportSearchWatchAction extends HandledTransportAction<SearchWat
                 threadContext.putTransient(ConfigConstants.SG_USER, user);
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+                originalResponseHeaders.entrySet().forEach(
+                        h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                );
 
                 SearchRequest searchRequest = new SearchRequest(signalsTenant.getConfigIndexName());
 
