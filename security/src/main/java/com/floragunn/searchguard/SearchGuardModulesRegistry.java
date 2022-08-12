@@ -23,14 +23,17 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
@@ -46,9 +49,12 @@ import org.opensearch.common.settings.Setting.Property;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.index.IndexService;
+import org.opensearch.index.analysis.TokenFilterFactory;
 import org.opensearch.index.shard.IndexingOperationListener;
 import org.opensearch.index.shard.SearchOperationListener;
+import org.opensearch.indices.analysis.AnalysisModule;
 import org.opensearch.plugins.ActionPlugin.ActionHandler;
+import org.opensearch.plugins.IndexStorePlugin;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.script.ScriptContext;
@@ -305,6 +311,21 @@ public class SearchGuardModulesRegistry {
         return result;
     }
 
+    public Map<String, IndexStorePlugin.DirectoryFactory> getDirectoryFactories() {
+        /*Map<String, IndexStorePlugin.DirectoryFactory> result = this.getDirectoryFactories();
+
+        if (result == null) {
+            result = ImmutableMap.empty();
+
+            for (SearchGuardModule module : modules) {
+                result.putAll(module.getDirectoryFactories());
+            }
+        }
+
+        return result;*/
+        return ImmutableMap.empty();
+    }
+
     public List<Setting<?>> getSettings() {
         List<Setting<?>> result = new ArrayList<>();
 
@@ -411,6 +432,18 @@ public class SearchGuardModulesRegistry {
 
         return typedComponentRegistry;
 
+    }
+
+    public Map<String, AnalysisModule.AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
+        Map<String, AnalysisModule.AnalysisProvider<TokenFilterFactory>> result = new HashMap<>();
+
+
+        for (SearchGuardModule module : modules) {
+            result.putAll(module.getTokenFilters());
+        }
+
+
+        return result;
     }
 
     public TypedComponentRegistry getTypedComponentRegistry() {

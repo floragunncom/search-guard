@@ -75,12 +75,14 @@ public class StaticSettings {
         protected final String name;
         protected final V defaultValue;
         protected final boolean filtered;
+        protected final boolean indexScoped;
         protected final org.opensearch.common.settings.Setting<?> platformInstance;
 
-        Attribute(String name, V defaultValue, boolean filtered) {
+        Attribute(String name, V defaultValue, boolean filtered, boolean indexScoped) {
             this.name = name;
             this.defaultValue = defaultValue;
             this.filtered = filtered;
+            this.indexScoped = indexScoped;
             this.platformInstance = toPlatformInstance();
         }
 
@@ -98,7 +100,11 @@ public class StaticSettings {
         protected org.opensearch.common.settings.Setting.Property[] toPlatformProperties() {
             List<Property> result = new ArrayList<>(3);
 
-            result.add(Property.NodeScope);
+            if(indexScoped) {
+                result.add(Property.IndexScope);
+            } else {
+                result.add(Property.NodeScope);
+            }
 
             if (filtered) {
                 result.add(Property.Filtered);
@@ -111,6 +117,7 @@ public class StaticSettings {
             private final String name;
             private V defaultValue = null;
             private boolean filtered = false;
+            private boolean indexScoped = false;
 
             Builder(String name) {
                 this.name = name;
@@ -118,6 +125,11 @@ public class StaticSettings {
 
             public Builder<V> filterValueFromUI() {
                 this.filtered = true;
+                return this;
+            }
+
+            public Builder<V> indexScoped() {
+                this.indexScoped = true;
                 return this;
             }
 
@@ -157,7 +169,7 @@ public class StaticSettings {
             }
 
             public StringListAttribute asListOfStrings() {
-                return new StringListAttribute(name, ImmutableList.empty(), filtered);
+                return new StringListAttribute(name, ImmutableList.empty(), filtered, indexScoped);
             }
 
         }
@@ -170,7 +182,7 @@ public class StaticSettings {
             }
 
             public Attribute<String> asString() {
-                return new StringAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new StringAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScoped);
             }
         }
 
@@ -182,7 +194,7 @@ public class StaticSettings {
             }
 
             public Attribute<Boolean> asBoolean() {
-                return new BooleanAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new BooleanAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScoped);
             }
         }
 
@@ -194,7 +206,7 @@ public class StaticSettings {
             }
 
             public Attribute<Integer> asInteger() {
-                return new IntegerAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new IntegerAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScoped);
             }
         }
 
@@ -206,7 +218,7 @@ public class StaticSettings {
             }
 
             public Attribute<TimeValue> asTimeValue() {
-                return new TimeValueAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new TimeValueAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScoped);
             }
         }
 
@@ -218,15 +230,15 @@ public class StaticSettings {
             }
 
             public Attribute<Pattern> asPattern() {
-                return new PatternAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new PatternAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScoped);
             }
         }
 
     }
 
     static class StringAttribute extends Attribute<String> {
-        StringAttribute(String name, String defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        StringAttribute(String name, String defaultValue, boolean filtered, boolean indexScoped) {
+            super(name, defaultValue, filtered, indexScoped);
         }
 
         @Override
@@ -240,8 +252,8 @@ public class StaticSettings {
     }
 
     static class IntegerAttribute extends Attribute<Integer> {
-        IntegerAttribute(String name, Integer defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        IntegerAttribute(String name, Integer defaultValue, boolean filtered, boolean indexScoped) {
+            super(name, defaultValue, filtered, indexScoped);
         }
 
         @Override
@@ -251,8 +263,8 @@ public class StaticSettings {
     }
 
     static class BooleanAttribute extends Attribute<Boolean> {
-        BooleanAttribute(String name, Boolean defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        BooleanAttribute(String name, Boolean defaultValue, boolean filtered, boolean indexScoped) {
+            super(name, defaultValue, filtered, indexScoped);
         }
 
         @Override
@@ -262,8 +274,8 @@ public class StaticSettings {
     }
 
     static class TimeValueAttribute extends Attribute<TimeValue> {
-        TimeValueAttribute(String name, TimeValue defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        TimeValueAttribute(String name, TimeValue defaultValue, boolean filtered, boolean indexScoped) {
+            super(name, defaultValue, filtered, indexScoped);
         }
 
         @Override
@@ -275,8 +287,8 @@ public class StaticSettings {
     static class PatternAttribute extends Attribute<Pattern> {
         private static final List<String> EMPTY_DEFAULT = ImmutableList.of("___empty");
 
-        PatternAttribute(String name, Pattern defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        PatternAttribute(String name, Pattern defaultValue, boolean filtered, boolean indexScoped) {
+            super(name, defaultValue, filtered, indexScoped);
         }
 
         @Override
@@ -302,8 +314,8 @@ public class StaticSettings {
     }
 
     static class StringListAttribute extends Attribute<List<String>> {
-        StringListAttribute(String name, List<String> defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        StringListAttribute(String name, List<String> defaultValue, boolean filtered, boolean indexScoped) {
+            super(name, defaultValue, filtered, indexScoped);
         }
 
         @Override

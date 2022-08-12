@@ -1,0 +1,54 @@
+{
+  "settings": {
+    "encryption_enabled": true,
+    "encryption_key": "ey123123123....base64",
+    "codec": "encc",
+    "number_of_shards": 1,
+    "number_of_replicas": 1,
+    "translog.durability": "async",
+    "translog.sync_interval": "300s",
+    "analysis": {
+      "analyzer": {
+        "default": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "blind_hash"
+
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "full_name": {
+          "type": "text",
+          "fielddata": true,
+          "index_options": "offsets",
+          "norms": true,
+          "term_vector": "with_positions_offsets_payloads"
+        },
+        "credit_card_number": {
+          "type": "keyword",
+          "eager_global_ordinals": true
+        },
+        "age": {
+          "type": "integer"
+        },
+        "remarks": {
+          "type": "text",
+          "store": true,
+          "index": false
+        },
+        "enc": {
+          "type": "text",
+          "store": true,
+          "index": false
+        }
+      }
+    }
+  }
+}

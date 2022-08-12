@@ -149,7 +149,7 @@ public class LocalEsCluster {
 
         log.info("Startup finished. Waiting for GREEN");
 
-        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(10), allNodes.size());
+        waitForCluster(ClusterHealthStatus.GREEN, TimeValue.timeValueSeconds(50), allNodes.size());
         putDefaultTemplate();
 
         log.info("Started: {}", this);

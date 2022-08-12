@@ -21,10 +21,12 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -39,9 +41,12 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexService;
+import org.opensearch.index.analysis.TokenFilterFactory;
 import org.opensearch.index.shard.IndexingOperationListener;
 import org.opensearch.index.shard.SearchOperationListener;
+import org.opensearch.indices.analysis.AnalysisModule;
 import org.opensearch.plugins.ActionPlugin.ActionHandler;
+import org.opensearch.plugins.IndexStorePlugin;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.script.ScriptContext;
@@ -54,6 +59,8 @@ import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchsupport.StaticSettings;
+
+import static java.util.Collections.emptyMap;
 
 public interface SearchGuardModule {
     default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
@@ -130,6 +137,14 @@ public interface SearchGuardModule {
 
     default ImmutableList<QueryCacheWeightProvider> getQueryCacheWeightProviders() {
         return ImmutableList.empty();
+    }
+
+    default Map<String, IndexStorePlugin.DirectoryFactory> getDirectoryFactories() {
+        return ImmutableMap.empty();
+    }
+
+    default Map<String, AnalysisModule.AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
+        return ImmutableMap.empty();
     }
 
     default AuditLog getAuditLog() {

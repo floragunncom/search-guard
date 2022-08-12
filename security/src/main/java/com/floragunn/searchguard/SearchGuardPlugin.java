@@ -81,11 +81,15 @@ import org.opensearch.http.HttpServerTransport.Dispatcher;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexService;
+import org.opensearch.index.analysis.TokenFilterFactory;
 import org.opensearch.index.cache.query.QueryCache;
 import org.opensearch.index.shard.IndexingOperationListener;
 import org.opensearch.index.shard.SearchOperationListener;
+import org.opensearch.indices.analysis.AnalysisModule;
 import org.opensearch.indices.breaker.CircuitBreakerService;
+import org.opensearch.plugins.AnalysisPlugin;
 import org.opensearch.plugins.ClusterPlugin;
+import org.opensearch.plugins.IndexStorePlugin;
 import org.opensearch.plugins.MapperPlugin;
 import org.opensearch.plugins.ScriptPlugin;
 import org.opensearch.repositories.RepositoriesService;
@@ -182,7 +186,7 @@ import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
-public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin, ScriptPlugin {
+public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin, ScriptPlugin, IndexStorePlugin, AnalysisPlugin {
 
     private volatile AuthenticatingRestFilter sgRestHandler;
     private volatile SearchGuardInterceptor sgi;
@@ -393,7 +397,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     "com.floragunn.searchguard.authtoken.AuthTokenModule", "com.floragunn.dlic.auth.LegacyEnterpriseSecurityModule",
                     "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule", "com.floragunn.searchguard.enterprise.dlsfls.DlsFlsModule",
                     "com.floragunn.searchguard.enterprise.dlsfls.legacy.LegacyDlsFlsModule",
-                    "com.floragunn.searchguard.enterprise.auditlog.AuditLogModule");
+                    "com.floragunn.searchguard.enterprise.auditlog.AuditLogModule",
+                    "com.floragunn.searchguard.enterprise.encrypted_indices.EncryptedIndicesModule"
+            );
         }
 
         moduleRegistry.add(SessionModule.class.getName());
@@ -1197,6 +1203,16 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 return true;
             };
         };
+    }
+
+    @Override
+    public Map<String, DirectoryFactory> getDirectoryFactories() {
+        return moduleRegistry.getDirectoryFactories();
+    }
+
+    @Override
+    public Map<String, AnalysisModule.AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
+        return moduleRegistry.getTokenFilters();
     }
 
     public static ProtectedIndices getProtectedIndices() {

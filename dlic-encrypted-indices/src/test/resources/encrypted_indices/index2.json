@@ -1,0 +1,37 @@
+{
+  "settings": {
+    "encryption_enabled": true,
+    "encryption_key": "ey123123123....base64",
+    "analysis": {
+      "analyzer": {
+        "default": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "blind_hash",
+            "lowercase"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "full_name": {
+          "type": "text"
+        },
+        "credit_card_number": {
+          "type": "keyword"
+        },
+        "age": {
+          "type": "integer"
+        },
+        "remarks": {
+          "type": "text",
+          "store": true
+        }
+      }
+    }
+  }
+}
