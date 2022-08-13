@@ -20,6 +20,10 @@ import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.enterprise.encrypted_indices.analysis.EncryptedTokenFilter;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperationsFactory;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DefaultCryptoOperationsFactory;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.DecryptingDirectoryReaderWrapper;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.EncryptingIndexingOperationListener;
 import com.floragunn.searchsupport.StaticSettings;
@@ -49,11 +53,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class EncryptedIndicesModule implements SearchGuardModule {
 
+    private final CryptoOperationsFactory cryptoOperationsFactory = new DefaultCryptoOperationsFactory();
 
     public static final StaticSettings.Attribute<Boolean> INDEX_ENCRYPTION_ENABLED =
             StaticSettings.Attribute
@@ -85,7 +91,7 @@ public class EncryptedIndicesModule implements SearchGuardModule {
             EncryptedIndicesModule.this.encryptedIndicesConfig.onChange(searchGuardLicense);
         });
 
-        this.directoryReaderWrapper = (indexService) -> new DecryptingDirectoryReaderWrapper(indexService, baseDependencies.getAuditLog());
+        this.directoryReaderWrapper = (indexService) -> new DecryptingDirectoryReaderWrapper(indexService, baseDependencies.getAuditLog(), cryptoOperationsFactory);
 
         return ImmutableList.empty();
     }
@@ -97,7 +103,7 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
     @Override
     public ImmutableList<IndexingOperationListener> getIndexOperationListeners() {
-        return ImmutableList.of(new EncryptingIndexingOperationListener(guiceDependencies));
+        return ImmutableList.of(new EncryptingIndexingOperationListener(guiceDependencies, cryptoOperationsFactory));
     }
 
     @Override
@@ -117,6 +123,13 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
             @Override
             public TokenFilterFactory get(IndexSettings indexSettings, Environment environment, String name, Settings settings) throws IOException {
+                final CryptoOperations cryptoOperations = cryptoOperationsFactory.createCryptoOperations(indexSettings);
+
+                if(cryptoOperations == null) {
+                    return null;
+                    //throw new IOException("blind_hash can only be used on encrypted indices");
+                }
+
                 return new TokenFilterFactory() {
                     @Override
                     public String name() {
@@ -125,7 +138,7 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
                     @Override
                     public TokenStream create(TokenStream tokenStream) {
-                        return new EncryptedTokenFilter(tokenStream);
+                        return new EncryptedTokenFilter(tokenStream, cryptoOperations);
                     }
                 };
             }

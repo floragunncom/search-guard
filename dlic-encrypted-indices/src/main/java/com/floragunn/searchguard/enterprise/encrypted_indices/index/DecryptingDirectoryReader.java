@@ -13,6 +13,7 @@
  */
 package com.floragunn.searchguard.enterprise.encrypted_indices.index;
 
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.StoredFieldsReader;
@@ -23,16 +24,20 @@ import org.apache.lucene.index.StoredFieldVisitor;
 import org.opensearch.common.lucene.index.SequentialStoredFieldsLeafReader;
 
 import java.io.IOException;
+import java.util.Objects;
 
 public class DecryptingDirectoryReader extends FilterDirectoryReader {
 
-    public DecryptingDirectoryReader(DirectoryReader in) throws IOException {
-        super(in, new SubReaderWrapper());
+    private final CryptoOperations cryptoOperations;
+
+    public DecryptingDirectoryReader(DirectoryReader in, CryptoOperations cryptoOperations) throws IOException {
+        super(in, new SubReaderWrapper(Objects.requireNonNull(cryptoOperations, "cryptoOperations must not be null")));
+        this.cryptoOperations = cryptoOperations;
     }
 
     @Override
     protected DirectoryReader doWrapDirectoryReader(DirectoryReader in) throws IOException {
-        return new DecryptingDirectoryReader(in);
+        return new DecryptingDirectoryReader(in, cryptoOperations);
     }
 
     @Override
@@ -42,32 +47,29 @@ public class DecryptingDirectoryReader extends FilterDirectoryReader {
 
     private static class SubReaderWrapper extends FilterDirectoryReader.SubReaderWrapper {
 
-        SubReaderWrapper() {
-            //this.dlsFlsContext = dlsFlsContext;
+        private final CryptoOperations cryptoOperations;
+
+        SubReaderWrapper(CryptoOperations cryptoOperations) {
+            this.cryptoOperations = cryptoOperations;
         }
 
         @Override
         public LeafReader wrap(LeafReader reader) {
-            return new FilterLeafReader(reader);
+            return new FilterLeafReader(reader, cryptoOperations);
         }
 
         private static class FilterLeafReader extends SequentialStoredFieldsLeafReader {
             private static final Logger log = LogManager.getLogger(FilterLeafReader.class);
+            private final CryptoOperations cryptoOperations;
 
-
-            FilterLeafReader(LeafReader delegate) {
+            FilterLeafReader(LeafReader delegate, CryptoOperations cryptoOperations) {
                 super(delegate);
+                this.cryptoOperations = cryptoOperations;
             }
 
             @Override
             public void document(int docID, StoredFieldVisitor visitor) throws IOException {
-                in.document(docID, new DecryptingStoredFieldVisitor(visitor));
-
-                //if (dlsFlsContext.hasFlsRestriction() || dlsFlsContext.hasFieldMasking()) {
-                //    in.document(docID, new FlsStoredFieldVisitor(visitor, dlsFlsContext.getFlsRule(), dlsFlsContext.getFieldMaskingRule()));
-                //} else {
-                //    in.document(docID, visitor);
-                //}
+                in.document(docID, new DecryptingStoredFieldVisitor(visitor, cryptoOperations));
             }
 
             @Override
@@ -86,40 +88,6 @@ public class DecryptingDirectoryReader extends FilterDirectoryReader {
                 return new DecryptingStoredFieldsReader(reader);
             }
 
-
-            /*@Override
-            public Fields getTermVectors(final int docID) throws IOException {
-                Fields fields = in.getTermVectors(docID);
-
-                if (dlsFlsContext.hasFieldMasking() || fields == null) {
-                    return fields;
-                }
-
-                return new Fields() {
-
-                    @Override
-                    public Iterator<String> iterator() {
-                        return Iterators.<String>filter(fields.iterator(), (field) -> dlsFlsContext.getFlsRule().isAllowed(field));
-                    }
-
-                    @Override
-                    public Terms terms(String field) throws IOException {
-
-                        if (!dlsFlsContext.getFlsRule().isAllowed(field)) {
-                            return null;
-                        }
-
-                        return wrapTerms(field, in.terms(field));
-                    }
-
-                    @Override
-                    public int size() {
-                        return flsFieldInfos.size();
-                    }
-                };
-            }*/
-
-
             private class DecryptingStoredFieldsReader extends StoredFieldsReader {
 
                 private final StoredFieldsReader delegate;
@@ -135,14 +103,7 @@ public class DecryptingDirectoryReader extends FilterDirectoryReader {
 
                 @Override
                 public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
-
-                    delegate.visitDocument(docID, new DecryptingStoredFieldVisitor(visitor));
-
-                   // if (dlsFlsContext.hasFlsRestriction() || dlsFlsContext.hasFieldMasking()) {
-                    //     visitor = new FlsStoredFieldVisitor(visitor, dlsFlsContext.getFlsRule(), dlsFlsContext.getFieldMaskingRule());
-                    // }
-
-                    // delegate.visitDocument(docID, visitor);
+                    delegate.visitDocument(docID, new DecryptingStoredFieldVisitor(visitor, cryptoOperations));
                 }
 
                 @Override

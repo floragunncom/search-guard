@@ -3,6 +3,7 @@ package com.floragunn.searchguard.enterprise.encrypted_indices.index;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperationsFactory;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import com.google.common.io.CharStreams;
 import org.apache.lucene.document.Field;
@@ -23,17 +24,19 @@ import org.opensearch.indices.IndicesModule;
 
 import java.io.IOException;
 import java.util.ListIterator;
+import java.util.Objects;
 
 public class EncryptingIndexingOperationListener implements IndexingOperationListener {
 
     private final GuiceDependencies guiceDependencies;
 
-    private final CryptoOperations cryptoOperations = new DummyCryptoOperations();
+    private final CryptoOperationsFactory cryptoOperationsFactory;
 
     protected static final ImmutableSet<String> META_FIELDS = ImmutableSet.of(IndicesModule.getBuiltInMetadataFields()).without("_source").with("_primary_term");
 
-    public EncryptingIndexingOperationListener(GuiceDependencies guiceDependencies) {
+    public EncryptingIndexingOperationListener(GuiceDependencies guiceDependencies, CryptoOperationsFactory cryptoOperationsFactory) {
         this.guiceDependencies = guiceDependencies;
+        this.cryptoOperationsFactory = cryptoOperationsFactory;
     }
 
     @Override
@@ -42,7 +45,13 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
 
         final IndexService indexService = guiceDependencies.getIndicesService().indexService(shardId.getIndex());
 
-        if (indexService == null || !indexService.getIndexSettings().getSettings().getAsBoolean("index.encryption_enabled", false)) {
+        if (indexService == null) {
+            throw new RuntimeException("indexService must not be null");
+        }
+
+        final CryptoOperations cryptoOperations = cryptoOperationsFactory.createCryptoOperations(indexService.getIndexSettings());
+
+        if (cryptoOperations == null) {
             return null;
         }
 
@@ -63,7 +72,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
             encryptedSource = originalSource;
 
         } else {
-            encryptedSource = encryptSourceField(_operation);
+            encryptedSource = encryptSourceField(_operation, cryptoOperations);
         }
 
         final ListIterator<ParseContext.Document> documentListIterator = _operation.docs().listIterator();
@@ -81,7 +90,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
 
                     final Field field = (Field) f;
                     try {
-                        encryptField(field, encryptedSource);
+                        encryptField(field, encryptedSource, cryptoOperations);
                     } catch (IOException e) {
                         e.printStackTrace();
                         throw new RuntimeException(e);
@@ -98,7 +107,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
         return null;
     }
 
-    private void encryptField(Field field, BytesRef encryptedSource) throws IOException {
+    private void encryptField(Field field, BytesRef encryptedSource, CryptoOperations cryptoOperations) throws IOException {
 
         if(META_FIELDS.contains(field.name())) {
             return;
@@ -143,7 +152,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
         }
     }
 
-    private BytesRef encryptSourceField(Engine.Index operation) {
+    private BytesRef encryptSourceField(Engine.Index operation, CryptoOperations cryptoOperations) {
         final BytesRef source = operation.parsedDoc().source().toBytesRef();
         final BytesRef encryptedSource = cryptoOperations.encryptSource(source);
         operation.parsedDoc().setSource(new BytesArray(encryptedSource), operation.parsedDoc().getXContentType());

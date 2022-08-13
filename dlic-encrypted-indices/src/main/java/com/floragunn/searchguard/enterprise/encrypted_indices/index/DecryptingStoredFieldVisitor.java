@@ -27,11 +27,12 @@ class DecryptingStoredFieldVisitor extends StoredFieldVisitor {
     private static final Logger log = LogManager.getLogger(DecryptingStoredFieldVisitor.class);
     private final StoredFieldVisitor delegate;
 
-    private final CryptoOperations cryptoOperations = new DummyCryptoOperations();
+    private final CryptoOperations cryptoOperations;
 
-    public DecryptingStoredFieldVisitor(StoredFieldVisitor delegate) {
+    public DecryptingStoredFieldVisitor(StoredFieldVisitor delegate, CryptoOperations cryptoOperations) {
         super();
         this.delegate = delegate;
+        this.cryptoOperations = cryptoOperations;
     }
 
     @Override

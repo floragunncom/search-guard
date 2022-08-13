@@ -30,10 +30,15 @@ public class EncryptedTokenFilter extends TokenFilter {
 
   // BytesTermAttribute.java
   // TermToBytesRefAttribute.java
-  private final CryptoOperations cryptoOperations = new DummyCryptoOperations();
+  private final CryptoOperations cryptoOperations;
 
-  public EncryptedTokenFilter(TokenStream in) {
+  public EncryptedTokenFilter(TokenStream in, CryptoOperations cryptoOperations) {
     super(in);
+    this.cryptoOperations = cryptoOperations;
+
+    if(cryptoOperations == null) {
+      throw new IllegalArgumentException("cryptoOperations");
+    }
   }
 
   @Override

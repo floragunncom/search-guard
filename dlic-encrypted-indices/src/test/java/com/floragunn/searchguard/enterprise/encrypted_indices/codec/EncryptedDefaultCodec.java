@@ -43,7 +43,7 @@ public class EncryptedDefaultCodec extends FilterCodec {
      *
      */
 
-    private final CryptoOperations cryptoOperations = new DummyCryptoOperations();
+    private final CryptoOperations cryptoOperations = null;//new DummyCryptoOperations();
 
     public EncryptedDefaultCodec() {
         super("encc", new SimpleTextCodec());

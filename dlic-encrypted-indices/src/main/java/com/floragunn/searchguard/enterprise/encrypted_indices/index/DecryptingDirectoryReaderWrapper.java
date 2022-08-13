@@ -16,6 +16,8 @@ package com.floragunn.searchguard.enterprise.encrypted_indices.index;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperationsFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
@@ -36,19 +38,22 @@ public class DecryptingDirectoryReaderWrapper implements CheckedFunction<Directo
     private final Index index;
     private final ThreadContext threadContext;
 
-    public DecryptingDirectoryReaderWrapper(IndexService indexService, AuditLog auditlog) {
+    private final CryptoOperations cryptoOperations;
+
+    public DecryptingDirectoryReaderWrapper(IndexService indexService, AuditLog auditlog, CryptoOperationsFactory cryptoOperationsFactory) {
         this.indexService = indexService;
         this.index = indexService.index();
         this.auditlog = auditlog;
         this.threadContext = indexService.getThreadPool().getThreadContext();
+        this.cryptoOperations = cryptoOperationsFactory.createCryptoOperations(indexService.getIndexSettings());
     }
 
     @Override
     public final DirectoryReader apply(DirectoryReader reader) throws IOException {
-            if (indexService == null || !indexService.getIndexSettings().getSettings().getAsBoolean("index.encryption_enabled", false)) {
+            if (this.cryptoOperations == null) {
                 return reader;
             }
 
-            return new DecryptingDirectoryReader(reader);
+            return new DecryptingDirectoryReader(reader, cryptoOperations);
     }
 }

@@ -3,9 +3,12 @@ package com.floragunn.searchguard.enterprise.encrypted_indices.crypto;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class DummyCryptoOperations extends CryptoOperations{
+public class DefaultCryptoOperations extends CryptoOperations{
 
-    public DummyCryptoOperations(String key) {
+    private String indexEncryptionKey;
+
+    DefaultCryptoOperations(String indexEncryptionKey) {
+        this.indexEncryptionKey = indexEncryptionKey;
     }
 
     @Override
