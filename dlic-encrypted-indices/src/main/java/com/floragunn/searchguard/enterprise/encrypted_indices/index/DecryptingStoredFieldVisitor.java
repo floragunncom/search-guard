@@ -13,7 +13,8 @@
  */
 package com.floragunn.searchguard.enterprise.encrypted_indices.index;
 
-import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.Cryptor;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.FieldInfo;
@@ -26,6 +27,8 @@ class DecryptingStoredFieldVisitor extends StoredFieldVisitor {
     private static final Logger log = LogManager.getLogger(DecryptingStoredFieldVisitor.class);
     private final StoredFieldVisitor delegate;
 
+    private final CryptoOperations cryptoOperations = new DummyCryptoOperations();
+
     public DecryptingStoredFieldVisitor(StoredFieldVisitor delegate) {
         super();
         this.delegate = delegate;
@@ -35,8 +38,10 @@ class DecryptingStoredFieldVisitor extends StoredFieldVisitor {
     public void binaryField(FieldInfo fieldInfo, byte[] value) throws IOException {
         if(EncryptingIndexingOperationListener.META_FIELDS.contains(fieldInfo.name)) {
             delegate.binaryField(fieldInfo, value);
+        } else if (fieldInfo.name.equals("_source")){
+            delegate.binaryField(fieldInfo, cryptoOperations.decryptSourceAsByteArray(value));
         } else {
-            delegate.binaryField(fieldInfo, Cryptor.dummy().decryptBytesRef(new BytesRef(value), fieldInfo.name));
+            delegate.binaryField(fieldInfo, cryptoOperations.decryptByteArray(value));
         }
     }
 
@@ -50,7 +55,7 @@ class DecryptingStoredFieldVisitor extends StoredFieldVisitor {
         if(EncryptingIndexingOperationListener.META_FIELDS.contains(fieldInfo.name)) {
             delegate.stringField(fieldInfo, value);
         } else {
-            delegate.stringField(fieldInfo, Cryptor.dummy().decryptString(value));
+            delegate.stringField(fieldInfo, cryptoOperations.decryptString(value));
         }
     }
 

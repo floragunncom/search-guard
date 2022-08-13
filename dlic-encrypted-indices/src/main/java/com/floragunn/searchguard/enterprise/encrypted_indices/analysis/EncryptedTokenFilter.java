@@ -8,7 +8,8 @@
  */
 package com.floragunn.searchguard.enterprise.encrypted_indices.analysis;
 
-import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.Cryptor;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.BytesTermAttribute;
@@ -29,19 +30,18 @@ public class EncryptedTokenFilter extends TokenFilter {
 
   // BytesTermAttribute.java
   // TermToBytesRefAttribute.java
-  private final Cryptor cryptor;
+  private final CryptoOperations cryptoOperations = new DummyCryptoOperations();
 
-  public EncryptedTokenFilter(TokenStream in, Cryptor cryptor) {
+  public EncryptedTokenFilter(TokenStream in) {
     super(in);
-    this.cryptor = cryptor;
   }
 
   @Override
   public final boolean incrementToken() throws IOException {
     if (input.incrementToken()) {
-      cryptor.hash(termAtt);
-      cryptor.hash(bytesTermAtt);
-      cryptor.hash(termToBytesAtt);
+      cryptoOperations.hashAttribute(termAtt);
+      cryptoOperations.hashAttribute(bytesTermAtt);
+      cryptoOperations.hashAttribute(termToBytesAtt);
       return true;
     } else {
       return false;

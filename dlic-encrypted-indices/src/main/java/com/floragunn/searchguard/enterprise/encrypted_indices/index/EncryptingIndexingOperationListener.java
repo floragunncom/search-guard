@@ -2,7 +2,8 @@ package com.floragunn.searchguard.enterprise.encrypted_indices.index;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
-import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.Cryptor;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
+import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import com.google.common.io.CharStreams;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexOptions;
@@ -27,6 +28,8 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
 
     private final GuiceDependencies guiceDependencies;
 
+    private final CryptoOperations cryptoOperations = new DummyCryptoOperations();
+
     protected static final ImmutableSet<String> META_FIELDS = ImmutableSet.of(IndicesModule.getBuiltInMetadataFields()).without("_source").with("_primary_term");
 
     public EncryptingIndexingOperationListener(GuiceDependencies guiceDependencies) {
@@ -48,9 +51,9 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
 
         if(_operation.origin() != Engine.Operation.Origin.PRIMARY && _operation.origin() != Engine.Operation.Origin.REPLICA){
             final BytesRef originalSource = _operation.source().toBytesRef();
-            assert Cryptor.dummy().isSourceEncrypted(originalSource);
+            //assert Cryptor.dummy().isSourceEncrypted(originalSource);
 
-            BytesReference dec = new BytesArray(Cryptor.dummy().decryptBytesRef(originalSource, "_source"));
+            BytesReference dec = new BytesArray(cryptoOperations.decryptSource(originalSource));
 
             ParsedDocument decryptedParsedDocument = indexService.mapperService().documentMapper().parse(
                     new SourceToParse(shardId.getIndexName(), _operation.id(),dec , XContentType.JSON, _operation.routing()));
@@ -112,15 +115,15 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
                 Number number = field.numericValue();
                 System.out.println("number of type "+number.getClass());
             } if(field.stringValue() != null) {
-                field.setStringValue(Cryptor.dummy().encryptString(field.stringValue()));
+                field.setStringValue(cryptoOperations.encryptString(field.stringValue()));
             } else if (field.readerValue() != null) {
-                field.setReaderValue(Cryptor.dummy().encryptReader(field.readerValue()));
+                field.setReaderValue(cryptoOperations.encryptReader(field.readerValue()));
             } else if (field.binaryValue() != null) {
                 if(field.name().equals("_source")) {
-                    assert Cryptor.dummy().isSourceEncrypted(encryptedSource);
+                    //assert Cryptor.dummy().isSourceEncrypted(encryptedSource);
                     field.setBytesValue(encryptedSource);
                 } else {
-                    field.setBytesValue(Cryptor.dummy().encryptBytesRef(field.binaryValue(), field.name()));
+                    field.setBytesValue(cryptoOperations.encryptBytesRef(field.binaryValue()));
                 }
 
             } else {
@@ -142,8 +145,8 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
 
     private BytesRef encryptSourceField(Engine.Index operation) {
         final BytesRef source = operation.parsedDoc().source().toBytesRef();
-        final BytesArray encryptedSource = new BytesArray(Cryptor.dummy().encryptBytesRef(source,"_source"));
-        operation.parsedDoc().setSource(encryptedSource, operation.parsedDoc().getXContentType());
-        return encryptedSource.toBytesRef();
+        final BytesRef encryptedSource = cryptoOperations.encryptSource(source);
+        operation.parsedDoc().setSource(new BytesArray(encryptedSource), operation.parsedDoc().getXContentType());
+        return encryptedSource;
     }
 }

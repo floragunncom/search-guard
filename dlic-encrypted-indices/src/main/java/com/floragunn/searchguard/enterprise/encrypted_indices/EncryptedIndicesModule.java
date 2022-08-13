@@ -20,7 +20,6 @@ import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.enterprise.encrypted_indices.analysis.EncryptedTokenFilter;
-import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.Cryptor;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.DecryptingDirectoryReaderWrapper;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.EncryptingIndexingOperationListener;
 import com.floragunn.searchsupport.StaticSettings;
@@ -126,7 +125,7 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
                     @Override
                     public TokenStream create(TokenStream tokenStream) {
-                        return new EncryptedTokenFilter(tokenStream, Cryptor.dummy());
+                        return new EncryptedTokenFilter(tokenStream);
                     }
                 };
             }
