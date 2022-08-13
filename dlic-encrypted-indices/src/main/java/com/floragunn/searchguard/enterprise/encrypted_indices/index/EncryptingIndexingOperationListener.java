@@ -105,7 +105,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
         }
 
         if (field.fieldType().stored() && field.fieldType().indexOptions() != IndexOptions.NONE) {
-            throw new RuntimeException("Stored indexed fields are not supported yet");
+            throw new RuntimeException("Stored indexed fields are not supported yet ("+field.name()+")");
         }
 
         if (field.fieldType().stored()) {
@@ -114,7 +114,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
             if(field.numericValue() != null) {
                 Number number = field.numericValue();
                 System.out.println("number of type "+number.getClass());
-            } if(field.stringValue() != null) {
+            } else if(field.stringValue() != null) {
                 field.setStringValue(cryptoOperations.encryptString(field.stringValue()));
             } else if (field.readerValue() != null) {
                 field.setReaderValue(cryptoOperations.encryptReader(field.readerValue()));

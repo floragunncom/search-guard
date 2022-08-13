@@ -114,6 +114,10 @@ public class EncryptedIndicesIntegrationTest {
             Assert.assertTrue(result.getBody().contains("Doctor"));
             Assert.assertTrue(result.getBody().contains("Spock"));
 
+            Assert.assertFalse(result.getBody().contains("kriK"));
+            Assert.assertFalse(result.getBody().contains("rotcoD"));
+            Assert.assertFalse(result.getBody().contains("kcopS"));
+            Assert.assertFalse(result.getBody().contains("erac"));
 
             String query = "{\n" +
                     "  \"query\": {\n" +
@@ -131,6 +135,28 @@ public class EncryptedIndicesIntegrationTest {
             Assert.assertTrue(result.getBody().contains("Doctor"));
             Assert.assertTrue(result.getBody().contains("take"));
             Assert.assertTrue(result.getBody().contains("pille"));
+
+            Assert.assertFalse(result.getBody().contains("kriK"));
+            Assert.assertFalse(result.getBody().contains("rotcoD"));
+            Assert.assertFalse(result.getBody().contains("kcopS"));
+            Assert.assertFalse(result.getBody().contains("erac"));
+
+
+            query = "{\n" +
+                    "  \"query\": {\n" +
+                    "    \"term\": {\n" +
+                    "      \"credit_card_number\": {\n" +
+                    "        \"value\": \"123481\"\n" +
+                    "      }\n" +
+                    "    }\n" +
+                    "  }\n" +
+                    "}";
+
+            result = restClient.postJson("_search?pretty&size=1000", query);
+            System.out.println(result.getBody());
+            Assert.assertTrue(result.getBody().contains("Kirk no81"));
+            Assert.assertTrue(result.getBody().contains("take care 81"));
+            Assert.assertTrue(result.getBody().contains("123481"));
         }
 
     }

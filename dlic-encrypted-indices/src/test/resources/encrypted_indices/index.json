@@ -3,7 +3,7 @@
     "encryption_enabled": true,
     "encryption_key": "ey123123123....base64",
     "codec": "SimpleText",
-    "number_of_shards": 1,
+    "number_of_shards": 3,
     "number_of_replicas": 1,
     "translog.durability": "request",
     "translog.sync_interval": "300s",
@@ -36,7 +36,8 @@
           "eager_global_ordinals": true
         },
         "age": {
-          "type": "integer"
+          "type": "integer",
+          "store": true
         },
         "remarks": {
           "type": "text",
