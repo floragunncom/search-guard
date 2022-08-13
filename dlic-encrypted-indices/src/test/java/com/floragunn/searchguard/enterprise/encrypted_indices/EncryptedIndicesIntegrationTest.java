@@ -53,17 +53,103 @@ public class EncryptedIndicesIntegrationTest {
 
         System.out.println(Codec.availableCodecs());
 
+
+
+    }
+
+
+    @Test
+    public void advTest() throws Exception {
+
         try (Client client = cluster.getInternalNodeClient()) {
 
             client.admin().indices().create(
                     new CreateIndexRequest("the_encrypted_index").source(
                             FileHelper.loadFile("encrypted_indices/index.json")
-                    , XContentType.JSON)).actionGet();
+                            , XContentType.JSON)).actionGet();
+
+
+            for(int i=0;i<50;i++) {
+
+                client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                        .source(XContentType.JSON, "full_name",
+                                "Mister Spock no"+i, "credit_card_number", "1701"+i, "age", 100+i, "remarks", "great brain "+i)).actionGet();
+
+                client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                        .source(XContentType.JSON, "full_name",
+                                "Captain Kirkn o"+i, "credit_card_number", "1234"+i, "age", 45+i, "remarks", "take care "+i)).actionGet();
+
+            }
+
+            Thread.sleep(10*1000);
+
+            for(int i=50;i<100;i++) {
+
+                client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                        .source(XContentType.JSON, "full_name",
+                                "Mister Spock no"+i, "credit_card_number", "1701"+i, "age", 100+i, "remarks", "great brain "+i)).actionGet();
+
+                client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                        .source(XContentType.JSON, "full_name",
+                                "Captain Kirk no"+i, "credit_card_number", "1234"+i, "age", 45+i, "remarks", "take care "+i)).actionGet();
+
+            }
+
+
+            client.index(new IndexRequest("unencrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                    .source(XContentType.JSON, "full_name",
+                            "Doctor McCoy","credit_card_number","9999","age", 70, "remarks", "also called pille")).actionGet();
+
+            Thread.sleep(10*1000);
+
+
+        }
+
+
+        try (GenericRestClient restClient = cluster.getRestClient("admin", "admin")) {
+            GenericRestClient.HttpResponse result = restClient.get("_search?pretty&size=1000");
+            System.out.println(result.getBody());
+
+            Assert.assertTrue(result.getBody().contains("Kirk"));
+            Assert.assertTrue(result.getBody().contains("Doctor"));
+            Assert.assertTrue(result.getBody().contains("Spock"));
+
+
+            String query = "{\n" +
+                    "  \"query\": {\n" +
+                    "    \"match\": {\n" +
+                    "      \"full_name\": {\n" +
+                    "        \"query\": \"KIRK DOCtor\"\n" +
+                    "      }\n" +
+                    "    }\n" +
+                    "  }\n" +
+                    "}";
+
+            result = restClient.postJson("_search?pretty&size=1000", query);
+            System.out.println(result.getBody());
+            Assert.assertTrue(result.getBody().contains("Kirk"));
+            Assert.assertTrue(result.getBody().contains("Doctor"));
+            Assert.assertTrue(result.getBody().contains("take"));
+            Assert.assertTrue(result.getBody().contains("pille"));
+        }
+
+    }
+
+
+    @Test
+    public void basicTest() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient()) {
+
+            client.admin().indices().create(
+                    new CreateIndexRequest("the_encrypted_index").source(
+                            FileHelper.loadFile("encrypted_indices/index.json")
+                            , XContentType.JSON)).actionGet();
 
 
             client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
                     .source(XContentType.JSON, "full_name",
-                    "Mister Spock","credit_card_number","1701","age", 100, "remarks", "great brain")).actionGet();
+                            "Mister Spock","credit_card_number","1701","age", 100, "remarks", "great brain")).actionGet();
 
             client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
                     .source(XContentType.JSON, "full_name",
@@ -74,10 +160,7 @@ public class EncryptedIndicesIntegrationTest {
                             "Doctor McCoy","credit_card_number","9999","age", 70, "remarks", "also called pille")).actionGet();
         }
 
-    }
 
-    @Test
-    public void basicTest() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient("admin", "admin")) {
             GenericRestClient.HttpResponse result = restClient.get("_search?pretty");
             System.out.println(result.getBody());

@@ -2,10 +2,10 @@
   "settings": {
     "encryption_enabled": true,
     "encryption_key": "ey123123123....base64",
-    "codec": "encc",
+    "codec": "SimpleText",
     "number_of_shards": 1,
     "number_of_replicas": 1,
-    "translog.durability": "async",
+    "translog.durability": "request",
     "translog.sync_interval": "300s",
     "analysis": {
       "analyzer": {
@@ -39,11 +39,6 @@
           "type": "integer"
         },
         "remarks": {
-          "type": "text",
-          "store": true,
-          "index": false
-        },
-        "enc": {
           "type": "text",
           "store": true,
           "index": false
