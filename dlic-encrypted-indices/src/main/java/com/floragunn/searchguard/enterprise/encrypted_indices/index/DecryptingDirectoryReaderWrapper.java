@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.enterprise.encrypted_indices.index;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperationsFactory;
 import org.apache.logging.log4j.LogManager;
@@ -25,8 +24,6 @@ import org.opensearch.common.CheckedFunction;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexService;
-import org.opensearch.index.shard.ShardId;
-import org.opensearch.index.shard.ShardUtils;
 
 import java.io.IOException;
 

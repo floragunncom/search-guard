@@ -1,7 +1,6 @@
 package com.floragunn.searchguard.enterprise.encrypted_indices.codec;
 
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
-import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import org.apache.lucene.codecs.FilterCodec;
 import org.apache.lucene.codecs.StoredFieldsFormat;
 import org.apache.lucene.codecs.StoredFieldsReader;
@@ -70,7 +69,7 @@ public class EncryptedDefaultCodec extends FilterCodec {
                     @Override
                     public void writeField(FieldInfo info, IndexableField field) throws IOException {
                         if(info.name.equals("_source")) {
-                            ((Field) field).setBytesValue(cryptoOperations.encryptBytesRef(field.binaryValue()));
+                            //((Field) field).setBytesValue(cryptoOperations.encryptBytesRef(field.binaryValue()));
                         }
 
                         d.writeField(info, field);
@@ -124,8 +123,8 @@ public class EncryptedDefaultCodec extends FilterCodec {
                 @Override
                 public void binaryField(FieldInfo fieldInfo, byte[] value) throws IOException {
                     if(fieldInfo.name.equals("_source")) {
-                        System.out.println("codec readdec "+new String(cryptoOperations.decryptByteArray(value)));
-                        visitor.binaryField(fieldInfo, cryptoOperations.decryptByteArray(value));
+                        //System.out.println("codec readdec "+new String(cryptoOperations.decryptByteArray(value)));
+                        //visitor.binaryField(fieldInfo, cryptoOperations.decryptByteArray(value));
                         new Exception("dec").printStackTrace();
                     } else {
                         visitor.binaryField(fieldInfo, value);

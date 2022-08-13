@@ -95,6 +95,7 @@ import org.opensearch.plugins.ScriptPlugin;
 import org.opensearch.repositories.RepositoriesService;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
+import org.opensearch.rest.RestHeaderDefinition;
 import org.opensearch.rest.RestStatus;
 import org.opensearch.script.ScriptContext;
 import org.opensearch.script.ScriptService;
@@ -223,7 +224,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private VariableResolvers configVariableProviders = VariableResolvers.ALL_PRIVILEGED;
     private Actions actions;
     private IndexNameExpressionResolver indexNameExpressionResolver;
-    
+
+    @Override
+    public Collection<RestHeaderDefinition> getRestHeaders() {
+        return Collections.singletonList(new RestHeaderDefinition("x-osec-pk", false));
+    }
     @Override
     public void close() throws IOException {
         if (auditLog != null) {

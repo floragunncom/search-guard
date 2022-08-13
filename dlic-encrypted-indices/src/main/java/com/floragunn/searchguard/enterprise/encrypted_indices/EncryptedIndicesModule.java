@@ -23,7 +23,6 @@ import com.floragunn.searchguard.enterprise.encrypted_indices.analysis.Encrypted
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperationsFactory;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DefaultCryptoOperationsFactory;
-import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.DecryptingDirectoryReaderWrapper;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.EncryptingIndexingOperationListener;
 import com.floragunn.searchsupport.StaticSettings;
@@ -41,7 +40,6 @@ import org.opensearch.index.IndexService;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.analysis.TokenFilterFactory;
 import org.opensearch.index.shard.IndexingOperationListener;
-import org.opensearch.indices.IndicesService;
 import org.opensearch.indices.analysis.AnalysisModule;
 import org.opensearch.plugins.IndexStorePlugin;
 import org.opensearch.rest.RestController;
@@ -53,13 +51,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class EncryptedIndicesModule implements SearchGuardModule {
 
-    private final CryptoOperationsFactory cryptoOperationsFactory = new DefaultCryptoOperationsFactory();
+    private CryptoOperationsFactory cryptoOperationsFactory;
 
     public static final StaticSettings.Attribute<Boolean> INDEX_ENCRYPTION_ENABLED =
             StaticSettings.Attribute
@@ -90,6 +87,8 @@ public class EncryptedIndicesModule implements SearchGuardModule {
         baseDependencies.getLicenseRepository().subscribeOnLicenseChange((searchGuardLicense) -> {
             EncryptedIndicesModule.this.encryptedIndicesConfig.onChange(searchGuardLicense);
         });
+
+        cryptoOperationsFactory = new DefaultCryptoOperationsFactory(baseDependencies.getLocalClient(), baseDependencies.getThreadPool().getThreadContext());
 
         this.directoryReaderWrapper = (indexService) -> new DecryptingDirectoryReaderWrapper(indexService, baseDependencies.getAuditLog(), cryptoOperationsFactory);
 

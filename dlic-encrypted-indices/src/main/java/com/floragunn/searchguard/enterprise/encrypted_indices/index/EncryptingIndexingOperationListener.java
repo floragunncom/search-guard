@@ -4,7 +4,6 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperationsFactory;
-import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import com.google.common.io.CharStreams;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.IndexOptions;
@@ -12,6 +11,7 @@ import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.common.bytes.BytesArray;
 import org.opensearch.common.bytes.BytesReference;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.engine.Engine;
@@ -23,8 +23,13 @@ import org.opensearch.index.shard.ShardId;
 import org.opensearch.indices.IndicesModule;
 
 import java.io.IOException;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
 import java.util.ListIterator;
-import java.util.Objects;
 
 public class EncryptingIndexingOperationListener implements IndexingOperationListener {
 
@@ -32,15 +37,27 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
 
     private final CryptoOperationsFactory cryptoOperationsFactory;
 
+    private final ThreadContext threadContext;
+
     protected static final ImmutableSet<String> META_FIELDS = ImmutableSet.of(IndicesModule.getBuiltInMetadataFields()).without("_source").with("_primary_term");
 
     public EncryptingIndexingOperationListener(GuiceDependencies guiceDependencies, CryptoOperationsFactory cryptoOperationsFactory) {
         this.guiceDependencies = guiceDependencies;
         this.cryptoOperationsFactory = cryptoOperationsFactory;
+        threadContext = this.guiceDependencies.getTransportService().getThreadPool().getThreadContext();
     }
 
     @Override
     public Engine.Index preIndex(ShardId shardId, Engine.Index _operation) {
+        try {
+            return preIndex0(shardId, _operation);
+        } catch (Exception e) {
+            _operation.parsedDoc().docs().clear();
+            _operation.parsedDoc().setSource(null, null);
+            throw new RuntimeException(e);
+        }
+    }
+    private Engine.Index preIndex0(ShardId shardId, Engine.Index _operation) throws Exception {
         //return value is ignored!!
 
         final IndexService indexService = guiceDependencies.getIndicesService().indexService(shardId.getIndex());
@@ -62,7 +79,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
             final BytesRef originalSource = _operation.source().toBytesRef();
             //assert Cryptor.dummy().isSourceEncrypted(originalSource);
 
-            BytesReference dec = new BytesArray(cryptoOperations.decryptSource(originalSource));
+            BytesReference dec = new BytesArray(cryptoOperations.decryptSource(originalSource, _operation.id()));
 
             ParsedDocument decryptedParsedDocument = indexService.mapperService().documentMapper().parse(
                     new SourceToParse(shardId.getIndexName(), _operation.id(),dec , XContentType.JSON, _operation.routing()));
@@ -89,12 +106,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
                 if (f instanceof Field) {
 
                     final Field field = (Field) f;
-                    try {
-                        encryptField(field, encryptedSource, cryptoOperations);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        throw new RuntimeException(e);
-                    }
+                    encryptField(field, encryptedSource, cryptoOperations, _operation.id());
                 } else {
                     System.out.println("Unhandled field "+f.name()+" "+f.getClass());
                     //TODO
@@ -107,7 +119,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
         return null;
     }
 
-    private void encryptField(Field field, BytesRef encryptedSource, CryptoOperations cryptoOperations) throws IOException {
+    private void encryptField(Field field, BytesRef encryptedSource, CryptoOperations cryptoOperations, String id) throws Exception {
 
         if(META_FIELDS.contains(field.name())) {
             return;
@@ -124,15 +136,15 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
                 Number number = field.numericValue();
                 System.out.println("number of type "+number.getClass());
             } else if(field.stringValue() != null) {
-                field.setStringValue(cryptoOperations.encryptString(field.stringValue()));
+                field.setStringValue(cryptoOperations.encryptString(field.stringValue(), field.name(), id));
             } else if (field.readerValue() != null) {
-                field.setReaderValue(cryptoOperations.encryptReader(field.readerValue()));
+                field.setReaderValue(cryptoOperations.encryptReader(field.readerValue(), field.name(), id));
             } else if (field.binaryValue() != null) {
                 if(field.name().equals("_source")) {
                     //assert Cryptor.dummy().isSourceEncrypted(encryptedSource);
                     field.setBytesValue(encryptedSource);
                 } else {
-                    field.setBytesValue(cryptoOperations.encryptBytesRef(field.binaryValue()));
+                    field.setBytesValue(cryptoOperations.encryptBytesRef(field.binaryValue(), field.name(), id));
                 }
 
             } else {
@@ -152,9 +164,9 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
         }
     }
 
-    private BytesRef encryptSourceField(Engine.Index operation, CryptoOperations cryptoOperations) {
+    private BytesRef encryptSourceField(Engine.Index operation, CryptoOperations cryptoOperations) throws Exception {
         final BytesRef source = operation.parsedDoc().source().toBytesRef();
-        final BytesRef encryptedSource = cryptoOperations.encryptSource(source);
+        final BytesRef encryptedSource = cryptoOperations.encryptSource(source, operation.id());
         operation.parsedDoc().setSource(new BytesArray(encryptedSource), operation.parsedDoc().getXContentType());
         return encryptedSource;
     }

@@ -9,7 +9,6 @@
 package com.floragunn.searchguard.enterprise.encrypted_indices.analysis;
 
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
-import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import org.apache.lucene.analysis.TokenFilter;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.BytesTermAttribute;

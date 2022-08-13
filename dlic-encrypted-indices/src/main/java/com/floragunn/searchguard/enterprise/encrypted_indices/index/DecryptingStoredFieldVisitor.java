@@ -14,20 +14,21 @@
 package com.floragunn.searchguard.enterprise.encrypted_indices.index;
 
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
-import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DummyCryptoOperations;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.StoredFieldVisitor;
-import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 class DecryptingStoredFieldVisitor extends StoredFieldVisitor {
     private static final Logger log = LogManager.getLogger(DecryptingStoredFieldVisitor.class);
     private final StoredFieldVisitor delegate;
 
     private final CryptoOperations cryptoOperations;
+    private String id = null;
 
     public DecryptingStoredFieldVisitor(StoredFieldVisitor delegate, CryptoOperations cryptoOperations) {
         super();
@@ -37,12 +38,20 @@ class DecryptingStoredFieldVisitor extends StoredFieldVisitor {
 
     @Override
     public void binaryField(FieldInfo fieldInfo, byte[] value) throws IOException {
-        if(EncryptingIndexingOperationListener.META_FIELDS.contains(fieldInfo.name)) {
-            delegate.binaryField(fieldInfo, value);
-        } else if (fieldInfo.name.equals("_source")){
-            delegate.binaryField(fieldInfo, cryptoOperations.decryptSourceAsByteArray(value));
-        } else {
-            delegate.binaryField(fieldInfo, cryptoOperations.decryptByteArray(value));
+        try {
+            if(EncryptingIndexingOperationListener.META_FIELDS.contains(fieldInfo.name)) {
+                if(fieldInfo.name.equals("_id")) {
+                    id = Base64.getEncoder().encodeToString(value);
+                }
+                delegate.binaryField(fieldInfo, value);
+            } else if (fieldInfo.name.equals("_source")){
+                delegate.binaryField(fieldInfo, cryptoOperations.decryptSourceAsByteArray(value, id));
+            } else {
+                delegate.binaryField(fieldInfo, cryptoOperations.decryptByteArray(value, fieldInfo.name, id));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IOException(e);
         }
     }
 
@@ -53,10 +62,15 @@ class DecryptingStoredFieldVisitor extends StoredFieldVisitor {
 
     @Override
     public void stringField(final FieldInfo fieldInfo, final String value) throws IOException {
-        if(EncryptingIndexingOperationListener.META_FIELDS.contains(fieldInfo.name)) {
-            delegate.stringField(fieldInfo, value);
-        } else {
-            delegate.stringField(fieldInfo, cryptoOperations.decryptString(value));
+        try {
+            if(EncryptingIndexingOperationListener.META_FIELDS.contains(fieldInfo.name)) {
+                delegate.stringField(fieldInfo, value);
+            } else {
+                delegate.stringField(fieldInfo, cryptoOperations.decryptString(value, fieldInfo.name, id));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IOException(e);
         }
     }
 

@@ -1,19 +1,9 @@
 package com.floragunn.searchguard.enterprise.encrypted_indices;
 
-import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.searchguard.authtoken.AuthTokenModule;
-import com.floragunn.searchguard.authtoken.RequestedPrivileges;
-import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
 import org.apache.http.message.BasicHeader;
 import org.apache.lucene.codecs.Codec;
 import org.junit.Assert;
@@ -22,19 +12,13 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.opensearch.action.admin.indices.create.CreateIndexRequest;
 import org.opensearch.action.index.IndexRequest;
-import org.opensearch.action.search.SearchRequest;
-import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.support.WriteRequest;
 import org.opensearch.client.Client;
-import org.opensearch.client.RequestOptions;
-import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.index.query.QueryBuilders;
-import org.opensearch.search.builder.SearchSourceBuilder;
-
-import java.util.Map;
 
 public class EncryptedIndicesIntegrationTest {
+
+    private static final String PK = "MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCxvBUb0DhwEwkksqI8PJfGLiyP2xSUGwb70jnikZ0jTTNRI1DGdWwAbx9fYXIAByYXssZOX6eLARhfvI20LYM/fF5IfFz9JkHRE9QMao1UgjV+z5+9MN6JHc41E/I5aHijeL6nTKfyFXlhCk/ZbZSuDVtESvoOKt5tcazrOesHqI0RHmcPzPAs3W1E/SVZ5apqls858cjm0W9p9M9ifzZr8nxA/avJshEQ8hEfP86ZvIUb3M/qKNdAktFgjCue7ESTJviua3xxtWcI9z9LIfbHw1Hnl/Cv4ASbQY5nXGD5DG3W0MlWq+5mom6eeehVlnGssjqR3y9wI7ub/z7ZCqlRAgMBAAECggEAFuj7YJUvvTSa9F3JX1HhL4TSri1rgubT+OBhoUSrWHpST9ZpSlem9wxb4yfUsc+6F4puGPqoBlk7CtYrfurx9NxDa/0J4IDOsZRofDw84QSSwDijqteyi8Kpirp6Oe+vQ0UkcDzHlkMx3PIfFlQTevcSSWSPxIU+nCVvyHd0Bg26slhAQbZhKZWvXkfOY4yOHPzhcarYD2s+Q26iBcYOH38B9IAyT4moTZkS+or0kcwdE1ZHrhylaGAomVD/ZMPMzd+CtCsGTMvUXAuOgzBYsER3sQa/3J9LYWuRZ3pzxscDW0xIVcMoUYD/mbKfXi1UII3sUR1vAhgdX9CBMjdMpQKBgQD0+qU66NCi7t4fgsxvcva7bFKOOrI41MCaTYadCrENwU0ZTNTMAyYHLcTkyE0DO9gY5lXp9zlfC8Mv1G08VuA+oQ0hcx7BmIsY39wPFtQMZOlzl5E+T0XHPDR2MiYPehLDZA0rbyWAhvOTIhc/ODP6JnRFzU+5W+vEnpN9fXUVRQKBgQC5uwCkol0mOCkriAQ/40iNcY7fLp6oPNC94LZOZGELjO/IvpAE7b0RT8wKCiUmB0kiUnD3GrEeXqDjVJIg8v49jFSwSxLVzx+HDWskuhH2hPfyQLWVihtIBjGrTT1umoFTKd8TYj+o1S5CbhFOxvtwgUc5tzYk7ooepQ7vHhkGnQKBgEqHXnE3lxGanhT0FAHr9cg7Qjpm/QVxJE9NOqDYOdk3b5880phmdNFGSVpY3aUYNbwNhyGwxtF1oKISfFEZFQu4r2f3v+mh4N9ma2pjxYsnwCYcfGF6eH4OgN9cjluzBbZP3/nQzJX3eG7QtkXTcWyu+jyqI5D+uBGPNMu+uToJAoGAD8bZzCJapUd5/8+jBMZKwHEYAM9V/NaFqMtw0QHn2HJVYAkH9NM5D0JnA6dO9ocB6F92ZxcmWn0RT548d34MqK/F9d+6rtzUQcWbB1ii8/zhjvt+MUC1Bo44I+QAxudq+uSApYXgAHhzYIM3BykR7MGeikGM4OA+bVH6DcfRumUCgYBTz+N7Dya9toExylJlI80cGznqHJ6xy3Bl7fr+NwO/IsN/hu4PLAj8/t6Dpu1D1kLeNPpc2ykmNUbf9X0/ZkhXrhYjbNzzlBv7N40Q0kHqXVDfpBpuP84qbHKjhfoFBcbjfLRkjRkcZ+TmtM1GYUEEv/8fsYFyK9kvCiUD4PMU8w==";
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -173,7 +157,7 @@ public class EncryptedIndicesIntegrationTest {
                             , XContentType.JSON)).actionGet();
 
 
-            client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+            /*client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
                     .source(XContentType.JSON, "full_name",
                             "Mister Spock","credit_card_number","1701","age", 100, "remarks", "great brain")).actionGet();
 
@@ -183,12 +167,48 @@ public class EncryptedIndicesIntegrationTest {
 
             client.index(new IndexRequest("unencrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
                     .source(XContentType.JSON, "full_name",
-                            "Doctor McCoy","credit_card_number","9999","age", 70, "remarks", "also called pille")).actionGet();
+                            "Doctor McCoy","credit_card_number","9999","age", 70, "remarks", "also called pille")).actionGet();*/
         }
 
 
         try (GenericRestClient restClient = cluster.getRestClient("admin", "admin")) {
-            GenericRestClient.HttpResponse result = restClient.get("_search?pretty");
+
+            GenericRestClient.HttpResponse result = restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                    "{\n" +
+                            "   \"full_name\":\"Mister Spock\",\n" +
+                            "   \"credit_card_number\":\"1701\",\n" +
+                            "   \"age\":100,\n" +
+                            "   \"remarks\":\"great brain\"\n" +
+                            "}",
+                    new BasicHeader("x-osec-pk", PK));
+
+            System.out.println(result.getBody());
+
+
+            result = restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                    "{\n" +
+                            "   \"full_name\":\"Captain Kirk\",\n" +
+                            "   \"credit_card_number\":\"1234\",\n" +
+                            "   \"age\":45,\n" +
+                            "   \"remarks\":\"take care\"\n" +
+                            "}",
+                    new BasicHeader("x-osec-pk", PK));
+
+            System.out.println(result.getBody());
+
+            result = restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                    "{\n" +
+                            "   \"full_name\":\"Doctor McCoy\",\n" +
+                            "   \"credit_card_number\":\"9999\",\n" +
+                            "   \"age\":70,\n" +
+                            "   \"remarks\":\"also called pille\"\n" +
+                            "}",
+                    new BasicHeader("x-osec-pk", PK));
+
+            System.out.println(result.getBody());
+
+
+            result = restClient.get("_search?pretty",new BasicHeader("x-osec-pk", PK));
             System.out.println(result.getBody());
 
             Assert.assertTrue(result.getBody().contains("Kirk"));

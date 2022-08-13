@@ -24,11 +24,11 @@ import java.util.Map;
 
 public class MapUtils {
     
-    public static void deepTraverseMap(final Map<String, Object> map, final Callback cb) {
+    public static void deepTraverseMap(final Map<String, Object> map, final Callback cb) throws Exception {
         deepTraverseMap(map, cb, null);
     }
     
-    private static void deepTraverseMap(final Map<String, Object> map, final Callback cb, final List<String> stack) {
+    private static void deepTraverseMap(final Map<String, Object> map, final Callback cb, final List<String> stack) throws Exception {
         final List<String> localStack;
         if(stack == null) {
             localStack = new ArrayList<String>(30);
@@ -51,6 +51,6 @@ public class MapUtils {
     }
     
     public static interface Callback {
-        public void call(String key, Map<String, Object> map, List<String> stack);
+        public void call(String key, Map<String, Object> map, List<String> stack) throws Exception;
     }
 }
