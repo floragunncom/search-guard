@@ -12,8 +12,10 @@ import org.apache.lucene.store.IndexOutput;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.zip.CRC32;
 
@@ -30,8 +32,8 @@ public final class CeffIndexOutput extends IndexOutput {
   private final ByteBuffer buffer;
   private final byte[] singleByteBuffer = new byte[1];
   private final CRC32 crc32 = new CRC32();
-  private final ByteBuffer aadBuffer = ByteBuffer.allocate(CeffUtils.AAD_LENGTH);
-  private final ByteBuffer signatureAadBuffer = ByteBuffer.allocate(CeffUtils.AAD_LENGTH);
+  private final ByteBuffer aadBuffer = ByteBuffer.allocate(CeffUtils.AAD_LENGTH).order(ByteOrder.LITTLE_ENDIAN);
+  private final ByteBuffer signatureAadBuffer = ByteBuffer.allocate(CeffUtils.AAD_LENGTH).order(ByteOrder.LITTLE_ENDIAN);
   private final MessageDigest sha512md;
 
   private long filePointer = 0L;
@@ -65,7 +67,7 @@ public final class CeffIndexOutput extends IndexOutput {
       // can not happen
       throw new RuntimeException(e);
     }
-    this.buffer = ByteBuffer.allocate(this.chunkLength);
+    this.buffer = ByteBuffer.allocate(this.chunkLength).order(ByteOrder.LITTLE_ENDIAN);
 
     delegate.writeInt(CeffUtils.CEFF_MAGIC); // write magic bytes
     delegate.writeByte(mode.getModeByte()); // write mode byte
@@ -142,7 +144,7 @@ public final class CeffIndexOutput extends IndexOutput {
 
     try {
       this.buffer.flip();
-      final byte[] cipherText = this.encryptData(this.buffer, lastChunk);
+      final byte[] cipherText = this.encryptData(lastChunk);
       this.delegate.writeBytes(cipherText, 0, cipherText.length);
       this.buffer.clear();
 
@@ -152,7 +154,7 @@ public final class CeffIndexOutput extends IndexOutput {
     }
   }
 
-  private byte[] encryptData(ByteBuffer plainText, boolean lastChunk) throws CeffCryptoException {
+  private byte[] encryptData(boolean lastChunk) throws CeffCryptoException {
     final UUID chunkId = UUID.randomUUID();
     final byte[] nonce = this.mode.randomNonce();
 
@@ -181,6 +183,7 @@ public final class CeffIndexOutput extends IndexOutput {
           this.mode.encrypt(
               ByteBuffer.wrap(signature), this.signatureAadBuffer, this.key, signatureNonce);
       this.signatureAadBuffer.rewind();
+
       return CeffUtils.concatArrays(
           nonce,
           CeffUtils.toArray(this.aadBuffer),

@@ -34,6 +34,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.LockFactory;
 import org.apache.lucene.util.Constants;
+import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.CheckedFunction;
@@ -42,6 +43,7 @@ import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.env.Environment;
+import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.analysis.TokenFilterFactory;
@@ -86,18 +88,13 @@ TODO
 - index keys public synchronized??
 - reuse Cipher cipher = Cipher.getInstance
 - mode byte
-
-
-
- */
-
-
+- check if we can make ceff understand threadcontext an introduce dynamic key
+- KeywordAttribute keywordAttr = addAttribute(KeywordAttribute.class);
+*/
 
 public class EncryptedIndicesModule implements SearchGuardModule {
 
     private CryptoOperationsFactory cryptoOperationsFactory;
-
-    //private EncryptedIndicesConfig encryptedIndicesConfig;
     private GuiceDependencies guiceDependencies;
 
     private Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>> directoryReaderWrapper;
@@ -130,26 +127,30 @@ public class EncryptedIndicesModule implements SearchGuardModule {
             public Directory newDirectory(IndexSettings indexSettings, ShardPath shardPath) throws IOException {
                 final LockFactory lockFactory = indexSettings.getValue(FsDirectoryFactory.INDEX_LOCK_FACTOR_SETTING);
 
-                String ceffKeyEnv = System.getenv("CEFF_KEY");
+                final String ceffKeyEnv = System.getenv("CEFF_KEY");
                 if(ceffKeyEnv == null || ceffKeyEnv.isEmpty()) {
                     throw new IOException("No CEFF_KEY environment variable set");
                 }
 
                 try {
-                    byte[] key = getPasswordBasedKey( 32, ceffKeyEnv.toCharArray());
+                    final byte[] key = getPasswordBasedKey( 32, ceffKeyEnv.toCharArray());
+
+                    final IndexMetadata newIndexMetadata = new IndexMetadata
+                            .Builder(indexSettings.getIndexMetadata())
+                            .settings(Settings.builder()
+                                    .put(indexSettings.getSettings())
+                                    .put(IndexModule.INDEX_STORE_TYPE_SETTING.getKey(), IndexModule.Type.FS.getSettingsKey()))
+                            .build();
+
                     return new CeffDirectory(
-                            (FSDirectory) fsDirectoryFactory.newDirectory(indexSettings, shardPath),
+                            (FSDirectory) fsDirectoryFactory.newDirectory(new IndexSettings(newIndexMetadata, indexSettings.getNodeSettings(), indexSettings.getScopedSettings()), shardPath),
                             lockFactory,
                             key,
                             CeffDirectory.DEFAULT_CHUNK_LENGTH,
                             Constants.JRE_IS_MINIMUM_JAVA11 ? CeffMode.CHACHA20_POLY1305_MODE : CeffMode.AES_GCM_MODE);
-                } catch (NoSuchAlgorithmException e) {
-                    throw new RuntimeException(e);
-                } catch (InvalidKeySpecException e) {
-                    throw new RuntimeException(e);
+                } catch (Exception e) {
+                    throw new IOException(e);
                 }
-
-
             }
         });
     }
@@ -178,8 +179,9 @@ public class EncryptedIndicesModule implements SearchGuardModule {
                 final CryptoOperations cryptoOperations = cryptoOperationsFactory.createCryptoOperations(indexSettings);
 
                 if(cryptoOperations == null) {
+                    //no token filter of type blind_hash required for
+                    //unencrypted indices
                     return null;
-                    //throw new IOException("blind_hash can only be used on encrypted indices");
                 }
 
                 return new TokenFilterFactory() {
@@ -208,11 +210,11 @@ public class EncryptedIndicesModule implements SearchGuardModule {
     }
 
     private static byte[] getPasswordBasedKey(int keySize, char[] password) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        byte[] salt = new byte[100];
-        SecureRandom random = new SecureRandom();
+        final byte[] salt = new byte[100];
+        final SecureRandom random = new SecureRandom();
         random.nextBytes(salt);
-        PBEKeySpec pbeKeySpec = new PBEKeySpec(password, salt, 1000, keySize);
-        SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
+        final PBEKeySpec pbeKeySpec = new PBEKeySpec(password, salt, 1000, keySize*8);
+        final SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
         return pbeKey.getEncoded();
     }
 }

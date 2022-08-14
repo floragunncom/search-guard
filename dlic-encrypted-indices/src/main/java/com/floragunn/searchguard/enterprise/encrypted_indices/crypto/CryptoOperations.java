@@ -47,8 +47,8 @@ public abstract class CryptoOperations {
     public final String hashString(String toHash) throws Exception {
         byte[] key = getIndexKeys().getOrCreateSymmetricKey(keySize);
 
-        if(key == null) {
-
+        if(key == null || key.length == 0) {
+            throw new Exception("key must not be null to hash terms");
         }
 
         return new String(blake2bHash(toHash.getBytes(StandardCharsets.UTF_8), key), StandardCharsets.UTF_8);

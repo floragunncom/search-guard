@@ -53,44 +53,72 @@ public class EncryptedIndicesIntegrationTest {
                             , XContentType.JSON)).actionGet();
 
 
-            for(int i=0;i<50;i++) {
 
-                client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                        .source(XContentType.JSON, "full_name",
-                                "Mister Spock no"+i, "credit_card_number", "1701"+i, "age", 100+i, "remarks", "great brain "+i)).actionGet();
-
-                client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                        .source(XContentType.JSON, "full_name",
-                                "Captain Kirkn o"+i, "credit_card_number", "1234"+i, "age", 45+i, "remarks", "take care "+i)).actionGet();
-
-            }
-
-            Thread.sleep(10*1000);
-
-            for(int i=50;i<100;i++) {
-
-                client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                        .source(XContentType.JSON, "full_name",
-                                "Mister Spock no"+i, "credit_card_number", "1701"+i, "age", 100+i, "remarks", "great brain "+i)).actionGet();
-
-                client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                        .source(XContentType.JSON, "full_name",
-                                "Captain Kirk no"+i, "credit_card_number", "1234"+i, "age", 45+i, "remarks", "take care "+i)).actionGet();
-
-            }
-
-
-            client.index(new IndexRequest("unencrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                    .source(XContentType.JSON, "full_name",
-                            "Doctor McCoy","credit_card_number","9999","age", 70, "remarks", "also called pille")).actionGet();
-
-            Thread.sleep(10*1000);
 
 
         }
 
-        for(int i=0;i<20;i++)
-        try (GenericRestClient restClient = cluster.getRestClient("admin", "admin")) {
+        try (GenericRestClient restClient = cluster.getRestClient("admin", "admin", new BasicHeader("x-osec-pk", PK))) {
+
+            for(int i=0;i<50;i++) {
+
+                restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                        "{\n" +
+                                "   \"full_name\":\"Mister Spock no"+i+"\",\n" +
+                                "   \"credit_card_number\":\"1701"+i+"\",\n" +
+                                "   \"age\":"+(100+i)+",\n" +
+                                "   \"remarks\":\"great brain "+i+"\"\n" +
+                                "}");
+
+                restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                        "{\n" +
+                                "   \"full_name\":\"Captain Kirk no"+i+"\",\n" +
+                                "   \"credit_card_number\":\"1234"+i+"\",\n" +
+                                "   \"age\":"+(45+i)+",\n" +
+                                "   \"remarks\":\"take care "+i+"\"\n" +
+                                "}");
+
+
+            }
+
+            Thread.sleep(5*1000);
+
+            for(int i=50;i<100;i++) {
+
+                restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                        "{\n" +
+                                "   \"full_name\":\"Mister Spock no"+i+"\",\n" +
+                                "   \"credit_card_number\":\"1701"+i+"\",\n" +
+                                "   \"age\":"+(100+i)+",\n" +
+                                "   \"remarks\":\"great brain "+i+"\"\n" +
+                                "}");
+
+                restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                        "{\n" +
+                                "   \"full_name\":\"Captain Kirk no"+i+"\",\n" +
+                                "   \"credit_card_number\":\"1234"+i+"\",\n" +
+                                "   \"age\":"+(45+i)+",\n" +
+                                "   \"remarks\":\"take care "+i+"\"\n" +
+                                "}");
+
+            }
+
+
+            restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                    "{\n" +
+                            "   \"full_name\":\"Doctor McCoy\",\n" +
+                            "   \"credit_card_number\":\"9999\",\n" +
+                            "   \"age\":70,\n" +
+                            "   \"remarks\":\"also called pille\"\n" +
+                            "}",
+                    new BasicHeader("x-osec-pk", PK));
+
+            Thread.sleep(5*1000);
+
+        }
+
+            for(int i=0;i<20;i++)
+        try (GenericRestClient restClient = cluster.getRestClient("admin", "admin", new BasicHeader("x-osec-pk", PK))) {
             GenericRestClient.HttpResponse result = restClient.get("_search?pretty&size=1000");
             System.out.println(result.getBody());
 
@@ -98,10 +126,6 @@ public class EncryptedIndicesIntegrationTest {
             Assert.assertTrue(result.getBody().contains("Doctor"));
             Assert.assertTrue(result.getBody().contains("Spock"));
 
-            Assert.assertFalse(result.getBody().contains("kriK"));
-            Assert.assertFalse(result.getBody().contains("rotcoD"));
-            Assert.assertFalse(result.getBody().contains("kcopS"));
-            Assert.assertFalse(result.getBody().contains("erac"));
 
             String query = "{\n" +
                     "  \"query\": {\n" +
@@ -120,10 +144,7 @@ public class EncryptedIndicesIntegrationTest {
             Assert.assertTrue(result.getBody().contains("take"));
             Assert.assertTrue(result.getBody().contains("pille"));
 
-            Assert.assertFalse(result.getBody().contains("kriK"));
-            Assert.assertFalse(result.getBody().contains("rotcoD"));
-            Assert.assertFalse(result.getBody().contains("kcopS"));
-            Assert.assertFalse(result.getBody().contains("erac"));
+
 
 
             query = "{\n" +

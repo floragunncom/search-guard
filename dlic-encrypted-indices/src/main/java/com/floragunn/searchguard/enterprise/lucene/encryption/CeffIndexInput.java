@@ -14,6 +14,7 @@ import org.apache.lucene.util.ArrayUtil;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -34,7 +35,7 @@ public final class CeffIndexInput extends IndexInput {
   private ByteBuffer buffer;
   private byte[] singleByteBuffer = new byte[1];
   private byte[] readBuffer;
-  private ByteBuffer aadBuffer = ByteBuffer.allocate(CeffUtils.AAD_LENGTH);
+  private ByteBuffer aadBuffer = ByteBuffer.allocate(CeffUtils.AAD_LENGTH).order(ByteOrder.LITTLE_ENDIAN);
   private long absoluteStartChunk = -1L;
   private final long length;
   /** same value also for slices */
@@ -196,7 +197,7 @@ public final class CeffIndexInput extends IndexInput {
       this.physicalDelegate.seek(CeffUtils.HEADER_LENGTH);
     }
 
-    this.buffer = ByteBuffer.allocate(this.chunkLength);
+    this.buffer = ByteBuffer.allocate(this.chunkLength).order(ByteOrder.LITTLE_ENDIAN);
     this.readBuffer = new byte[this.chunkLength + CeffUtils.cryptoLength(this.mode)];
     this.decryptChunk(); // decrypt first chunk
   }

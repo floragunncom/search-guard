@@ -33,7 +33,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
@@ -93,6 +92,8 @@ public class SearchGuardModulesRegistry {
     private ImmutableList<QueryCacheWeightProvider> queryCacheWeightProviders;
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForNormalOperations;
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForAllOperations;
+
+    private Map<String, IndexStorePlugin.DirectoryFactory> directoryFactories;
 
     private PrivilegesInterceptor privilegesInterceptor;
     private Set<String> moduleNames = new HashSet<>();
@@ -312,18 +313,13 @@ public class SearchGuardModulesRegistry {
     }
 
     public Map<String, IndexStorePlugin.DirectoryFactory> getDirectoryFactories() {
-        /*Map<String, IndexStorePlugin.DirectoryFactory> result = this.getDirectoryFactories();
+        Map<String, IndexStorePlugin.DirectoryFactory> result = new HashMap<>();
 
-        if (result == null) {
-            result = ImmutableMap.empty();
-
-            for (SearchGuardModule module : modules) {
-                result.putAll(module.getDirectoryFactories());
-            }
+        for (SearchGuardModule module : modules) {
+            result.putAll(module.getDirectoryFactories());
         }
 
-        return result;*/
-        return ImmutableMap.empty();
+        return result;
     }
 
     public List<Setting<?>> getSettings() {
@@ -437,11 +433,9 @@ public class SearchGuardModulesRegistry {
     public Map<String, AnalysisModule.AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
         Map<String, AnalysisModule.AnalysisProvider<TokenFilterFactory>> result = new HashMap<>();
 
-
         for (SearchGuardModule module : modules) {
             result.putAll(module.getTokenFilters());
         }
-
 
         return result;
     }
