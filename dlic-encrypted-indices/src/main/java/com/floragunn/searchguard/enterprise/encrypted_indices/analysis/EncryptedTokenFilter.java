@@ -43,9 +43,13 @@ public class EncryptedTokenFilter extends TokenFilter {
   @Override
   public final boolean incrementToken() throws IOException {
     if (input.incrementToken()) {
-      cryptoOperations.hashAttribute(termAtt);
-      cryptoOperations.hashAttribute(bytesTermAtt);
-      cryptoOperations.hashAttribute(termToBytesAtt);
+      try {
+        cryptoOperations.hashAttribute(termAtt);
+        cryptoOperations.hashAttribute(bytesTermAtt);
+        cryptoOperations.hashAttribute(termToBytesAtt);
+      } catch (Exception e) {
+        throw new IOException(e);
+      }
       return true;
     } else {
       return false;

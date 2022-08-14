@@ -87,7 +87,7 @@ public class StaticSettings {
         }
 
         @SuppressWarnings("unchecked")
-        V getFrom(org.opensearch.common.settings.Settings settings) {
+        public V getFrom(org.opensearch.common.settings.Settings settings) {
             return (V) platformInstance.get(settings);
         }
 
@@ -297,7 +297,7 @@ public class StaticSettings {
         }
 
         @Override
-        Pattern getFrom(Settings settings) {
+        public Pattern getFrom(Settings settings) {
             @SuppressWarnings("unchecked")
             List<String> value = (List<String>) platformInstance.get(settings);
             if (value.equals(EMPTY_DEFAULT)) {

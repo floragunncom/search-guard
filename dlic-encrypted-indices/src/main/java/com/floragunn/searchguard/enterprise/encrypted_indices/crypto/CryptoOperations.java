@@ -7,7 +7,10 @@ import org.apache.lucene.analysis.tokenattributes.BytesTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.util.BytesRef;
+import org.bouncycastle.crypto.digests.Blake2bDigest;
+import org.bouncycastle.util.encoders.Hex;
 import org.opensearch.client.Client;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.bytes.BytesArray;
 import org.opensearch.common.bytes.BytesReference;
 import org.opensearch.common.util.concurrent.ThreadContext;
@@ -20,7 +23,12 @@ import org.opensearch.index.Index;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -28,15 +36,82 @@ import java.util.Map;
 public abstract class CryptoOperations {
 
     private final IndexKeys indexKeys;
-    protected CryptoOperations(Index index, Client client, ThreadContext threadContext) {
-        this.indexKeys = new IndexKeys(index, client, threadContext);
+
+    protected final int keySize;
+    protected CryptoOperations(ClusterService clusterService, Index index, Client client, ThreadContext threadContext, String indexPublicKey, int keySize) throws Exception {
+        this.indexKeys = new IndexKeys(clusterService, index, client, threadContext, parsePublicKey(indexPublicKey));
+        this.keySize = keySize;
+    }
+
+    public final String hashString(String toHash) throws Exception {
+        byte[] key = getIndexKeys().getOrCreateSymmetricKey(keySize);
+
+        if(key == null) {
+
+        }
+
+        return new String(blake2bHash(toHash.getBytes(StandardCharsets.UTF_8), key), StandardCharsets.UTF_8);
+    }
+
+    protected final byte[] createNonce(String field, String id, int nonceLenInByte) {
+        if(field == null) {
+            throw new IllegalArgumentException("unable to create nonce: field must not be null");
+        }
+
+        if(id == null) {
+            throw new IllegalArgumentException("unable to create nonce: id must not be null");
+        }
+
+        if(field.isEmpty()) {
+            throw new IllegalArgumentException("unable to create nonce: field must not be empty");
+        }
+
+        if(id.length() < 5) {
+            throw new IllegalArgumentException("unable to create nonce: id must be len >= 5");
+        }
+
+        final byte[] nonce = (field+id).getBytes(StandardCharsets.UTF_8);
+
+        if(nonce.length < nonceLenInByte) {
+            return Arrays.copyOf(nonce, nonceLenInByte);
+        } else if (nonce.length > nonceLenInByte) {
+            return blake2bHashForNonce(nonce, nonceLenInByte);
+        } else {
+            return nonce;
+        }
+    }
+
+    private byte[] blake2bHash(byte[] in, byte[] key) {
+        final Blake2bDigest hash = new Blake2bDigest(key, 16, null, null);
+        hash.update(in, 0, in.length);
+        final byte[] out = new byte[hash.getDigestSize()];
+        hash.doFinal(out, 0);
+        return Hex.encode(out);
+    }
+
+    private byte[] blake2bHashForNonce(byte[] in, int nonceLenInByte) {
+        final Blake2bDigest hash = new Blake2bDigest(null, nonceLenInByte, null, null);
+        hash.update(in, 0, in.length);
+        final byte[] out = new byte[hash.getDigestSize()];
+        hash.doFinal(out, 0);
+        return Hex.encode(out);
+    }
+
+
+
+    private static PublicKey parsePublicKey(String indexPublicKey) throws Exception {
+        byte[] key = Base64.getDecoder().decode(indexPublicKey);
+        X509EncodedKeySpec spec =
+                new X509EncodedKeySpec(key);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        return kf.generatePublic(spec);
     }
 
     protected final IndexKeys getIndexKeys() {
         return indexKeys;
     }
 
-    public final void hashAttribute(CharTermAttribute termAtt) {
+    public final void hashAttribute(CharTermAttribute termAtt) throws Exception {
 
         if (termAtt != null) {
             final String clearTextValue = termAtt.toString();
@@ -59,7 +134,6 @@ public abstract class CryptoOperations {
     }
 
 
-    public abstract String hashString(String toHash);
     public abstract String encryptString(String stringValue, String field, String id) throws Exception;
     public abstract String decryptString(String stringValue, String field, String id) throws Exception;
     public final byte[] encryptByteArray(byte[] byteArray, String field, String id) throws Exception {
@@ -121,6 +195,8 @@ public abstract class CryptoOperations {
 
     private static class CrypticCallback implements MapUtils.Callback {
 
+        private static final String PREFIX = "_source.";
+
         private final CryptoOperations cryptoOperations;
         private final boolean encrypt;
 
@@ -147,16 +223,16 @@ public abstract class CryptoOperations {
 
                         if (listFieldItem instanceof String) {
                             if(encrypt) {
-                                iterator.set(cryptoOperations.encryptString((String) listFieldItem, field, id));
+                                iterator.set(cryptoOperations.encryptString((String) listFieldItem, PREFIX+field, id));
                             } else {
-                                iterator.set(cryptoOperations.decryptString((String) listFieldItem, field, id));
+                                iterator.set(cryptoOperations.decryptString((String) listFieldItem, PREFIX+field, id));
                             }
 
                         } else if (listFieldItem instanceof byte[]) {
                             if(encrypt) {
-                                iterator.set(cryptoOperations.encryptByteArray((byte[]) listFieldItem, field, id));
+                                iterator.set(cryptoOperations.encryptByteArray((byte[]) listFieldItem, PREFIX+field, id));
                             } else {
-                                iterator.set(cryptoOperations.decryptByteArray((byte[]) listFieldItem, field, id));
+                                iterator.set(cryptoOperations.decryptByteArray((byte[]) listFieldItem, PREFIX+field, id));
 
                             }
                         }
@@ -171,15 +247,15 @@ public abstract class CryptoOperations {
                 //if (matchedPattern.isPresent()) {
                     if (v instanceof String) {
                         if(encrypt) {
-                            map.replace(key, cryptoOperations.encryptString((String) v, field, id));
+                            map.replace(key, cryptoOperations.encryptString((String) v, PREFIX+field, id));
                         } else {
-                            map.replace(key, cryptoOperations.decryptString((String) v, field, id));
+                            map.replace(key, cryptoOperations.decryptString((String) v, PREFIX+field, id));
                         }
                     } else {
                         if(encrypt) {
-                            map.replace(key, cryptoOperations.encryptByteArray((byte[]) v, field, id));
+                            map.replace(key, cryptoOperations.encryptByteArray((byte[]) v, PREFIX+field, id));
                         } else {
-                            map.replace(key, cryptoOperations.decryptByteArray((byte[]) v, field, id));
+                            map.replace(key, cryptoOperations.decryptByteArray((byte[]) v, PREFIX+field, id));
 
                         }
                     }

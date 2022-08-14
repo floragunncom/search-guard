@@ -89,7 +89,7 @@ public class EncryptedIndicesIntegrationTest {
 
         }
 
-
+        for(int i=0;i<20;i++)
         try (GenericRestClient restClient = cluster.getRestClient("admin", "admin")) {
             GenericRestClient.HttpResponse result = restClient.get("_search?pretty&size=1000");
             System.out.println(result.getBody());
@@ -226,7 +226,7 @@ public class EncryptedIndicesIntegrationTest {
                     "  }\n" +
                     "}";
 
-            result = restClient.postJson("_search?pretty", query);
+            result = restClient.postJson("_search?pretty", query,new BasicHeader("x-osec-pk", PK));
             System.out.println(result.getBody());
             Assert.assertTrue(result.getBody().contains("Kirk"));
             Assert.assertTrue(result.getBody().contains("Doctor"));

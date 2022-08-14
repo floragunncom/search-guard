@@ -58,20 +58,6 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
     private CryptoOperationsFactory cryptoOperationsFactory;
 
-    public static final StaticSettings.Attribute<Boolean> INDEX_ENCRYPTION_ENABLED =
-            StaticSettings.Attribute
-                    .define("index.encryption_enabled")
-                    .indexScoped()
-            .withDefault(false)
-                    .asBoolean();
-
-    public static final StaticSettings.Attribute<String> INDEX_ENCRYPTION_KEY =
-            StaticSettings.Attribute
-                    .define("index.encryption_key")
-                    .indexScoped()
-                    .withDefault((String) null)
-                    .asString();
-
     private EncryptedIndicesConfig encryptedIndicesConfig;
     private GuiceDependencies guiceDependencies;
 
@@ -88,7 +74,7 @@ public class EncryptedIndicesModule implements SearchGuardModule {
             EncryptedIndicesModule.this.encryptedIndicesConfig.onChange(searchGuardLicense);
         });
 
-        cryptoOperationsFactory = new DefaultCryptoOperationsFactory(baseDependencies.getLocalClient(), baseDependencies.getThreadPool().getThreadContext());
+        cryptoOperationsFactory = new DefaultCryptoOperationsFactory(baseDependencies.getClusterService(), baseDependencies.getLocalClient(), baseDependencies.getThreadPool().getThreadContext());
 
         this.directoryReaderWrapper = (indexService) -> new DecryptingDirectoryReaderWrapper(indexService, baseDependencies.getAuditLog(), cryptoOperationsFactory);
 
@@ -112,8 +98,7 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
     @Override
     public StaticSettings.AttributeSet getSettings() {
-        return StaticSettings.AttributeSet.of(
-                INDEX_ENCRYPTION_ENABLED, INDEX_ENCRYPTION_KEY);
+        return StaticSettings.AttributeSet.of(EncryptedIndicesSettings.attributes);
     }
 
     @Override

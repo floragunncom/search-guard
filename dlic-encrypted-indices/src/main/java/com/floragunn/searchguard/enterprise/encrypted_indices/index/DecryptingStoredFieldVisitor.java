@@ -18,6 +18,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.StoredFieldVisitor;
+import org.opensearch.index.mapper.IdFieldMapper;
+import org.opensearch.index.mapper.Uid;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,7 +43,9 @@ class DecryptingStoredFieldVisitor extends StoredFieldVisitor {
         try {
             if(EncryptingIndexingOperationListener.META_FIELDS.contains(fieldInfo.name)) {
                 if(fieldInfo.name.equals("_id")) {
-                    id = Base64.getEncoder().encodeToString(value);
+                    //id = Base64.getEncoder().encodeToString(value);
+                    //id = id.replace('/','_');
+                    id = Uid.decodeId(value);
                 }
                 delegate.binaryField(fieldInfo, value);
             } else if (fieldInfo.name.equals("_source")){

@@ -1,7 +1,7 @@
 {
   "settings": {
     "encryption_enabled": true,
-    "encryption_key": "ey123123123....base64",
+    "encryption_key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsbwVG9A4cBMJJLKiPDyXxi4sj9sUlBsG+9I54pGdI00zUSNQxnVsAG8fX2FyAAcmF7LGTl+niwEYX7yNtC2DP3xeSHxc/SZB0RPUDGqNVII1fs+fvTDeiR3ONRPyOWh4o3i+p0yn8hV5YQpP2W2Urg1bREr6DirebXGs6znrB6iNER5nD8zwLN1tRP0lWeWqapbPOfHI5tFvafTPYn82a/J8QP2rybIREPIRHz/OmbyFG9zP6ijXQJLRYIwrnuxEkyb4rmt8cbVnCPc/SyH2x8NR55fwr+AEm0GOZ1xg+Qxt1tDJVqvuZqJunnnoVZZxrLI6kd8vcCO7m/8+2QqpUQIDAQAB",
     "codec": "SimpleText",
     "number_of_shards": 3,
     "number_of_replicas": 1,
