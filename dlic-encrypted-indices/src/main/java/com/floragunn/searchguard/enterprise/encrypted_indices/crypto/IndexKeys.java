@@ -51,6 +51,9 @@ public final class IndexKeys {
         this.ownerPublicKey = Objects.requireNonNull(ownerPublicKey, "ownerPublicKey must not be null");
     }
 
+    //private key request scoped
+    //cached in memory only here in this class
+
     public PrivateKey extractPrivateKeyFromHeader() throws Exception {
         String pk = threadContext.getHeader("x-osec-pk");
 
