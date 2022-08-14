@@ -22,6 +22,8 @@ public class DefaultCryptoOperationsFactory extends CryptoOperationsFactory {
         supportedAlgos.put(1, "aes-128");
         supportedAlgos.put(2, "aes-256");
 
+        //TODO we need a mode byte to support dynmic picking of algos!!!
+
         if (Constants.JRE_IS_MINIMUM_JAVA11) {
             supportedAlgos.put(99, "chacha20-poly1305");
         }

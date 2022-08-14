@@ -85,6 +85,9 @@ TODO
 - integrate ceff directory as optional possibility, passwd via env var
 - index keys public synchronized??
 - reuse Cipher cipher = Cipher.getInstance
+- mode byte
+
+
 
  */
 
