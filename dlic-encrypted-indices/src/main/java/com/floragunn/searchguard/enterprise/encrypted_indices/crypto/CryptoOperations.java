@@ -20,6 +20,7 @@ import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.xcontent.json.JsonXContent;
 import org.opensearch.index.Index;
 
+import javax.crypto.Cipher;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -92,9 +93,10 @@ public abstract class CryptoOperations {
     private byte[] blake2bHashForNonce(byte[] in, int nonceLenInByte) {
         final Blake2bDigest hash = new Blake2bDigest(null, nonceLenInByte, null, null);
         hash.update(in, 0, in.length);
+        assert nonceLenInByte == hash.getDigestSize();
         final byte[] out = new byte[hash.getDigestSize()];
         hash.doFinal(out, 0);
-        return Hex.encode(out);
+        return out;
     }
 
 
@@ -133,15 +135,48 @@ public abstract class CryptoOperations {
         //System.out.println("= Hash TermToBytesRefAttribute");
     }
 
+  
+    public final String encryptString(String stringValue, String field, String id) throws Exception {
+        byte[] b = prepareCrypt(stringValue.getBytes(StandardCharsets.UTF_8),field,id, Cipher.ENCRYPT_MODE);
+        return Base64.getEncoder().encodeToString(b);
+    }
 
-    public abstract String encryptString(String stringValue, String field, String id) throws Exception;
-    public abstract String decryptString(String stringValue, String field, String id) throws Exception;
+
+    public final String decryptString(String stringValue, String field, String id) throws Exception {
+        byte[] b = Base64.getDecoder().decode(stringValue);
+        return new String(prepareCrypt(b,field,id,Cipher.DECRYPT_MODE), StandardCharsets.UTF_8);
+    }
+
+    protected final byte[] prepareCrypt(byte[] in, String field, String id, int mode) throws Exception {
+        byte[] key = getIndexKeys().getOrCreateSymmetricKey(keySize);
+
+        if(key == null) {
+            if(mode == Cipher.ENCRYPT_MODE) {
+                throw new RuntimeException("need a key to encrypt");
+            } else {
+                return in;
+            }
+        }
+
+        return doCrypt(in, key, field,id, mode);
+    }
+
+    protected abstract byte[] doCrypt(byte[] in, byte[] key, String field, String id, int mode) throws Exception;
+
+
     public final byte[] encryptByteArray(byte[] byteArray, String field, String id) throws Exception {
         return encryptByteArray(byteArray, 0, byteArray.length, field, id);
     }
-    public abstract byte[] decryptByteArray(byte[] byteArray, String field, String id) throws Exception;
 
-    public abstract byte[] encryptByteArray(byte[] bytes, int offset, int length, String field, String id) throws Exception;
+    
+    public final byte[] encryptByteArray(byte[] bytes, int offset, int length, String field, String id) throws Exception {
+        return prepareCrypt(Arrays.copyOfRange(bytes, offset, offset+length), field,id,Cipher.ENCRYPT_MODE);
+    }
+
+  
+    public final byte[] decryptByteArray(byte[] byteArray, String field, String id) throws Exception {
+        return prepareCrypt(byteArray, field,id,Cipher.DECRYPT_MODE);
+    }
 
     public final Reader encryptReader(Reader readerValue, String field, String id) throws Exception {
         if(readerValue == null) {

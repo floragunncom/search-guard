@@ -2,9 +2,6 @@ package com.floragunn.searchguard.enterprise.encrypted_indices;
 
 import com.floragunn.searchsupport.StaticSettings;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class EncryptedIndicesSettings {
 
     private EncryptedIndicesSettings() {

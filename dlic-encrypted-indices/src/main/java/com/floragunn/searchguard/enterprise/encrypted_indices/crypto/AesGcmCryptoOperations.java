@@ -1,7 +1,5 @@
 package com.floragunn.searchguard.enterprise.encrypted_indices.crypto;
 
-import org.bouncycastle.crypto.digests.Blake2bDigest;
-import org.bouncycastle.util.encoders.Hex;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.util.concurrent.ThreadContext;
@@ -10,9 +8,6 @@ import org.opensearch.index.Index;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Base64;
 
 public class AesGcmCryptoOperations extends CryptoOperations {
     private static final int GCM_NONCE_LENGTH = 12;
@@ -26,48 +21,11 @@ public class AesGcmCryptoOperations extends CryptoOperations {
     }
 
     @Override
-    public String encryptString(String stringValue, String field, String id) throws Exception {
-        byte[] b = aesCrypt(stringValue.getBytes(StandardCharsets.UTF_8),field,id,Cipher.ENCRYPT_MODE);
-        return Base64.getEncoder().encodeToString(b);
-    }
-
-    @Override
-    public String decryptString(String stringValue, String field, String id) throws Exception {
-        byte[] b = Base64.getDecoder().decode(stringValue);
-        return new String(aesCrypt(b,field,id,Cipher.DECRYPT_MODE), StandardCharsets.UTF_8);
-    }
-
-    private byte[] aesCrypt(byte[] in, String field, String id, int mode) throws Exception {
-        try {
-            byte[] key = getIndexKeys().getOrCreateSymmetricKey(keySize);
-
-            if(key == null) {
-                if(mode == Cipher.ENCRYPT_MODE) {
-                    throw new RuntimeException("need a key to encrypt");
-                } else {
-                    return in;
-                }
-            }
-
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
-            GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, createNonce(field, id, GCM_NONCE_LENGTH));
-            cipher.init(mode, keySpec, gcmParameterSpec);
-            return cipher.doFinal(in);
-        } catch (Exception e) {
-            System.err.println("nonce: "+field+":::"+id+" with mode "+mode);
-            e.printStackTrace();
-            throw e;
-        }
-    }
-
-    @Override
-    public byte[] encryptByteArray(byte[] bytes, int offset, int length, String field, String id) throws Exception {
-        return aesCrypt(Arrays.copyOfRange(bytes, offset, offset+length), field,id,Cipher.ENCRYPT_MODE);
-    }
-
-    @Override
-    public byte[] decryptByteArray(byte[] byteArray, String field, String id) throws Exception {
-        return aesCrypt(byteArray, field,id,Cipher.DECRYPT_MODE);
+    protected byte[] doCrypt(byte[] in, byte[] key, String field, String id, int mode) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
+        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, createNonce(field, id, GCM_NONCE_LENGTH));
+        cipher.init(mode, keySpec, gcmParameterSpec);
+        return cipher.doFinal(in);
     }
 }

@@ -22,13 +22,6 @@ import org.opensearch.index.shard.IndexingOperationListener;
 import org.opensearch.index.shard.ShardId;
 import org.opensearch.indices.IndicesModule;
 
-import java.io.IOException;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.Base64;
 import java.util.ListIterator;
 
 public class EncryptingIndexingOperationListener implements IndexingOperationListener {

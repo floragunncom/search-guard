@@ -11,7 +11,6 @@ import org.opensearch.client.Client;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.index.Index;
-import org.opensearch.index.IndexNotFoundException;
 
 import javax.crypto.Cipher;
 import java.nio.charset.StandardCharsets;

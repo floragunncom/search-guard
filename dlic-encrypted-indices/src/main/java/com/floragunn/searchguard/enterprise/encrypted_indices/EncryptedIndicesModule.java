@@ -25,9 +25,15 @@ import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOpera
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DefaultCryptoOperationsFactory;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.DecryptingDirectoryReaderWrapper;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.EncryptingIndexingOperationListener;
+import com.floragunn.searchguard.enterprise.lucene.encryption.CeffDirectory;
+import com.floragunn.searchguard.enterprise.lucene.encryption.CeffMode;
 import com.floragunn.searchsupport.StaticSettings;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.LockFactory;
+import org.apache.lucene.util.Constants;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.common.CheckedFunction;
@@ -40,13 +46,21 @@ import org.opensearch.index.IndexService;
 import org.opensearch.index.IndexSettings;
 import org.opensearch.index.analysis.TokenFilterFactory;
 import org.opensearch.index.shard.IndexingOperationListener;
+import org.opensearch.index.shard.ShardPath;
+import org.opensearch.index.store.FsDirectoryFactory;
 import org.opensearch.indices.analysis.AnalysisModule;
 import org.opensearch.plugins.IndexStorePlugin;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.script.ScriptService;
 
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -54,11 +68,33 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+/*
+TODO
+
+- check TODO s
+- Fix where we have a null key on retrieval to match the desired behaviour
+- Check for indexing that we always need the key (owner only or do we allow others to index)
+- more tests
+- implement api for upload, create encrypted index, infos about keys ...
+- do we have dynamic configs for EncryptedIndicesConfig implements LicenseChangeListener ??
+- poly1305 chacha
+- cryptangular dependency? KeyPairUtil?
+- check byte[], byteref, bytesreference conversions for efficiency
+- also map to json, json to map
+- introduce mode byte to check which enc algo used
+- integrate ceff directory as optional possibility, passwd via env var
+- index keys public synchronized??
+- reuse Cipher cipher = Cipher.getInstance
+
+ */
+
+
+
 public class EncryptedIndicesModule implements SearchGuardModule {
 
     private CryptoOperationsFactory cryptoOperationsFactory;
 
-    private EncryptedIndicesConfig encryptedIndicesConfig;
+    //private EncryptedIndicesConfig encryptedIndicesConfig;
     private GuiceDependencies guiceDependencies;
 
     private Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>> directoryReaderWrapper;
@@ -66,13 +102,13 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
-        this.encryptedIndicesConfig = new EncryptedIndicesConfig(baseDependencies.getEnvironment(), baseDependencies.getConfigurationRepository());
+        //this.encryptedIndicesConfig = new EncryptedIndicesConfig(baseDependencies.getEnvironment(), baseDependencies.getConfigurationRepository());
 
         guiceDependencies = baseDependencies.getGuiceDependencies();
 
-        baseDependencies.getLicenseRepository().subscribeOnLicenseChange((searchGuardLicense) -> {
-            EncryptedIndicesModule.this.encryptedIndicesConfig.onChange(searchGuardLicense);
-        });
+        //baseDependencies.getLicenseRepository().subscribeOnLicenseChange((searchGuardLicense) -> {
+        //    EncryptedIndicesModule.this.encryptedIndicesConfig.onChange(searchGuardLicense);
+        //});
 
         cryptoOperationsFactory = new DefaultCryptoOperationsFactory(baseDependencies.getClusterService(), baseDependencies.getLocalClient(), baseDependencies.getThreadPool().getThreadContext());
 
@@ -83,7 +119,36 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
     @Override
     public Map<String, IndexStorePlugin.DirectoryFactory> getDirectoryFactories() {
-        return SearchGuardModule.super.getDirectoryFactories();
+        return Collections.singletonMap("ceff", new IndexStorePlugin.DirectoryFactory() {
+
+            final FsDirectoryFactory fsDirectoryFactory = new FsDirectoryFactory();
+
+            @Override
+            public Directory newDirectory(IndexSettings indexSettings, ShardPath shardPath) throws IOException {
+                final LockFactory lockFactory = indexSettings.getValue(FsDirectoryFactory.INDEX_LOCK_FACTOR_SETTING);
+
+                String ceffKeyEnv = System.getenv("CEFF_KEY");
+                if(ceffKeyEnv == null || ceffKeyEnv.isEmpty()) {
+                    throw new IOException("No CEFF_KEY environment variable set");
+                }
+
+                try {
+                    byte[] key = getPasswordBasedKey( 32, ceffKeyEnv.toCharArray());
+                    return new CeffDirectory(
+                            (FSDirectory) fsDirectoryFactory.newDirectory(indexSettings, shardPath),
+                            lockFactory,
+                            key,
+                            CeffDirectory.DEFAULT_CHUNK_LENGTH,
+                            Constants.JRE_IS_MINIMUM_JAVA11 ? CeffMode.CHACHA20_POLY1305_MODE : CeffMode.AES_GCM_MODE);
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException(e);
+                } catch (InvalidKeySpecException e) {
+                    throw new RuntimeException(e);
+                }
+
+
+            }
+        });
     }
 
     @Override
@@ -137,5 +202,14 @@ public class EncryptedIndicesModule implements SearchGuardModule {
     @Override
     public ImmutableSet<String> getCapabilities() {
         return ImmutableSet.of("encrypted_indices");
+    }
+
+    private static byte[] getPasswordBasedKey(int keySize, char[] password) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        byte[] salt = new byte[100];
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(salt);
+        PBEKeySpec pbeKeySpec = new PBEKeySpec(password, salt, 1000, keySize);
+        SecretKey pbeKey = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(pbeKeySpec);
+        return pbeKey.getEncoded();
     }
 }
