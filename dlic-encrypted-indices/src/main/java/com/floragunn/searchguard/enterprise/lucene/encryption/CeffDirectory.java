@@ -59,7 +59,7 @@ public final class CeffDirectory extends FSDirectory {
    * @param key A secret 256 bit key (the array is cloned)
    * @param chunkLength The length (size) of a chunk in bytes. See {@link CeffMode}
    * @param mode See {@link CeffMode}
-   * @throws IOException if the delegate throws an IOException or if there where issues with
+   * @throws IOException if the delegate throws an IOException or if there were issues with
    *     en-/decryption
    */
   public CeffDirectory(FSDirectory delegate, byte[] key, int chunkLength, CeffMode mode)
@@ -97,7 +97,7 @@ public final class CeffDirectory extends FSDirectory {
     this.ensureCanRead(fileName);
     final IndexInput tmpInput = this.delegate.openInput(fileName, context);
 
-    if (tmpInput.length() < CeffUtils.HEADER_LENGTH) {
+    if (tmpInput.length() < CeffUtils.headerLength(mode)) {
       return tmpInput;
     }
 
@@ -125,6 +125,9 @@ public final class CeffDirectory extends FSDirectory {
     } catch (final IOException e) {
       tmpOutput.close();
       throw e;
+    } catch (CeffCryptoException e) {
+      tmpOutput.close();
+      throw new IOException(e);
     }
   }
 
@@ -137,6 +140,9 @@ public final class CeffDirectory extends FSDirectory {
     } catch (final IOException e) {
       tmpOutput.close();
       throw e;
+    } catch (CeffCryptoException e) {
+      tmpOutput.close();
+      throw new IOException(e);
     }
   }
 

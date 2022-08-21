@@ -38,13 +38,17 @@ public final class CeffUtils {
   public static final int SIGNATURE_LENGTH = 64;
 
   /** Length of a Ceff header in bytes */
-  public static final int HEADER_LENGTH = MAGIC_LENGTH + MODE_LENGTH;
+  private static final int _HEADER_LENGTH = MAGIC_LENGTH + MODE_LENGTH;
 
   /** The name of the SHA 512 algorithm */
   public static final String SHA512_DIGEST_ALGO = "SHA-512";
 
   private CeffUtils() {
     super();
+  }
+
+  public static int headerLength(CeffMode mode) {
+    return _HEADER_LENGTH+mode.getNonceLength()+32+mode.getTagLength();
   }
 
   /**
@@ -190,7 +194,7 @@ public final class CeffUtils {
     if (encryptedFileLength == 0L) {
       return 0L;
     }
-    final int additionalBytesLen = CeffUtils.HEADER_LENGTH + CeffUtils.footerLength(mode);
+    final int additionalBytesLen = CeffUtils.headerLength(mode) + CeffUtils.footerLength(mode);
     return ((encryptedFileLength - additionalBytesLen)
             / (CeffUtils.cryptoLength(mode) + chunkLength))
         + 1;
@@ -209,7 +213,7 @@ public final class CeffUtils {
       return 0L;
     }
     final long chunks = calculateNumberOfChunks(encryptedFileLength, chunkLength, mode);
-    return (chunks * cryptoLength(mode)) + CeffUtils.HEADER_LENGTH + CeffUtils.footerLength(mode);
+    return (chunks * cryptoLength(mode)) + CeffUtils.headerLength(mode) + CeffUtils.footerLength(mode);
   }
 
   /**
@@ -223,5 +227,21 @@ public final class CeffUtils {
     validateChunkLength(chunkLength);
     return encryptedFileLength
         - calculateEncryptionOverhead(encryptedFileLength, chunkLength, mode);
+  }
+
+  public static byte[] longToNonce(long lng, int nonceLength) {
+    if(nonceLength < 8) {
+      throw new IllegalArgumentException("nonceLength must be >= 8");
+    }
+    byte[] bytes = new byte[nonceLength];
+    bytes[0] = (byte) lng;
+    bytes[1] = (byte) (lng >> 8);
+    bytes[2] = (byte) (lng >> 16);
+    bytes[3] = (byte) (lng >> 24);
+    bytes[4] = (byte) (lng >> 32);
+    bytes[5] = (byte) (lng >> 40);
+    bytes[6] = (byte) (lng >> 48);
+    bytes[7] = (byte) (lng >> 56);
+    return bytes;
   }
 }

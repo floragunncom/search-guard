@@ -104,6 +104,12 @@ public abstract class CeffMode {
   /** @return a random nonce */
   public abstract byte[] randomNonce();
 
+  public final byte[] randomKey() {
+    final byte[] key = new byte[32];
+    SECURE_RANDOM.nextBytes(key);
+    return key;
+  }
+
   /**
    *
    *
@@ -180,7 +186,9 @@ public abstract class CeffMode {
             Cipher.ENCRYPT_MODE,
             new SecretKeySpec(key, "AES"),
             new GCMParameterSpec(TAG_LEN, nonce));
-        encipher.updateAAD(aad);
+        if(aad != null) {
+          encipher.updateAAD(aad);
+        }
         return encipher.doFinal(CeffUtils.toArray(plainText));
       } catch (final Exception e) {
         throw new CeffCryptoException("encryption failed", e, this);
@@ -197,7 +205,9 @@ public abstract class CeffMode {
             Cipher.DECRYPT_MODE,
             new SecretKeySpec(key, "AES"),
             new GCMParameterSpec(TAG_LEN, nonce));
-        encipher.updateAAD(aad);
+        if(aad != null) {
+          encipher.updateAAD(aad);
+        }
         return encipher.doFinal(CeffUtils.toArray(cipherText));
       } catch (final Exception e) {
         throw new CeffCryptoException("decryption failed", e, this);
@@ -249,7 +259,9 @@ public abstract class CeffMode {
         final Cipher encipher = Cipher.getInstance(ALGO);
         encipher.init(
             Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "ChaCha20"), new IvParameterSpec(nonce));
-        encipher.updateAAD(aad);
+        if(aad != null) {
+          encipher.updateAAD(aad);
+        }
         return encipher.doFinal(CeffUtils.toArray(plainText));
       } catch (final Exception e) {
         throw new CeffCryptoException("encryption failed", e, this);
@@ -269,7 +281,9 @@ public abstract class CeffMode {
         final Cipher encipher = Cipher.getInstance(ALGO);
         encipher.init(
             Cipher.DECRYPT_MODE, new SecretKeySpec(key, "ChaCha20"), new IvParameterSpec(nonce));
-        encipher.updateAAD(aad);
+        if(aad != null) {
+          encipher.updateAAD(aad);
+        }
         return encipher.doFinal(CeffUtils.toArray(cipherText));
       } catch (final Exception e) {
         throw new CeffCryptoException("decryption failed", e, this);

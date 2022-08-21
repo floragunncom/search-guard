@@ -8,6 +8,7 @@
  */
 package com.floragunn.searchguard.enterprise.lucene.encryption;
 
+import com.google.common.primitives.Longs;
 import org.apache.lucene.store.IndexOutput;
 
 import java.io.IOException;
@@ -46,19 +47,20 @@ public final class CeffIndexOutput extends IndexOutput {
    *
    * @param delegate The wrapped output
    * @param chunkLength Length of a chunk in bytes. See {@link CeffMode}
-   * @param key The en-/decryption key (the array is cloned)
+   //* @param key The en-/decryption key (the array is cloned)
    * @param mode See {@link CeffMode}
    * @throws IOException if the delegate throws an IOException
    * @throws IllegalArgumentException when chunkSize or key is invalid
    */
-  public CeffIndexOutput(IndexOutput delegate, int chunkLength, byte[] key, CeffMode mode)
-      throws IOException {
+  public CeffIndexOutput(IndexOutput delegate, int chunkLength, byte[] key0, CeffMode mode)
+          throws IOException, CeffCryptoException {
     super("Ceff " + delegate.toString(), delegate.getName());
     this.delegate = delegate;
     this.chunkLength = chunkLength;
     this.mode = mode;
-    this.mode.validateKey(key);
-    this.key = key.clone();
+    this.key = this.mode.randomKey();
+    this.mode.validateKey(key0);
+
     CeffUtils.validateChunkLength(this.chunkLength);
 
     try {
@@ -71,6 +73,11 @@ public final class CeffIndexOutput extends IndexOutput {
 
     delegate.writeInt(CeffUtils.CEFF_MAGIC); // write magic bytes
     delegate.writeByte(mode.getModeByte()); // write mode byte
+
+    byte[] nonce = this.mode.randomNonce();
+    byte[] cipherKey = this.mode.encrypt(ByteBuffer.wrap(this.key), null, key0, nonce);
+    delegate.writeBytes(nonce, nonce.length);
+    delegate.writeBytes(cipherKey, cipherKey.length);
   }
 
   @Override
@@ -156,7 +163,7 @@ public final class CeffIndexOutput extends IndexOutput {
 
   private byte[] encryptData(boolean lastChunk) throws CeffCryptoException {
     final UUID chunkId = UUID.randomUUID();
-    final byte[] nonce = this.mode.randomNonce();
+    final byte[] nonce = CeffUtils.longToNonce(this.chunk, this.mode.getNonceLength());
 
     this.aadBuffer.clear();
     this.aadBuffer.putLong(this.chunk);
@@ -165,6 +172,8 @@ public final class CeffIndexOutput extends IndexOutput {
     this.aadBuffer.flip();
     this.sha512md.update(this.aadBuffer);
     this.aadBuffer.rewind();
+
+
 
     final byte[] cipherText = this.mode.encrypt(this.buffer, this.aadBuffer, this.key, nonce);
 
@@ -177,7 +186,7 @@ public final class CeffIndexOutput extends IndexOutput {
       this.signatureAadBuffer.putLong(this.filePointer);
       this.signatureAadBuffer.flip();
 
-      final byte[] signatureNonce = this.mode.randomNonce();
+      final byte[] signatureNonce = CeffUtils.longToNonce((this.chunk+1), this.mode.getNonceLength());
       final byte[] signature = this.sha512md.digest();
       final byte[] signatureCipherText =
           this.mode.encrypt(

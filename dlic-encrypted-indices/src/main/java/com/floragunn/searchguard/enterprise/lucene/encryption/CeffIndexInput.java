@@ -69,7 +69,7 @@ public final class CeffIndexInput extends IndexInput {
 
   private CeffIndexInput(
       final IndexInput delegate,
-      final byte[] key,
+      final byte[] key0,
       final IndexInput physicalDelegate0,
       final long sliceOffset0,
       final long sliceLength0,
@@ -81,7 +81,6 @@ public final class CeffIndexInput extends IndexInput {
       throws IOException {
     super("Ceff " + delegate.toString());
     this.delegate = delegate;
-    this.key = key;
     this.physicalDelegate = physicalDelegate0;
     this.sliceOffset = sliceOffset0;
 
@@ -95,6 +94,7 @@ public final class CeffIndexInput extends IndexInput {
       this.plainFileLength = plainFileLength0;
       this.absoluteChunkCount = absoluteChunkCount0;
       this.mode = mode0;
+      this.key = key0;
 
     } else {
       // physical
@@ -111,17 +111,24 @@ public final class CeffIndexInput extends IndexInput {
       final byte ceffmode = this.physicalDelegate.readByte();
       try {
         this.mode = CeffMode.getByModeByte(ceffmode);
-        this.mode.validateKey(this.key);
+        this.mode.validateKey(key0);
         this.slice = false;
+
+        final byte[] nonce = new byte[mode.getNonceLength()];
+        final byte[] ekey = new byte[32+mode.getTagLength()];
+        this.physicalDelegate.readBytes(nonce,0,mode.getNonceLength());
+        this.physicalDelegate.readBytes(ekey,0,32+mode.getTagLength());
+        this.key = mode.decrypt(ByteBuffer.wrap(ekey), null, key0, nonce);
 
         // seek to footer
         this.physicalDelegate.seek(
             this.physicalDelegate.length() - CeffUtils.footerLength(this.mode));
 
-        final byte[] nonceBytes = new byte[this.mode.getNonceLength()];
-        this.physicalDelegate.readBytes(nonceBytes, 0, nonceBytes.length);
+
+        this.physicalDelegate.readBytes(nonce, 0, nonce.length);
 
         this.chunkLength = this.castSafe(this.physicalDelegate.readLong());
+
         CeffUtils.validateChunkLength(this.chunkLength);
         final long lastChunk = this.physicalDelegate.readLong();
         this.plainFileLength = this.physicalDelegate.readLong();
@@ -139,7 +146,7 @@ public final class CeffIndexInput extends IndexInput {
             sigCipher, 0, CeffUtils.SIGNATURE_LENGTH + this.mode.getTagLength());
         // decrypt signature and validate aad
         final byte[] plainTextSignature =
-            this.mode.decrypt(ByteBuffer.wrap(sigCipher), this.aadBuffer, this.key, nonceBytes);
+            this.mode.decrypt(ByteBuffer.wrap(sigCipher), this.aadBuffer, this.key, nonce);
 
         // scan file and validate signature
         MessageDigest sha512md;
@@ -153,7 +160,7 @@ public final class CeffIndexInput extends IndexInput {
         for (long k = 0; k < this.absoluteChunkCount; k++) {
           // seek to the start of the chunk
           this.physicalDelegate.seek(
-              CeffUtils.HEADER_LENGTH
+                  CeffUtils.headerLength(mode)
                   + this.mode.getNonceLength()
                   + (k
                       * (CeffUtils.AAD_LENGTH
@@ -194,7 +201,7 @@ public final class CeffIndexInput extends IndexInput {
               this.physicalDelegate.length(), this.chunkLength, this.mode);
 
       // seek to the start of the first chunk
-      this.physicalDelegate.seek(CeffUtils.HEADER_LENGTH);
+      this.physicalDelegate.seek(CeffUtils.headerLength(mode));
     }
 
     this.buffer = ByteBuffer.allocate(this.chunkLength).order(ByteOrder.LITTLE_ENDIAN);
@@ -283,7 +290,7 @@ public final class CeffIndexInput extends IndexInput {
       if (absoluteChunkNum != this.currentAbsoluteChunkNum) {
         // seek physically to the start of the chunk
         this.delegate.seek(
-            CeffUtils.HEADER_LENGTH
+                CeffUtils.headerLength(mode)
                 + ((absoluteChunkNum) * (this.chunkLength + CeffUtils.cryptoLength(this.mode))));
         this.decryptChunk();
       } else {
@@ -330,7 +337,7 @@ public final class CeffIndexInput extends IndexInput {
     // locate the offset in the encrypted file. This must be the beginning of a chunk.
     // we need to add the header length and for every chunk the crypto overhead
     final long newOffset =
-        CeffUtils.HEADER_LENGTH
+            CeffUtils.headerLength(mode)
             + ((startChunk) * (this.chunkLength + CeffUtils.cryptoLength(this.mode)));
     long newLength;
     if (endChunk + 1L == this.absoluteChunkCount) {
