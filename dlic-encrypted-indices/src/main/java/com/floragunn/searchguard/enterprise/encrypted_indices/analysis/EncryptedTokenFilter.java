@@ -47,6 +47,7 @@ public class EncryptedTokenFilter extends TokenFilter {
         cryptoOperations.hashAttribute(termAtt);
         cryptoOperations.hashAttribute(bytesTermAtt);
         cryptoOperations.hashAttribute(termToBytesAtt);
+        cryptoOperations.hashAttribute(keywordAttr);
       } catch (Exception e) {
         throw new IOException(e);
       }

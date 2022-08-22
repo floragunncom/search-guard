@@ -25,9 +25,13 @@ import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOpera
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.DefaultCryptoOperationsFactory;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.DecryptingDirectoryReaderWrapper;
 import com.floragunn.searchguard.enterprise.encrypted_indices.index.EncryptingIndexingOperationListener;
+import com.floragunn.searchguard.enterprise.encrypted_indices.rest.AddKeysApiAction;
 import com.floragunn.searchguard.enterprise.lucene.encryption.CeffDirectory;
 import com.floragunn.searchguard.enterprise.lucene.encryption.CeffMode;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.StaticSettings;
+import com.google.common.collect.Lists;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.store.Directory;
@@ -42,6 +46,7 @@ import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
+import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.env.Environment;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexService;
@@ -88,7 +93,7 @@ TODO
 - index keys public synchronized??
 - reuse Cipher cipher = Cipher.getInstance
 - mode byte
-- check if we can make ceff understand threadcontext an introduce dynamic key
+- check if we can make ceff understand threadcontext an introduce dynamic key, merge thread?
 - KeywordAttribute keywordAttr = addAttribute(KeywordAttribute.class);
 */
 
@@ -96,6 +101,8 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
     private CryptoOperationsFactory cryptoOperationsFactory;
     private GuiceDependencies guiceDependencies;
+
+    private BaseDependencies baseDependencies;
 
     private Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>> directoryReaderWrapper;
 
@@ -109,6 +116,8 @@ public class EncryptedIndicesModule implements SearchGuardModule {
         //baseDependencies.getLicenseRepository().subscribeOnLicenseChange((searchGuardLicense) -> {
         //    EncryptedIndicesModule.this.encryptedIndicesConfig.onChange(searchGuardLicense);
         //});
+
+        this.baseDependencies = baseDependencies;
 
         cryptoOperationsFactory = new DefaultCryptoOperationsFactory(baseDependencies.getClusterService(), baseDependencies.getLocalClient(), baseDependencies.getThreadPool().getThreadContext());
 
@@ -127,7 +136,7 @@ public class EncryptedIndicesModule implements SearchGuardModule {
             public Directory newDirectory(IndexSettings indexSettings, ShardPath shardPath) throws IOException {
                 final LockFactory lockFactory = indexSettings.getValue(FsDirectoryFactory.INDEX_LOCK_FACTOR_SETTING);
 
-                final String ceffKeyEnv = System.getenv("CEFF_KEY");
+                final String ceffKeyEnv = "123451234512345";//System.getenv("CEFF_KEY");
                 if(ceffKeyEnv == null || ceffKeyEnv.isEmpty()) {
                     throw new IOException("No CEFF_KEY environment variable set");
                 }
@@ -145,7 +154,17 @@ public class EncryptedIndicesModule implements SearchGuardModule {
                     return new CeffDirectory(
                             (FSDirectory) fsDirectoryFactory.newDirectory(new IndexSettings(newIndexMetadata, indexSettings.getNodeSettings(), indexSettings.getScopedSettings()), shardPath),
                             lockFactory,
-                            key,
+                            ()->{
+
+                                ThreadContext threadContext = baseDependencies.getThreadPool().getThreadContext();
+
+                                System.out.println((User)threadContext.getTransient(ConfigConstants.SG_USER));
+                                System.out.println("x-osec-pk "+threadContext.getHeader("x-osec-pk"));
+
+                                return new byte[32];
+
+
+                                },
                             CeffDirectory.DEFAULT_CHUNK_LENGTH,
                             Constants.JRE_IS_MINIMUM_JAVA11 ? CeffMode.CHACHA20_POLY1305_MODE : CeffMode.AES_GCM_MODE);
                 } catch (Exception e) {
@@ -157,12 +176,12 @@ public class EncryptedIndicesModule implements SearchGuardModule {
 
     @Override
     public ImmutableList<IndexingOperationListener> getIndexOperationListeners() {
-        return ImmutableList.of(new EncryptingIndexingOperationListener(guiceDependencies, cryptoOperationsFactory));
+        return ImmutableList.of(new EncryptingIndexingOperationListener(baseDependencies.getLocalClient(),guiceDependencies, cryptoOperationsFactory));
     }
 
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings, IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver, ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
-        return SearchGuardModule.super.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter, indexNameExpressionResolver, scriptService, nodesInCluster);
+        return Lists.newArrayList(new AddKeysApiAction(baseDependencies.getClusterService(), baseDependencies.getThreadPool().getThreadContext()));
     }
 
     @Override
@@ -208,6 +227,8 @@ public class EncryptedIndicesModule implements SearchGuardModule {
     public ImmutableSet<String> getCapabilities() {
         return ImmutableSet.of("encrypted_indices");
     }
+
+
 
     private static byte[] getPasswordBasedKey(int keySize, char[] password) throws NoSuchAlgorithmException, InvalidKeySpecException {
         final byte[] salt = new byte[100];

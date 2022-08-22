@@ -19,6 +19,7 @@ import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.util.Constants;
 
 import java.io.IOException;
+import java.util.function.Supplier;
 
 /**
  * A Lucene {@link FSDirectory} implementations which wraps another FSDirectory and encrypt and
@@ -30,7 +31,7 @@ public final class CeffDirectory extends FSDirectory {
   public static final int DEFAULT_CHUNK_LENGTH = 64 * 1024; // 64kb
   private final FSDirectory delegate;
   private final int chunkLength;
-  private final byte[] key;
+  private final Supplier<byte[]> keySupplier;
   private final CeffMode mode;
 
   /**
@@ -39,14 +40,14 @@ public final class CeffDirectory extends FSDirectory {
    * @param delegate The wrapped implementation, typically {@link MMapDirectory} or {@link
    *     NIOFSDirectory}
    * @param key A secret 256 bit key (the array is cloned)
-   * @throws IOException if the delegate throws an IOException or if there where issues with
+   * @throws IOException if the delegate throws an IOException or if there were issues with
    *     en-/decryption
    */
-  public CeffDirectory(FSDirectory delegate, byte[] key) throws IOException {
+  public CeffDirectory(FSDirectory delegate, Supplier<byte[]> keySupplier) throws IOException {
     this(
         delegate,
         FSLockFactory.getDefault(),
-        key,
+            keySupplier,
         DEFAULT_CHUNK_LENGTH,
         Constants.JRE_IS_MINIMUM_JAVA11 ? CeffMode.CHACHA20_POLY1305_MODE : CeffMode.AES_GCM_MODE);
   }
@@ -62,9 +63,9 @@ public final class CeffDirectory extends FSDirectory {
    * @throws IOException if the delegate throws an IOException or if there were issues with
    *     en-/decryption
    */
-  public CeffDirectory(FSDirectory delegate, byte[] key, int chunkLength, CeffMode mode)
+  public CeffDirectory(FSDirectory delegate, Supplier<byte[]> keySupplier, int chunkLength, CeffMode mode)
       throws IOException {
-    this(delegate, FSLockFactory.getDefault(), key, chunkLength, mode);
+    this(delegate, FSLockFactory.getDefault(), keySupplier, chunkLength, mode);
   }
 
   /**
@@ -76,17 +77,17 @@ public final class CeffDirectory extends FSDirectory {
    * @param key A secret 256 bit key (the array is cloned)
    * @param chunkLength The length (size) of a chunk in bytes. See {@link CeffMode}
    * @param mode See {@link CeffMode}
-   * @throws IOException if the delegate throws an IOException or if there where issues with
+   * @throws IOException if the delegate throws an IOException or if there were issues with
    *     en-/decryption
    */
   public CeffDirectory(
-      FSDirectory delegate, LockFactory lockFactory, byte[] key, int chunkLength, CeffMode mode)
+      FSDirectory delegate, LockFactory lockFactory, Supplier<byte[]> keySupplier, int chunkLength, CeffMode mode)
       throws IOException {
     super(delegate.getDirectory(), lockFactory);
     this.delegate = delegate;
     this.mode = mode;
-    this.mode.validateKey(key);
-    this.key = key.clone();
+    //this.mode.validateKey(key);
+    this.keySupplier = keySupplier;
     this.chunkLength = chunkLength;
     CeffUtils.validateChunkLength(this.chunkLength);
   }
@@ -110,7 +111,7 @@ public final class CeffDirectory extends FSDirectory {
     }
 
     try {
-      return new CeffIndexInput(tmpInput, this.key);
+      return new CeffIndexInput(tmpInput, this.keySupplier.get());
     } catch (final IOException e) {
       tmpInput.close();
       throw e;
@@ -121,7 +122,7 @@ public final class CeffDirectory extends FSDirectory {
   public IndexOutput createOutput(String fileName, IOContext context) throws IOException {
     final IndexOutput tmpOutput = this.delegate.createOutput(fileName, context);
     try {
-      return new CeffIndexOutput(tmpOutput, this.chunkLength, this.key, this.mode);
+      return new CeffIndexOutput(tmpOutput, this.chunkLength, this.keySupplier.get(), this.mode);
     } catch (final IOException e) {
       tmpOutput.close();
       throw e;
@@ -136,7 +137,7 @@ public final class CeffDirectory extends FSDirectory {
       throws IOException {
     final IndexOutput tmpOutput = this.delegate.createTempOutput(prefix, suffix, context);
     try {
-      return new CeffIndexOutput(tmpOutput, this.chunkLength, this.key, this.mode);
+      return new CeffIndexOutput(tmpOutput, this.chunkLength, this.keySupplier.get(), this.mode);
     } catch (final IOException e) {
       tmpOutput.close();
       throw e;
@@ -157,9 +158,9 @@ public final class CeffDirectory extends FSDirectory {
   }
 
   /** @return A clone of the byte array */
-  public byte[] getKey() {
+  /*public byte[] getKey() {
     return this.key.clone();
-  }
+  }*/
 
   public CeffMode getMode() {
     return this.mode;

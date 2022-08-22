@@ -3,14 +3,15 @@ package com.floragunn.searchguard.enterprise.encrypted_indices.crypto;
 import com.floragunn.searchguard.enterprise.encrypted_indices.utils.KeyPairUtil;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.lucene.util.ArrayUtil;
+import org.opensearch.action.ActionListener;
 import org.opensearch.action.get.GetRequest;
 import org.opensearch.action.get.GetResponse;
 import org.opensearch.action.index.IndexRequest;
+import org.opensearch.action.index.IndexResponse;
 import org.opensearch.action.support.WriteRequest;
 import org.opensearch.client.Client;
 import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.util.concurrent.ThreadContext;
-import org.opensearch.index.Index;
 
 import javax.crypto.Cipher;
 import java.nio.charset.StandardCharsets;
@@ -20,8 +21,6 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 
 import static com.floragunn.searchguard.enterprise.encrypted_indices.utils.KeyPairUtil.isKeyPair;
@@ -36,17 +35,17 @@ public final class IndexKeys {
 
     private final ClusterService clusterService;
 
-    private final Index index;
+    private final String indexName;
 
     private final PublicKey ownerPublicKey;
 
-    private final Map<String, byte[]> cache = new HashMap<>();
+    //private final Map<String, byte[]> cache = new HashMap<>();
 
-    public IndexKeys(ClusterService clusterService, Index index, Client client, ThreadContext threadContext, PublicKey ownerPublicKey) {
+    public IndexKeys(ClusterService clusterService, String indexName, Client client, ThreadContext threadContext, PublicKey ownerPublicKey) {
         this.clusterService = Objects.requireNonNull(clusterService,"clusterService must not be null");
         this.client = Objects.requireNonNull(client,"client must not be null");
         this.threadContext = Objects.requireNonNull(threadContext, "threadContext must not be null");
-        this.index = index;
+        this.indexName = indexName;
         this.ownerPublicKey = Objects.requireNonNull(ownerPublicKey, "ownerPublicKey must not be null");
     }
 
@@ -84,7 +83,51 @@ public final class IndexKeys {
 
     //doc id(modulus_indexname) -> {encrypted sym index key of index i1;   }
 
+    public void addKey(PublicKey publicKey, final ActionListener<IndexResponse> listener) throws Exception {
+        PrivateKey pk = extractPrivateKeyFromHeader();
 
+        if(pk == null) {
+            throw new Exception("private key required");
+        }
+
+        if(!isKeyPair(ownerPublicKey, pk)) {
+            //owner
+            throw new Exception("wrong private key for this index");
+        }
+
+        if(!keysIndexExists()) {
+            throw new Exception("keys index does not exist");
+        }
+
+        client.get(new GetRequest(INDEX, keyIDocId(pk)), new ActionListener<GetResponse>() {
+            @Override
+            public void onResponse(GetResponse getResponse) {
+                if(getResponse.isExists()) {
+                    try {
+                        byte[] bytes = decryptKey(Base64.getDecoder().decode((String) getResponse.getSource().get("encrypted_key")), pk);
+
+                        client.index(new IndexRequest(INDEX).id(keyIDocId(publicKey))
+                                        .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                                        .source("encrypted_key",encryptKey(bytes, publicKey))
+                                , listener);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+
+                } else {
+                    throw new RuntimeException("no such key found or unable to decrypt");
+                }
+
+
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+    }
 
     public synchronized byte[] getOrCreateSymmetricKey(int size) throws Exception {
 
@@ -136,11 +179,11 @@ public final class IndexKeys {
     }
 
     private String keyIDocId(PublicKey publicKey) {
-        return DigestUtils.sha256Hex(concatArrays(index.getName().getBytes(StandardCharsets.UTF_8), KeyPairUtil.getModulus(publicKey).toByteArray()));
+        return DigestUtils.sha256Hex(concatArrays(indexName.getBytes(StandardCharsets.UTF_8), KeyPairUtil.getModulus(publicKey).toByteArray()));
     }
 
     private String keyIDocId(PrivateKey privateKey) {
-        return DigestUtils.sha256Hex(concatArrays(index.getName().getBytes(StandardCharsets.UTF_8), KeyPairUtil.getModulus(privateKey).toByteArray()));
+        return DigestUtils.sha256Hex(concatArrays(indexName.getBytes(StandardCharsets.UTF_8), KeyPairUtil.getModulus(privateKey).toByteArray()));
     }
 
     private byte[] decryptKey(byte[] encrypted_keys, PrivateKey pk) throws Exception {
@@ -154,48 +197,6 @@ public final class IndexKeys {
         encryptCipher.init(Cipher.ENCRYPT_MODE, publicKey);
         return encryptCipher.doFinal(k);
     }
-
-    //upload??
-
-    /*public synchronized byte[] getOrCreateSymmetricKey00(int size) throws Exception {
-
-        PrivateKey pk = extractPrivateKeyFromHeader();
-
-        if(pk == null) {
-            return null;
-        }
-
-        String pkDigest = DigestUtils.sha256Hex(pk.getEncoded());
-
-        if(!cache.containsKey(pkDigest)) {
-            //check if we already have an index key
-            //if yes load, decrypt and cache
-            //if not create a new one, encrypt and store
-            try {
-                GetResponse res = client.get(new GetRequest(".osei_keys", pkDigest)).actionGet();
-                if(res.isExists()) {
-                    return decryptKey(Base64.getDecoder().decode((String) res.getSource().get("encrypted_key")), pk);
-                }
-            } catch (IndexNotFoundException e) {
-
-            }
-
-            byte[] k = new byte[size];
-            SECURE_RANDOM.nextBytes(k);
-
-            client.index(new IndexRequest(".osei_keys").id(keyIDocId(pk, null))
-                    .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                    .source("encrypted_key",encryptKey(k, publicKey))
-            ).actionGet();
-
-            cache.put(pkDigest, k);
-
-            return k;
-
-        } else {
-            return cache.get(pkDigest);
-        }
-    }*/
 
     /**
      * Concatenate arrays

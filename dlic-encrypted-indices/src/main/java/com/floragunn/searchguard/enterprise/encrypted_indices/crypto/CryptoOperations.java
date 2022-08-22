@@ -5,6 +5,7 @@ import com.google.common.base.Joiner;
 import com.google.common.io.CharStreams;
 import org.apache.lucene.analysis.tokenattributes.BytesTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.util.BytesRef;
 import org.bouncycastle.crypto.digests.Blake2bDigest;
@@ -40,7 +41,7 @@ public abstract class CryptoOperations {
 
     protected final int keySize;
     protected CryptoOperations(ClusterService clusterService, Index index, Client client, ThreadContext threadContext, String indexPublicKey, int keySize) throws Exception {
-        this.indexKeys = new IndexKeys(clusterService, index, client, threadContext, parsePublicKey(indexPublicKey));
+        this.indexKeys = new IndexKeys(clusterService, index.getName(), client, threadContext, parsePublicKey(indexPublicKey));
         this.keySize = keySize;
     }
 
@@ -48,11 +49,27 @@ public abstract class CryptoOperations {
         byte[] key = getIndexKeys().getOrCreateSymmetricKey(keySize);
 
         if(key == null || key.length == 0) {
-            throw new Exception("key must not be null to hash terms");
+            return toHash;
+            //throw new Exception("key must not be null to hash terms");
         }
 
         return new String(blake2bHash(toHash.getBytes(StandardCharsets.UTF_8), key), StandardCharsets.UTF_8);
     }
+
+    public final BytesRef hashBytesRef(BytesRef toHash) throws Exception {
+        byte[] key = getIndexKeys().getOrCreateSymmetricKey(keySize);
+
+        if(key == null || key.length == 0) {
+            return toHash;
+            //throw new Exception("key must not be null to hash terms");
+        }
+
+        return new BytesRef(blake2bHash(toHash.bytes, toHash.offset, toHash.length, key));
+
+
+    }
+
+
 
     protected final byte[] createNonce(String field, String id, int nonceLenInByte) {
         if(field == null) {
@@ -82,12 +99,20 @@ public abstract class CryptoOperations {
         }
     }
 
+    private byte[] blake2bHash(byte[] bytes, int offset, int length, byte[] key) {
+        final Blake2bDigest hash = new Blake2bDigest(key, 16, null, null);
+        hash.update(bytes, offset, length);
+        final byte[] out = new byte[hash.getDigestSize()];
+        hash.doFinal(out, 0);
+        return Hex.encode(out); //encode to hex
+    }
+
     private byte[] blake2bHash(byte[] in, byte[] key) {
         final Blake2bDigest hash = new Blake2bDigest(key, 16, null, null);
         hash.update(in, 0, in.length);
         final byte[] out = new byte[hash.getDigestSize()];
         hash.doFinal(out, 0);
-        return Hex.encode(out);
+        return Hex.encode(out); //encode to hex
     }
 
     private byte[] blake2bHashForNonce(byte[] in, int nonceLenInByte) {
@@ -96,12 +121,12 @@ public abstract class CryptoOperations {
         assert nonceLenInByte == hash.getDigestSize();
         final byte[] out = new byte[hash.getDigestSize()];
         hash.doFinal(out, 0);
-        return out;
+        return out; //do NOT encode to hex
     }
 
 
 
-    private static PublicKey parsePublicKey(String indexPublicKey) throws Exception {
+    public static PublicKey parsePublicKey(String indexPublicKey) throws Exception {
         byte[] key = Base64.getDecoder().decode(indexPublicKey);
         X509EncodedKeySpec spec =
                 new X509EncodedKeySpec(key);
@@ -135,6 +160,10 @@ public abstract class CryptoOperations {
         //System.out.println("= Hash TermToBytesRefAttribute");
     }
 
+    public final void hashAttribute(KeywordAttribute keywordAttribute) {
+        //keywordAttribute.isKeyword()
+        //System.out.println("= Hash TermToBytesRefAttribute");
+    }
   
     public final String encryptString(String stringValue, String field, String id) throws Exception {
         byte[] b = prepareCrypt(stringValue.getBytes(StandardCharsets.UTF_8),field,id, Cipher.ENCRYPT_MODE);
@@ -152,7 +181,7 @@ public abstract class CryptoOperations {
 
         if(key == null) {
             if(mode == Cipher.ENCRYPT_MODE) {
-                throw new RuntimeException("need a key to encrypt");
+                throw new Exception("need a key to encrypt");
             } else {
                 return in;
             }
@@ -227,6 +256,8 @@ public abstract class CryptoOperations {
         MapUtils.deepTraverseMap(sourceAsMap, new CrypticCallback(this, encrypt, id));
         return sourceAsMap;
     }
+
+
 
     private static class CrypticCallback implements MapUtils.Callback {
 

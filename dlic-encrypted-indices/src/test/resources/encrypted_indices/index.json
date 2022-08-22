@@ -5,8 +5,8 @@
     "codec": "SimpleText",
     "number_of_shards": 3,
     "number_of_replicas": 1,
-    "store.type": "ceff",
-    "translog.durability": "request",
+    "store.type": "fs",
+    "translog.durability": "async",
     "translog.sync_interval": "300s",
     "analysis": {
       "analyzer": {
