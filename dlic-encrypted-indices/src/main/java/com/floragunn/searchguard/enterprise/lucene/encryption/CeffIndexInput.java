@@ -114,7 +114,7 @@ public final class CeffIndexInput extends IndexInput {
         this.mode.validateKey(key0);
         this.slice = false;
 
-        final byte[] nonce = new byte[mode.getNonceLength()];
+        byte[] nonce = new byte[mode.getNonceLength()];
         final byte[] ekey = new byte[32+mode.getTagLength()];
         this.physicalDelegate.readBytes(nonce,0,mode.getNonceLength());
         this.physicalDelegate.readBytes(ekey,0,32+mode.getTagLength());
@@ -125,7 +125,7 @@ public final class CeffIndexInput extends IndexInput {
             this.physicalDelegate.length() - CeffUtils.footerLength(this.mode));
 
 
-        this.physicalDelegate.readBytes(nonce, 0, nonce.length);
+        //this.physicalDelegate.readBytes(nonce, 0, nonce.length);
 
         this.chunkLength = this.castSafe(this.physicalDelegate.readLong());
 
@@ -145,6 +145,10 @@ public final class CeffIndexInput extends IndexInput {
         this.physicalDelegate.readBytes(
             sigCipher, 0, CeffUtils.SIGNATURE_LENGTH + this.mode.getTagLength());
         // decrypt signature and validate aad
+
+        nonce = CeffUtils.longToNonce(this.absoluteChunkCount, mode.getNonceLength());
+        System.out.println("check "+this.absoluteChunkCount);
+
         final byte[] plainTextSignature =
             this.mode.decrypt(ByteBuffer.wrap(sigCipher), this.aadBuffer, this.key, nonce);
 
@@ -161,12 +165,13 @@ public final class CeffIndexInput extends IndexInput {
           // seek to the start of the chunk
           this.physicalDelegate.seek(
                   CeffUtils.headerLength(mode)
-                  + this.mode.getNonceLength()
+                  //+ this.mode.getNonceLength()
                   + (k
                       * (CeffUtils.AAD_LENGTH
                           + this.chunkLength
                           + this.mode.getTagLength()
-                          + this.mode.getNonceLength())));
+                          //+ this.mode.getNonceLength()
+                  )));
           final long chunk = this.physicalDelegate.readLong();
           final long chunkIdMsb = this.physicalDelegate.readLong();
           final long chunkIdLsb = this.physicalDelegate.readLong();
@@ -177,6 +182,8 @@ public final class CeffIndexInput extends IndexInput {
           this.aadBuffer.putLong(chunkIdLsb);
           this.aadBuffer.flip();
           sha512md.update(this.aadBuffer);
+
+          System.out.println(chunk+"/"+k);
 
           if (chunk != k) {
             throw new CeffCryptoException("verification failed: chunk number mismatch", this.mode);
@@ -446,7 +453,7 @@ public final class CeffIndexInput extends IndexInput {
     this.delegate.readBytes(this.readBuffer, 0, read);
 
     this.aadBuffer.clear();
-    this.aadBuffer.put(this.readBuffer, this.mode.getNonceLength(), CeffUtils.AAD_LENGTH);
+    this.aadBuffer.put(this.readBuffer, /*this.mode.getNonceLength()*/0, CeffUtils.AAD_LENGTH);
     this.aadBuffer.flip();
 
     final long chunk = this.aadBuffer.getLong();
@@ -454,17 +461,19 @@ public final class CeffIndexInput extends IndexInput {
     this.aadBuffer.rewind();
 
     byte[] plainText = null;
+    byte[] nonce = CeffUtils.longToNonce(chunk, mode.getNonceLength());
     try {
       plainText =
           this.mode.decrypt(
               ByteBuffer.wrap(
                       this.readBuffer,
-                      (this.mode.getNonceLength() + CeffUtils.AAD_LENGTH),
-                      read - (this.mode.getNonceLength() + CeffUtils.AAD_LENGTH))
+                      (/*this.mode.getNonceLength() +*/ CeffUtils.AAD_LENGTH),
+                      read - (/*this.mode.getNonceLength() +*/ CeffUtils.AAD_LENGTH))
                   .asReadOnlyBuffer(),
               this.aadBuffer,
               this.key,
-              ArrayUtil.copyOfSubArray(this.readBuffer, 0, this.mode.getNonceLength()));
+                  nonce);
+              //ArrayUtil.copyOfSubArray(this.readBuffer, 0, this.mode.getNonceLength()));
 
       if (this.absoluteStartChunk < 0L) {
         this.absoluteStartChunk = chunk;

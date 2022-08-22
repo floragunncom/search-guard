@@ -173,7 +173,7 @@ public final class CeffIndexOutput extends IndexOutput {
     this.sha512md.update(this.aadBuffer);
     this.aadBuffer.rewind();
 
-
+    System.out.println("write this.chunk "+this.chunk);
 
     final byte[] cipherText = this.mode.encrypt(this.buffer, this.aadBuffer, this.key, nonce);
 
@@ -187,6 +187,7 @@ public final class CeffIndexOutput extends IndexOutput {
       this.signatureAadBuffer.flip();
 
       final byte[] signatureNonce = CeffUtils.longToNonce((this.chunk+1), this.mode.getNonceLength());
+      System.out.println("write this.chunk+1 "+(this.chunk+1));
       final byte[] signature = this.sha512md.digest();
       final byte[] signatureCipherText =
           this.mode.encrypt(
@@ -194,14 +195,12 @@ public final class CeffIndexOutput extends IndexOutput {
       this.signatureAadBuffer.rewind();
 
       return CeffUtils.concatArrays(
-          nonce,
           CeffUtils.toArray(this.aadBuffer),
           cipherText,
-          signatureNonce,
           CeffUtils.toArray(this.signatureAadBuffer),
           signatureCipherText);
     } else {
-      return CeffUtils.concatArrays(nonce, CeffUtils.toArray(this.aadBuffer), cipherText);
+      return CeffUtils.concatArrays(CeffUtils.toArray(this.aadBuffer), cipherText);
     }
   }
 }

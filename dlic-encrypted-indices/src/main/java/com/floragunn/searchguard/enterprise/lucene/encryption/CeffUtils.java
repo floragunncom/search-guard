@@ -56,7 +56,7 @@ public final class CeffUtils {
    * @return The length (in bytes) of the additional crypto data (nonce, auth tag, aad) for a chunk
    */
   public static int cryptoLength(CeffMode mode) {
-    return mode.getNonceLength() + mode.getTagLength() + AAD_LENGTH;
+    return /*mode.getNonceLength() +*/ mode.getTagLength() + AAD_LENGTH;
   }
 
   /**
