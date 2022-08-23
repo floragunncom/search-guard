@@ -7,7 +7,7 @@
     "number_of_replicas": 1,
     "store.type": "fs",
     "translog.durability": "async",
-    "translog.sync_interval": "300s",
+    "translog.sync_interval": "800s",
     "analysis": {
       "analyzer": {
         "default": {
@@ -34,6 +34,7 @@
         },
         "credit_card_number": {
           "type": "keyword",
+          "doc_values": false,
           "eager_global_ordinals": true
         },
         "age": {
@@ -43,7 +44,8 @@
         "remarks": {
           "type": "text",
           "store": true,
-          "index": false
+          "index": false,
+          "doc_values": false
         }
       }
     }

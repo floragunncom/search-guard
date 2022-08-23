@@ -232,8 +232,14 @@
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-flx-security-legacy</artifactId>
 					<version>${project.version}</version>
-				</dependency>				
-				
+				</dependency>
+
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-flx-encrypted-indices</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
@@ -364,6 +370,12 @@
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>dlic-search-guard-flx-security-legacy</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>dlic-search-guard-flx-encrypted-indices</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>

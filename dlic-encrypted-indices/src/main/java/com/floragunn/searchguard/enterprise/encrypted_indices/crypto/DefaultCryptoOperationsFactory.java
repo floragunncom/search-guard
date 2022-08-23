@@ -13,20 +13,20 @@ import java.util.TreeMap;
 
 public class DefaultCryptoOperationsFactory extends CryptoOperationsFactory {
 
-    private final static TreeMap<Integer, String> supportedAlgos = new TreeMap<>();
+    //private final static TreeMap<Integer, String> supportedAlgos = new TreeMap<>();
 
     static {
 
         //the higher the key the better
 
-        supportedAlgos.put(1, "aes-128");
-        supportedAlgos.put(2, "aes-256");
+        //supportedAlgos.put(1, "aes-128");
+        //supportedAlgos.put(2, "aes-256");
 
         //TODO we need a mode byte to support dynmic picking of algos!!!
 
-        if (Constants.JRE_IS_MINIMUM_JAVA11) {
-            supportedAlgos.put(99, "chacha20-poly1305");
-        }
+        //if (Constants.JRE_IS_MINIMUM_JAVA11) {
+        //    supportedAlgos.put(99, "chacha20-poly1305");
+        //}
 
         //supportedAlgos.put(100,"x-chacha-poly1305");
 
@@ -60,7 +60,8 @@ public class DefaultCryptoOperationsFactory extends CryptoOperationsFactory {
             final String algo = EncryptedIndicesSettings.INDEX_ENCRYPTION_ALGO.getFrom(settings);
 
             try {
-                return getCryptoOperationsForAlgo(algo, indexSettings, clusterService, client, threadContext, indexPublicKey);
+                return new AesSivCryptoOperations(clusterService, indexSettings.getIndex(), client, threadContext, indexPublicKey, 32);
+                //return getCryptoOperationsForAlgo(algo, indexSettings, clusterService, client, threadContext, indexPublicKey);
             } catch (Exception e) {
                 throw new RuntimeException(e);
                 //return null;
@@ -71,7 +72,7 @@ public class DefaultCryptoOperationsFactory extends CryptoOperationsFactory {
         }
     }
 
-    private CryptoOperations getCryptoOperationsForConcreteAlgo(String algo, IndexSettings indexSettings, ClusterService clusterService, Client client, ThreadContext threadContext, String indexPublicKey) throws Exception {
+    /*private CryptoOperations getCryptoOperationsForConcreteAlgo(String algo, IndexSettings indexSettings, ClusterService clusterService, Client client, ThreadContext threadContext, String indexPublicKey) throws Exception {
         if (algo != null && supportedAlgos.containsValue(algo.toLowerCase())) {
             if (algo.equals("aes-128")) {
                 return new AesGcmCryptoOperations(clusterService, indexSettings.getIndex(), client, threadContext, indexPublicKey, 16);
@@ -99,5 +100,5 @@ public class DefaultCryptoOperationsFactory extends CryptoOperationsFactory {
         } else {
             return concreteOperations;
         }
-    }
+    }*/
 }

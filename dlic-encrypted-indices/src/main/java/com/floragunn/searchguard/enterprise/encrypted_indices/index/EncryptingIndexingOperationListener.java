@@ -13,9 +13,13 @@ import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
 import org.opensearch.action.admin.indices.flush.FlushRequest;
+import org.opensearch.action.admin.indices.flush.FlushResponse;
 import org.opensearch.action.admin.indices.forcemerge.ForceMergeRequest;
+import org.opensearch.action.admin.indices.forcemerge.ForceMergeResponse;
+import org.opensearch.action.admin.indices.refresh.RefreshRequest;
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.client.Client;
+import org.opensearch.common.Strings;
 import org.opensearch.common.bytes.BytesArray;
 import org.opensearch.common.bytes.BytesReference;
 import org.opensearch.common.util.concurrent.ThreadContext;
@@ -53,8 +57,10 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
 
     @Override
     public void postIndex(ShardId shardId, Engine.Index index, Engine.IndexResult result) {
+        client.admin().indices().refresh(new RefreshRequest(shardId.getIndexName()).indicesOptions(IndicesOptions.STRICT_SINGLE_INDEX_NO_EXPAND_FORBID_CLOSED)).actionGet();
         client.admin().indices().flush(new FlushRequest(shardId.getIndexName()).indicesOptions(IndicesOptions.STRICT_SINGLE_INDEX_NO_EXPAND_FORBID_CLOSED).force(true)).actionGet();
-        client.admin().indices().forceMerge(new ForceMergeRequest(shardId.getIndexName()).indicesOptions(IndicesOptions.STRICT_SINGLE_INDEX_NO_EXPAND_FORBID_CLOSED).maxNumSegments(1)).actionGet();
+        //ForceMergeResponse resu = client.admin().indices().forceMerge(new ForceMergeRequest(shardId.getIndexName()).indicesOptions(IndicesOptions.STRICT_SINGLE_INDEX_NO_EXPAND_FORBID_CLOSED)).actionGet();
+        //System.out.println(Strings.toString(resu, true, false));
     }
 
     @Override
@@ -159,19 +165,29 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
 
                 //TODO dates
 
+                if(META_FIELDS.contains(f.name())) {
+                    continue;
+                }
+
+                if (f.fieldType().stored() && f.fieldType().indexOptions() != IndexOptions.NONE) {
+                    throw new RuntimeException("Stored indexed fields are not supported yet ("+f.name()+")");
+                }
+
+                if (f.fieldType().docValuesType() == DocValuesType.BINARY ||
+                        f.fieldType().docValuesType() == DocValuesType.SORTED_SET ||
+                        f.fieldType().docValuesType() == DocValuesType.SORTED) {
+                    throw new RuntimeException("doc values are not supported yet ("+f.name()+")");
+                }
+
                 if (f instanceof Field) {
 
                     final Field field = (Field) f;
 
                     System.out.println("Field: "+field.name()+" "+field.getClass()+" "+field.fieldType()+" "+field.fieldType().docValuesType());
 
-                    if(META_FIELDS.contains(field.name())) {
-                        continue;
-                    }
 
-                    if (field.fieldType().stored() && field.fieldType().indexOptions() != IndexOptions.NONE) {
-                        throw new RuntimeException("Stored indexed fields are not supported yet ("+field.name()+")");
-                    }
+
+
 
                     if(field instanceof KeywordFieldMapper.KeywordField) {
                         fieldListIterator.remove();

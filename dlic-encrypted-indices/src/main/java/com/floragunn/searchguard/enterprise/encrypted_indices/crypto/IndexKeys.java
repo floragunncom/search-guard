@@ -1,6 +1,11 @@
 package com.floragunn.searchguard.enterprise.encrypted_indices.crypto;
 
 import com.floragunn.searchguard.enterprise.encrypted_indices.utils.KeyPairUtil;
+import com.google.crypto.tink.BinaryKeysetReader;
+import com.google.crypto.tink.BinaryKeysetWriter;
+import com.google.crypto.tink.CleartextKeysetHandle;
+import com.google.crypto.tink.KeyTemplates;
+import com.google.crypto.tink.KeysetHandle;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.lucene.util.ArrayUtil;
 import org.opensearch.action.ActionListener;
@@ -14,6 +19,7 @@ import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.common.util.concurrent.ThreadContext;
 
 import javax.crypto.Cipher;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
@@ -27,7 +33,7 @@ import static com.floragunn.searchguard.enterprise.encrypted_indices.utils.KeyPa
 
 public final class IndexKeys {
 
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    //private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     public static final String INDEX = ".osei_keys";
 
     private final Client client;
@@ -154,15 +160,24 @@ public final class IndexKeys {
     }
 
     private byte[] createRandomKeyAndEncryptAndStore(PublicKey publicKey, int size) throws Exception {
-        byte[] k = new byte[size];
-        SECURE_RANDOM.nextBytes(k);
+        KeysetHandle keysetHandle = KeysetHandle.generateNew(
+                KeyTemplates.get("AES256_SIV"));
+
+        System.out.println(keysetHandle.size());
+        System.out.println(keysetHandle.getKeysetInfo().getKeyInfoList());
+        ByteArrayOutputStream bout = new ByteArrayOutputStream();
+        CleartextKeysetHandle.write(keysetHandle, BinaryKeysetWriter.withOutputStream(bout));
+
+        //byte[] k = new byte[size];
+        //SECURE_RANDOM.nextBytes(k);
 
         client.index(new IndexRequest(INDEX).id(keyIDocId(publicKey))
                 .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                .source("encrypted_key",encryptKey(k, publicKey))
+                .source("encrypted_key",encryptKey(bout.toByteArray(), publicKey))
         ).actionGet();
 
-        return k;
+        System.out.println(bout.toByteArray().length);
+        return bout.toByteArray();
     }
 
     private byte[] getDecryptedKeyFromKeysIndex(PrivateKey pk) throws Exception {

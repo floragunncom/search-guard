@@ -53,7 +53,9 @@ public abstract class CryptoOperations {
             //throw new Exception("key must not be null to hash terms");
         }
 
-        return new String(blake2bHash(toHash.getBytes(StandardCharsets.UTF_8), key), StandardCharsets.UTF_8);
+        return encryptString(toHash, "", "");
+
+        //return new String(blake2bHash(toHash.getBytes(StandardCharsets.UTF_8), key), StandardCharsets.UTF_8);
     }
 
     public final BytesRef hashBytesRef(BytesRef toHash) throws Exception {
@@ -64,7 +66,9 @@ public abstract class CryptoOperations {
             //throw new Exception("key must not be null to hash terms");
         }
 
-        return new BytesRef(blake2bHash(toHash.bytes, toHash.offset, toHash.length, key));
+        return encryptBytesRef(toHash, "", "");
+
+        //return new BytesRef(blake2bHash(toHash.bytes, toHash.offset, toHash.length, key));
 
 
     }
