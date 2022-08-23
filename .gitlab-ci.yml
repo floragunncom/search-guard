@@ -62,7 +62,7 @@ stages:
   #- "Frontend Int Tests External Features"
   #- "Frontend Compat Int Tests 1"
   #- "Frontend Compat Int Tests 2"
-  - release
+  # - release
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
@@ -75,6 +75,8 @@ include:
   #- local: 'ci/frontend-int-tests-compat2.yml'
 
 upload_mvn_third_party_deps:
+  tags:
+    - hetzner-gitlab-runner-2
   allow_failure: false
   stage: prepare
   rules:
@@ -99,6 +101,8 @@ upload_mvn_third_party_deps:
 build:
   allow_failure: false
   stage: build
+  tags:
+    - hetzner-gitlab-runner-2
   #rules:
     #- if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
     #  when: never

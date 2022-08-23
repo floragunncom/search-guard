@@ -2,7 +2,7 @@ test_security:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -37,7 +37,7 @@ test_security_legacy:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -72,7 +72,7 @@ test_ssl:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -107,7 +107,7 @@ test_signals:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -142,7 +142,7 @@ test_scheduler:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -177,7 +177,7 @@ test_support:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -212,7 +212,7 @@ test_dlic_security:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -242,12 +242,12 @@ test_dlic_security:
     paths:
       - .m2/repository
     policy: pull
-    
+
 test_dlic_security_legacy:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -276,13 +276,13 @@ test_dlic_security_legacy:
     key: mavenrepo
     paths:
       - .m2/repository
-    policy: pull    
+    policy: pull
 
 test_dlic_dlsfls:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -312,12 +312,12 @@ test_dlic_dlsfls:
     paths:
       - .m2/repository
     policy: pull
-    
+
 test_dlic_dlsfls_legacy:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -346,13 +346,13 @@ test_dlic_dlsfls_legacy:
     key: mavenrepo
     paths:
       - .m2/repository
-    policy: pull    
+    policy: pull
 
 test_dlic_femt:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -387,7 +387,7 @@ test_dlic_auditlog:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -422,7 +422,7 @@ test_dlic_signals:
   stage: test
   interruptible: true
   tags:
-    - test
+    - hetzner-gitlab-runner-2
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never

@@ -9,7 +9,7 @@ enterprise_1:
   extends:
   - .be_integration_test
   variables:
-    TEST_DEFINITIONS: ".*enterprise_1.*"  
+    TEST_DEFINITIONS: ".*enterprise_1.*"
 
 enterprise_2:
   extends:
@@ -77,6 +77,8 @@ signals:
   stage: "Backend Int Tests Core"
   when: always
   image: docker:${DOCKER_VERSION}
+  tags:
+    - hetzner-gitlab-runner-2  
   services:
     - docker:${DOCKER_VERSION}-dind
   script:
@@ -88,7 +90,7 @@ signals:
        ls -la
        ls -la plugin/target/releases/
        set -e
-       
+
        sudo sysctl -w vm.max_map_count=262144
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION"
        echo "TEST_DEFINITIONS $TEST_DEFINITIONS"
