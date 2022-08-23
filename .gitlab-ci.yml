@@ -62,7 +62,7 @@ stages:
   #- "Frontend Int Tests External Features"
   #- "Frontend Compat Int Tests 1"
   #- "Frontend Compat Int Tests 2"
-  # - release
+  - release
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
