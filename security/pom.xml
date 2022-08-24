@@ -71,7 +71,7 @@
     </dependency>
   </dependencies>
 
-  <build>
+  <!--<build>
     <plugins>
       <plugin>
         <groupId>com.googlecode.maven-download-plugin</groupId>
@@ -82,19 +82,16 @@
             <goals>
               <goal>wget</goal>
             </goals>
-            <!-- the wget goal actually binds itself to this phase by default -->
             <phase>process-resources</phase>
             <configuration>
               <url>https://maven.search-guard.com/search-guard-flx-release/com/floragunn/sgctl/${sgctl.version}/sgctl-${sgctl.version}.sh</url>
               <outputFileName>sgctl.sh</outputFileName>
               <overwrite>true</overwrite>
-              <!-- default target location, just to demonstrate the parameter -->
               <outputDirectory>${project.basedir}/tools</outputDirectory>
             </configuration>
           </execution>
         </executions>
       </plugin>
     </plugins>
-
-  </build>
+  </build>-->
 </project>
