@@ -20,12 +20,14 @@ import org.opensearch.common.util.concurrent.ThreadContext;
 
 import javax.crypto.Cipher;
 import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Objects;
 
@@ -33,8 +35,20 @@ import static com.floragunn.searchguard.enterprise.encrypted_indices.utils.KeyPa
 
 public final class IndexKeys {
 
-    //private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static ByteBuffer secure = ByteBuffer.allocateDirect(32);
+
+    static {
+        byte[] b = new byte[32];
+        SECURE_RANDOM.nextBytes(b);
+        secure.put(b);
+        Arrays.fill(b, (byte) 0);
+        b = null;
+    }
+
     public static final String INDEX = ".osei_keys";
+
+    public static final String NODE_KEYS_INDEX = ".osei_nodes";
 
     private final Client client;
     private final ThreadContext threadContext;
@@ -53,12 +67,29 @@ public final class IndexKeys {
         this.threadContext = Objects.requireNonNull(threadContext, "threadContext must not be null");
         this.indexName = indexName;
         this.ownerPublicKey = Objects.requireNonNull(ownerPublicKey, "ownerPublicKey must not be null");
+
+        //TODO
+        //mitigate private key send as header (string) stored in heap
+        //every node holds a secret (same for all nodes) in a direct byte buffer (offheap)
+        //this secret will be store encrypted (with pubkey2) with in an index (encrypted index?) and the
+        //private key 2 never leaves the client. clients retrieve the encrypted secret, decrypt, an encrypt
+        //the x-osei-key header with this secret. node decrypts, sensitive keys are stored off heap
+        //nodes need to have all the same secret circeling around in the cluster
+        //new secret if full cluster restart
+        //unclear how secret propagation works, master node action, cluster listener when nodes added etc
+
+
+        //client.index(new IndexRequest(NODE_KEYS_INDEX).id(clusterService.localNode().getName())
+        //        .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+        //        .source("node_key",encryptKey())).actionGet();
+
+
     }
 
     //private key request scoped
     //cached in memory only here in this class
 
-    public PrivateKey extractPrivateKeyFromHeader() throws Exception {
+    private PrivateKey extractPrivateKeyFromHeader() throws Exception {
         String pk = threadContext.getHeader("x-osec-pk");
 
         if(pk == null) {
@@ -151,6 +182,7 @@ public final class IndexKeys {
             }
         }
 
+
         if(isKeyPair(ownerPublicKey, pk)) {
             //owner
             return createRandomKeyAndEncryptAndStore(ownerPublicKey, size);
@@ -176,7 +208,6 @@ public final class IndexKeys {
                 .source("encrypted_key",encryptKey(bout.toByteArray(), publicKey))
         ).actionGet();
 
-        System.out.println(bout.toByteArray().length);
         return bout.toByteArray();
     }
 
@@ -210,7 +241,11 @@ public final class IndexKeys {
     private byte[] encryptKey(byte[] k, PublicKey publicKey) throws Exception {
         Cipher encryptCipher = Cipher.getInstance("RSA");
         encryptCipher.init(Cipher.ENCRYPT_MODE, publicKey);
-        return encryptCipher.doFinal(k);
+        try {
+            return encryptCipher.doFinal(k);
+        } finally {
+            Arrays.fill(k, (byte) 0);
+        }
     }
 
     /**

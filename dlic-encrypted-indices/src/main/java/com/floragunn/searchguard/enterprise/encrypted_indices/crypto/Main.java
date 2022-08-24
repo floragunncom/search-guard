@@ -10,7 +10,7 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-        KeyPairGenerator    kpg = KeyPairGenerator.getInstance("RSA");
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
 
         kpg.initialize(2048);
         KeyPair keypair = kpg.generateKeyPair();

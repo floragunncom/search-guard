@@ -8,14 +8,20 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.util.concurrent.ThreadContext;
 import org.opensearch.index.IndexSettings;
 
+import java.security.SecureRandom;
+import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DefaultCryptoOperationsFactory extends CryptoOperationsFactory {
 
     //private final static TreeMap<Integer, String> supportedAlgos = new TreeMap<>();
 
+
     static {
+
+        //SECURE_RANDOM.nextBytes();
 
         //the higher the key the better
 
@@ -38,6 +44,8 @@ public class DefaultCryptoOperationsFactory extends CryptoOperationsFactory {
 
     private final ClusterService clusterService;
 
+    private final Map<String, CryptoOperations> operationsMap = new ConcurrentHashMap<>();
+
     public DefaultCryptoOperationsFactory(ClusterService clusterService, Client client, ThreadContext threadContext) {
         this.client = Objects.requireNonNull(client, "client must not be null");
         this.threadContext = Objects.requireNonNull(threadContext, "threadContext must not be null");
@@ -57,10 +65,11 @@ public class DefaultCryptoOperationsFactory extends CryptoOperationsFactory {
                 throw new RuntimeException(EncryptedIndicesSettings.INDEX_ENCRYPTION_KEY.name() + " can not be empty");
             }
 
-            final String algo = EncryptedIndicesSettings.INDEX_ENCRYPTION_ALGO.getFrom(settings);
+            //final String algo = EncryptedIndicesSettings.INDEX_ENCRYPTION_ALGO.getFrom(settings);
 
             try {
-                return new AesSivCryptoOperations(clusterService, indexSettings.getIndex(), client, threadContext, indexPublicKey, 32);
+                operationsMap.putIfAbsent(indexSettings.getIndex().getName(), new AesSivCryptoOperations(clusterService, indexSettings.getIndex(), client, threadContext, indexPublicKey, 32));
+                return operationsMap.get(indexSettings.getIndex().getName());
                 //return getCryptoOperationsForAlgo(algo, indexSettings, clusterService, client, threadContext, indexPublicKey);
             } catch (Exception e) {
                 throw new RuntimeException(e);
