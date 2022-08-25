@@ -176,7 +176,7 @@ public class EncryptingIndexingOperationListener implements IndexingOperationLis
                 if (f.fieldType().docValuesType() == DocValuesType.BINARY ||
                         f.fieldType().docValuesType() == DocValuesType.SORTED_SET ||
                         f.fieldType().docValuesType() == DocValuesType.SORTED) {
-                    throw new RuntimeException("doc values are not supported yet ("+f.name()+")");
+                    //throw new RuntimeException("doc values are not supported yet ("+f.name()+")");
                 }
 
                 if (f instanceof Field) {

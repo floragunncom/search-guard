@@ -1,0 +1,45 @@
+{
+  "settings": {
+    "encryption_enabled": true,
+    "encryption_key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsbwVG9A4cBMJJLKiPDyXxi4sj9sUlBsG+9I54pGdI00zUSNQxnVsAG8fX2FyAAcmF7LGTl+niwEYX7yNtC2DP3xeSHxc/SZB0RPUDGqNVII1fs+fvTDeiR3ONRPyOWh4o3i+p0yn8hV5YQpP2W2Urg1bREr6DirebXGs6znrB6iNER5nD8zwLN1tRP0lWeWqapbPOfHI5tFvafTPYn82a/J8QP2rybIREPIRHz/OmbyFG9zP6ijXQJLRYIwrnuxEkyb4rmt8cbVnCPc/SyH2x8NR55fwr+AEm0GOZ1xg+Qxt1tDJVqvuZqJunnnoVZZxrLI6kd8vcCO7m/8+2QqpUQIDAQAB",
+    "codec": "SimpleText",
+    "number_of_shards": 3,
+    "number_of_replicas": 1,
+    "store.type": "fs",
+    "translog.durability": "async",
+    "translog.sync_interval": "800s",
+    "analysis": {
+      "analyzer": {
+        "default": {
+          "type": "encrypted"
+        }
+      }
+    }
+  },
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "full_name": {
+          "type": "text",
+          "fielddata": true,
+          "index_options": "offsets",
+          "norms": true,
+          "term_vector": "with_positions_offsets_payloads"
+        },
+        "credit_card_number": {
+          "type": "keyword",
+          "eager_global_ordinals": true
+        },
+        "age": {
+          "type": "integer",
+          "store": true
+        },
+        "remarks": {
+          "type": "text",
+          "store": true,
+          "index": false
+        }
+      }
+    }
+  }
+}

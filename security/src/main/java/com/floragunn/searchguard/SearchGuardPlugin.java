@@ -43,6 +43,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -81,6 +82,7 @@ import org.opensearch.http.HttpServerTransport.Dispatcher;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexService;
+import org.opensearch.index.analysis.AnalyzerProvider;
 import org.opensearch.index.analysis.TokenFilterFactory;
 import org.opensearch.index.cache.query.QueryCache;
 import org.opensearch.index.shard.IndexingOperationListener;
@@ -1218,6 +1220,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public Map<String, AnalysisModule.AnalysisProvider<TokenFilterFactory>> getTokenFilters() {
         return moduleRegistry.getTokenFilters();
+    }
+
+    @Override
+    public Map<String, AnalysisModule.AnalysisProvider<AnalyzerProvider<? extends Analyzer>>> getAnalyzers() {
+        return moduleRegistry.getAnalyzers();
     }
 
     public static ProtectedIndices getProtectedIndices() {

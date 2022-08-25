@@ -260,6 +260,130 @@ public class EncryptedIndicesIntegrationTest {
     }
 
     @Test
+    public void basicXorTest() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient()) {
+
+            client.admin().indices().create(
+                    new CreateIndexRequest("the_encrypted_index").source(
+                            FileHelper.loadFile("encrypted_indices/indexxor.json")
+                            , XContentType.JSON)).actionGet();
+
+
+            /*client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                    .source(XContentType.JSON, "full_name",
+                            "Mister Spock","credit_card_number","1701","age", 100, "remarks", "great brain")).actionGet();
+
+            client.index(new IndexRequest("the_encrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                    .source(XContentType.JSON, "full_name",
+                            "Captain Kirk","credit_card_number","1234","age", 45, "remarks", "take care")).actionGet();
+
+            client.index(new IndexRequest("unencrypted_index").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                    .source(XContentType.JSON, "full_name",
+                            "Doctor McCoy","credit_card_number","9999","age", 70, "remarks", "also called pille")).actionGet();*/
+        }
+
+
+        try (GenericRestClient restClient = cluster.getRestClient("admin", "admin")) {
+
+            GenericRestClient.HttpResponse result = restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                    "{\n" +
+                            "   \"full_name\":\"Mister Spock\",\n" +
+                            "   \"credit_card_number\":\"1701\",\n" +
+                            "   \"age\":100,\n" +
+                            "   \"remarks\":\"great brain\"\n" +
+                            "}",
+                    new BasicHeader("x-osec-pk", PRIVATE_KEY_1));
+
+            System.out.println(result.getBody());
+
+
+            result = restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                    "{\n" +
+                            "   \"full_name\":\"Captain Kirk\",\n" +
+                            "   \"credit_card_number\":\"1234\",\n" +
+                            "   \"age\":45,\n" +
+                            "   \"remarks\":\"take care\"\n" +
+                            "}",
+                    new BasicHeader("x-osec-pk", PRIVATE_KEY_1));
+
+            System.out.println(result.getBody());
+
+            result = restClient.postJson("the_encrypted_index/_doc?refresh=true",
+                    "{\n" +
+                            "   \"full_name\":\"Doctor McCoy\",\n" +
+                            "   \"credit_card_number\":\"9999\",\n" +
+                            "   \"age\":70,\n" +
+                            "   \"remarks\":\"also called pille\"\n" +
+                            "}",
+                    new BasicHeader("x-osec-pk", PRIVATE_KEY_1));
+
+            System.out.println(result.getBody());
+
+
+            result = restClient.get("_search?pretty",new BasicHeader("x-osec-pk", PRIVATE_KEY_1));
+            System.out.println(result.getBody());
+
+            Assert.assertTrue(result.getBody().contains("Kirk"));
+            Assert.assertTrue(result.getBody().contains("Doctor"));
+            Assert.assertTrue(result.getBody().contains("Spock"));
+
+
+            String query = "{\n" +
+                    "  \"query\": {\n" +
+                    "    \"match\": {\n" +
+                    "      \"full_name\": {\n" +
+                    "        \"query\": \"KIRK DOCtor\"\n" +
+                    "      }\n" +
+                    "    }\n" +
+                    "  }\n" +
+                    "}";
+
+            result = restClient.postJson("_search?pretty", query,new BasicHeader("x-osec-pk", PRIVATE_KEY_1));
+            System.out.println(result.getBody());
+            Assert.assertTrue(result.getBody().contains("Kirk"));
+            Assert.assertTrue(result.getBody().contains("Doctor"));
+            Assert.assertTrue(result.getBody().contains("take"));
+            Assert.assertTrue(result.getBody().contains("pille"));
+
+            query = "{\n" +
+                    "  \"query\": {\n" +
+                    "    \"wildcard\": {\n" +
+                    "      \"full_name\": {\n" +
+                    "        \"value\": \"KIR*\"\n" +
+                    "      }\n" +
+                    "    }\n" +
+                    "  }\n" +
+                    "}";
+
+            result = restClient.postJson("_search?pretty", query,new BasicHeader("x-osec-pk", PRIVATE_KEY_1));
+            System.out.println(result.getBody());
+            Assert.assertTrue(result.getBody().contains("Kirk"));
+            Assert.assertFalse(result.getBody().contains("Doctor"));
+            Assert.assertTrue(result.getBody().contains("take"));
+            Assert.assertFalse(result.getBody().contains("pille"));
+
+            query = "{\n" +
+                    "  \"query\": {\n" +
+                    "    \"match_phrase_prefix\": {\n" +
+                    "      \"full_name\": {\n" +
+                    "        \"query\": \"ki\"\n" +
+                    "      }\n" +
+                    "    }\n" +
+                    "  }\n" +
+                    "}";
+
+            result = restClient.postJson("_search?pretty", query,new BasicHeader("x-osec-pk", PRIVATE_KEY_1));
+            System.out.println(result.getBody());
+            Assert.assertTrue(result.getBody().contains("Kirk"));
+            Assert.assertFalse(result.getBody().contains("Doctor"));
+            Assert.assertTrue(result.getBody().contains("take"));
+            Assert.assertFalse(result.getBody().contains("pille"));
+        }
+
+    }
+
+    @Test
     public void noHeaderTest() throws Exception {
 
         try (Client client = cluster.getInternalNodeClient()) {

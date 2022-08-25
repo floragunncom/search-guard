@@ -19,6 +19,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
+import com.floragunn.searchguard.enterprise.encrypted_indices.analysis.EncryptedAnalyzer;
 import com.floragunn.searchguard.enterprise.encrypted_indices.analysis.EncryptedTokenFilter;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperations;
 import com.floragunn.searchguard.enterprise.encrypted_indices.crypto.CryptoOperationsFactory;
@@ -32,6 +33,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.StaticSettings;
 import com.google.common.collect.Lists;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.store.Directory;
@@ -51,11 +53,14 @@ import org.opensearch.env.Environment;
 import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.IndexSettings;
+import org.opensearch.index.analysis.AnalyzerProvider;
+import org.opensearch.index.analysis.AnalyzerScope;
 import org.opensearch.index.analysis.TokenFilterFactory;
 import org.opensearch.index.shard.IndexingOperationListener;
 import org.opensearch.index.shard.ShardPath;
 import org.opensearch.index.store.FsDirectoryFactory;
 import org.opensearch.indices.analysis.AnalysisModule;
+import org.opensearch.plugins.AnalysisPlugin;
 import org.opensearch.plugins.IndexStorePlugin;
 import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
@@ -216,6 +221,41 @@ public class EncryptedIndicesModule implements SearchGuardModule {
                 };
             }
         });
+    }
+
+    @Override
+    public Map<String, ? extends AnalysisModule.AnalysisProvider<AnalyzerProvider<? extends Analyzer>>> getAnalyzers() {
+
+        return Collections.singletonMap("encrypted", AnalysisPlugin.requiresAnalysisSettings(new AnalysisModule.AnalysisProvider<AnalyzerProvider<? extends Analyzer>>() {
+            @Override
+            public AnalyzerProvider<? extends Analyzer> get(IndexSettings indexSettings, Environment environment, String name, Settings settings) throws IOException {
+
+                final CryptoOperations cryptoOperations = cryptoOperationsFactory.createCryptoOperations(indexSettings);
+
+                if(cryptoOperations == null) {
+                    //no token filter of type blind_hash required for
+                    //unencrypted indices
+                    return null;
+                }
+                return new AnalyzerProvider<Analyzer>() {
+                    @Override
+                    public String name() {
+                        return name;
+                    }
+
+                    @Override
+                    public AnalyzerScope scope() {
+                        return AnalyzerScope.INDEX;
+                    }
+
+                    @Override
+                    public Analyzer get() {
+                        System.out.println("get()");
+                        return new EncryptedAnalyzer(cryptoOperations);
+                    }
+                };
+            }
+        }));
     }
 
     @Override

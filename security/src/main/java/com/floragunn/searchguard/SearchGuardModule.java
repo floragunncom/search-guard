@@ -27,6 +27,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import com.floragunn.fluent.collections.ImmutableMap;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -41,6 +42,7 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexService;
+import org.opensearch.index.analysis.AnalyzerProvider;
 import org.opensearch.index.analysis.TokenFilterFactory;
 import org.opensearch.index.shard.IndexingOperationListener;
 import org.opensearch.index.shard.SearchOperationListener;
@@ -152,6 +154,11 @@ public interface SearchGuardModule {
     }
 
     default void onNodeStarted() {
+
+    }
+
+    default Map<String,? extends AnalysisModule.AnalysisProvider<AnalyzerProvider<? extends Analyzer>>> getAnalyzers() {
+        return ImmutableMap.empty();
 
     }
 

@@ -1,13 +1,16 @@
 package com.floragunn.searchguard.enterprise.encrypted_indices.crypto;
 
 import com.floragunn.searchguard.enterprise.encrypted_indices.utils.MapUtils;
+import com.floragunn.searchguard.enterprise.lucene.encryption.CeffUtils;
 import com.google.common.base.Joiner;
 import com.google.common.io.CharStreams;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.lucene.analysis.tokenattributes.BytesTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.KeywordAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.UnicodeUtil;
 import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.bouncycastle.util.encoders.Hex;
 import org.opensearch.client.Client;
@@ -28,6 +31,7 @@ import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
@@ -194,6 +198,32 @@ public abstract class CryptoOperations {
         return doCrypt(in, key, field,id, mode);
     }
 
+    protected final String xorCrypt(String in, String fieldName) throws Exception {
+        return new String(xorCrypt(in.getBytes(StandardCharsets.UTF_8), fieldName), StandardCharsets.UTF_8);
+    }
+    protected final byte[] xorCrypt(byte[] in, String fieldName) throws Exception {
+        byte[] key = getIndexKeys().getOrCreateSymmetricKey(keySize);
+
+
+
+        //todo increase key size when in is not big
+        byte[] perFieldKey = DigestUtils.sha512(CeffUtils.concatArrays(new byte[]{in[0]},key, fieldName.getBytes(StandardCharsets.UTF_8)));
+
+
+        byte[] cipherText = new byte[in.length];
+
+        for(int i=0,k=0; i<in.length;i++,k++) {
+
+            if(k >= in.length-1) {
+                //k=0;
+            }
+
+            cipherText[i] = (byte) (in[i] ^ perFieldKey[k]);
+        }
+
+        return Hex.encode(cipherText);
+    }
+
     protected abstract byte[] doCrypt(byte[] in, byte[] key, String field, String id, int mode) throws Exception;
 
 
@@ -261,6 +291,18 @@ public abstract class CryptoOperations {
         return sourceAsMap;
     }
 
+    public void xorAttribute(CharTermAttribute termAtt, String fieldName) throws Exception {
+        if (termAtt != null) {
+            final String clearTextValue = termAtt.toString();
+
+            if(clearTextValue != null) {
+
+                System.out.println(clearTextValue+" -> "+xorCrypt(clearTextValue, fieldName) +" for field "+fieldName);
+
+                termAtt.setEmpty().append(xorCrypt(clearTextValue, fieldName));
+            }
+        }
+    }
 
 
     private static class CrypticCallback implements MapUtils.Callback {
