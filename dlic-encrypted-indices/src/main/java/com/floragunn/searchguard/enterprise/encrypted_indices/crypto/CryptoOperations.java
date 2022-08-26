@@ -146,13 +146,13 @@ public abstract class CryptoOperations {
         return indexKeys;
     }
 
-    public final void hashAttribute(CharTermAttribute termAtt) throws Exception {
+    public final void hashAttribute(CharTermAttribute termAtt, String field) throws Exception {
 
         if (termAtt != null) {
             final String clearTextValue = termAtt.toString();
 
             if(clearTextValue != null) {
-                termAtt.setEmpty().append(hashString(clearTextValue));
+                termAtt.setEmpty().append(hashString(clearTextValue+field)); //we need also the field here !
             }
         }
     }
@@ -207,15 +207,18 @@ public abstract class CryptoOperations {
 
 
         //todo increase key size when in is not big
-        byte[] perFieldKey = DigestUtils.sha512(CeffUtils.concatArrays(new byte[]{in[0]},key, fieldName.getBytes(StandardCharsets.UTF_8)));
+        byte[] perFieldKey = DigestUtils.sha512(CeffUtils.concatArrays(
+                new byte[]{in[0],in[0]}, //special tweak make it more hard
+                key,
+                fieldName.getBytes(StandardCharsets.UTF_8)));
 
 
         byte[] cipherText = new byte[in.length];
 
         for(int i=0,k=0; i<in.length;i++,k++) {
 
-            if(k >= in.length-1) {
-                //k=0;
+            if(k >= perFieldKey.length-1) {
+                k = 0; //just reuse the perfieldkey for long terms
             }
 
             cipherText[i] = (byte) (in[i] ^ perFieldKey[k]);

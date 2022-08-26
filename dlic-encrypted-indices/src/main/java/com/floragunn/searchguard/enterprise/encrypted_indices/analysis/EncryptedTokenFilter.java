@@ -44,7 +44,7 @@ public class EncryptedTokenFilter extends TokenFilter {
   public final boolean incrementToken() throws IOException {
     if (input.incrementToken()) {
       try {
-        cryptoOperations.hashAttribute(termAtt);
+        cryptoOperations.hashAttribute(termAtt, ""); //TODO field by using an analyzer
         cryptoOperations.hashAttribute(bytesTermAtt);
         cryptoOperations.hashAttribute(termToBytesAtt);
         cryptoOperations.hashAttribute(keywordAttr);
