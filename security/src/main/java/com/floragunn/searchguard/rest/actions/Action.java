@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.authz.actions;
+package com.floragunn.searchguard.rest.actions;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -34,7 +34,6 @@ import org.elasticsearch.action.ActionResponse;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.actions.Actions.Scope;
 
 public interface Action {
 
@@ -70,7 +69,7 @@ public interface Action {
 
     public static class WellKnownAction<RequestType extends ActionRequest, RequestItem, RequestItemType> implements Action {
         private final String actionName;
-        private final Scope scope;
+        private final Actions.Scope scope;
         private final Class<RequestType> requestType;
         private final String requestTypeName;
         private final ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges;
@@ -80,10 +79,10 @@ public interface Action {
         private final Actions actions;
         private final int hashCode;
 
-        public WellKnownAction(String actionName, Scope scope, Class<RequestType> requestType, String requestTypeName,
-                ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
-                ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
-                RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources, Actions actions) {
+        public WellKnownAction(String actionName, Actions.Scope scope, Class<RequestType> requestType, String requestTypeName,
+                               ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
+                               ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
+                               RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources, Actions actions) {
             this.actionName = actionName;
             this.scope = scope;
             this.requestType = requestType;
@@ -126,22 +125,22 @@ public interface Action {
 
         @Override
         public boolean isIndexPrivilege() {
-            return scope == Scope.INDEX;
+            return scope == Actions.Scope.INDEX;
         }
 
         @Override
         public boolean isClusterPrivilege() {
-            return scope == Scope.CLUSTER;
+            return scope == Actions.Scope.CLUSTER;
         }
 
         @Override
         public boolean isTenantPrivilege() {
-            return scope == Scope.TENANT;
+            return scope == Actions.Scope.TENANT;
         }
 
         @Override
         public boolean isOpen() {
-            return scope == Scope.OPEN;
+            return scope == Actions.Scope.OPEN;
         }
 
         @Override
@@ -427,9 +426,9 @@ public interface Action {
 
     public static class OtherAction implements Action {
         private final String actionName;
-        private final Scope scope;
+        private final Actions.Scope scope;
 
-        public OtherAction(String actionName, Scope scope) {
+        public OtherAction(String actionName, Actions.Scope scope) {
             this.actionName = actionName;
             this.scope = scope;
         }
@@ -439,28 +438,28 @@ public interface Action {
             return actionName;
         }
 
-        public Scope getScope() {
+        public Actions.Scope getScope() {
             return scope;
         }
 
         @Override
         public boolean isIndexPrivilege() {
-            return scope == Scope.INDEX;
+            return scope == Actions.Scope.INDEX;
         }
 
         @Override
         public boolean isClusterPrivilege() {
-            return scope == Scope.CLUSTER;
+            return scope == Actions.Scope.CLUSTER;
         }
 
         @Override
         public boolean isTenantPrivilege() {
-            return scope == Scope.TENANT;
+            return scope == Actions.Scope.TENANT;
         }
 
         @Override
         public boolean isOpen() {
-            return scope == Scope.OPEN;
+            return scope == Actions.Scope.OPEN;
         }
 
         @Override

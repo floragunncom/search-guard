@@ -84,7 +84,7 @@ import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.rest.actions.Actions;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;

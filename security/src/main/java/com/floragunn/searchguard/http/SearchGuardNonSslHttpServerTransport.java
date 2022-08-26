@@ -25,6 +25,7 @@ import org.elasticsearch.http.HttpHandlingSettings;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
@@ -35,8 +36,8 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
 
     public SearchGuardNonSslHttpServerTransport(final Settings settings, final NetworkService networkService,
             final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
-            final ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory) {
-        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
+            final ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory, Tracer tracer) {
+        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, tracer);
     }
 
     @Override

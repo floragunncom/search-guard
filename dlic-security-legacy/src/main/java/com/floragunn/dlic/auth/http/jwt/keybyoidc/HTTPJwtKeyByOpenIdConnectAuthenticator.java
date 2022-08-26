@@ -25,10 +25,11 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
@@ -121,8 +122,8 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthe
                             + new String(idpResponseContent));
                 }
 
-                restChannel.sendResponse(new BytesRestResponse(RestStatus.fromCode(idpResponse.getStatusLine().getStatusCode()),
-                        idpResponse.getEntity().getContentType().getValue(), idpResponseContent));
+                restChannel.sendResponse(new RestResponse(RestStatus.fromCode(idpResponse.getStatusLine().getStatusCode()),
+                        idpResponse.getEntity().getContentType().getValue(), new BytesArray(idpResponseContent)));
             } else {
                 Responses.sendError(restChannel, RestStatus.NOT_FOUND, "Invalid endpoint: " + restRequest.path());
             }

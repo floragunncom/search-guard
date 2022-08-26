@@ -378,8 +378,9 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 }
 
                 return new SortedSetDocValues() {
+
                     @Override
-                    public long docValueCount() {
+                    public int docValueCount() {
                         return sortedSetDocValues.docValueCount();
                     }
 

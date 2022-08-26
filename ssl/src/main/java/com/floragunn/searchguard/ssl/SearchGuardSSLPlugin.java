@@ -66,6 +66,7 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
@@ -223,7 +224,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     @Override
     public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
             PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
-            NetworkService networkService, Dispatcher dispatcher, ClusterSettings clusterSettings) {
+            NetworkService networkService, Dispatcher dispatcher, ClusterSettings clusterSettings, Tracer tracer) {
 
         final Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
         if (!client && httpSSLEnabled) {
@@ -231,7 +232,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
                     configPath, NOOP_SSL_EXCEPTION_HANDLER);
             final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService,
-                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER);
+                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER, tracer);
 
             httpTransports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport", () -> sgsnht);
 
@@ -279,12 +280,12 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         return transports;
 
     }
-    
+
     @Override
     public Collection<Object> createComponents(Client localClient, ClusterService clusterService, ThreadPool threadPool,
                                                ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
                                                Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
-                                               IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
+                                               IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier, Tracer tracer) {
 
         final List<Object> components = new ArrayList<>(1);
 

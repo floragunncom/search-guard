@@ -30,7 +30,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -86,7 +86,7 @@ public class PermissionAction extends BaseRestHandler {
                     builder.endObject();
                     builder.endObject();
 
-                    BytesRestResponse response = new BytesRestResponse(RestStatus.OK, builder);
+                    RestResponse response = new RestResponse(RestStatus.OK, builder);
                     channel.sendResponse(response);
 
                 } 

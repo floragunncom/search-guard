@@ -20,7 +20,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.rest.actions.Actions;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.RoleMapping;

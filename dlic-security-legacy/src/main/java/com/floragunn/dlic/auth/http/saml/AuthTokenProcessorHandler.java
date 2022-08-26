@@ -46,7 +46,7 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
@@ -230,14 +230,14 @@ class AuthTokenProcessorHandler {
                 return false;
             }
 
-            BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.OK, "application/json", responseBody.toJsonString());
+            RestResponse authenticateResponse = new RestResponse(RestStatus.OK, "application/json", responseBody.toJsonString());
             restChannel.sendResponse(authenticateResponse);
 
             return true;
         } catch (JsonProcessingException | DocumentParseException e) {
             log.warn("Error while parsing JSON for /_searchguard/api/authtoken", e);
 
-            BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.BAD_REQUEST, "JSON could not be parsed");
+            RestResponse authenticateResponse = new RestResponse(RestStatus.BAD_REQUEST, "JSON could not be parsed");
             restChannel.sendResponse(authenticateResponse);
             return true;
         }

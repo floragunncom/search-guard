@@ -22,7 +22,7 @@ import java.io.ByteArrayInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.ToXContent;
@@ -60,7 +60,7 @@ public class Responses {
                 builder.rawField("detail", new ByteArrayInputStream(detailJsonDocument.getBytes(Charsets.UTF_8)), XContentType.JSON);
             }
             builder.endObject();
-            channel.sendResponse(new BytesRestResponse(status, builder));
+            channel.sendResponse(new RestResponse(status, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);
             throw ExceptionsHelper.convertToElastic(e);
@@ -84,7 +84,7 @@ public class Responses {
                 builder.field("detail", detailDocument);
             }
             builder.endObject();
-            channel.sendResponse(new BytesRestResponse(status, builder));
+            channel.sendResponse(new RestResponse(status, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);
             throw ExceptionsHelper.convertToElastic(e);
@@ -109,7 +109,7 @@ public class Responses {
             builder.field("status", status.getStatus());
 
             builder.endObject();
-            channel.sendResponse(new BytesRestResponse(status, builder));
+            channel.sendResponse(new RestResponse(status, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);
             throw ExceptionsHelper.convertToElastic(e);
@@ -131,9 +131,9 @@ public class Responses {
                 if (toxContent.isFragment()) {
                     builder.endObject();
                 }
-                channel.sendResponse(new BytesRestResponse(status, builder));
+                channel.sendResponse(new RestResponse(status, builder));
             } else {
-                channel.sendResponse(new BytesRestResponse(status, "application/json", DocWriter.json().writeAsString(json)));
+                channel.sendResponse(new RestResponse(status, "application/json", DocWriter.json().writeAsString(json)));
             }
         } catch (Exception e) {
             log.error(e.toString(), e);

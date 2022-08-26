@@ -29,7 +29,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -74,14 +74,14 @@ public class SearchGuardWhoAmIAction extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         return channel -> {
             XContentBuilder builder = channel.newBuilder(); //NOSONAR
-            BytesRestResponse response = null;
+            RestResponse response = null;
 
             try {
 
                 SSLInfo sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor);
 
                 if(sslInfo  == null) {
-                    response = new BytesRestResponse(RestStatus.FORBIDDEN, "");
+                    response = new RestResponse(RestStatus.FORBIDDEN, "");
                 } else {
 
                     final String dn = sslInfo.getPrincipal();
@@ -94,7 +94,7 @@ public class SearchGuardWhoAmIAction extends BaseRestHandler {
                     builder.field("is_node_certificate_request", isNodeCertificateRequest);
                     builder.endObject();
 
-                    response = new BytesRestResponse(RestStatus.OK, builder);
+                    response = new RestResponse(RestStatus.OK, builder);
 
                 }
             } catch (final Exception e1) {
@@ -103,7 +103,7 @@ public class SearchGuardWhoAmIAction extends BaseRestHandler {
                 builder.startObject();
                 builder.field("error", e1.toString());
                 builder.endObject();
-                response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
+                response = new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
             } finally {
                 if (builder != null) {
                     builder.close();

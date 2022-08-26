@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.authz.actions;
+package com.floragunn.searchguard.rest.actions;
 
 import java.util.ArrayList;
 import java.util.Arrays;

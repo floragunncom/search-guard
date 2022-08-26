@@ -12,7 +12,7 @@ import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -67,7 +67,7 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
                     @Override
                     public void onResponse(GetSettingsResponse response) {
                         if (response.getStatus() == GetSettingsResponse.Status.OK) {
-                            channel.sendResponse(new BytesRestResponse(RestStatus.OK, response.getContentType(), response.getResult()));
+                            channel.sendResponse(new RestResponse(RestStatus.OK, response.getContentType(), response.getResult()));
                         } else {
                             errorResponse(channel, RestStatus.NOT_FOUND, "Not found");
                         }
@@ -90,7 +90,7 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
                                 || response.getResult() == Result.DELETED) {
 
                             channel.sendResponse(
-                                    new BytesRestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
+                                    new RestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
                         } else {
                             errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
                         }
@@ -116,7 +116,7 @@ public class SettingsApiAction extends SignalsBaseRestHandler {
                         if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED) {
 
                             channel.sendResponse(
-                                    new BytesRestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
+                                    new RestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
                         } else {
                             errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
                         }

@@ -39,7 +39,7 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
@@ -277,13 +277,13 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
     @Override
     public boolean reRequestAuthentication(final RestChannel channel, AuthCredentials creds) {
 
-        final BytesRestResponse wwwAuthenticateResponse;
+        final RestResponse wwwAuthenticateResponse;
         XContentBuilder response = getNegotiateResponseBody();
 
         if (response != null) {
-            wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, response);        	
+            wwwAuthenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, response);        	
         } else {
-            wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON);
+            wwwAuthenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON);
         }
 
         if(creds == null || creds.getNativeCredentials() == null) {

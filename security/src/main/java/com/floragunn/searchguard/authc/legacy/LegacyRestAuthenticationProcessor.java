@@ -25,7 +25,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -117,7 +117,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
 
         if (!ipAddressAcceptanceRules.accept(requestMetaData)) {
             log.info("Not accepting request from {}", requestMetaData);
-            channel.sendResponse(new BytesRestResponse(RestStatus.FORBIDDEN, "Forbidden"));
+            channel.sendResponse(new RestResponse(RestStatus.FORBIDDEN, "Forbidden"));
             onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
             return;
         }
@@ -137,7 +137,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
                 log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
             }
             auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
-            channel.sendResponse(new BytesRestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON));
+            channel.sendResponse(new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON));
             onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
             return;
         }

@@ -31,7 +31,7 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
@@ -73,14 +73,14 @@ public class SearchGuardConfigUpdateAction extends BaseRestHandler {
     	SSLInfo sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor);
     			
 		if(sslInfo  == null) {
-            return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.FORBIDDEN, ""));
+            return channel -> channel.sendResponse(new RestResponse(RestStatus.FORBIDDEN, ""));
         }
     	
         final User user = (User) threadContext.getTransient(ConfigConstants.SG_USER);
 
         //only allowed for admins
         if (user == null || !adminDns.isAdmin(user)) {
-        	return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.FORBIDDEN, ""));
+        	return channel -> channel.sendResponse(new RestResponse(RestStatus.FORBIDDEN, ""));
         } else {
         	ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(configTypes);
         	return channel -> client.execute(

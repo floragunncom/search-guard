@@ -7,7 +7,7 @@ import java.util.List;
 
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.ToXContentObject;
@@ -42,7 +42,7 @@ public class ConvertWatchApiAction extends SignalsBaseRestHandler {
             EsWatcherConverter converter = new EsWatcherConverter(input);
             ConversionResult<Watch> result = converter.convertToSignals();
 
-            return channel -> channel.sendResponse(new BytesRestResponse(RestStatus.OK,
+            return channel -> channel.sendResponse(new RestResponse(RestStatus.OK,
                     convertToJson(channel, new Result(result.getElement(), result.getSourceValidationErrors()), Watch.WITHOUT_AUTH_TOKEN)));
 
         } catch (ConfigValidationException e) {

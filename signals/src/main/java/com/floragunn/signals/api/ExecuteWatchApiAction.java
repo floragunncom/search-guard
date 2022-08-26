@@ -10,7 +10,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
@@ -83,16 +83,16 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                     @Override
                     public void onResponse(ExecuteWatchResponse response) {
                         if (response.getStatus() == ExecuteWatchResponse.Status.EXECUTED) {
-                            channel.sendResponse(new BytesRestResponse(RestStatus.OK, "application/json", response.getResult()));
+                            channel.sendResponse(new RestResponse(RestStatus.OK, "application/json", response.getResult()));
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.NOT_FOUND) {
                             errorResponse(channel, RestStatus.NOT_FOUND, "No watch with id " + id);
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.TENANT_NOT_FOUND) {
                             errorResponse(channel, RestStatus.NOT_FOUND, "Tenant does not exist");
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.ERROR_WHILE_EXECUTING) {
-                            channel.sendResponse(new BytesRestResponse(RestStatus.UNPROCESSABLE_ENTITY, "application/json", response.getResult()));
+                            channel.sendResponse(new RestResponse(RestStatus.UNPROCESSABLE_ENTITY, "application/json", response.getResult()));
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION) {
                             if (requestBody.getWatch() != null) {
-                                channel.sendResponse(new BytesRestResponse(RestStatus.BAD_REQUEST, "application/json", response.getResult()));
+                                channel.sendResponse(new RestResponse(RestStatus.BAD_REQUEST, "application/json", response.getResult()));
                             } else {
                                 errorResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, "Internal Server Error: Stored watch cannot be parsed");
                             }

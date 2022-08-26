@@ -24,9 +24,9 @@ import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.rest.actions.Action;
+import com.floragunn.searchguard.rest.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.rest.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.user.User;
 

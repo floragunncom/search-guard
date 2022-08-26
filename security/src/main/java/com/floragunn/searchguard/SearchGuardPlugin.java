@@ -39,7 +39,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import com.floragunn.searchguard.rest.SearchGuardConfigUpdateAction;
@@ -60,7 +59,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.network.NetworkService;
@@ -97,6 +95,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.ReaderContext;
 import org.elasticsearch.search.internal.ScrollContext;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.Transport.Connection;
 import org.elasticsearch.transport.TransportInterceptor;
@@ -134,8 +133,8 @@ import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.authc.session.backend.SessionModule;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
-import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.rest.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.rest.actions.Actions;
 import com.floragunn.searchguard.authz.config.AuthorizationConfigApi;
 import com.floragunn.searchguard.authz.indices.SearchGuardDirectoryReaderWrapper;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
@@ -735,13 +734,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
     @Override
     public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
-            PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
-            NetworkService networkService, Dispatcher dispatcher, ClusterSettings clusterSettings) {
+                                                                        PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
+                                                                        NetworkService networkService, Dispatcher dispatcher, ClusterSettings clusterSettings, Tracer tracer) {
 
         if (sslOnly) {
             return super.getHttpTransports(settings, threadPool, bigArrays, pageCacheRecycler, circuitBreakerService, xContentRegistry,
 
-                    networkService, dispatcher, clusterSettings);
+                    networkService, dispatcher, clusterSettings, tracer);
         }
 
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
@@ -753,13 +752,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         configPath, evaluateSslExceptionHandler());
                 //TODO close sghst
                 final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, threadPool, sgks,
-                        evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory);
+                        evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory, tracer);
 
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
             } else if (!client) {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
                         () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, threadPool, xContentRegistry, searchGuardRestFilter.wrap(dispatcher),
-                                clusterSettings, sharedGroupFactory));
+                                clusterSettings, sharedGroupFactory, tracer));
             }
         }
         return httpTransports;
@@ -769,11 +768,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public Collection<Object> createComponents(Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
-            IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
+            IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier, Tracer tracer) {
 
         if (sslOnly) {
             return super.createComponents(localClient, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry,
-                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier);
+                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier, tracer);
         }
 
         this.threadPool = threadPool;

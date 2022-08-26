@@ -28,7 +28,7 @@ import org.elasticsearch.rest.RestStatus;
 import com.floragunn.fluent.collections.CheckTable;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.rest.actions.Action;
 
 public class PrivilegesEvaluationResult {
 

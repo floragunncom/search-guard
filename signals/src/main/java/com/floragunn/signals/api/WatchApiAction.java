@@ -13,7 +13,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentType;
@@ -77,7 +77,7 @@ public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwar
             @Override
             public void onResponse(GetWatchResponse response) {
                 if (response.isExists()) {
-                    channel.sendResponse(new BytesRestResponse(RestStatus.OK, convertToJson(channel, response, Watch.WITHOUT_AUTH_TOKEN)));
+                    channel.sendResponse(new RestResponse(RestStatus.OK, convertToJson(channel, response, Watch.WITHOUT_AUTH_TOKEN)));
                 } else {
                     errorResponse(channel, RestStatus.NOT_FOUND, "Not found");
                 }
@@ -97,7 +97,7 @@ public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwar
             @Override
             public void onResponse(DeleteWatchResponse response) {
                 if (response.getResult() == Result.DELETED) {
-                    channel.sendResponse(new BytesRestResponse(RestStatus.OK, convertToJson(channel, response, Watch.WITHOUT_AUTH_TOKEN)));
+                    channel.sendResponse(new RestResponse(RestStatus.OK, convertToJson(channel, response, Watch.WITHOUT_AUTH_TOKEN)));
                 } else {
                     errorResponse(channel, response.getRestStatus(), response.getMessage());
                 }
@@ -127,7 +127,7 @@ public class WatchApiAction extends SignalsBaseRestHandler implements TenantAwar
                         if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED) {
 
                             channel.sendResponse(
-                                    new BytesRestResponse(response.getRestStatus(), convertToJson(channel, response, Watch.WITHOUT_AUTH_TOKEN)));
+                                    new RestResponse(response.getRestStatus(), convertToJson(channel, response, Watch.WITHOUT_AUTH_TOKEN)));
                         } else {
                             errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
                         }

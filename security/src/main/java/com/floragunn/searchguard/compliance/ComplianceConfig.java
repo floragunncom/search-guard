@@ -30,8 +30,8 @@ import org.elasticsearch.env.Environment;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.rest.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.rest.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.license.LicenseChangeListener;
 import com.floragunn.searchguard.license.SearchGuardLicense;

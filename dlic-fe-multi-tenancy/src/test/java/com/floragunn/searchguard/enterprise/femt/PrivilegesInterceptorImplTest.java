@@ -23,7 +23,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.rest.actions.Actions;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;

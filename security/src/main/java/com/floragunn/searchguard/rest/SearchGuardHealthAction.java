@@ -26,7 +26,7 @@ import java.util.List;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -60,7 +60,7 @@ public class SearchGuardHealthAction extends BaseRestHandler {
             public void accept(RestChannel channel) throws Exception {
                 XContentBuilder builder = channel.newBuilder();
                 RestStatus restStatus = RestStatus.OK;
-                BytesRestResponse response = null;
+                RestResponse response = null;
                 try {
 
                     String status = "UP";
@@ -78,7 +78,7 @@ public class SearchGuardHealthAction extends BaseRestHandler {
                     builder.field("mode", mode);
                     builder.field("status", status);
                     builder.endObject();
-                    response = new BytesRestResponse(restStatus, builder);
+                    response = new RestResponse(restStatus, builder);
 
                 } finally {
                     builder.close();

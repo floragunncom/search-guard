@@ -31,7 +31,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.CuckooFilter;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpServerTransport;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
@@ -182,7 +182,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
                 if (authenticationProcessor == null) {
                     log.error("Not yet initialized (you may need to run sgctl)");
-                    channel.sendResponse(new BytesRestResponse(RestStatus.SERVICE_UNAVAILABLE,
+                    channel.sendResponse(new RestResponse(RestStatus.SERVICE_UNAVAILABLE,
                             "Search Guard not initialized (SG11). See https://docs.search-guard.com/latest/sgctl"));
                     return;
                 }
@@ -204,7 +204,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         } catch (Exception e) {
                             log.error("Error in " + original, e);
                             try {
-                                channel.sendResponse(new BytesRestResponse(channel, e));
+                                channel.sendResponse(new RestResponse(channel, e));
                             } catch (IOException e1) {
                                 log.error(e1);
                             }
@@ -213,7 +213,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         org.apache.logging.log4j.ThreadContext.remove("user");
 
                         if (result.getRestStatus() != null && result.getRestStatusMessage() != null) {
-                            BytesRestResponse response = new BytesRestResponse(result.getRestStatus(), result.getRestStatusMessage());
+                            RestResponse response = new RestResponse(result.getRestStatus(), result.getRestStatusMessage());
 
                             if (!result.getHeaders().isEmpty()) {
                                 result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
@@ -224,7 +224,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     }
                 }, (e) -> {
                     try {
-                        channel.sendResponse(new BytesRestResponse(channel, e));
+                        channel.sendResponse(new RestResponse(channel, e));
                     } catch (IOException e1) {
                         log.error(e1);
                     }
@@ -249,10 +249,10 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 log.error(exception);
                 auditLog.logBadHeaders(request);
                 try {
-                    channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, exception));
+                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
                 } catch (IOException e) {
                     log.error(e,e);
-                    channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, BytesRestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
                 }
                 return false;
             }
@@ -262,10 +262,10 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 log.error(exception);
                 auditLog.logBadHeaders(request);
                 try {
-                    channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, exception));
+                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
                 } catch (IOException e) {
                     log.error(e,e);
-                    channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, BytesRestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
                 }
                 return false;
             }
@@ -287,10 +287,10 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 log.error("No ssl info", e);
                 auditLog.logSSLException(request, e);
                 try {
-                    channel.sendResponse(new BytesRestResponse(channel, RestStatus.FORBIDDEN, e));
+                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, e));
                 } catch (IOException ex) {
                     log.error(e,e);
-                    channel.sendResponse(new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, BytesRestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
                 }
                 return false;
             }
@@ -299,7 +299,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         }
 
         private void sendDebugInfo(RestChannel channel, AuthcResult authcResult) {
-            RestResponse response = new BytesRestResponse(authcResult.getRestStatus(), "application/json", authcResult.toPrettyJsonString());
+            RestResponse response = new RestResponse(authcResult.getRestStatus(), "application/json", authcResult.toPrettyJsonString());
             if (!authcResult.getHeaders().isEmpty()) {
                 authcResult.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
             }

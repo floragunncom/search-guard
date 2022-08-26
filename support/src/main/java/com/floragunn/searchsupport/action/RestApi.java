@@ -41,7 +41,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestResponse;
@@ -131,7 +131,7 @@ public class RestApi extends BaseRestHandler {
     public static RestResponse toRestResponse(Action.Response response, boolean prettyPrintResponse, Map<String, String> responseHeaders) {
         Format responseDocType = Format.JSON;
 
-        RestResponse restResponse = new BytesRestResponse(response.status(), responseDocType.getMediaType(),
+        RestResponse restResponse = new RestResponse(response.status(), responseDocType.getMediaType(),
                 DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response));
 
         if (response.getConcurrencyControlEntityTag() != null) {
@@ -384,7 +384,7 @@ public class RestApi extends BaseRestHandler {
                                 body = response.toString();
                             }
 
-                            RestResponse restResponse = new BytesRestResponse(status, responseDocType.getMediaType(), body);
+                            RestResponse restResponse = new RestResponse(status, responseDocType.getMediaType(), body);
 
                             if (!staticResponseHeaders.isEmpty()) {
                                 staticResponseHeaders.forEach((k, v) -> {

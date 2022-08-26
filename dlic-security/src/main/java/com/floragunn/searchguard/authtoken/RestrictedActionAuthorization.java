@@ -22,10 +22,10 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
-import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.rest.actions.Action;
+import com.floragunn.searchguard.rest.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.authz.config.ActionGroup;
-import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.rest.actions.Actions;
 
 public class RestrictedActionAuthorization implements ActionAuthorization {
 

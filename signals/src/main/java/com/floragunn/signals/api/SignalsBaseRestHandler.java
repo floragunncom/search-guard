@@ -8,7 +8,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.ToXContent;
@@ -45,7 +45,7 @@ public abstract class SignalsBaseRestHandler extends BaseRestHandler {
                 builder.rawField("detail", new ByteArrayInputStream(detailJsonDocument.getBytes(Charsets.UTF_8)), XContentType.JSON);
             }
             builder.endObject();
-            channel.sendResponse(new BytesRestResponse(status, builder));
+            channel.sendResponse(new RestResponse(status, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);
             throw ExceptionsHelper.convertToElastic(e);
@@ -66,7 +66,7 @@ public abstract class SignalsBaseRestHandler extends BaseRestHandler {
             builder.field("status", status.getStatus());
 
             builder.endObject();
-            channel.sendResponse(new BytesRestResponse(status, builder));
+            channel.sendResponse(new RestResponse(status, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);
             throw ExceptionsHelper.convertToElastic(e);

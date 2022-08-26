@@ -29,7 +29,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -71,7 +71,7 @@ public class TenantInfoAction extends BaseRestHandler {
             @Override
             public void accept(RestChannel channel) throws Exception {
                 XContentBuilder builder = channel.newBuilder(); //NOSONAR
-                BytesRestResponse response = null;
+                RestResponse response = null;
 
                 try {
 
@@ -79,7 +79,7 @@ public class TenantInfoAction extends BaseRestHandler {
 
                     //only allowed for admins or the kibanaserveruser
                     if (user == null || (!user.getName().equals(module.getConfig().getServerUsername())) && !adminDns.isAdmin(user)) {
-                        response = new BytesRestResponse(RestStatus.FORBIDDEN, "");
+                        response = new RestResponse(RestStatus.FORBIDDEN, "");
                     } else {
 
                         builder.startObject();
@@ -94,7 +94,7 @@ public class TenantInfoAction extends BaseRestHandler {
 
                         builder.endObject();
 
-                        response = new BytesRestResponse(RestStatus.OK, builder);
+                        response = new RestResponse(RestStatus.OK, builder);
                     }
                 } catch (final Exception e1) {
                     log.error(e1.toString(), e1);
@@ -102,7 +102,7 @@ public class TenantInfoAction extends BaseRestHandler {
                     builder.startObject();
                     builder.field("error", e1.toString());
                     builder.endObject();
-                    response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
+                    response = new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
                 } finally {
                     if (builder != null) {
                         builder.close();

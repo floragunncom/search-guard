@@ -34,6 +34,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
@@ -48,10 +49,10 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
     private static final Logger log = LogManager.getLogger(SearchGuardHttpServerTransport.class);
 
     public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService,
-            final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
-            final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher, ClusterSettings clusterSettings,
-            SharedGroupFactory sharedGroupFactory) {
-        super(settings, networkService, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
+                                          final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
+                                          final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher, ClusterSettings clusterSettings,
+                                          SharedGroupFactory sharedGroupFactory, Tracer tracer) {
+        super(settings, networkService, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler, tracer);
     }
 
     @Override

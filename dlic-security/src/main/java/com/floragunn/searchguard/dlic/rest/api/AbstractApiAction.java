@@ -37,7 +37,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -509,7 +509,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 			builder.field("status", status.name());
 			builder.field("message", message);
 			builder.endObject();
-			channel.sendResponse(new BytesRestResponse(status, builder));
+			channel.sendResponse(new RestResponse(status, builder));
 		} catch (IOException e) {
 		    throw ExceptionsHelper.convertToElastic(e);
 		}
@@ -519,7 +519,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         try {
             final XContentBuilder builder = channel.newBuilder();
             builder.value(response.toRedactedLegacyBasicObject());
-            channel.sendResponse(new BytesRestResponse(RestStatus.OK, builder));
+            channel.sendResponse(new RestResponse(RestStatus.OK, builder));
         } catch (Exception e) {
             log.error(e.toString(), e);
             throw ExceptionsHelper.convertToElastic(e);
@@ -527,7 +527,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
     }
 	
 	protected void badRequestResponse(RestChannel channel, AbstractConfigurationValidator validator) {
-        channel.sendResponse(new BytesRestResponse(RestStatus.BAD_REQUEST, validator.errorsAsXContent(channel)));
+        channel.sendResponse(new RestResponse(RestStatus.BAD_REQUEST, validator.errorsAsXContent(channel)));
     }
 	
 	protected void successResponse(RestChannel channel, String message) {

@@ -80,8 +80,8 @@ public class SgAwarePluginsService extends PluginsService {
                 "",
                 Collections.emptyList(),
                 false,
-                PluginType.ISOLATED,
-                "",
+                false,
+                true,
                 false);
     }
 }

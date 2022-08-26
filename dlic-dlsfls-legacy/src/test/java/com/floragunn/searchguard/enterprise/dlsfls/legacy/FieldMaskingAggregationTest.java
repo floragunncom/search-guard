@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch._types.aggregations.BucketSortAggregatio
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsAggregate;
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
 import co.elastic.clients.elasticsearch._types.aggregations.TermsAggregationCollectMode;
+import co.elastic.clients.util.NamedValue;
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.TestData;
@@ -168,7 +169,7 @@ public class FieldMaskingAggregationTest {
                 .aggregations("source_loc_terms", a->a
                         .terms(ta->ta
                             .field("source_loc.keyword")
-                            .order(Lists.newArrayList(Map.of("_key", SortOrder.Asc)))
+                            .order(Lists.newArrayList(new NamedValue<SortOrder>("_key", SortOrder.Asc)))
                             .size(100)
                             .shardSize(DOC_COUNT)
                             //.showTermDocCountError(true) //TODO with this test fails with "Make sure the request has 'typed_keys' set"

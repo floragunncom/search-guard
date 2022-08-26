@@ -46,7 +46,7 @@ import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.rest.actions.Action;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.CType;

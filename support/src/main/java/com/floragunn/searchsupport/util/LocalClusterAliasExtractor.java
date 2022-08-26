@@ -58,11 +58,6 @@ public class LocalClusterAliasExtractor {
                 }
 
                 @Override
-                public void reset() throws IOException {
-
-                }
-
-                @Override
                 public void writeBytes(byte[] b) throws IOException {
                 }
 

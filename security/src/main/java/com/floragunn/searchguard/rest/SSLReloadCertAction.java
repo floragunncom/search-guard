@@ -28,7 +28,7 @@ import java.util.List;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
@@ -68,19 +68,19 @@ public class SSLReloadCertAction extends BaseRestHandler {
             @Override
             public void accept(RestChannel channel) throws Exception {
                 if (!sslCertReloadEnabled) {
-                    BytesRestResponse response = new BytesRestResponse(RestStatus.BAD_REQUEST,
+                    RestResponse response = new RestResponse(RestStatus.BAD_REQUEST,
                             "SSL Reload action called while " + ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED + " is set to false.");
                     channel.sendResponse(response);
                     return;
                 }
 
                 XContentBuilder builder = channel.newBuilder();
-                BytesRestResponse response;
+                RestResponse response;
 
                 // Check for Super admin user
                 final User user = threadContext.getTransient(ConfigConstants.SG_USER);
                 if (user == null || !adminDns.isAdmin(user)) {
-                    response = new BytesRestResponse(RestStatus.FORBIDDEN, "");
+                    response = new RestResponse(RestStatus.FORBIDDEN, "");
                 } else {
                     try {
                         builder.startObject();
@@ -90,32 +90,32 @@ public class SSLReloadCertAction extends BaseRestHandler {
                                     keyStore.initHttpSSLConfig();
                                     builder.field("message", "updated http certs");
                                     builder.endObject();
-                                    response = new BytesRestResponse(RestStatus.OK, builder);
+                                    response = new RestResponse(RestStatus.OK, builder);
                                     break;
                                 case "transport":
                                     keyStore.initTransportSSLConfig();
                                     builder.field("message", "updated transport certs");
                                     builder.endObject();
-                                    response = new BytesRestResponse(RestStatus.OK, builder);
+                                    response = new RestResponse(RestStatus.OK, builder);
                                     break;
                                 default:
                                     builder.field("message", "invalid uri path, please use /_searchguard/api/ssl/http/reload or "
                                             + "/_searchguard/api/ssl/transport/reload");
                                     builder.endObject();
-                                    response = new BytesRestResponse(RestStatus.FORBIDDEN, builder);
+                                    response = new RestResponse(RestStatus.FORBIDDEN, builder);
                                     break;
                             }
                         } else {
                             builder.field("message", "keystore is not initialized");
                             builder.endObject();
-                            response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
+                            response = new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
                         }
                     } catch (final Exception e1) {
                         builder = channel.newBuilder();
                         builder.startObject();
                         builder.field("error", e1.toString());
                         builder.endObject();
-                        response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
+                        response = new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
                     } finally {
                         if (builder != null) {
                             builder.close();

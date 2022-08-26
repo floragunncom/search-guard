@@ -29,7 +29,7 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
@@ -181,7 +181,7 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
             }
 
             Saml2Settings saml2Settings = this.saml2SettingsProvider.getCached();
-            BytesRestResponse authenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON);
+            RestResponse authenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON);
 
             authenticateResponse.addHeader("WWW-Authenticate", getWwwAuthenticateHeader(saml2Settings));
 

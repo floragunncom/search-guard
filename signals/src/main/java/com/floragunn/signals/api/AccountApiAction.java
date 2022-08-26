@@ -14,7 +14,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -81,7 +81,7 @@ public class AccountApiAction extends SignalsBaseRestHandler {
             @Override
             public void onResponse(GetAccountResponse response) {
                 if (response.isExists()) {
-                    channel.sendResponse(new BytesRestResponse(RestStatus.OK, convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
+                    channel.sendResponse(new RestResponse(RestStatus.OK, convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
                 } else {
                     errorResponse(channel, RestStatus.NOT_FOUND, "Not found");
                 }
@@ -102,7 +102,7 @@ public class AccountApiAction extends SignalsBaseRestHandler {
                     @Override
                     public void onResponse(DeleteAccountResponse response) {
                         if (response.getResult() == DeleteAccountResponse.Result.DELETED) {
-                            channel.sendResponse(new BytesRestResponse(RestStatus.OK, convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
+                            channel.sendResponse(new RestResponse(RestStatus.OK, convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
                         } else {
                             errorResponse(channel, response.getRestStatus(), response.getMessage());
                         }
@@ -132,7 +132,7 @@ public class AccountApiAction extends SignalsBaseRestHandler {
                         if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED) {
 
                             channel.sendResponse(
-                                    new BytesRestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
+                                    new RestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
                         } else {
                             errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
                         }

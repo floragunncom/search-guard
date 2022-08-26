@@ -27,7 +27,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.rest.BaseRestHandler;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
@@ -97,7 +97,7 @@ public class PermissionsInfoAction extends BaseRestHandler {
             @Override
             public void accept(RestChannel channel) throws Exception {
                 XContentBuilder builder = channel.newBuilder(); //NOSONAR
-                BytesRestResponse response = null;
+                RestResponse response = null;
 
                 try {
 
@@ -138,14 +138,14 @@ public class PermissionsInfoAction extends BaseRestHandler {
                     }
                     builder.endObject();
                     builder.endObject();
-                    response = new BytesRestResponse(RestStatus.OK, builder);
+                    response = new RestResponse(RestStatus.OK, builder);
                 } catch (final Exception e1) {
                     e1.printStackTrace();
                     builder = channel.newBuilder(); //NOSONAR
                     builder.startObject();
                     builder.field("error", e1.toString());
                     builder.endObject();
-                    response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
+                    response = new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
                 } finally {
                     if (builder != null) {
                         builder.close();

@@ -43,7 +43,7 @@ import com.fasterxml.jackson.core.Base64Variants;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.rest.actions.Actions;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.RoleMapping;

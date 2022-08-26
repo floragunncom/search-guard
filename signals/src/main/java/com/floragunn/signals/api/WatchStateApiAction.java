@@ -10,7 +10,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
@@ -52,7 +52,7 @@ public class WatchStateApiAction extends SignalsBaseRestHandler implements Tenan
                             BytesReference statusDoc = response.getWatchToStatusMap().get(watchId);
 
                             if (statusDoc != null) {
-                                channel.sendResponse(new BytesRestResponse(RestStatus.OK, "application/json", statusDoc));
+                                channel.sendResponse(new RestResponse(RestStatus.OK, "application/json", statusDoc));
                             } else {
                                 errorResponse(channel, RestStatus.NOT_FOUND, "No such watch: " + watchId);
                             }
