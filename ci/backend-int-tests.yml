@@ -78,7 +78,7 @@ signals:
   when: always
   image: docker:${DOCKER_VERSION}
   tags:
-    - hetzner-online
+    - hetzner-online-docker
   services:
     - docker:${DOCKER_VERSION}-dind
   script:
