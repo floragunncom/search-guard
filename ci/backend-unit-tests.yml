@@ -2,7 +2,7 @@ test_security:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -37,7 +37,7 @@ test_security_legacy:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -72,7 +72,7 @@ test_ssl:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -107,7 +107,7 @@ test_signals:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -142,7 +142,7 @@ test_scheduler:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -177,7 +177,7 @@ test_support:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -212,7 +212,7 @@ test_dlic_security:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -247,7 +247,7 @@ test_dlic_security_legacy:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -282,7 +282,7 @@ test_dlic_dlsfls:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -317,7 +317,7 @@ test_dlic_dlsfls_legacy:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -352,7 +352,7 @@ test_dlic_femt:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -387,7 +387,7 @@ test_dlic_auditlog:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
@@ -422,7 +422,7 @@ test_dlic_signals:
   stage: test
   interruptible: true
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   rules:
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never

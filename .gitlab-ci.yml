@@ -18,7 +18,7 @@ variables:
 default:
   image: $SG_BUILD_IMAGE
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   interruptible: true
   timeout: 90m
   before_script:
@@ -76,7 +76,7 @@ include:
 
 upload_mvn_third_party_deps:
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   allow_failure: false
   stage: prepare
   rules:
@@ -102,7 +102,7 @@ build:
   allow_failure: false
   stage: build
   tags:
-    - hetzner-gitlab-runner-2
+    - hetzner-online
   #rules:
     #- if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
     #  when: never

@@ -78,7 +78,7 @@ signals:
   when: always
   image: docker:${DOCKER_VERSION}
   tags:
-    - hetzner-gitlab-runner-2  
+    - hetzner-online
   services:
     - docker:${DOCKER_VERSION}-dind
   script:
