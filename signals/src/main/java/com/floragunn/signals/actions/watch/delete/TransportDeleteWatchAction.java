@@ -26,6 +26,9 @@ import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 import com.floragunn.signals.SignalsUnavailableException;
 
+import java.util.List;
+import java.util.Map;
+
 public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWatchRequest, DeleteWatchResponse> {
     private static final Logger log = LogManager.getLogger(TransportDeleteWatchAction.class);
 
@@ -59,6 +62,8 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
             SignalsTenant signalsTenant = signals.getTenant(user);
             Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+            final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
+
 
             try (StoredContext ctx = threadContext.stashContext()) {
 
@@ -66,6 +71,10 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
                 threadContext.putTransient(ConfigConstants.SG_USER, user);
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
+
+                originalResponseHeaders.entrySet().forEach(
+                        h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                );
 
                 String idInIndex = signalsTenant.getWatchIdForConfigIndex(request.getWatchId());
 
@@ -84,6 +93,10 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
                                     threadContext.putTransient(ConfigConstants.SG_USER, user);
                                     threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
                                     threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
+
+                                    originalResponseHeaders.entrySet().forEach(
+                                            h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                                    );
 
                                     client.prepareDelete().setIndex(signalsTenant.getSettings().getStaticSettings().getIndexNames().getWatchesState())
                                             .setId(idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
