@@ -3,6 +3,7 @@ package com.floragunn.signals.accounts;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -46,6 +47,8 @@ public class AccountRegistry {
         User user = threadContext.getTransient(ConfigConstants.SG_USER);
         Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
         Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+        final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
+
 
         try (StoredContext ctx = threadContext.stashContext()) {
 
@@ -53,6 +56,10 @@ public class AccountRegistry {
             threadContext.putTransient(ConfigConstants.SG_USER, user);
             threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
             threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+            originalResponseHeaders.entrySet().forEach(
+                    h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+            );
 
             Map<String, Account> tmp = new HashMap<>();
 
