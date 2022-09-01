@@ -156,6 +156,22 @@ public class TestSgConfig {
 
         return this;
     }
+    
+    public TestSgConfig frontendAuthcDebug(boolean debug) {
+        return frontendAuthcDebug("default", debug);
+    }
+    
+    public TestSgConfig frontendAuthcDebug(String configId, boolean debug) {
+        if (overrideFrontendConfigSettings == null) {
+            overrideFrontendConfigSettings = new NestedValueMap();
+        }
+
+
+        overrideFrontendConfigSettings.put(new Path(configId, "debug"), debug);
+
+        return this;
+    }
+
 
     public TestSgConfig user(User user) {
         if (user.roleNames != null) {
