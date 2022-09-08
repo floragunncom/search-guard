@@ -39,12 +39,13 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
@@ -908,6 +909,21 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
             Assert.assertTrue(response.getBody(), response.toJsonNode().get("enabled").asBoolean());
+        }
+    }
+    
+    @Test
+    public void bulkConfigApi() throws Exception {
+        
+        DocNode config = DocNode.of("jwt_signing_key_hs512", TestJwk.OCT_1_K, "max_tokens_per_user", 100, "enabled", true);
+        
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {                        
+            HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));                        
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            
+            response = restClient.get("/_searchguard/config");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(config.toMap(), response.getBodyAsDocNode().get("auth_token_service", "content"));
         }
     }
 
