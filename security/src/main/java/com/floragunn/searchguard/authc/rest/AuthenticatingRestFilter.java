@@ -107,7 +107,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     AuthenticatingRestFilter.this.authenticationProcessor = authenticationProcessor;
 
                     componentState.replacePartsWithType("config", config.getComponentState());
-                    componentState.replacePart(authenticationProcessor.getComponentState());
+                    componentState.replacePartsWithType("rest_authentication_processor", authenticationProcessor.getComponentState());
                     componentState.updateStateFromParts();
 
                     if (log.isDebugEnabled()) {
@@ -120,7 +120,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     AuthenticatingRestFilter.this.authenticationProcessor = authenticationProcessor;
 
                     componentState.replacePartsWithType("config", legacyConfig.getComponentState());
-                    componentState.replacePart(authenticationProcessor.getComponentState());
+                    componentState.replacePartsWithType("rest_authentication_processor", authenticationProcessor.getComponentState());
                     componentState.updateStateFromParts();
 
                     if (log.isDebugEnabled()) {
