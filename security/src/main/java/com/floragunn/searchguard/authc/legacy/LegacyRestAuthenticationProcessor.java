@@ -73,7 +73,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
     private final ClientAddressAscertainer clientAddressAscertainer;
     private final IPAddressAcceptanceRules ipAddressAcceptanceRules;
     private final List<String> requiredLoginPrivileges = Collections.emptyList();
-    private final ComponentState componentState = new ComponentState("legacy_rest_authentication_processor");
+    private final ComponentState componentState = new ComponentState(0, "rest_authentication_processor", "legacy_rest_authentication_processor");
 
     private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
 
