@@ -25,14 +25,14 @@ import org.junit.Test;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.rest.actions.Action;
-import com.floragunn.searchguard.rest.actions.Action.WellKnownAction;
-import com.floragunn.searchguard.rest.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.rest.actions.Actions;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.user.User;
 
 public class RoleBasedActionAuthorizationTests {

@@ -25,8 +25,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.rest.actions.Action.WellKnownAction;
-import com.floragunn.searchguard.rest.actions.Action.WellKnownAction.Resource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 
 public class ExtendedActionHandlingService {
     private final ResourceOwnerService resourceOwnerService;
