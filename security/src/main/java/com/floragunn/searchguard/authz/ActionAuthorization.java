@@ -18,8 +18,8 @@
 package com.floragunn.searchguard.authz;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.rest.actions.Action;
-import com.floragunn.searchguard.rest.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 
 /**
  * Common interface for checking authorization for actions.

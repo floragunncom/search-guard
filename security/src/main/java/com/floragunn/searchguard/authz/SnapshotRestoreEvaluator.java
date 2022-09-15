@@ -27,7 +27,7 @@ import org.elasticsearch.tasks.Task;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.rest.actions.Action;
+import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.support.SnapshotRestoreHelper;
 

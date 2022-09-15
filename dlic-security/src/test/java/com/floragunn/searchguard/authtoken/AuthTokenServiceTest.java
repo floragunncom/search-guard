@@ -32,7 +32,7 @@ import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.rest.actions.Actions;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.StaticSgConfig;

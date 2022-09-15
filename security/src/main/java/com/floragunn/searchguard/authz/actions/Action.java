@@ -15,7 +15,7 @@
  * 
  */
 
-package com.floragunn.searchguard.rest.actions;
+package com.floragunn.searchguard.authz.actions;
 
 import java.time.Instant;
 import java.util.Collection;
