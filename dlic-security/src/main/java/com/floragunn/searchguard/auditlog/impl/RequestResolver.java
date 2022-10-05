@@ -351,7 +351,7 @@ public final class RequestResolver {
         final Set<String> allIndices;
         
         if(resolveIndices) {
-            final String[] resolvedIndices = (resolver==null)?new String[0]:resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indices);
+            final String[] resolvedIndices = (resolver==null)?new String[0]:resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), true, indices);
             msg.addResolvedIndices(resolvedIndices);
             allIndices = new HashSet<String>(resolvedIndices.length+_indices.length);
             allIndices.addAll(Arrays.asList(_indices));

@@ -232,7 +232,12 @@ public final class IndexResolverReplacer implements DCFListener {
             List<String> _indices;
             try {
                 _indices = new ArrayList<>(
-                        Arrays.asList(resolver.concreteIndexNames(state, indicesOptions, localRequestedPatterns.toArray(new String[0]))));
+                        Arrays.asList(resolver.concreteIndexNames(
+                                state,
+                                indicesOptions,
+                                true,
+                                localRequestedPatterns.toArray(new String[0])
+                        )));
                 if (log.isDebugEnabled()) {
                     log.debug("Resolved pattern {} to {}", localRequestedPatterns, _indices);
                 }
@@ -402,7 +407,7 @@ public final class IndexResolverReplacer implements DCFListener {
         
         public Set<String> getAllIndicesResolved(ClusterService clusterService, IndexNameExpressionResolver resolver) {
             if (localAll) {                        
-                return new HashSet<>(Arrays.asList(resolver.concreteIndexNames(clusterService.state(), indicesOptions, "*")));
+                return new HashSet<>(Arrays.asList(resolver.concreteIndexNames(clusterService.state(), indicesOptions, true,"*")));
             } else {            
                 return allIndices;
             }
