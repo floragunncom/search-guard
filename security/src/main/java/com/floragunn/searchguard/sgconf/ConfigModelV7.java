@@ -1189,12 +1189,12 @@ public class ConfigModelV7 extends ConfigModel {
                         .toArray(String[]::new);
 
                 if (aliasesForPermittedPattern != null && aliasesForPermittedPattern.length > 0) {
-                    resolved = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), aliasesForPermittedPattern);
+                    resolved = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), true, aliasesForPermittedPattern);
                 }
             }
 
             if (resolved == null && !unresolved.isEmpty()) {
-                resolved = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), unresolved);
+                resolved = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), true, unresolved);
             }
             if (resolved == null || resolved.length == 0) {
                 return new String[]{unresolved};
@@ -1313,7 +1313,7 @@ public class ConfigModelV7 extends ConfigModel {
                         .map(e -> e.getKey()).toArray(String[]::new);
                 
                 if (aliasesForPermittedPattern.length > 0) {
-                    String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(),
+                    String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), true,
                             aliasesForPermittedPattern);
 
                     for (String resolvedAlias : resolvedAliases) {
@@ -1339,7 +1339,7 @@ public class ConfigModelV7 extends ConfigModel {
                     return true;
                 }
                 
-                String [] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indexPattern);
+                String [] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), true, indexPattern);
                 
                 for (String resolvedAlias : resolvedAliases) {
                     if (indices.contains(resolvedAlias)) {
@@ -1390,7 +1390,7 @@ public class ConfigModelV7 extends ConfigModel {
 
                 if (aliasesForPermittedPattern.length > 0) {
 
-                    String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(),
+                    String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), true,
                             aliasesForPermittedPattern);
 
                     for (String resolvedAlias : resolvedAliases) {
@@ -1415,7 +1415,7 @@ public class ConfigModelV7 extends ConfigModel {
                     return;
                 }
 
-                String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), indexPattern);
+                String[] resolvedAliases = resolver.concreteIndexNames(cs.state(), IndicesOptions.lenientExpandOpen(), true, indexPattern);
 
                 for (String resolvedAlias : resolvedAliases) {
                     indices.remove(resolvedAlias);
