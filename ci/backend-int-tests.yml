@@ -66,11 +66,17 @@ compliance_ccs:
   variables:
     TEST_DEFINITIONS: ".*compliance_ccs.*"
 
-signals:
+signals_1:
   extends:
   - .be_integration_test
   variables:
-    TEST_DEFINITIONS: ".*signals.*"
+    TEST_DEFINITIONS: ".*signals_1.*"
+
+signals_2:
+  extends:
+    - .be_integration_test
+  variables:
+    TEST_DEFINITIONS: ".*signals_2.*"
 
 .be_integration_test:
   allow_failure: false
