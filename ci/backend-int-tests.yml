@@ -97,17 +97,12 @@ signals:
     - |
        #apk update
        #apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo
-
-       set +e
-       ls -la
-       ls -la plugin/target/releases/
-       set -e
        
        sudo sysctl -w vm.max_map_count=262144
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION"
        echo "TEST_DEFINITIONS $TEST_DEFINITIONS"
-       echo "ES_VERSION_POM: $ES_VERSION_POM"
-       MAJOR="$(echo $ES_VERSION_POM | cut -d. -f1-2)"
+       echo "ES_VERSION: $ES_VERSION"
+       MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
        TEST_IT_BRANCH="${MAJOR}.x"
        echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
        git clone --depth 1 --branch $TEST_IT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/sgi8.git > /dev/null

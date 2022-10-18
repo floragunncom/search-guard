@@ -35,23 +35,17 @@ default:
         set -e
 
         if [ -z "$CI_COMMIT_TAG" ]; then 
-          echo "No CI_COMMIT_TAG set";
-        else
+          export ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
+          echo "No CI_COMMIT_TAG set, infer ES version from POM: $ES_VERSION";
+          #no need to set SG_VERSION version here because its only used in the release job
+      else
           # $CI_COMMIT_TAG: sg-flx-1.0.0-es-8.2.3
           export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
           export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
           echo "SG_VERSION: $SG_VERSION"
           echo "ES_VERSION: $ES_VERSION"
         fi
-        
-        if [ -f pom.xml ]; then
-            export ES_VERSION_POM=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
-            echo "ES_VERSION_POM: $ES_VERSION_POM"
-            #[ ! -z "$CI_COMMIT_TAG" ] && [ "$ES_VERSION" != "$ES_VERSION_POM" ] && (echo "ES version of commit tag ($ES_VERSION) does not match version in pom ($ES_VERSION_POM)"; exit 1)
-        else
-            echo "No pom.xml found"
-        fi
-        
+
 stages:
   - prepare
   - build
@@ -80,16 +74,16 @@ upload_mvn_third_party_deps:
   script:
     - |
        set +e
-       echo "Check if we need to upload 3rd party artifacts for ES $ES_VERSION_POM"
-       curl --fail -Ss -XHEAD -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" "https://maven.search-guard.com/api/storage/third-party/org/elasticsearch/plugin/transport-netty4/$ES_VERSION_POM/transport-netty4-$ES_VERSION_POM.pom"
+       echo "Check if we need to upload 3rd party artifacts for ES $ES_VERSION"
+       curl --fail -Ss -XHEAD -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" "https://maven.search-guard.com/api/storage/third-party/org/elasticsearch/plugin/transport-netty4/$ES_VERSION/transport-netty4-$ES_VERSION.pom"
        retVal=$?
 
        set -e
        if [ $retVal -ne 0 ]; then
-         echo "Upload artifacts for ES $ES_VERSION_POM"
-         ./dev/populate_maven.sh "$ES_VERSION_POM" remote
+         echo "Upload artifacts for ES $ES_VERSION"
+         ./dev/populate_maven.sh "$ES_VERSION" remote
        else
-         echo "Artifacts already uploaded for ES $ES_VERSION_POM"
+         echo "Artifacts already uploaded for ES $ES_VERSION"
        fi
        
 build:
@@ -104,7 +98,7 @@ build:
        SNAPSHOT_REVISION="$CI_COMMIT_REF_NAME-SNAPSHOT"
        mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -DskipTests clean deploy
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
-       echo "ES_VERSION_POM=$ES_VERSION_POM" >> snapshot.env
+       echo "ES_VERSION=$ES_VERSION" >> snapshot.env
        cat snapshot.env
   artifacts:
     when: on_success
@@ -129,22 +123,17 @@ deploy_release:
     - ./dev/setup_gpg.sh
     - |
       
-      set +e
-      ls -la
-      ls -la plugin/target/releases/
-      set -e
-
       DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
+      echo "Release DEPLOY_VERSION: $DEPLOY_VERSION"
+      echo "Release ES_VERSION: $ES_VERSION"
+      echo "Release SG_VERSION: $SG_VERSION"
       
       MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
       TEST_IT_BRANCH="${MAJOR}.x"
       echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
 
-      echo "DEPLOY_VERSION: $DEPLOY_VERSION"
-      echo "ES_VERSION_POM: $ES_VERSION_POM"
-
       curl --request POST --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN_SGI8" "https://git.floragunn.com/api/v4/projects/215/repository/tags?tag_name=$CI_COMMIT_TAG&ref=$TEST_IT_BRANCH" || true
 
       echo "Deploying Release to production repo"
-      mvn deploy $MAVEN_CLI_OPTS -DskipTests -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION
+      mvn clean deploy $MAVEN_CLI_OPTS -DskipTests -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION
   
