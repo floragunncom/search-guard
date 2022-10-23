@@ -1216,7 +1216,6 @@ public class RestApiTest {
     }
 
     @Test
-    //FLAKY
     public void testAckWatch() throws Exception {
         String tenant = "_main";
         String watchId = "ack_test";

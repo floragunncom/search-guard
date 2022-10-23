@@ -35,8 +35,11 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.signals.NoSuchActionException;
 import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.support.NestedValueMap;
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.action.invokers.AlertAction;
 import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.severity.SeverityLevel;
 
@@ -70,14 +73,25 @@ public class WatchState implements ToXContentObject {
         return this.actions.computeIfAbsent(actionId, (key) -> new ActionState());
     }
 
-    public List<String> ack(String user) {
+    public List<String> ack(String user, Watch watch) {
         Map<String, ActionState> allActionStates = new HashMap<>(actions);
 
         List<String> ackedActions = new ArrayList<>(allActionStates.size());
 
         for (Map.Entry<String, ActionState> entry : allActionStates.entrySet()) {
-            if (entry.getValue().ackIfPossible(user)) {
-                ackedActions.add(entry.getKey());
+            try {
+                AlertAction action = watch.getActionByName(entry.getKey());
+
+                if (!action.isAcknowledgable()) {
+                    log.debug("Action is not marked as acknowledgable: " + entry.getKey() + "; skipping.");
+                    continue;
+                }
+
+                if (entry.getValue().ackIfPossible(user)) {
+                    ackedActions.add(entry.getKey());
+                }
+            } catch (NoSuchActionException e) {
+                log.error("Error in ack(): Cannot find action " + entry.getKey(), e);
             }
         }
 

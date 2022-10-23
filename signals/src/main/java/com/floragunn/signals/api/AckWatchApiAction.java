@@ -1,3 +1,20 @@
+/*
+ * Copyright 2019-2022 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.api;
 
 import static org.elasticsearch.rest.RestRequest.Method.DELETE;
@@ -51,6 +68,10 @@ public class AckWatchApiAction extends SignalsBaseRestHandler implements TenantA
                                 errorResponse(channel, RestStatus.NOT_FOUND, response.getStatusMessage());
                             } else if (response.getStatus() == AckWatchResponse.Status.ILLEGAL_STATE) {
                                 errorResponse(channel, RestStatus.PRECONDITION_FAILED, response.getStatusMessage());
+                            } else if (response.getStatus() == AckWatchResponse.Status.NO_SUCH_ACTION) {
+                                errorResponse(channel, RestStatus.NOT_FOUND, response.getStatusMessage());                                
+                            } else if (response.getStatus() == AckWatchResponse.Status.NOT_ACKNOWLEDGABLE) {
+                                errorResponse(channel, RestStatus.BAD_REQUEST, response.getStatusMessage());                                
                             } else {
                                 errorResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, response.getStatusMessage());
                             }

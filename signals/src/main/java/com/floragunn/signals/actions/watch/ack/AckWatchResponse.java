@@ -83,7 +83,7 @@ public class AckWatchResponse extends BaseNodesResponse<TransportAckWatchAction.
     }
 
     public static enum Status {
-        SUCCESS, NO_SUCH_WATCH, EXCEPTION, ILLEGAL_STATE, NO_SUCH_TENANT, UNAUTHORIZED
+        SUCCESS, NO_SUCH_WATCH, EXCEPTION, ILLEGAL_STATE, NO_SUCH_TENANT, UNAUTHORIZED, NO_SUCH_ACTION, NOT_ACKNOWLEDGABLE
     }
 
     public Status getStatus() {
