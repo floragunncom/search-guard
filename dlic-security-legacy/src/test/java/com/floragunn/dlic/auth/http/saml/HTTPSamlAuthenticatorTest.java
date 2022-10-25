@@ -634,6 +634,11 @@ public class HTTPSamlAuthenticatorTest {
         }
 
         @Override
+        public void releaseOutputBuffer() {
+
+        }
+
+        @Override
         public RestRequest request() {
             return restRequest;
         }
