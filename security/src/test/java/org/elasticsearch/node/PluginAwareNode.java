@@ -23,17 +23,15 @@ import org.elasticsearch.env.Environment;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SgAwarePluginsService;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class PluginAwareNode extends Node {
 
-    private static final AtomicBoolean l = new AtomicBoolean();
+    private static final AtomicBoolean loggingInitialized = new AtomicBoolean();
     
     private final boolean masterEligible;
 
@@ -48,7 +46,7 @@ public class PluginAwareNode extends Node {
     }
 
     private static Environment configureESLogging(Environment environment) {
-        if (!l.get()) {
+        if (!loggingInitialized.get()) {
             try {
                 environment.configFile().toFile().mkdirs();
                 byte[] log4jprops = Files.readAllBytes(Paths.get("src/test/resources/log4j2-test.properties"));
@@ -56,7 +54,7 @@ public class PluginAwareNode extends Node {
                 LogConfigurator.registerErrorListener();
                 LogConfigurator.setNodeName("node");
                 LogConfigurator.configure(environment, true);
-                l.set(true);
+                loggingInitialized.set(true);
                 return environment;
             } catch(Exception e){
                 e.printStackTrace();
