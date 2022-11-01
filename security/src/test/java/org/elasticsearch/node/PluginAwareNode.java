@@ -17,10 +17,15 @@
 
 package org.elasticsearch.node;
 
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SgAwarePluginsService;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 
@@ -32,11 +37,26 @@ public class PluginAwareNode extends Node {
         this(masterEligible, preparedSettings, Collections.emptyList());
     }
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings, List<Class<? extends Plugin>> additionalPlugins) {
-        super(InternalSettingsPreparer.prepareEnvironment(preparedSettings, Collections.emptyMap(),
-                null, () -> System.getenv("HOSTNAME")),
+        super(configureESLogging(InternalSettingsPreparer.prepareEnvironment(preparedSettings, Collections.emptyMap(),
+                null, () -> System.getenv("HOSTNAME"))),
                 settings -> new SgAwarePluginsService(settings, additionalPlugins), true);
         this.masterEligible = masterEligible;
     }
+
+    private static Environment configureESLogging(Environment environment) {
+        try {
+            environment.configFile().toFile().mkdirs();
+            byte[] log4jprops = Files.readAllBytes(Paths.get("src/test/resources/log4j2-test.properties"));
+            Files.write(environment.configFile().resolve("log4j2.properties"), log4jprops);
+            LogConfigurator.registerErrorListener();
+            LogConfigurator.setNodeName("node");
+            LogConfigurator.configure(environment, true);
+            return environment;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public boolean isMasterEligible() {
         return masterEligible;
     }
