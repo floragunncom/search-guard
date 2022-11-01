@@ -115,6 +115,6 @@ public class DlsTermsLookupAsserts {
             return Optional.ofNullable(agg.buckets().keyed().get(bucketName));
         }
 
-        return agg.buckets().array().stream().filter(p->p.key().equals(bucketName)).findFirst();
+        return agg.buckets().array().stream().filter(p->p.key().stringValue().equals(bucketName)).findFirst();
     }
 }
