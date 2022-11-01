@@ -28,8 +28,12 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class PluginAwareNode extends Node {
+
+    private static final AtomicBoolean l = new AtomicBoolean();
     
     private final boolean masterEligible;
 
@@ -44,16 +48,22 @@ public class PluginAwareNode extends Node {
     }
 
     private static Environment configureESLogging(Environment environment) {
-        try {
-            environment.configFile().toFile().mkdirs();
-            byte[] log4jprops = Files.readAllBytes(Paths.get("src/test/resources/log4j2-test.properties"));
-            Files.write(environment.configFile().resolve("log4j2.properties"), log4jprops);
-            LogConfigurator.registerErrorListener();
-            LogConfigurator.setNodeName("node");
-            LogConfigurator.configure(environment, true);
+        if (!l.get()) {
+            try {
+                environment.configFile().toFile().mkdirs();
+                byte[] log4jprops = Files.readAllBytes(Paths.get("src/test/resources/log4j2-test.properties"));
+                Files.write(environment.configFile().resolve("log4j2.properties"), log4jprops);
+                LogConfigurator.registerErrorListener();
+                LogConfigurator.setNodeName("node");
+                LogConfigurator.configure(environment, true);
+                l.set(true);
+                return environment;
+            } catch(Exception e){
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
+        } else {
             return environment;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
