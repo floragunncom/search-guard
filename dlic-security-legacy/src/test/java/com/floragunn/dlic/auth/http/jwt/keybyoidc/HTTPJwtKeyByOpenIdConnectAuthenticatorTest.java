@@ -21,6 +21,7 @@ import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.create;
 import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.createSigned;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collections;
@@ -366,6 +367,11 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         }
 
         @Override
+        public void releaseOutputBuffer() {
+
+        }
+
+        @Override
         public RestRequest request() {
             return restRequest;
         }
@@ -383,6 +389,11 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
         @Override
         public XContentBuilder newBuilder(XContentType xContentType, XContentType responseContentType, boolean useFiltering) throws IOException {
+            return null;
+        }
+
+        @Override
+        public XContentBuilder newBuilder(XContentType xContentType, XContentType responseContentType, boolean useFiltering, OutputStream out) throws IOException {
             return null;
         }
     }

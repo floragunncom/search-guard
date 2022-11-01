@@ -17,6 +17,7 @@ package com.floragunn.dlic.auth.http.saml;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -634,6 +635,11 @@ public class HTTPSamlAuthenticatorTest {
         }
 
         @Override
+        public void releaseOutputBuffer() {
+
+        }
+
+        @Override
         public RestRequest request() {
             return restRequest;
         }
@@ -651,6 +657,11 @@ public class HTTPSamlAuthenticatorTest {
 
         @Override
         public XContentBuilder newBuilder(XContentType xContentType, XContentType responseContentType, boolean useFiltering) throws IOException {
+            return null;
+        }
+
+        @Override
+        public XContentBuilder newBuilder(XContentType xContentType, XContentType responseContentType, boolean useFiltering, OutputStream out) throws IOException {
             return null;
         }
     }

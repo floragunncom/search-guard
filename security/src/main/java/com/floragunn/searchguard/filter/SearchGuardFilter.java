@@ -132,7 +132,7 @@ public class SearchGuardFilter implements ActionFilter {
 
         specialPrivilegesEvaluationContextProviderRegistry.provide(threadContext.getTransient(ConfigConstants.SG_USER), threadContext,
                 (specialPrivilegesEvaluationContext) -> {
-                    try (StoredContext ctx = threadContext.newStoredContext(true)) {
+                    try (StoredContext ctx = threadContext.newStoredContext()) {
                         apply0(task, action, request, listener, chain, specialPrivilegesEvaluationContext);
                     } catch (Exception e) {
                         log.error("Error in apply()", e);

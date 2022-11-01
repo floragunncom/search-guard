@@ -1,11 +1,8 @@
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
-import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
-import co.elastic.clients.elasticsearch._types.aggregations.BucketSortAggregation;
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsAggregate;
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
-import co.elastic.clients.elasticsearch._types.aggregations.TermsAggregationCollectMode;
 import co.elastic.clients.util.NamedValue;
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -102,7 +99,7 @@ public class FieldMaskingAggregationTest {
 
             for (StringTermsBucket maskedBucket: maskedAggregation.buckets().array()) {
                 Assert.assertEquals("Bucket " + maskedBucket.key() + ":\n" + maskedBucket.aggregations(),
-                        referenceAggregationTable.getCount("source_ip:masked", maskedBucket.key()), maskedBucket.docCount());
+                        referenceAggregationTable.getCount("source_ip:masked", maskedBucket.key().stringValue()), maskedBucket.docCount());
             }
         }
     }
@@ -199,7 +196,7 @@ public class FieldMaskingAggregationTest {
             StringTermsBucket maskedBucket = maskedAggregation.buckets().array().get(i);
 
             Assert.assertEquals("Bucket " + i + ":\n" + (maskedBucket),
-                    referenceAggregationTable.getCount("source_loc:hash", maskedBucket.key()), maskedBucket.docCount());
+                    referenceAggregationTable.getCount("source_loc:hash", maskedBucket.key().stringValue()), maskedBucket.docCount());
         }
 
         //TODO we do nothing with unmaskedSearchResponse here
@@ -238,8 +235,8 @@ public class FieldMaskingAggregationTest {
             Assert.assertEquals("Bucket " + i + ":\n" + (unmaskedBucket) + "\n" + (maskedBucket), unmaskedBucket.docCount(),
                     unmaskedBucket.docCount());
 
-            groupedUnmaskedTermsByCount.add(Masks.blake2bHash(unmaskedBucket.key()));
-            groupedMaskedTermsByCount.add(maskedBucket.key());
+            groupedUnmaskedTermsByCount.add(Masks.blake2bHash(unmaskedBucket.key().stringValue()));
+            groupedMaskedTermsByCount.add(maskedBucket.key().stringValue());
 
             prevUnmaskedBucket = unmaskedBucket;
 

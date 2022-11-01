@@ -94,7 +94,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                 
         String initialActionClassValue = getThreadContext().getHeader(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER);
         
-        final ThreadContext.StoredContext sgContext = getThreadContext().newStoredContext(false);
+        final ThreadContext.StoredContext sgContext = getThreadContext().newStoredContext();
 
         final String originHeader = getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER);
 

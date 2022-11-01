@@ -136,7 +136,7 @@ public class DlsFilterLevelActionHandler {
 
     private SyncAuthorizationFilter.Result handle() {
 
-        try (StoredContext ctx = threadContext.newStoredContext(true)) {
+        try (StoredContext ctx = threadContext.newStoredContext()) {
 
             threadContext.putHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE, request.toString());
 

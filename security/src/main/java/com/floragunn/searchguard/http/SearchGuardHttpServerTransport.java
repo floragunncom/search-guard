@@ -30,6 +30,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
+import org.elasticsearch.rest.ChunkedRestResponseBody;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
@@ -139,6 +140,11 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
 
                 @Override
                 public HttpResponse createResponse(RestStatus status, BytesReference content) {
+                    return httpRequest.createResponse(status, content);
+                }
+
+                @Override
+                public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBody content) {
                     return httpRequest.createResponse(status, content);
                 }
 
