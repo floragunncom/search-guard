@@ -82,14 +82,18 @@ public class StandardResponse extends Action.Response {
     }
 
     public StandardResponse data(Map<?, ? extends Document<?>> map) {
-        Map<String, Object> plainMap = new LinkedHashMap<>(map.size());
+        if(map == null) {
+            this.data = null;
+        } else {
 
-        for (Map.Entry<?, ? extends Document<?>> entry : map.entrySet()) {
-            plainMap.put(String.valueOf(entry.getKey()), entry.getValue() != null ? entry.getValue().toBasicObject() : null);
+            Map<String, Object> plainMap = new LinkedHashMap<>(map.size());
+
+            for (Map.Entry<?, ? extends Document<?>> entry : map.entrySet()) {
+                plainMap.put(String.valueOf(entry.getKey()), entry.getValue() != null ? entry.getValue().toBasicObject() : null);
+            }
+
+            this.data = plainMap;
         }
-
-        this.data = plainMap;
-
         return this;
     }
 
