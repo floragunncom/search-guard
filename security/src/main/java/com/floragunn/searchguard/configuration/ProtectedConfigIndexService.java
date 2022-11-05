@@ -47,6 +47,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
@@ -120,6 +121,11 @@ public class ProtectedConfigIndexService {
 
         if (log.isTraceEnabled()) {
             log.trace("checkClusterState()\npendingIndices: " + pendingIndices);
+        }
+
+        if (clusterState.blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
+            log.trace("State not yet recovered. Waiting more.");
+            return;
         }
 
         if (clusterState.nodes().isLocalNodeElectedMaster() || clusterState.nodes().getMasterNode() != null) {

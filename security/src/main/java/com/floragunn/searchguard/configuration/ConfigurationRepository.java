@@ -44,6 +44,8 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
@@ -54,6 +56,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.env.Environment;
+import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
@@ -236,8 +239,23 @@ public class ConfigurationRepository implements ComponentStateProvider {
         });
         
     }
-    
+
     public void initOnNodeStart() {
+        this.clusterService.addListener(new ClusterStateListener() {
+
+            @Override
+            public void clusterChanged(ClusterChangedEvent event) {
+                if (!event.state().blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
+                    clusterService.removeListener(this);
+                    componentState.setState(State.INITIALIZING, "cluster_state_recovered");
+                    LOGGER.info("Cluster state has been recovered. Starting config index initialization.");
+                    initOnNodeStart0();
+                }
+            }
+        });
+    }
+    
+    private void initOnNodeStart0() {
 
         LOGGER.info("Check if " + searchguardIndex + " index exists ...");
 
