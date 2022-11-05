@@ -67,7 +67,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     private long primaryTerm = SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
     private String uninterpolatedJson;
     private long docVersion = -1;
-    private ValidationErrors validationErrors;
 
     public static <T> SgDynamicConfiguration<T> empty(CType<T> type) {
         return new SgDynamicConfiguration<T>(type, OrderedImmutableMap.empty());
@@ -151,6 +150,11 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     }
 
     private SgDynamicConfiguration(CType<T> ctype, OrderedImmutableMap<String, T> entries, long seqNo, long primaryTerm, long docVersion,
+                                   String uninterpolatedJson) {
+        this(ctype, entries, seqNo, primaryTerm, docVersion, uninterpolatedJson, null);
+    }
+
+    private SgDynamicConfiguration(CType<T> ctype, OrderedImmutableMap<String, T> entries, long seqNo, long primaryTerm, long docVersion,
             String uninterpolatedJson, ValidationErrors validationErrors) {
         super();
         this.centries = entries;
@@ -159,12 +163,11 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         this.primaryTerm = primaryTerm;
         this.uninterpolatedJson = uninterpolatedJson;
         this.docVersion = docVersion;
-        this.validationErrors = validationErrors;
 
         this.componentState = new ComponentState(0, "config", ctype.getName());
         this.componentState.setConfigVersion(docVersion);
 
-        if (validationErrors.hasErrors()) {
+        if (validationErrors != null && validationErrors.hasErrors()) {
             log.error("Errors in configuration " + ctype + "\n" + validationErrors.toDebugString());
             this.componentState.setState(State.PARTIALLY_INITIALIZED, "has_errors");
             this.componentState.addDetail(validationErrors.toBasicObject());
@@ -182,16 +185,15 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     }
 
     public SgDynamicConfiguration<T> with(String key, T entry) {
-        return new SgDynamicConfiguration<>(ctype, centries.with(key, entry), seqNo, primaryTerm, docVersion, null, validationErrors);
+        return new SgDynamicConfiguration<>(ctype, centries.with(key, entry), seqNo, primaryTerm, docVersion, null);
     }
 
     public SgDynamicConfiguration<T> with(Map<String, T> map) {
-        return new SgDynamicConfiguration<>(ctype, centries.with(OrderedImmutableMap.of(map)), seqNo, primaryTerm, docVersion, uninterpolatedJson,
-                validationErrors);
+        return new SgDynamicConfiguration<>(ctype, centries.with(OrderedImmutableMap.of(map)), seqNo, primaryTerm, docVersion, uninterpolatedJson);
     }
 
     public SgDynamicConfiguration<T> without(String key) {
-        return new SgDynamicConfiguration<>(ctype, centries.without(key), seqNo, primaryTerm, docVersion, null, validationErrors);
+        return new SgDynamicConfiguration<>(ctype, centries.without(key), seqNo, primaryTerm, docVersion, null);
     }
 
     public SgDynamicConfiguration<T> withoutStatic() {
@@ -203,7 +205,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             }
         }
 
-        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
+        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson);
     }
 
     public SgDynamicConfiguration<T> withoutHidden() {
@@ -215,7 +217,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
             }
         }
 
-        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
+        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson);
     }
 
     public SgDynamicConfiguration<T> only(String key) {
@@ -224,7 +226,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         if (entry == null) {
             return empty(ctype);
         } else {
-            return new SgDynamicConfiguration<>(ctype, OrderedImmutableMap.of(key, entry), seqNo, primaryTerm, docVersion, null, validationErrors);
+            return new SgDynamicConfiguration<>(ctype, OrderedImmutableMap.of(key, entry), seqNo, primaryTerm, docVersion, null);
         }
     }
 
@@ -352,10 +354,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
 
     public static interface HasLegacyFormat {
         Object toRedactedLegacyBasicObject();
-    }
-
-    public ValidationErrors getValidationErrors() {
-        return validationErrors;
     }
 
     @Override
