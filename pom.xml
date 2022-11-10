@@ -115,7 +115,17 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-        </repository>   		
+        </repository>
+		<repository>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+			<id>third-party</id>
+			<url>https://maven.search-guard.com:443/third-party</url>
+		</repository>
 	</repositories>
 	<distributionManagement>
 		<repository>

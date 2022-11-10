@@ -1,7 +1,7 @@
 variables:
   SG_JAVA_BUILD_VERSION: "11"
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
-  MAVEN_CLI_OPTS: "--batch-mode"
+  MAVEN_CLI_OPTS: "--batch-mode -s settings.xml"
   DOCKER_DRIVER: overlay2
   #SG_KI_PLUGIN: ""
   #KI_VERSION: ""
@@ -19,8 +19,16 @@ before_script:
   # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
   - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
   - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
+#  - |
+#      if [ -f pom.xml ]; then
+#          export ES_VERSION_POM=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
+#          echo "ES_VERSION_POM: $ES_VERSION_POM"
+#      else
+#          echo "No pom.xml found"
+#      fi
 
 stages:
+  #- prepare
   - build
   - test
   - package
@@ -38,6 +46,24 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
       when: never
     - when: always
+
+#upload_mvn_third_party_deps:
+#  allow_failure: false
+#  stage: prepare
+#  script:
+#    - |
+#      set +e
+#      echo "Check if we need to upload 3rd party artifacts for ES $ES_VERSION_POM"
+#      curl --fail -Ss -XHEAD -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" "https://maven.search-guard.com/api/storage/third-party/org/elasticsearch/painless/lang-painless/$ES_VERSION_POM/lang-painless-$ES_VERSION_POM.jar"
+#      retVal=$?
+#
+#      set -e
+#      if [ $retVal -ne 0 ]; then
+#        echo "Upload artifacts for ES $ES_VERSION_POM"
+#        ./dev/populate_maven.sh "$ES_VERSION_POM" remote
+#      else
+#        echo "Artifacts already uploaded for ES $ES_VERSION_POM"
+#      fi
 
 build:
   stage: build
@@ -373,7 +399,7 @@ deploy_snapshot:
   script:
     - |
       set -x
-      mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
+      mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests deploy | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
       SG_ADMIN="https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-elasticsearch-plugin/1.0.0-beta-2-es-7.17.3/search-guard-flx-elasticsearch-plugin-1.0.0-beta-2-es-7.17.3-sgadmin-standalone.zip"
       ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)

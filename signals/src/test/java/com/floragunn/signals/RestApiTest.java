@@ -224,7 +224,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testPutWatchWithSeverity() throws Exception {
         String tenant = "_main";
@@ -272,7 +271,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testPutWatchWithSeverityValidation() throws Exception {
         String tenant = "_main";
@@ -302,7 +300,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testPutWatchWithSeverity2() throws Exception {
         String tenant = "_main";
@@ -469,7 +466,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testPutInvalidWatch() throws Exception {
         String tenant = "_main";
@@ -500,7 +496,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), "cannot resolve symbol [x]",
                     parsedResponse.path("detail").path("checks[].source").path(0).path("error").asText());
             Assert.assertTrue(response.getBody(),
-                    parsedResponse.path("detail").path("trigger.schedule.cron").path(0).path("error").asText().contains("Invalid cron expression"));
+                    parsedResponse.path("detail").path("trigger.schedule.cron.0").path(0).path("error").asText().contains("Invalid cron expression"));
             Assert.assertTrue(response.getBody(),
                     parsedResponse.path("detail").path("trigger.schedule.x").path(0).path("error").asText().contains("Unsupported attribute"));
             Assert.assertEquals(response.getBody(), "Required attribute is missing",
@@ -1015,7 +1011,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testExecuteAnonymousWatchWithShowAllRuntimeAttributes() throws Exception {
 
@@ -1220,7 +1215,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     //FLAKY
     public void testAckWatch() throws Exception {
@@ -1306,7 +1300,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testUnAckOfFreshWatch() throws Exception {
         String tenant = "_main";
