@@ -28,7 +28,7 @@ before_script:
 #      fi
 
 stages:
-  #- prepare
+  - prepare
   - build
   - test
   - package
@@ -47,23 +47,23 @@ workflow:
       when: never
     - when: always
 
-#upload_mvn_third_party_deps:
-#  allow_failure: false
-#  stage: prepare
-#  script:
-#    - |
-#      set +e
-#      echo "Check if we need to upload 3rd party artifacts for ES $ES_VERSION_POM"
-#      curl --fail -Ss -XHEAD -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" "https://maven.search-guard.com/api/storage/third-party/org/elasticsearch/painless/lang-painless/$ES_VERSION_POM/lang-painless-$ES_VERSION_POM.jar"
-#      retVal=$?
-#
-#      set -e
-#      if [ $retVal -ne 0 ]; then
-#        echo "Upload artifacts for ES $ES_VERSION_POM"
-#        ./dev/populate_maven.sh "$ES_VERSION_POM" remote
-#      else
-#        echo "Artifacts already uploaded for ES $ES_VERSION_POM"
-#      fi
+upload_mvn_third_party_deps:
+  allow_failure: false
+  stage: prepare
+  script:
+    - |
+      ES_VERSION_POM=7.16.3
+      set +e
+      echo "Check if we need to upload 3rd party artifacts for ES $ES_VERSION_POM"
+      curl --fail -Ss -XHEAD -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" "https://maven.search-guard.com/api/storage/third-party/org/elasticsearch/painless/lang-painless/$ES_VERSION_POM/lang-painless-$ES_VERSION_POM.jar"
+      retVal=$?
+      set -e
+      if [ $retVal -ne 0 ]; then
+        echo "Upload artifacts for ES $ES_VERSION_POM"
+        ./dev/populate_maven.sh "$ES_VERSION_POM" remote
+      else
+        echo "Artifacts already uploaded for ES $ES_VERSION_POM"
+      fi
 
 build:
   stage: build
