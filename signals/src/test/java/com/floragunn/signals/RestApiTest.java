@@ -1327,6 +1327,67 @@ public class RestApiTest {
     }
 
     @Test
+    public void testAckWithUnacknowledgableActions() throws Exception {
+        String tenant = "_main";
+        String watchId = "ack_with_unack_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String testSource = "testsource_" + watchId;
+        String testSinkAck = "testsink_ack_" + watchId;
+        String testSinkUnack = "testsink_unack_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(testSource)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(testSinkAck)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(testSinkUnack)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(testSource).query("{\"match_all\" : {} }").as("testsearch")
+                    .checkCondition("data.testsearch.hits.hits.length > 0")//
+                    .then().index(testSinkAck).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testaction_ack")//
+                    .and().index(testSinkUnack).refreshPolicy(RefreshPolicy.IMMEDIATE).acknowledgeable(false).throttledFor("0").name("testaction_unack").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            response = restClient.put(watchPath + "/_ack");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_PRECONDITION_FAILED, response.getStatusCode());
+
+            client.index(new IndexRequest(testSource).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1", "val1",
+                    "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, testSinkAck, 1);
+            awaitMinCountOfDocuments(client, testSinkUnack, 1);
+
+            response = restClient.put(watchPath + "/_ack");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(500);
+
+            response = restClient.get(watchPath + "/_state");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
+            Assert.assertEquals(response.getBody(), "uhura", statusDoc.at("/actions/testaction_ack/acked/by").textValue());
+            Assert.assertTrue(response.getBody(), statusDoc.at("/actions/testaction_unack/acked").isMissingNode());
+
+            Thread.sleep(200);
+
+            long testSinkAckExecutionCountAfterAck = getCountOfDocuments(client, testSinkAck);
+            long testSinkUnackExecutionCountAfterAck = getCountOfDocuments(client, testSinkUnack);
+
+            Thread.sleep(310);
+
+
+            Assert.assertEquals(testSinkAckExecutionCountAfterAck, getCountOfDocuments(client, testSinkAck));
+            Assert.assertNotEquals(testSinkUnackExecutionCountAfterAck, getCountOfDocuments(client, testSinkUnack));
+        }
+    }
+
+    @Test
     public void testSearchWatch() throws Exception {
         String tenant = "_main";
         String watchId = "search_watch";
@@ -2243,25 +2304,26 @@ public class RestApiTest {
             Watch watch = new WatchBuilder(watchId1).atMsInterval(100).put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink)
                     .throttledFor("1000h").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath1, watch);
-            
+
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
-            
+
             watch = new WatchBuilder(watchId1).atMsInterval(100).put("{\"bla\": \"now_a_different_type\"}").as("teststatic").then().index(testSink)
                     .throttledFor("1000h").name("testsink").build();
-            response = restClient.putJson(watchPath1, watch);         
-            
+            response = restClient.putJson(watchPath1, watch);
+
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            
-            watch = new WatchBuilder(watchId2).atMsInterval(100).put("{\"bla\": 1234}").as("teststatic").then().index(testSink)
-                    .throttledFor("1000h").name("testsink").build();
-            response = restClient.putJson(watchPath2, watch);         
-            
+
+            watch = new WatchBuilder(watchId2).atMsInterval(100).put("{\"bla\": 1234}").as("teststatic").then().index(testSink).throttledFor("1000h")
+                    .name("testsink").build();
+            response = restClient.putJson(watchPath2, watch);
+
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
-            
+
             response = restClient.get(watchPath2);
-            
-            Assert.assertEquals(response.getBody(), 1234, response.getBodyAsDocNode().getAsNode("_source").getAsListOfNodes("checks").get(0).getAsNode("value").get("bla"));
-            
+
+            Assert.assertEquals(response.getBody(), 1234,
+                    response.getBodyAsDocNode().getAsNode("_source").getAsListOfNodes("checks").get(0).getAsNode("value").get("bla"));
+
         }
     }
 
