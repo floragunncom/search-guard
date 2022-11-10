@@ -18,7 +18,7 @@ variables:
 default:
   image: $SG_BUILD_IMAGE
   tags:
-    - build
+    - hetzner-gitLab-runner-3
   interruptible: true
   timeout: 90m
   before_script:
