@@ -653,6 +653,10 @@ public class HTTPSamlAuthenticatorTest {
         public XContentBuilder newBuilder(XContentType xContentType, XContentType responseContentType, boolean useFiltering) throws IOException {
             return null;
         }
+
+        @Override
+        public void releaseOutputBuffer() {            
+        }
     }
 
     static class AuthenticateHeaders {
