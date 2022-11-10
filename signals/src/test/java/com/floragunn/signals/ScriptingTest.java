@@ -8,7 +8,6 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.codova.validation.ValidationErrors;
@@ -29,7 +28,6 @@ import net.jcip.annotations.NotThreadSafe;
 
 @NotThreadSafe
 public class ScriptingTest {
-
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
     private static WatchInitializationService watchInitService;
@@ -49,7 +47,6 @@ public class ScriptingTest {
         watchInitService = new WatchInitializationService(null, scriptService);
     }
 
-    @Ignore
     @Test
     public void testPropertyAccessForTriggeredTime() {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -72,7 +69,6 @@ public class ScriptingTest {
         Assert.assertEquals(watchExecutionContextData.getTriggerInfo().getTriggeredTime(), result);
     }
 
-    @Ignore
     @Test
     public void testPropertyAccessForWatchId() {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -94,5 +90,4 @@ public class ScriptingTest {
 
         Assert.assertEquals(watchExecutionContextData.getWatch().getId(), result);
     }
-
 }
