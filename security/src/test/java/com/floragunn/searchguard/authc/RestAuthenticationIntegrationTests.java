@@ -276,7 +276,7 @@ public class RestAuthenticationIntegrationTests {
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertEquals(response.getBody(), "anonymous", response.getBodyAsDocNode().get("user_name"));
             Assert.assertEquals(response.getBody(), Arrays.asList("anon_role"), response.getBodyAsDocNode().get("backend_roles"));
-            
+
             client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 34 }));
 
             response = client.get("/_searchguard/authinfo");
@@ -285,7 +285,7 @@ public class RestAuthenticationIntegrationTests {
             Assert.assertEquals(response.getBody(), Arrays.asList("anon_role"), response.getBodyAsDocNode().get("backend_roles"));
         }
     }
-    
+
     @Test
     public void challenge() throws Exception {
         try (GenericRestClient client = cluster.getRestClient()) {
@@ -294,7 +294,18 @@ public class RestAuthenticationIntegrationTests {
             Assert.assertEquals(response.getHeaders().toString(), "Basic realm=\"Search Guard\"", response.getHeaderValue("WWW-Authenticate"));
         }
     }
-    
+
+    @Test
+    public void jsonResponse() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient()) {
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo", new BasicHeader("Accept", "application/json"));
+            Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+            Assert.assertEquals(response.getHeaders().toString(), "application/json", response.getHeaderValue("Content-Type"));
+            Assert.assertEquals(response.getBody(), "Unauthorized", response.getBodyAsDocNode().get("error", "reason"));
+            Assert.assertEquals(response.getBody(), 401, response.getBodyAsDocNode().get("status"));
+        }
+    }
+
     @Test
     public void authDomainInfo() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(ALL_ACCESS)) {
