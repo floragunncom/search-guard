@@ -37,6 +37,7 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
@@ -201,7 +202,17 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         org.apache.logging.log4j.ThreadContext.remove("user");
 
                         if (result.getRestStatus() != null && result.getRestStatusMessage() != null) {
-                            BytesRestResponse response = new BytesRestResponse(result.getRestStatus(), result.getRestStatusMessage());
+                            BytesRestResponse response;
+
+                            if (isJsonResponseRequested(request)) {
+                                response = new BytesRestResponse(result.getRestStatus(), "application/json", DocNode.of(//
+                                        "status", result.getRestStatus().getStatus(), //
+                                        "error.reason", result.getRestStatusMessage(), //
+                                        "error.type", "authentication_exception" //
+                                ).toJsonString());
+                            } else {
+                                response = new BytesRestResponse(result.getRestStatus(), result.getRestStatusMessage());
+                            }
 
                             if (!result.getHeaders().isEmpty()) {
                                 result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
@@ -219,7 +230,14 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 });
             } else {
                 original.handleRequest(request, channel, client);
+
             }
+        }
+
+        private boolean isJsonResponseRequested(RestRequest request) {
+            String accept = request.header("accept");
+
+            return accept != null && (accept.startsWith("application/json") || accept.startsWith("application/vnd.elasticsearch+json"));
         }
 
         private boolean isAuthcRequired(RestRequest request) {

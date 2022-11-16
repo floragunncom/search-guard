@@ -134,14 +134,20 @@ public interface EsClientProvider {
     }
 
     default RestHighLevelClient getRestHighLevelClient(Header... headers) {
-        InetSocketAddress httpAddress = getHttpAddress();
-        RestClientBuilder builder = RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
-                .setDefaultHeaders(headers).setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
-                        new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
-
-        return new RestHighLevelClient(builder);
+        return new RestHighLevelClient(getLowLevelRestClientBuilder(headers));
     }
 
+    default RestClientBuilder getLowLevelRestClientBuilder(Header... headers) {
+        InetSocketAddress httpAddress = getHttpAddress();
+        return RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
+                .setDefaultHeaders(headers).setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
+                        new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
+    }
+    
+    default RestClient getLowLevelRestClient(Header... headers) {
+        return getLowLevelRestClientBuilder(headers).build();
+    }
+    
     @Deprecated
     default Client getAdminCertClient() {
         return new LocalEsClusterTransportClient(getClusterName(), getTransportAddress(), getTestCertificates().getAdminCertificate(),
