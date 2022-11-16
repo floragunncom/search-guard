@@ -71,12 +71,6 @@
 			</exclusions>
 		</dependency>
 
-		<dependency>
-			<groupId>com.floragunn</groupId>
-			<artifactId>sgctl</artifactId>
-			<scope>test</scope>
-		</dependency>
-
 		<!-- Security Test -->
 		<dependency>
 			<groupId>com.floragunn</groupId>

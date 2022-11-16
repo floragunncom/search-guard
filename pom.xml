@@ -20,7 +20,6 @@
 	<name>Search Guard FLX</name>
 
 	<properties>
-		<sgctl.version>1.0.0-beta-2</sgctl.version>
 		<elasticsearch.version>7.10.2</elasticsearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
         <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
@@ -339,13 +338,6 @@
 				<artifactId>search-guard-flx-support</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
-			</dependency>
-
-			<dependency>
-				<groupId>com.floragunn</groupId>
-				<artifactId>sgctl</artifactId>
-				<version>${sgctl.version}</version>
-				<scope>test</scope>
 			</dependency>
 							
 			<dependency>
