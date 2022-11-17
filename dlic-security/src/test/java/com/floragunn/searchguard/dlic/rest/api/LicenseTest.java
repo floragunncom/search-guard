@@ -23,9 +23,9 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.license.SearchGuardLicense;
@@ -35,7 +35,6 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 
 	protected final static String CONFIG_LICENSE_KEY = "sg_config.dynamic.license";
 	protected final static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-	private Settings originalConfig;
 	
 	// start dates
 	protected LocalDate expiredStartDate = LocalDate.of(2016, Month.JANUARY, 31);
@@ -48,7 +47,6 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 	protected LocalDate notStartedExpiryDate = notStartedStartDate.plusYears(1);
 	protected LocalDate trialExpiryDate = LocalDate.now().plusDays(91);
 	
-	@Ignore
 	@Test
 	public void testLicenseApi() throws Exception {
 
@@ -56,11 +54,6 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 
 		rh.keystore = "restapi/kirk-keystore.jks";
 		rh.sendHTTPClientCertificate = true;
-		
-		// get sg_config at the beginning of the test. Subsequent calls must not alter
-		// the contents of the config in any way, other than setting the license string.
-		// Store conent as map for further user
-		originalConfig = getCurrentConfig();
 		
 		// check license exists - has to be trial license
 		 Map<?, ?> settingsAsMap = getCurrentLicense();
@@ -70,7 +63,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		 Assert.assertEquals("false", String.valueOf(settingsAsMap.get("is_expired")));
 
 		// upload new licenses - all valid forever
-		uploadAndCheckValidLicense("full_valid_forever.txt", HttpStatus.SC_CREATED); // first license upload, hence 201 return code
+		uploadAndCheckValidLicense("full_valid_forever.txt", HttpStatus.SC_OK); 
 		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 
 		uploadAndCheckValidLicense("sme_valid_forever.txt");
@@ -134,7 +127,7 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		msg = settings.get("message");
-		Assert.assertEquals("License could not be decoded due to: org.bouncycastle.openpgp.PGPException: Cannot find license signature", msg);		
+		Assert.assertEquals("License could not be decoded due to: Cannot find license signature", msg);		
 		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", validStartDate, validExpiryDate);
 	}
 
@@ -171,11 +164,12 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		String licenseKey = loadLicenseKey(licenseFileName);
 		HttpResponse response = rh.executePutRequest("/_searchguard/api/license", createLicenseRequestBody(licenseKey), new Header[0]);
 		Assert.assertEquals(response.getBody(), statusCode, response.getStatusCode());
-		Settings config = getCurrentConfig();
-		Settings.Builder expectectConfig = Settings.builder().put(originalConfig);
-		expectectConfig.put(CONFIG_LICENSE_KEY, licenseKey);
-		// Old config + license must equal newly stored config
-		Assert.assertEquals(expectectConfig.build(), config); 
+        response = rh.executeGetRequest("/_searchguard/config");
+		
+		JsonNode jsonNode = response.toJsonNode();
+		
+		Assert.assertEquals(licenseKey, jsonNode.path("license_key").path("content").path("key").textValue());
+        
 	}
 	
 	protected final Map<?, ?> getCurrentLicense() throws Exception {
@@ -184,12 +178,4 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		return (Map<?, ?>)DefaultObjectMapper.objectMapper.readValue(response.getBody(), Map.class).get("sg_license");
 	}
 
-	protected final Settings getCurrentConfig() throws Exception {
-		HttpResponse response = rh.executeGetRequest("_searchguard/api/sgconfig");
-		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-		// sanity
-		Assert.assertEquals(settings.getAsBoolean("sg_config.dynamic.authc.authentication_domain_basic_internal.http_enabled", false), true);
-		return settings;
-	}
 }

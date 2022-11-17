@@ -67,7 +67,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     private long primaryTerm = SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
     private String uninterpolatedJson;
     private long docVersion = -1;
-    private ValidationErrors validationErrors;
+    private final ValidationErrors validationErrors;
 
     public static <T> SgDynamicConfiguration<T> empty(CType<T> type) {
         return new SgDynamicConfiguration<T>(type, OrderedImmutableMap.empty());
@@ -148,6 +148,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         this.ctype = ctype;
         this.centries = entries;
         this.componentState = new ComponentState(0, "config", ctype.getName());
+        this.validationErrors = new ValidationErrors();
     }
 
     private SgDynamicConfiguration(CType<T> ctype, OrderedImmutableMap<String, T> entries, long seqNo, long primaryTerm, long docVersion,
