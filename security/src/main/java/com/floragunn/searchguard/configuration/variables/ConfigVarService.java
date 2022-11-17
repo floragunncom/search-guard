@@ -464,7 +464,7 @@ public class ConfigVarService implements ComponentStateProvider {
 
                         Map<String, Object> doc = new LinkedHashMap<>();
 
-                        doc.putAll(encryptionKeys.getEncryptedData(value));
+                        doc.put("encrypted", encryptionKeys.getEncryptedData(value));
 
                         String scope = entry.getValue().scope;
 
