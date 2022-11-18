@@ -1,536 +1,466 @@
+# You can override the included template(s) by including variable overrides
+# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/#customizing-settings
+# Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
+# Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
+# Note that environment variables can be set in several places
+# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
 variables:
-  SG_JAVA_BUILD_VERSION: "11"
+  SG_JAVA_BUILD_VERSION: '11'
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml"
   DOCKER_DRIVER: overlay2
-  #SG_KI_PLUGIN: ""
-  #KI_VERSION: ""
-  #IT_BRANCH: ""
-
 image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
-
-
-#cache:
-#  key: "$CI_COMMIT_REF_SLUG"
-#  paths:
-#  - "sgbuild0/search-guard-suite-enterprise/m2repository" #path look like this because of mv we do below
-#
 before_script:
-  # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
-  - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-  - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
-#  - |
-#      if [ -f pom.xml ]; then
-#          export ES_VERSION_POM=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
-#          echo "ES_VERSION_POM: $ES_VERSION_POM"
-#      else
-#          echo "No pom.xml found"
-#      fi
-
+- export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+- export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
 stages:
-  #- prepare
-  - build
-  - test
-  - package
-  - "Backend Int Tests Core"
-  - "Backend Int Tests Features"
-  - "Frontend Int Tests Core"
-  - "Frontend Int Tests Features"
-  - "Frontend Int Tests External Features"
-  - "Frontend Compat Int Tests 1"
-  - "Frontend Compat Int Tests 2"
-  - release
-
+- build
+- test
+- package
+- Backend Int Tests Core
+- Backend Int Tests Features
+- Frontend Int Tests Core
+- Frontend Int Tests Features
+- Frontend Int Tests External Features
+- Frontend Compat Int Tests 1
+- Frontend Compat Int Tests 2
+- release
 workflow:
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
-      when: never
-    - when: always
-
-#upload_mvn_third_party_deps:
-#  allow_failure: false
-#  stage: prepare
-#  script:
-#    - |
-#      set +e
-#      echo "Check if we need to upload 3rd party artifacts for ES $ES_VERSION_POM"
-#      curl --fail -Ss -XHEAD -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" "https://maven.search-guard.com/api/storage/third-party/org/elasticsearch/painless/lang-painless/$ES_VERSION_POM/lang-painless-$ES_VERSION_POM.jar"
-#      retVal=$?
-#
-#      set -e
-#      if [ $retVal -ne 0 ]; then
-#        echo "Upload artifacts for ES $ES_VERSION_POM"
-#        ./dev/populate_maven.sh "$ES_VERSION_POM" remote
-#      else
-#        echo "Artifacts already uploaded for ES $ES_VERSION_POM"
-#      fi
-
+  - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+    when: never
+  - when: always
 build:
   stage: build
   interruptible: true
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-      when: never
-    - when: always
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
+    when: never
+  - when: always
   tags:
-    - build
+  - build
   script:
-    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+  - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
     when: on_success
     paths:
-      - "*/target"
-      - ".m2/repository/com/floragunn/*"
+    - "*/target"
+    - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
-
+    - ".m2/repository"
 build_for_tag_version:
   stage: build
   interruptible: true
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
   tags:
-    - build
+  - build
   before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
+  - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client
+    apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty
+    expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   script:
-    # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
-    - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-    - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
-    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version" -v $SG_VERSION pom.xml
-    - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:elasticsearch.version" -v $ES_VERSION pom.xml
-    - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
+  - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+  - export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
+  - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:sg-suite.version"
+    -v $SG_VERSION pom.xml
+  - xmlstarlet ed --inplace -N a="http://maven.apache.org/POM/4.0.0" -u "/a:project/a:properties/a:elasticsearch.version"
+    -v $ES_VERSION pom.xml
+  - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
     when: on_success
     paths:
-      - "pom.xml"
-      - "*/target"
-      - ".m2/repository/com/floragunn/*"
+    - pom.xml
+    - "*/target"
+    - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
   allow_failure: false
-
-
-
 test_security:
   stage: test
   interruptible: true
   tags:
-    - test-large
+  - test-large
   script:
-    - find .
-    - mvn $MAVEN_CLI_OPTS -pl security test
+  - find .
+  - mvn $MAVEN_CLI_OPTS -pl security test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_security_legacy:
   stage: test
   interruptible: true
   tags:
-    - test-large
+  - test-large
   script:
-    - find .
-    - mvn $MAVEN_CLI_OPTS -pl security-legacy test
+  - find .
+  - mvn $MAVEN_CLI_OPTS -pl security-legacy test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_ssl:
   stage: test
   interruptible: true
   tags:
-    - test
+  - test
   script:
-    - find .
-    - mvn $MAVEN_CLI_OPTS -pl ssl test
+  - find .
+  - mvn $MAVEN_CLI_OPTS -pl ssl test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_signals:
   stage: test
   interruptible: true
   tags:
-    - test-large
+  - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl signals test
+  - mvn $MAVEN_CLI_OPTS -pl signals test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_scheduler:
   stage: test
   interruptible: true
   tags:
-    - test
+  - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl scheduler test
+  - mvn $MAVEN_CLI_OPTS -pl scheduler test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_support:
   stage: test
   interruptible: true
   tags:
-    - test
+  - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl support test
+  - mvn $MAVEN_CLI_OPTS -pl support test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_dlic_security:
   stage: test
   interruptible: true
   tags:
-    - test-large
+  - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-security test
+  - mvn $MAVEN_CLI_OPTS -pl dlic-security test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-    
 test_dlic_security_legacy:
   stage: test
   interruptible: true
   tags:
-    - test-large
+  - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
+  - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
-    policy: pull    
-
+    - ".m2/repository"
+    policy: pull
 test_dlic_dlsfls:
   stage: test
   interruptible: true
   tags:
-    - test
+  - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test
+  - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-    
 test_dlic_dlsfls_legacy:
   stage: test
   interruptible: true
   tags:
-    - test
+  - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls-legacy test
+  - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls-legacy test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
-    policy: pull    
-
+    - ".m2/repository"
+    policy: pull
 test_dlic_femt:
   stage: test
   interruptible: true
   tags:
-    - test
+  - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test
+  - mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_dlic_auditlog:
   stage: test
   interruptible: true
   tags:
-    - test-large
+  - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
+  - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
 test_dlic_signals:
   stage: test
   interruptible: true
   tags:
-    - test-large
+  - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
+  - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
   artifacts:
     when: always
     reports:
       junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
+      - "*/target/surefire-reports/TEST-*.xml"
+      - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
     key: mavenrepo
     paths:
-      - .m2/repository
+    - ".m2/repository"
     policy: pull
-
-
 deploy_snapshot:
   stage: package
   interruptible: true
   tags:
-    - build
+  - build
   needs:
-    - job: build
-      artifacts: true
+  - job: build
+    artifacts: true
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-      when: never
-    - when: always
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
+    when: never
+  - when: always
   before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
+  - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client
+    apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty
+    expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   script:
-    - |
-      set -x
-      mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests deploy | tee deploy.out
-      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN="https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-elasticsearch-plugin/1.0.0-beta-2-es-7.17.3/search-guard-flx-elasticsearch-plugin-1.0.0-beta-2-es-7.17.3-sgadmin-standalone.zip"
-      ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
-      MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
-      if [ -z "$IT_BRANCH" ]; then
-        if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]]; then
-          IT_BRANCH="$CI_COMMIT_REF_NAME"
-        else
-          IT_BRANCH="$MAJOR.x"
-        fi
+  - |
+    set -x
+    mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests deploy | tee deploy.out
+    SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
+    SG_ADMIN="https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-elasticsearch-plugin/1.0.0-beta-2-es-7.17.3/search-guard-flx-elasticsearch-plugin-1.0.0-beta-2-es-7.17.3-sgadmin-standalone.zip"
+    ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
+    MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+    if [ -z "$IT_BRANCH" ]; then
+      if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]]; then
+        IT_BRANCH="$CI_COMMIT_REF_NAME"
+      else
+        IT_BRANCH="$MAJOR.x"
       fi
-      if [ -z "$KI_VERSION" ]; then
-        KI_VERSION=$ES_VERSION
+    fi
+    if [ -z "$KI_VERSION" ]; then
+      KI_VERSION=$ES_VERSION
+    fi
+    if [[ ! "$SG_KI_PLUGIN" =~ ^https?:.*$ ]]; then
+      if [[ "$SG_KI_PLUGIN" =~ .*SNAPSHOT.* ]]; then
+        SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
+        echo "Found: $SG_KI_PLUGIN"
+      else
+        SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-release search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
+        echo "Found: $SG_KI_PLUGIN"
       fi
-      if [[ ! "$SG_KI_PLUGIN" =~ ^https?:.*$ ]]; then
-        if [[ "$SG_KI_PLUGIN" =~ .*SNAPSHOT.* ]]; then
-          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
-          echo "Found: $SG_KI_PLUGIN"
-        else
-          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-release search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
-          echo "Found: $SG_KI_PLUGIN"
-        fi
-      fi
-      echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
-      echo "SG_ADMIN=$SG_ADMIN" >> build.env
-      echo "ES_VERSION=$ES_VERSION" >>build.env
-      echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
-      echo "KI_VERSION=$KI_VERSION" >>build.env
-      echo "IT_BRANCH=$IT_BRANCH" >>build.env
-      cat build.env
+    fi
+    echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
+    echo "SG_ADMIN=$SG_ADMIN" >> build.env
+    echo "ES_VERSION=$ES_VERSION" >>build.env
+    echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
+    echo "KI_VERSION=$KI_VERSION" >>build.env
+    echo "IT_BRANCH=$IT_BRANCH" >>build.env
+    cat build.env
   artifacts:
     when: on_success
-#    paths:
-#      - "plugin/target"
-#      - "environment.env"
     expire_in: 10d
     reports:
       dotenv: build.env
   cache:
     key: mavenrepopackage
     paths:
-      - .m2/repository
-
+    - ".m2/repository"
 deploy_staging:
   stage: package
   interruptible: true
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
   before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
+  - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client
+    apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty
+    expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   tags:
-    - build
+  - build
   script:
-    - |
-      set -x
-      set -e
-      ./dev/setup_gpg.sh
-      # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
-      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
-      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
-      MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
-      echo "Deploying Release to Staging repo"
-      mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-flx-staging -DskipTests -B -Penterprise -Prelease -Drevision=$DEPLOY_VERSION | tee deploy.out
-      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN="https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-elasticsearch-plugin/1.0.0-beta-2-es-7.17.3/search-guard-flx-elasticsearch-plugin-1.0.0-beta-2-es-7.17.3-sgadmin-standalone.zip"
-      if [ -z "$IT_BRANCH" ]; then
-        if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n "$(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME)" ]; then
-          IT_BRANCH="$CI_COMMIT_REF_NAME"
-        else
-          IT_BRANCH="$MAJOR.x"
-        fi
-      fi
-      echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
-      echo "SG_ADMIN=$SG_ADMIN" >> build.env
-      echo "ES_VERSION=$ES_VERSION" >>build.env
-      echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
-      echo "KI_VERSION=$KI_VERSION" >>build.env
-      echo "IT_BRANCH=$IT_BRANCH" >>build.env
-      cat build.env
+  - "set -x\nset -e\n./dev/setup_gpg.sh\n# $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
+    \     \nSG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\\(.*\\)-es-.*$/\\1/p')\nES_VERSION=$(echo
+    $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\\(.*\\)$/\\1/p')\nDEPLOY_VERSION=\"$SG_VERSION-es-$ES_VERSION\"\nMAJOR=$(echo
+    $ES_VERSION | cut -d. -f1-2)\necho \"Deploying Release to Staging repo\"\nmvn
+    clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-flx-staging
+    -DskipTests -B -Penterprise -Prelease -Drevision=$DEPLOY_VERSION | tee deploy.out\nSG_ES_PLUGIN=`grep
+    -E \"Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip
+    \" deploy.out | grep -o \"http.*zip\"`\nSG_ADMIN=\"https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-elasticsearch-plugin/1.0.0-beta-2-es-7.17.3/search-guard-flx-elasticsearch-plugin-1.0.0-beta-2-es-7.17.3-sgadmin-standalone.zip\"\nif
+    [ -z \"$IT_BRANCH\" ]; then\n  if [ \"$CI_COMMIT_REF_NAME\" != \"master\" ] &&
+    [ -n \"$(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git
+    $CI_COMMIT_REF_NAME)\" ]; then\n    IT_BRANCH=\"$CI_COMMIT_REF_NAME\"\n  else\n
+    \   IT_BRANCH=\"$MAJOR.x\"\n  fi\nfi\necho \"SG_ES_PLUGIN=$SG_ES_PLUGIN\" >> build.env\necho
+    \"SG_ADMIN=$SG_ADMIN\" >> build.env\necho \"ES_VERSION=$ES_VERSION\" >>build.env\necho
+    \"SG_KI_PLUGIN=$SG_KI_PLUGIN\" >>build.env\necho \"KI_VERSION=$KI_VERSION\" >>build.env\necho
+    \"IT_BRANCH=$IT_BRANCH\" >>build.env\ncat build.env\n"
   artifacts:
     when: on_success
-#    paths:
-#      - "plugin/target"
-#      - "environment.env"
     expire_in: 10d
     reports:
       dotenv: build.env
   cache:
     key: mavenrepopackage
     paths:
-      - .m2/repository
-
+    - ".m2/repository"
 include:
-  - local: '.gitlab-ci-branch-specific.yml'
-  - local: 'ci/backend-int-tests.yml'
-  - local: 'ci/backend-int-tests-features.yml'
-  - local: 'ci/frontend-int-tests.yml'
-  - local: 'ci/frontend-int-tests-features.yml'
-  - local: 'ci/frontend-int-tests-external-features.yml'
-  - local: 'ci/frontend-int-tests-compat1.yml'
-  - local: 'ci/frontend-int-tests-compat2.yml'
-
+- local: ".gitlab-ci-branch-specific.yml"
+- local: ci/backend-int-tests.yml
+- local: ci/backend-int-tests-features.yml
+- local: ci/frontend-int-tests.yml
+- local: ci/frontend-int-tests-features.yml
+- local: ci/frontend-int-tests-external-features.yml
+- local: ci/frontend-int-tests-compat1.yml
+- local: ci/frontend-int-tests-compat2.yml
+- template: Security/SAST.gitlab-ci.yml
 deploy_release:
   stage: release
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+  - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
   before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
+  - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client
+    apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty
+    expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   tags:
-    - build
+  - build
   script:
-    - ./dev/setup_gpg.sh
-    - |
-      # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
-      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
-      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
-      export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
-
-      # TODO echo "Removing current release from Staging"
-      #curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-flx-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
-
-      cd search-guard-integration-tests
-      git tag $CI_COMMIT_TAG || true
-      echo "Tag created in int repo"
-      git show-ref $CI_COMMIT_TAG
-      git push --tags || true
-      cd ..
-      echo "Deploying Release to Production repo."
-      mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
+  - "./dev/setup_gpg.sh"
+  - "# $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      \nSG_VERSION=$(echo $CI_COMMIT_TAG
+    | sed -n 's/^sg-flx-\\(.*\\)-es-.*$/\\1/p')\nES_VERSION=$(echo $CI_COMMIT_TAG
+    | sed -n 's/^sg-flx-.*-es-\\(.*\\)$/\\1/p')\nDEPLOY_VERSION=\"$SG_VERSION-es-$ES_VERSION\"\nexport
+    MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)\n\n# TODO echo \"Removing current release
+    from Staging\"\n#curl -u \"$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD\" -X DELETE
+    \"https://maven.search-guard.com/artifactory/search-guard-flx-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION\"
+    || true\n\ncd search-guard-integration-tests\ngit tag $CI_COMMIT_TAG || true\necho
+    \"Tag created in int repo\"\ngit show-ref $CI_COMMIT_TAG\ngit push --tags || true\ncd
+    ..\necho \"Deploying Release to Production repo.\"\nmvn deploy -s settings.xml
+    -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION
+    || exit 1\n"
   allow_failure: false
-
-
+sast:
+  stage: test
