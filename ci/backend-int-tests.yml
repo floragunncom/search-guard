@@ -82,7 +82,7 @@ signals_2:
   allow_failure: false
   stage: "Backend Int Tests Core"
   tags:
-    - hetzner-gitLab-runner-3
+    - hetzner-gitLab-runner-1
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: always
