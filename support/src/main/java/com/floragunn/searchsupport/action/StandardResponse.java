@@ -30,6 +30,11 @@ import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchsupport.action.Action.UnparsedMessage;
 
 public class StandardResponse extends Action.Response {
+    
+    public static StandardResponse internalServerError() {
+        return new StandardResponse(500, new Error("Internal Server Error"));
+    }
+    
     private Error error;
     private String message;
     private Object data;
