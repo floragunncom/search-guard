@@ -17,9 +17,11 @@
 
 package com.floragunn.searchguard.authc.session;
 
+import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.http.message.BasicHeader;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -33,9 +35,14 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class SessionIntegrationTest {
 
-    private static TestSgConfig.User BASIC_USER = new TestSgConfig.User("basic_user").roles("sg_all_access");
-    private static TestSgConfig.User NO_ROLES_USER = new TestSgConfig.User("no_roles_user");
-    private static TestSgConfig TEST_SG_CONFIG = new TestSgConfig().resources("session")
+    static TestSgConfig.User BASIC_USER = new TestSgConfig.User("basic_user").roles("sg_all_access");
+    static TestSgConfig.User NO_ROLES_USER = new TestSgConfig.User("no_roles_user");
+    
+    static TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(
+            new TestSgConfig.Authc.Domain("basic/internal_users_db").skipOriginatingIps("127.0.0.22")).trustedProxies("127.0.0.42");
+    
+    static TestSgConfig TEST_SG_CONFIG = new TestSgConfig().resources("session")
+            .authc(AUTHC)
             .frontendAuthc("default", new TestSgConfig.FrontendAuthc("basic").label("Basic Login"))//
             .frontendAuthc("test_fe", new TestSgConfig.FrontendAuthc(TestApiAuthenticationFrontend.class.getName()).label("Test Login"))
             .user(NO_ROLES_USER).user(BASIC_USER);
@@ -48,7 +55,7 @@ public class SessionIntegrationTest {
             .resources("session").sgConfig(TEST_SG_CONFIG).sslEnabled().build();
 
     @Test
-    public void basicTest() throws Exception {
+    public void startSession_basic() throws Exception {
         String token;
 
         try (GenericRestClient restClient = cluster.getRestClient()) {
@@ -71,7 +78,7 @@ public class SessionIntegrationTest {
             Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
         }
     }
-
+    
     @Test
     public void startSession_header() throws Exception {
         String token;
@@ -96,6 +103,33 @@ public class SessionIntegrationTest {
             Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
         }
     }
+    
+    @Test
+    public void startSession_trustedProxy() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient()) {
+            restClient.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 42 }));
+            HttpResponse response = restClient.postJson("/_searchguard/auth/session", basicAuthRequest(BASIC_USER),
+                    new BasicHeader("X-Forwarded-For", "127.0.0.21"));
+
+            Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient()) {
+            restClient.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 42 }));
+            HttpResponse response = restClient.postJson("/_searchguard/auth/session", basicAuthRequest(BASIC_USER),
+                    new BasicHeader("X-Forwarded-For", "127.0.0.22"));
+
+            Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient()) {
+            HttpResponse response = restClient.postJson("/_searchguard/auth/session", basicAuthRequest(BASIC_USER),
+                    new BasicHeader("X-Forwarded-For", "127.0.0.22"));
+
+            Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
+        }
+    }
+
 
     @Test
     public void nonDefaultConfigTest() throws Exception {
@@ -163,7 +197,7 @@ public class SessionIntegrationTest {
 
     @Test
     public void justBasicAuthWithoutFrontendConfigTest() throws Exception {
-        try (LocalCluster cluster = new LocalCluster.Builder().resources("session").user(BASIC_USER).sslEnabled().singleNode().start()) {
+        try (LocalCluster cluster = new LocalCluster.Builder().resources("session").user(BASIC_USER).authc(AUTHC).sslEnabled().singleNode().start()) {
             String token;
 
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {

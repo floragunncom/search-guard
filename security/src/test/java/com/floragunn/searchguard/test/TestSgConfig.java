@@ -767,7 +767,9 @@ public class TestSgConfig {
             private String id;
             private String description;
             private List<String> acceptIps = null;
+            private List<String> acceptOriginatingIps = null;
             private List<String> skipIps = null;
+            private List<String> skipOriginatingIps = null;            
             private List<String> acceptUsers = null;
             private List<String> skipUsers = null;
             private List<AdditionalUserInformation> additionalUserInformation = null;
@@ -822,6 +824,15 @@ public class TestSgConfig {
                 return this;
             }
 
+            public Domain acceptOriginatingIps(String... ips) {
+                if (acceptOriginatingIps == null) {
+                    acceptOriginatingIps = new ArrayList<>(Arrays.asList(ips));
+                } else {
+                    acceptOriginatingIps.addAll(Arrays.asList(ips));
+                }
+                return this;
+            }
+            
             public Domain skipIps(String... ips) {
                 if (skipIps == null) {
                     skipIps = new ArrayList<>(Arrays.asList(ips));
@@ -831,6 +842,15 @@ public class TestSgConfig {
                 return this;
             }
 
+            public Domain skipOriginatingIps(String... ips) {
+                if (skipOriginatingIps == null) {
+                    skipOriginatingIps = new ArrayList<>(Arrays.asList(ips));
+                } else {
+                    skipOriginatingIps.addAll(Arrays.asList(ips));
+                }
+                return this;
+            }
+            
             public Domain skipUsers(String... users) {
                 skipUsers = Arrays.asList(users);
                 return this;
@@ -864,12 +884,12 @@ public class TestSgConfig {
                     result.put(type.substring(type.indexOf('/') + 1), backendConfig);
                 }
 
-                if (acceptIps != null || acceptUsers != null) {
-                    result.put("accept", ImmutableMap.ofNonNull("ips", acceptIps, "users", acceptUsers));
+                if (acceptIps != null || acceptUsers != null || acceptOriginatingIps != null) {
+                    result.put("accept", ImmutableMap.ofNonNull("ips", acceptIps, "users", acceptUsers, "originating_ips", acceptOriginatingIps));
                 }
 
-                if (skipIps != null || skipUsers != null) {
-                    result.put("skip", ImmutableMap.ofNonNull("ips", skipIps, "users", skipUsers));
+                if (skipIps != null || skipUsers != null || skipOriginatingIps != null) {
+                    result.put("skip", ImmutableMap.ofNonNull("ips", skipIps, "users", skipUsers, "originating_ips", skipOriginatingIps));
                 }
 
                 if (additionalUserInformation != null) {
