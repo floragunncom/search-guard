@@ -28,10 +28,7 @@ SGS_KIBANA_USER:
   description: "Provide the minimum permissions for a kibana user"
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
-    - "cluster:admin:searchguard:login/session"
-    - "cluster:admin:searchguard:session/_own/get/extended"
-    - "cluster:admin:searchguard:session/_own/delete"
-    - "cluster:admin:searchguard:session/create"
+    - "SGS_PERSONAL_SESSIONS"
   index_permissions:
     - index_patterns:
         - ".kibana"
@@ -66,7 +63,7 @@ SGS_KIBANA_USER_NO_DEFAULT_TENANT:
   description: "Provide the minimum permissions for a kibana user"
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
-    - "cluster:admin:searchguard:login/session"
+    - "SGS_PERSONAL_SESSIONS"
   index_permissions:
     - index_patterns:
         - ".tasks"
