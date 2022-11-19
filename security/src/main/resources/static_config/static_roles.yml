@@ -25,7 +25,7 @@ SGS_KIBANA_USER:
   reserved: true
   hidden: false
   static: true
-  description: "Provide the minimum permissions for a kibana user"
+  description: "Provide the minimum permissions for a kibana user which is supposed to access the global tenant"
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
     - "SGS_PERSONAL_SESSIONS"
@@ -56,11 +56,29 @@ SGS_KIBANA_USER:
       allowed_actions:
       - "kibana:saved_objects/_/write"
    
+SGS_KIBANA_USER_NO_GLOBAL_TENANT:
+  reserved: true
+  hidden: false
+  static: true
+  description: "Provide the minimum permissions for a kibana user which is not supposed to access the global tenant"
+  cluster_permissions:
+    - "SGS_CLUSTER_COMPOSITE_OPS"
+    - "SGS_PERSONAL_SESSIONS"
+  index_permissions:
+    - index_patterns:
+        - ".tasks"
+        - ".management-beats"
+        - "*:.tasks"
+        - "*:.management-beats"
+      allowed_actions:
+        - "SGS_INDICES_ALL"
+
+
 SGS_KIBANA_USER_NO_DEFAULT_TENANT:
   reserved: true
   hidden: false
   static: true
-  description: "Provide the minimum permissions for a kibana user"
+  description: "Deprecated. Use SGS_KIBANA_USER_NO_GLOBAL_TENANT instead."
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
     - "SGS_PERSONAL_SESSIONS"
