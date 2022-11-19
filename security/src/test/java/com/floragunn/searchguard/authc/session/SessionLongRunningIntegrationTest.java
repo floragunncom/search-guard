@@ -54,7 +54,9 @@ public class SessionLongRunningIntegrationTest {
     static TestSgConfig.User NO_ROLES_USER = new TestSgConfig.User("no_roles_user");
     static TestSgConfig.Sessions SESSIONS = new TestSgConfig.Sessions().inactivityTimeout(TIMEOUT).refreshSessionActivityIndex(true);
 
-    static TestSgConfig TEST_SG_CONFIG = new TestSgConfig().resources("session")
+    static TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
+
+    static TestSgConfig TEST_SG_CONFIG = new TestSgConfig().resources("session").authc(AUTHC)
             .frontendAuthc("default", new TestSgConfig.FrontendAuthc("basic").label("Basic Login"))//
             .frontendAuthc("test_fe", new TestSgConfig.FrontendAuthc(TestApiAuthenticationFrontend.class.getName()).label("Test Login"))
             .user(NO_ROLES_USER).user(BASIC_USER).sessions(SESSIONS);
@@ -65,6 +67,7 @@ public class SessionLongRunningIntegrationTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().resources("session").sgConfig(TEST_SG_CONFIG).sslEnabled().build();
 
+    @Ignore
     @Test
     public void singleUser() throws Exception {
         String token;
