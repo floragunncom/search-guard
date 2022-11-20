@@ -151,7 +151,7 @@ fe_kerberos:
   services:
     - docker:19.03-dind
   tags:
-    - hetzner-gitlab-runner-1
+    - hetzner-gitlab-runner-2
   script:
     - |
        echo "============================================="
