@@ -62,6 +62,7 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
@@ -91,7 +92,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
                 .compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)?(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)");
         this.kibanaIndexPatternWithTenant = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+(_[0-9]{3})?)");
 
-        this.tenantNames = tenantNames.with("SGS_GLOBAL_TENANT");
+        this.tenantNames = tenantNames.with(Tenant.GLOBAL_TENANT_ID);
         this.KIBANA_ALL_SAVED_OBJECTS_WRITE = actions.get("kibana:saved_objects/_/write");
         this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
     }
@@ -160,13 +161,13 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
         String requestedTenant = user.getRequestedTenant();
 
-        if (requestedTenant == null || requestedTenant.length() == 0) {
+        if (requestedTenant == null || requestedTenant.length() == 0 || requestedTenant.equals(Tenant.GLOBAL_TENANT_ID)) {
             if (kibanaIndexInfo.tenantInfoPart != null) {
                 // XXX This indicates that the user tried to directly address an internal Kibana index including tenant name  (like .kibana_92668751_admin)
                 // The original implementation allows these requests to pass with normal privileges if the sgtenant header is null. Tenant privileges are ignored then.
                 // Integration tests (such as test_multitenancy_mget) are relying on this behaviour.
                 return NORMAL;
-            } else if (isTenantAllowed(context, request, action, "SGS_GLOBAL_TENANT", actionAuthorization)) {
+            } else if (isTenantAllowed(context, request, action, Tenant.GLOBAL_TENANT_ID, actionAuthorization)) {
                 return NORMAL;
             } else {
                 return DENY;
