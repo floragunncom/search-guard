@@ -652,7 +652,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     private boolean isTenantValid(String requestedTenant) {
 
-        if ("SGS_GLOBAL_TENANT".equals(requestedTenant) || USER_TENANT.equals(requestedTenant)) {
+        if (Tenant.GLOBAL_TENANT_ID.equals(requestedTenant) || USER_TENANT.equals(requestedTenant)) {
             return true;
         }
 
@@ -661,9 +661,9 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     private PrivilegesEvaluationResult hasTenantPermission(User user, ImmutableSet<String> mappedRoles, Action action,
             ActionAuthorization actionAuthorization, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
-        String requestedTenant = !Strings.isNullOrEmpty(user.getRequestedTenant()) ? user.getRequestedTenant() : "SGS_GLOBAL_TENANT";
+        String requestedTenant = !Strings.isNullOrEmpty(user.getRequestedTenant()) ? user.getRequestedTenant() : Tenant.GLOBAL_TENANT_ID;
 
-        if (!multitenancyEnabled() && !"SGS_GLOBAL_TENANT".equals(requestedTenant)) {
+        if (!multitenancyEnabled() && !Tenant.GLOBAL_TENANT_ID.equals(requestedTenant)) {
             log.warn("Denying request to non-default tenant because MT is disabled: " + requestedTenant);
             return PrivilegesEvaluationResult.INSUFFICIENT.reason("Multi-tenancy is disabled");
         }
@@ -676,7 +676,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         String requestedTenant = user.getRequestedTenant();
 
         if (Strings.isNullOrEmpty(requestedTenant) || !multitenancyEnabled()) {
-            return "SGS_GLOBAL_TENANT";
+            return Tenant.GLOBAL_TENANT_ID;
         } else {
             return requestedTenant;
         }
