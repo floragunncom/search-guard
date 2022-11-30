@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import com.floragunn.codova.documents.Parser;
 import org.apache.http.HttpHost;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -82,7 +83,7 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors, context);
 
         ImmutableList<URI> hostUris = vNode.get("hosts").required().asList().minElements(1).ofURIs();
-        this.tlsConfig = vNode.get("tls").by(TLSConfig::parse);
+        this.tlsConfig = vNode.get("tls").by((Parser<TLSConfig, Parser.Context>) TLSConfig::parse);
         this.proxyConfig = vNode.get("proxy").by((ValidatingFunction<DocNode, ProxyConfig>) ProxyConfig::parse);
         this.maxConnectionsPerHost = vNode.get("connection_pool.max_connections_per_host").withDefault(6).asInt();
 

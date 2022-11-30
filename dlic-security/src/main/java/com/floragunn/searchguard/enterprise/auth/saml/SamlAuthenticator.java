@@ -27,6 +27,7 @@ import java.util.Map;
 
 import javax.xml.xpath.XPathExpressionException;
 
+import com.floragunn.codova.documents.Parser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
@@ -112,7 +113,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
                     "idp.metadata_url and idp.metadata_xml are unconfigured"));
         }
 
-        TLSConfig tlsConfig = vNode.get("idp.tls").by(TLSConfig::parse);
+        TLSConfig tlsConfig = vNode.get("idp.tls").by((Parser<TLSConfig, Parser.Context>) TLSConfig::parse);
 
         if (idpMetadataUrl != null) {
             try {

@@ -73,7 +73,7 @@ public final class LDAPConnectionManager implements Closeable {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors, context);
 
-        this.tlsConfig = vNode.get("tls").by(TLSConfig::parseInclStartTlsSupport);
+        this.tlsConfig = vNode.get("tls").by((Parser<TLSConfig, Parser.Context>) TLSConfig::parseInclStartTlsSupport);
 
         List<String> ldapHosts = vNode.get("hosts").required().asList().ofStrings();
         this.connectionStrategy = vNode.get("connection_strategy").withDefault(ConnectionStrategy.ROUNDROBIN).asEnum(ConnectionStrategy.class);
