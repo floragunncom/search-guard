@@ -216,7 +216,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private DiagnosticContext diagnosticContext;
     private ConfigVarService configVarService;
     private LicenseRepository licenseRepository;
-    private VariableResolvers configVariableProviders = VariableResolvers.ALL_PRIVILEGED;
     private Actions actions;
     
     @Override
@@ -818,7 +817,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         configVarService = new ConfigVarService(localClient, clusterService, threadPool, protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(configVarService);
         
-        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig, xContentRegistry);
+        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig, xContentRegistry, environment);
         moduleRegistry.addComponentStateProvider(cr);
         
         licenseRepository = new LicenseRepository(settings, localClient, clusterService, cr);
@@ -863,7 +862,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         BaseDependencies baseDependencies = new BaseDependencies(settings, staticSettings, localClient, clusterService, threadPool, resourceWatcherService,
                 scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, staticSgConfig, cr,
                 licenseRepository, protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
-                configVariableProviders, diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
+                diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
                 internalUsersDatabase, actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector);
 
         sgi = new SearchGuardInterceptor(settings, threadPool, auditLog, principalExtractor, interClusterRequestEvaluator, clusterService,

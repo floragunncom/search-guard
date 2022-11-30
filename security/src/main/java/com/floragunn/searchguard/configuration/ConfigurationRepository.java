@@ -62,6 +62,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -162,8 +163,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Context parserContext;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
-            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
-            NamedXContentRegistry xContentRegistry) {
+                                   ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
+                                   NamedXContentRegistry xContentRegistry, Environment environment) {
         this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
         this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
@@ -175,7 +176,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.componentState.setMandatory(true);
         this.mainConfigLoader = new ConfigurationLoader(client, componentState, this, staticSgConfig);
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
-        this.variableResolvers = VariableResolvers.ALL_PRIVILEGED.with("var", (key) -> configVarService.get(key));
+        this.variableResolvers = new VariableResolvers()
+                .with("file", (file) -> VariableResolvers.FILE_PRIVILEGED.apply(environment.configFile().resolve(file).toAbsolutePath().toString()))
+                .with("env", VariableResolvers.ENV)
+                .with("var", (key) -> configVarService.get(key));
         this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry);
         this.threadPool = threadPool;
 

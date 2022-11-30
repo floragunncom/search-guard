@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import com.floragunn.codova.documents.Parser;
 import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.http.NameValuePair;
@@ -105,7 +106,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         int refreshRateLimitCount = vNode.get("refresh_rate_limit_count").withDefault(10).asInt();
 
         URI openidConnectUrl = vNode.get("idp.openid_configuration_url").required().asURI();
-        TLSConfig tlsConfig = vNode.get("idp.tls").by(TLSConfig::parse);
+        TLSConfig tlsConfig = vNode.get("idp.tls").by((Parser<TLSConfig, Parser.Context>) TLSConfig::parse);
 
         boolean cacheJwksEndpoint = vNode.get("cache_jwks_endpoint").withDefault(false).asBoolean();
         String requiredAudience = vNode.get("required_audience").asString();
