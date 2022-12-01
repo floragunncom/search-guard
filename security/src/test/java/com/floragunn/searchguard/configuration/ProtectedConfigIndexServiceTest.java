@@ -19,8 +19,14 @@ package com.floragunn.searchguard.configuration;
 
 import java.time.Duration;
 
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -65,6 +71,74 @@ public class ProtectedConfigIndexServiceTest {
                         .get("properties").equals(ImmutableMap.of("x", ImmutableMap.of("type", "text"), "y", ImmutableMap.of("type", "text"))),
                 Duration.ofSeconds(10));
 
+    }
+
+    @Test
+    public void settingsAndMappingUpdate() throws Exception {
+
+        final String indexName = ".test_settings_mapping_update";
+
+        ClusterService clusterService = cluster.getInjectable(ClusterService.class);
+
+        AcknowledgedResponse acknowledgedResponse = cluster.getInternalNodeClient().admin().indices()
+                .create(new CreateIndexRequest(indexName)
+                        .mapping("_doc", ImmutableMap.of("properties", ImmutableMap.of("x", ImmutableMap.of("type", "text")))).waitForActiveShards(1))
+                .actionGet();
+
+        Assert.assertTrue(acknowledgedResponse.isAcknowledged());
+
+        GetSettingsResponse getSettingsResponse = cluster.getInternalNodeClient().admin().indices()
+                .getSettings(new GetSettingsRequest().indices(indexName)).actionGet();
+
+        Assert.assertFalse(IndexMetadata.INDEX_HIDDEN_SETTING.get(getSettingsResponse.getIndexToSettings().get(indexName)));
+
+        ProtectedConfigIndexService service = new ProtectedConfigIndexService(cluster.getInternalNodeClient(), clusterService,
+                cluster.getInjectable(ThreadPool.class), new ProtectedIndices());
+
+        service.createIndex(
+                new ConfigIndex(indexName)
+                        .mapping(ImmutableMap.of("properties",
+                                ImmutableMap.of("x", ImmutableMap.of("type", "text"), "y", ImmutableMap.of("type", "text"))), 2)
+                        .mappingUpdate(0, ImmutableMap.of("properties", ImmutableMap.of("y", ImmutableMap.of("type", "text")))));
+
+        service.onNodeStart();
+
+        AsyncAssert
+                .awaitAssert("Index updated",
+                        () -> clusterService.state().getMetadata().indices().get(indexName).mapping().getSourceAsMap().get("properties")
+                                .equals(ImmutableMap.of("x", ImmutableMap.of("type", "text"), "y", ImmutableMap.of("type", "text"))),
+                        Duration.ofSeconds(30));
+
+        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().indices().get(indexName).isHidden(),
+                Duration.ofSeconds(10));
+    }
+
+    @Test
+    public void settingsUpdate() throws Exception {
+
+        final String indexName = ".test_settings_update";
+
+        ClusterService clusterService = cluster.getInjectable(ClusterService.class);
+
+        AcknowledgedResponse acknowledgedResponse = cluster.getInternalNodeClient().admin().indices()
+                .create(new CreateIndexRequest(indexName).waitForActiveShards(1)).actionGet();
+
+        Assert.assertTrue(acknowledgedResponse.isAcknowledged());
+
+        GetSettingsResponse getSettingsResponse = cluster.getInternalNodeClient().admin().indices()
+                .getSettings(new GetSettingsRequest().indices(indexName)).actionGet();
+
+        Assert.assertFalse(IndexMetadata.INDEX_HIDDEN_SETTING.get(getSettingsResponse.getIndexToSettings().get(indexName)));
+
+        ProtectedConfigIndexService service = new ProtectedConfigIndexService(cluster.getInternalNodeClient(), clusterService,
+                cluster.getInjectable(ThreadPool.class), new ProtectedIndices());
+
+        service.createIndex(new ConfigIndex(indexName));
+
+        service.onNodeStart();
+
+        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().indices().get(indexName).isHidden(),
+                Duration.ofSeconds(10));
     }
 
 }
