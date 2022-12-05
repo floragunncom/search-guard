@@ -396,7 +396,7 @@ deploy_snapshot:
       set -x
       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests deploy | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN="https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-elasticsearch-plugin/1.0.0-beta-2-es-7.17.3/search-guard-flx-elasticsearch-plugin-1.0.0-beta-2-es-7.17.3-sgadmin-standalone.zip"
+      SG_ADMIN="https://maven.search-guard.com//search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.17.0-53.4.0/search-guard-suite-plugin-7.17.0-53.4.0-sgadmin-standalone.zip"
       ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       if [ -z "$IT_BRANCH" ]; then
@@ -460,7 +460,7 @@ deploy_staging:
       echo "Deploying Release to Staging repo"
       mvn clean deploy -s settings.xml -DaltDeploymentRepository=staging::default::https://maven.search-guard.com:443/search-guard-flx-staging -DskipTests -B -Penterprise -Prelease -Drevision=$DEPLOY_VERSION | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-      SG_ADMIN="https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-elasticsearch-plugin/1.0.0-beta-2-es-7.17.3/search-guard-flx-elasticsearch-plugin-1.0.0-beta-2-es-7.17.3-sgadmin-standalone.zip"
+      SG_ADMIN="https://maven.search-guard.com//search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.17.0-53.4.0/search-guard-suite-plugin-7.17.0-53.4.0-sgadmin-standalone.zip"
       if [ -z "$IT_BRANCH" ]; then
         if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n "$(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME)" ]; then
           IT_BRANCH="$CI_COMMIT_REF_NAME"

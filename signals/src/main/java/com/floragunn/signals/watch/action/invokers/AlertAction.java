@@ -1,3 +1,20 @@
+/*
+ * Copyright 2019-2022 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch.action.invokers;
 
 import java.io.IOException;
@@ -24,12 +41,14 @@ import com.floragunn.signals.watch.severity.SeverityMapping;
 public class AlertAction extends ActionInvoker {
     protected final DurationExpression throttlePeriod;
     protected final SeverityLevel.Set severityLevels;
+    protected final boolean ackEnabled;
 
     public AlertAction(String name, ActionHandler handler, DurationExpression throttlePeriod, SeverityLevel.Set severityLevels, List<Check> checks,
-            InlinePainlessScript<SignalsObjectFunctionScript.Factory> foreach, Integer foreachLimit) {
+            InlinePainlessScript<SignalsObjectFunctionScript.Factory> foreach, Integer foreachLimit, boolean ackEnabled) {
         super(name, handler, checks, foreach, foreachLimit);
         this.throttlePeriod = throttlePeriod;
         this.severityLevels = severityLevels;
+        this.ackEnabled = ackEnabled;
     }
 
     public DurationExpression getThrottlePeriod() {
@@ -40,6 +59,10 @@ public class AlertAction extends ActionInvoker {
         return severityLevels;
     }
 
+    public boolean isAckEnabled() {
+        return ackEnabled;
+    }
+    
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
@@ -75,6 +98,10 @@ public class AlertAction extends ActionInvoker {
             builder.endArray();
         }
 
+        if (!ackEnabled) {
+            builder.field("ack_enabled", false);            
+        }
+        
         handler.toXContent(builder, params);
 
         builder.endObject();
@@ -92,6 +119,7 @@ public class AlertAction extends ActionInvoker {
         SeverityLevel.Set severityLevels = null;
         ActionHandler handler = null;
         Integer foreachLimit = null;
+        boolean ackEnabled = true;
 
         try {
             severityLevels = SeverityLevel.Set.createWithNoneDisallowed(vJsonNode.get("severity").asAnything());
@@ -112,13 +140,14 @@ public class AlertAction extends ActionInvoker {
         InlinePainlessScript<SignalsObjectFunctionScript.Factory> foreach = vJsonNode.get("foreach")
                 .byString((s) -> InlinePainlessScript.parse(s, SignalsObjectFunctionScript.CONTEXT, watchInitService));
 
-        foreachLimit = vJsonNode.get("foreach_limit").asInteger();
+        foreachLimit = vJsonNode.get("foreach_limit").asInteger();        
+        ackEnabled = vJsonNode.get("ack_enabled").withDefault(true).asBoolean();
 
         vJsonNode.checkForUnusedAttributes();
 
         validationErrors.throwExceptionForPresentErrors();
 
-        return new AlertAction(name, handler, throttlePeriod, severityLevels, checks, foreach, foreachLimit);
+        return new AlertAction(name, handler, throttlePeriod, severityLevels, checks, foreach, foreachLimit, ackEnabled);
 
     }
 
