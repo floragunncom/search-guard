@@ -53,33 +53,68 @@ import com.unboundid.util.ssl.TrustStoreTrustManager;
 
 public abstract class LdapServer {
     public static LdapServer createTls(String... ldifFiles) {
-        try {
-            LdapServer server = new TlsLdapServer();
-            server.start(ldifFiles);
-            return server;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+
+        int tries = 0;
+        while (tries < 10) {
+            try {
+                LdapServer server = new TlsLdapServer();
+                server.start(ldifFiles);
+                return server;
+            } catch (Exception e) {
+                tries++;
+                System.out.println("Unable to start ldap server, try again ... " + e);
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ex) {
+                    return null;
+                }
+            }
         }
+        System.out.println("Unable to start ldap server, return null");
+        return null;
     }
-    
+
     public static LdapServer createStartTls(String... ldifFiles) {
-        try {
-            LdapServer server = new StartTlsLdapServer();
-            server.start(ldifFiles);
-            return server;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+
+        int tries = 0;
+        while (tries < 10) {
+            try {
+                LdapServer server = new StartTlsLdapServer();
+                server.start(ldifFiles);
+                return server;
+            } catch (Exception e) {
+                tries++;
+                System.out.println("Unable to start ldap server, try again ... " + e);
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ex) {
+                    return null;
+                }
+            }
         }
+        System.out.println("Unable to start ldap server, return null");
+        return null;
     }
-    
+
     public static LdapServer createPlainText(String... ldifFiles) {
-        try {
-            LdapServer server = new PlainTextLdapServer();
-            server.start(ldifFiles);
-            return server;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        int tries = 0;
+        while (tries < 10) {
+            try {
+                LdapServer server = new PlainTextLdapServer();
+                server.start(ldifFiles);
+                return server;
+            } catch (Exception e) {
+                tries++;
+                System.out.println("Unable to start ldap server, try again ... " + e);
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ex) {
+                    return null;
+                }
+            }
         }
+        System.out.println("Unable to start ldap server, return null");
+        return null;
     }
 
     private final static Logger LOG = LoggerFactory.getLogger(LdapServer.class);
