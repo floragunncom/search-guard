@@ -81,8 +81,14 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
             StatefulIndexQueries statefulIndexQueries = this.statefulIndexQueries;
 
             if (!statefulIndexQueries.indices.containsAll(indices)) {
-                throw new IllegalStateException("Index " + ImmutableSet.of(indices).without(this.statefulIndexQueries.indices)
-                        + " is not registered in " + this.statefulIndexQueries);
+                // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
+                // For non-existing indices, it is safe to assume that no documents can be accessed.
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("Indices {} do not exist. Assuming full document restriction.", indices);
+                }
+                
+                return true;
             }
 
             for (String index : indices) {
@@ -195,7 +201,14 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
         StatefulIndexQueries statefulIndexQueries = this.statefulIndexQueries;
 
         if (!statefulIndexQueries.indices.contains(index)) {
-            throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
+            // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
+            // For non-existing indices, it is safe to assume that no documents can be accessed.
+            
+            if (log.isDebugEnabled()) {
+                log.debug("Index {} does not exist. Assuming full document restriction.", index);
+            }
+
+            return DlsRestriction.FULL;
         }
 
         ImmutableSet<String> roleWithoutQuery = statefulIndexQueries.indexToRoleWithoutQuery.get(index);
