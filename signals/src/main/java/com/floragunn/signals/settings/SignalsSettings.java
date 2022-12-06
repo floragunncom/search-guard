@@ -103,6 +103,8 @@ public class SignalsSettings {
         public static final Setting<String> HTTP_PROXY = Setting.simpleString("http.proxy");
 
         public static final Setting<String> NODE_FILTER = Setting.simpleString("node_filter");
+
+        public static final Setting<String> FRONTEND_BASE_URL = Setting.simpleString("frontend_base_url");
         
         private final String indexName;
         private final SignalsStaticSettings staticSettings;
@@ -143,6 +145,10 @@ public class SignalsSettings {
             return NODE_FILTER.get(settings);
         }
 
+        public String getFrontendBaseUrl() {
+            return FRONTEND_BASE_URL.get(settings);
+        }
+        
         public String getInternalAuthTokenEncryptionKey() {
             String result = INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY.get(settings);
 
@@ -366,7 +372,7 @@ public class SignalsSettings {
 
         static List<Setting<?>> getAvailableSettings() {
             return Arrays.asList(ACTIVE, DEFAULT_THROTTLE_PERIOD, INCLUDE_NODE_IN_WATCHLOG, ALLOWED_HTTP_ENDPOINTS, TENANT,
-                    INTERNAL_AUTH_TOKEN_SIGNING_KEY, INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY, WATCH_LOG_INDEX, NODE_FILTER, HTTP_PROXY);
+                    INTERNAL_AUTH_TOKEN_SIGNING_KEY, INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY, WATCH_LOG_INDEX, NODE_FILTER, HTTP_PROXY, FRONTEND_BASE_URL);
         }
 
         public static Setting<?> getSetting(String key) throws ConfigValidationException {

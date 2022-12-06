@@ -25,6 +25,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.http.HttpStatus;
@@ -62,12 +64,13 @@ import org.quartz.TimeOfDay;
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchsupport.junit.LoggingTestWatcher;
 import com.floragunn.signals.support.JsonBuilder;
 import com.floragunn.signals.util.WatchLogSearch;
@@ -1421,6 +1424,47 @@ public class RestApiTest {
             
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
             Assert.assertEquals(response.getBody(), "The action 'testaction_unack' is not acknowledgeable", response.getBodyAsDocNode().get("error"));
+        }
+    }
+
+
+    @Test
+    public void testAckWatchLink() throws Exception {
+        String tenant = "_main";
+        String watchId = "test_ack_watch_link";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String frontendBaseUrl = "http://my.frontend";
+
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+            EmailAccount account = new EmailAccount();
+            account.setHost("localhost");
+            account.setPort(9999);
+            account.setDefaultFrom("test@test");
+
+            HttpResponse response = restClient.putJson("/_signals/account/email/test_ack_watch_link", account.toJson());            
+            response = restClient.putJson("/_signals/settings/frontend_base_url", DocNode.wrap(frontendBaseUrl).toJsonString());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100000).put("{\"a\": 42}").as("testdata").checkCondition("data.testdata.a > 0")
+                    .then().email("test").account("test_ack_watch_link").body("Watch Link: {{ack_watch_link}}\nAction Link: {{ack_action_link}}")
+                    .to("test@test").name("testaction").build();
+            response = restClient.putJson(watchPath, watch.toJson());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(100);
+
+            response = restClient.postJson(watchPath + "/_execute", DocNode.of("simulate", true).toJsonString());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            String mail = response.getBodyAsDocNode().findSingleNodeByJsonPath("actions[0].request").toString();
+            Matcher mailMatcher = Pattern.compile("Watch Link: (\\S+)\nAction Link: (\\S+)", Pattern.MULTILINE).matcher(mail);
+            
+            if (!mailMatcher.find()) {
+                Assert.fail(response.getBody());
+            }
+            
+            Assert.assertEquals(response.getBody(), "http://my.frontend/app/searchguard-signals?sg_tenant=SGS_GLOBAL_TENANT#/watch/test_ack_watch_link/ack/", mailMatcher.group(1));
+            Assert.assertEquals(response.getBody(), "http://my.frontend/app/searchguard-signals?sg_tenant=SGS_GLOBAL_TENANT#/watch/test_ack_watch_link/ack/testaction/", mailMatcher.group(2));
         }
     }
 
