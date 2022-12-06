@@ -33,6 +33,7 @@ stages:
   - "Frontend Compat Int Tests 1"
   - "Frontend Compat Int Tests 2"
   - release
+  - "Deploy Docker Image"
 
 workflow:
   rules:
@@ -64,6 +65,8 @@ build:
   stage: build
   interruptible: true
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
@@ -86,7 +89,10 @@ build_for_tag_version:
   stage: build
   interruptible: true
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: always
   tags:
     - build
   before_script:
@@ -116,6 +122,10 @@ build_for_tag_version:
 test_security:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test-large
   script:
@@ -137,6 +147,10 @@ test_security:
 test_security_legacy:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test-large
   script:
@@ -158,6 +172,10 @@ test_security_legacy:
 test_ssl:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test
   script:
@@ -179,6 +197,10 @@ test_ssl:
 test_signals:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test-large
   script:
@@ -199,6 +221,10 @@ test_signals:
 test_scheduler:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test
   script:
@@ -219,6 +245,10 @@ test_scheduler:
 test_support:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test
   script:
@@ -239,6 +269,10 @@ test_support:
 test_dlic_security:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test-large
   script:
@@ -259,6 +293,10 @@ test_dlic_security:
 test_dlic_security_legacy:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test-large
   script:
@@ -279,6 +317,10 @@ test_dlic_security_legacy:
 test_dlic_dlsfls:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test
   script:
@@ -299,6 +341,10 @@ test_dlic_dlsfls:
 test_dlic_dlsfls_legacy:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test
   script:
@@ -319,6 +365,10 @@ test_dlic_dlsfls_legacy:
 test_dlic_femt:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test
   script:
@@ -339,6 +389,10 @@ test_dlic_femt:
 test_dlic_auditlog:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test-large
   script:
@@ -359,6 +413,10 @@ test_dlic_auditlog:
 test_dlic_signals:
   stage: test
   interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   tags:
     - test-large
   script:
@@ -386,6 +444,8 @@ deploy_snapshot:
     - job: build
       artifacts: true
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
@@ -442,7 +502,10 @@ deploy_staging:
   stage: package
   interruptible: true
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: always
   before_script:
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   tags:
@@ -501,7 +564,10 @@ include:
 deploy_release:
   stage: release
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: always
   before_script:
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   tags:
@@ -528,4 +594,39 @@ deploy_release:
       mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
   allow_failure: false
 
+deploy_docker_image:
+  stage: "Deploy Docker Image"
+  image: docker:20.10.17
+  services:
+    - docker:20.10.17-dind
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: always
+    - if: '$DOCKER_ONLY'
+      when: always
+  tags:
+    - build
+  script:
+    - |
+          apk update && apk add bash
 
+          SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-\(.*\)-es-.*$/\1/p')
+          ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
+
+          echo "Login in into Docker Hub"
+          echo ""
+          echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
+
+          echo ""
+          echo "Enable qemu-user-static to support docker multiarch builds with buildx"
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
+
+          SG_FLAVOUR="non-flx"
+
+          if [[ $CI_COMMIT_TAG == "sg-flx-"* ]]; then
+              SG_FLAVOUR="flx"
+              SG_VERSION="$(echo $SG_VERSION | tr -d 'flx-')"
+          fi
+
+          ./docker/build_and_push.sh "docker.io" "floragunncom" "$SG_FLAVOUR" "$ES_VERSION" "$SG_VERSION"
+  allow_failure: false
