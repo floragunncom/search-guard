@@ -604,6 +604,7 @@ deploy_docker_image:
 
           if [[ $CI_COMMIT_TAG == "sg-flx-"* ]]; then
               SG_FLAVOUR="flx"
+              SG_VERSION="$(echo $SG_VERSION | tr -d 'flx-')"
           fi
 
           ./docker/build_and_push.sh "docker.io" "floragunncom" "$SG_FLAVOUR" "$ES_VERSION" "$SG_VERSION"
