@@ -81,7 +81,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
             StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
             if (!statefulIndexQueries.indices.contains(index)) {
-                throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
+                return FieldMaskingRule.MASK_ALL;
             }
 
             ImmutableSet<String> rolesWithoutRule = statefulIndexQueries.indexToRoleWithoutRule.get(index);
@@ -152,8 +152,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
             StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
             if (!statefulIndexQueries.indices.containsAll(indices)) {
-                throw new IllegalStateException("Index " + ImmutableSet.of(indices).without(this.statefulIndexQueries.indices)
-                        + " is not registered in " + this.statefulIndexQueries);
+                return true;
             }
 
             for (String index : indices) {
@@ -181,7 +180,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
             StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
             if (!statefulIndexQueries.indices.contains(index)) {
-                throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
+                return true;
             }
 
             return hasFieldMaskingRestrictions(context, index, statefulIndexQueries);
@@ -405,6 +404,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
 
     public static abstract class FieldMaskingRule {
         public static final FieldMaskingRule ALLOW_ALL = new FieldMaskingRule.SingleRole(ImmutableList.empty());
+        public static final FieldMaskingRule MASK_ALL = new FieldMaskingRule.SingleRole(ImmutableList.of(new Field(Role.Index.FieldMaskingExpression.MASK_ALL, DlsFlsConfig.FieldMasking.DEFAULT)));
 
         public static FieldMaskingRule of(DlsFlsConfig.FieldMasking fieldMaskingConfig, String... rules) throws ConfigValidationException {
             ImmutableList.Builder<Role.Index.FieldMaskingExpression> patterns = new ImmutableList.Builder<>();

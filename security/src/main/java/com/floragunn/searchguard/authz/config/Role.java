@@ -212,6 +212,8 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         }
 
         public static class FieldMaskingExpression {
+            public static final FieldMaskingExpression MASK_ALL = new FieldMaskingExpression(Pattern.wildcard(), "*");
+            
             private final Pattern pattern;
             private final MessageDigest algo;
             private final List<RegexReplacement> regexReplacements;
@@ -240,6 +242,13 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                         regexReplacements.add(new RegexReplacement(tokens.get(i), tokens.get(i + 1)));
                     }
                 }
+            }
+            
+            private FieldMaskingExpression(Pattern pattern, String source) {
+                this.pattern = pattern;
+                this.source = source;
+                this.algo = null;
+                this.regexReplacements = null;
             }
 
             public static class RegexReplacement {
