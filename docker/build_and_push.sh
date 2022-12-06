@@ -13,7 +13,7 @@ SG_VERSION="$5"
 DEFAULT_PLATFORMS="linux/arm64,linux/amd64"
 
 PREFIX=""
-POSTFIX="-tmp"
+POSTFIX=""
 
 echo "Build and push search-guard $SG_FLAVOUR image to $DOCKER_REPO/$DOCKER_USER for ES $ES_VERSION and SG $SG_VERSION"
 
