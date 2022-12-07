@@ -20,7 +20,11 @@ package com.floragunn.searchguard.privileges.extended_action_handling;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -43,7 +47,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
@@ -55,7 +58,7 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.indices.IndexCleanupAgent;
 import com.google.common.base.Objects;
 
-public class ResourceOwnerService {
+public class ResourceOwnerService implements ComponentStateProvider, ProtectedConfigIndexService.IndexReadyListener {
 
     public static final Setting<Integer> MAX_CHECK_RETRIES = Setting.intSetting("searchguard.resource_owner_handling.retry_owner_check.max", 1,
             Property.NodeScope, Property.Filtered);
@@ -84,20 +87,32 @@ public class ResourceOwnerService {
     private final TimeValue defaultResourceLifetime;
     private final WriteRequest.RefreshPolicy refreshPolicy;
 
-    public ResourceOwnerService(Client client, ClusterService clusterService, ThreadPool threadPool, ProtectedIndices protectedIndices,
-            PrivilegesEvaluator privilegesEvaluator, Settings settings) {
+    private final ComponentState componentState = new ComponentState(100, null, "resource_owner_service");
+
+    private final AtomicBoolean indexReady = new AtomicBoolean();
+
+    public ResourceOwnerService(Client client, ClusterService clusterService, ThreadPool threadPool,
+            ProtectedConfigIndexService protectedConfigIndexService, PrivilegesEvaluator privilegesEvaluator, Settings settings) {
         this.privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         this.maxCheckRetries = MAX_CHECK_RETRIES.get(settings);
         this.checkRetryDelay = CHECK_RETRY_DELAY.get(settings);
         this.defaultResourceLifetime = DEFAULT_RESOURCE_LIFETIME.get(settings);
         this.refreshPolicy = WriteRequest.RefreshPolicy.parse(REFRESH_POLICY.get(settings));
         this.privilegesEvaluator = privilegesEvaluator;
-        this.indexCleanupAgent = new IndexCleanupAgent(index, CLEANUP_INTERVAL.get(settings), privilegedConfigClient, clusterService, threadPool);
 
-        protectedIndices.add(index);
+        ProtectedConfigIndexService.ConfigIndex configIndex = new ProtectedConfigIndexService.ConfigIndex(index).onIndexReady(this);
+        componentState.addPart(protectedConfigIndexService.createIndex(configIndex));
+
+        this.indexCleanupAgent = new IndexCleanupAgent(index, CLEANUP_INTERVAL.get(settings), privilegedConfigClient, clusterService, threadPool);
+        componentState.addPart(this.indexCleanupAgent.getComponentState());
     }
 
     public void storeOwner(String resourceType, Object id, User owner, long expires, ActionListener<IndexResponse> actionListener) {
+        if (!indexReady.get()) {
+            actionListener.onFailure(new Exception("Index " + index + " not ready"));
+            return;
+        }
+
         if (log.isTraceEnabled()) {
             log.trace("storeOwner(" + resourceType + ", " + id + ", " + owner + ", " + expires + ")");
         }
@@ -305,6 +320,18 @@ public class ResourceOwnerService {
 
     public void shutdown() {
         this.indexCleanupAgent.shutdown();
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
+    }
+
+    @Override
+    public void onIndexReady(ProtectedConfigIndexService.FailureListener failureListener) {
+        indexReady.set(true);
+        failureListener.onSuccess();
+        this.componentState.updateStateFromParts();
     }
 
     static class CheckOwnerResponse {
