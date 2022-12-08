@@ -17,6 +17,8 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.lucene.search.BooleanClause.Occur;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.elasticsearch.index.query.ParsedQuery;
@@ -34,6 +36,7 @@ import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
 public class DlsFlsSearchOperationListener implements SearchOperationListener, ComponentStateProvider {
+    private static final Logger log = LogManager.getLogger(DlsFlsSearchOperationListener.class);
 
     private final DlsFlsBaseContext dlsFlsBaseContext;
     private final AtomicReference<DlsFlsProcessedConfig> config;
@@ -50,22 +53,31 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
     @Override
     public void onPreQueryPhase(SearchContext searchContext) {
         DlsFlsProcessedConfig config = this.config.get();
-
-        if (!config.isEnabled() || config.getDlsFlsConfig().getDlsMode() ==  DlsFlsConfig.Mode.FILTER_LEVEL) {
+        
+        if (!config.isEnabled()) {
+            log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nnot enabled");
+            return;
+        }
+        
+        if (config.getDlsFlsConfig().getDlsMode() ==  DlsFlsConfig.Mode.FILTER_LEVEL) {
+            log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nFilter Level mode active");
             return;
         }
 
         if (dlsFlsBaseContext.isDlsDoneOnFilterLevel()) {
+            log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nisDlsDoneOnFilterLevel");
             return;
         }
 
         if (searchContext.suggest() != null) {
+            log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nisuggest: " + searchContext.suggest());
             return;
         }
 
         PrivilegesEvaluationContext privilegesEvaluationContext = dlsFlsBaseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {
+            log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nno privilegesEvaluationContext");
             return;
         }
 
@@ -86,6 +98,8 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
             }
 
             DlsRestriction dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index, meter);
+            
+            log.trace("DlsRestriction for {}: {}", index, dlsRestriction);
 
             if (!dlsRestriction.isUnrestricted()) {
                 if (config.getDlsFlsConfig().getDlsMode() ==  DlsFlsConfig.Mode.ADAPTIVE && dlsRestriction.containsTermLookupQuery()) {
@@ -94,7 +108,7 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
                     // has been activated. However, this is not the case for scroll operations, as these lose the thread context value
                     // on which dlsFlsBaseContext.isDlsDoneOnFilterLevel() is based on. Thus, we need to check here again the deeper
                     // conditions.
-                    
+                    log.trace("DlsRestriction: contains TLQ.");
                     return;
                 }
                                 

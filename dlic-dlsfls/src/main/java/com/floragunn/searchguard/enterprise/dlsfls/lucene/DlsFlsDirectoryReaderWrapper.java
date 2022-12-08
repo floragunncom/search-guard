@@ -90,6 +90,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
         PrivilegesEvaluationContext privilegesEvaluationContext = this.dlsFlsBaseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {
+            log.trace("DlsFlsDirectoryReaderWrapper.apply(): No PrivilegesEvaluationContext");           
             return reader;
         }
 
@@ -134,8 +135,8 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("Applying DLS/FLS:\nIndex: " + indexService.index().getName() + "\ndlsQuery: " + dlsQuery + "\nfls: " + flsRule
-                        + "\nfieldMasking: " + fieldMaskingRule);
+                log.debug("Applying DLS/FLS:\nIndex: {}\ndlsRestriction: {}\ndlsQuery: {}\nfls: {}\nfieldMasking: {}", indexService.index().getName(),
+                        dlsRestriction, dlsQuery, flsRule, fieldMaskingRule);
             }
 
             DlsFlsActionContext dlsFlsContext = new DlsFlsActionContext(dlsQuery, flsRule, fieldMaskingRule, indexService, threadContext, licenseInfo, auditlog,
