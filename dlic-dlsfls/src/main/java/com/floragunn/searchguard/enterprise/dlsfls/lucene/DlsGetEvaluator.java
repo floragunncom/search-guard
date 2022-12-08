@@ -39,6 +39,8 @@ package com.floragunn.searchguard.enterprise.dlsfls.lucene;
 
 import java.io.IOException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.FilterLeafReader;
 import org.apache.lucene.index.IndexReader.CacheHelper;
 import org.apache.lucene.index.LeafReader;
@@ -57,9 +59,12 @@ class DlsGetEvaluator {
     private final int numDocs;
     private final CacheHelper readerCacheHelper;
     private final boolean hasDeletions;
+    private static final Logger log = LogManager.getLogger(DlsGetEvaluator.class);
 
     public DlsGetEvaluator(FilterLeafReader filterLeafReader, Query dlsQuery, LeafReader in, boolean applyDlsHere) {
         try {
+            log.trace("Creating DlsGetEvaluator\ndlsQuery: {}\napplyDlsHere: {}", dlsQuery, applyDlsHere);
+            
             if (dlsQuery != null && applyDlsHere) {
                 final IndexSearcher searcher = new IndexSearcher(filterLeafReader);
                 searcher.setQueryCache(null);
@@ -97,6 +102,7 @@ class DlsGetEvaluator {
                 hasDeletions = in.hasDeletions();
             }
         } catch (IOException e) {
+            log.error("IOException in DlsGetEvaluator", e);
             throw new RuntimeException(e);
         }
     }
