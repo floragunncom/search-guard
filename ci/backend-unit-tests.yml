@@ -4,6 +4,8 @@ test_security:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -39,6 +41,8 @@ test_security_legacy:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -74,6 +78,8 @@ test_ssl:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -109,6 +115,8 @@ test_signals:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -144,6 +152,8 @@ test_scheduler:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -179,6 +189,8 @@ test_support:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -214,6 +226,8 @@ test_dlic_security:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -249,6 +263,8 @@ test_dlic_security_legacy:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -284,6 +300,8 @@ test_dlic_dlsfls:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -319,6 +337,8 @@ test_dlic_dlsfls_legacy:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -354,6 +374,8 @@ test_dlic_femt:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -389,6 +411,8 @@ test_dlic_auditlog:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -424,6 +448,8 @@ test_dlic_signals:
   tags:
     - test
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'

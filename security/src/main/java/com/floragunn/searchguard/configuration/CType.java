@@ -223,6 +223,10 @@ public class CType<T> {
         return storage == Storage.EXTERNAL;
     }
 
+    public boolean isRequired() {
+        return !isExternal() && !isOptional();
+    }
+
     public String getUiName() {
         return uiName;
     }

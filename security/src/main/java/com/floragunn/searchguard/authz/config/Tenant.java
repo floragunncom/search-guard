@@ -28,6 +28,8 @@ import com.floragunn.searchguard.configuration.StaticDefinable;
 
 public class Tenant implements Document<ActionGroup>, Hideable, StaticDefinable {
 
+    public static final String GLOBAL_TENANT_ID = "SGS_GLOBAL_TENANT";
+    
     public static ValidationResult<Tenant> parse(DocNode docNode, Parser.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);

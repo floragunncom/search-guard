@@ -57,6 +57,8 @@ stages:
   #- "Frontend Compat Int Tests 1"
   #- "Frontend Compat Int Tests 2"
   - release
+  - "Deploy Docker Image"
+
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
@@ -71,6 +73,10 @@ include:
 upload_mvn_third_party_deps:
   allow_failure: false
   stage: prepare
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   script:
     - |
        set +e
@@ -89,10 +95,10 @@ upload_mvn_third_party_deps:
 build:
   allow_failure: false
   stage: build
-  #rules:
-    #- if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-    #  when: never
-   # - when: always
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: always
   script:
     - | 
        SNAPSHOT_REVISION="$CI_COMMIT_REF_NAME-SNAPSHOT"
@@ -118,7 +124,10 @@ deploy_release:
   interruptible: false
   stage: release
   rules:
+    - if: '$DOCKER_ONLY'
+      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: always
   script:
     - ./dev/setup_gpg.sh
     - |
@@ -136,4 +145,40 @@ deploy_release:
 
       echo "Deploying Release to production repo"
       mvn clean deploy $MAVEN_CLI_OPTS -DskipTests -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION
-  
+
+deploy_docker_image:
+  stage: "Deploy Docker Image"
+  image: docker:${DOCKER_VERSION}
+  services:
+    - docker:${DOCKER_VERSION}-dind
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: always
+    - if: '$DOCKER_ONLY'
+      when: always
+  tags:
+    - build
+  script:
+    - |
+      apk update && apk add bash
+      
+      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-\(.*\)-es-.*$/\1/p')
+      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
+      
+      echo "Login in into Docker Hub"
+      echo ""
+      echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
+      
+      echo ""
+      echo "Enable qemu-user-static to support docker multiarch builds with buildx"
+      docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
+      
+      SG_FLAVOUR="non-flx"
+      
+      if [[ $CI_COMMIT_TAG == "sg-flx-"* ]]; then
+          SG_FLAVOUR="flx"
+          SG_VERSION="$(echo $SG_VERSION | tr -d 'flx-')"
+      fi
+      
+      ./docker/build_and_push.sh "docker.io" "floragunncom" "$SG_FLAVOUR" "$ES_VERSION" "$SG_VERSION"
+  allow_failure: false

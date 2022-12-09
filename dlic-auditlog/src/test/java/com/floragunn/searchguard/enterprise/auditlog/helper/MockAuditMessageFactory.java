@@ -20,8 +20,9 @@ import static org.mockito.Mockito.when;
 import java.net.InetSocketAddress;
 
 import org.elasticsearch.cluster.ClusterName;
+import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.transport.TransportAddress;
 
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
@@ -30,28 +31,30 @@ import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
 
 public class MockAuditMessageFactory {
 
-	public static AuditMessage validAuditMessage() {
-		return validAuditMessage(Category.FAILED_LOGIN);
-	}
-	
-	public static AuditMessage validAuditMessage(Category category) {
+    public static AuditMessage validAuditMessage() {
+        return validAuditMessage(Category.FAILED_LOGIN);
+    }
 
-	    ClusterService cs = mock(ClusterService.class);
-	    DiscoveryNode dn = mock(DiscoveryNode.class);
+    public static AuditMessage validAuditMessage(Category category) {
+
+        ClusterState cs = mock(ClusterState.class);
+        DiscoveryNodes dns = mock(DiscoveryNodes.class);
+        DiscoveryNode dn = mock(DiscoveryNode.class);
 
         when(dn.getHostAddress()).thenReturn("hostaddress");
         when(dn.getId()).thenReturn("hostaddress");
         when(dn.getHostName()).thenReturn("hostaddress");
-        when(cs.localNode()).thenReturn(dn);
+        when(dns.getLocalNode()).thenReturn(dn);
+        when(cs.nodes()).thenReturn(dns);
         when(cs.getClusterName()).thenReturn(new ClusterName("testcluster"));
 
-		TransportAddress ta = new TransportAddress(new InetSocketAddress("8.8.8.8",80));
+        TransportAddress ta = new TransportAddress(new InetSocketAddress("8.8.8.8", 80));
 
-		AuditMessage msg = new AuditMessage(category, cs, Origin.TRANSPORT, Origin.TRANSPORT);
-		msg.addEffectiveUser("John Doe");
-		msg.addRemoteAddress(ta);
-		msg.addRequestType("IndexRequest");
-		return msg;
-	}
+        AuditMessage msg = new AuditMessage(category, cs, Origin.TRANSPORT, Origin.TRANSPORT);
+        msg.addEffectiveUser("John Doe");
+        msg.addRemoteAddress(ta);
+        msg.addRequestType("IndexRequest");
+        return msg;
+    }
 
 }

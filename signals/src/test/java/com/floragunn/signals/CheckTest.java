@@ -440,7 +440,6 @@ public class CheckTest {
         }
     }
 
-    @Ignore("TODO why is this ignored?")
     @Test
     public void testConditionTrue() throws Exception {
 
@@ -460,7 +459,6 @@ public class CheckTest {
         }
     }
 
-    @Ignore("TODO why is this ignored?")
     @Test
     public void testConditionFalse() throws Exception {
 
@@ -480,7 +478,6 @@ public class CheckTest {
         }
     }
 
-    @Ignore("TODO why is this ignored?")
     @Test(expected = CheckExecutionException.class)
     public void testInvalidCondition() throws Exception {
 
@@ -502,7 +499,6 @@ public class CheckTest {
         }
     }
 
-    @Ignore("TODO why is this ignored?")
     @Test
     public void testCalc() throws Exception {
 

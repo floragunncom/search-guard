@@ -130,7 +130,7 @@ public class ActionConverter {
 
         AlertAction alertAction = new AlertAction(name, actionHandler.getElement(), throttlePeriod, null, checks,
                 foreach != null ? new InlinePainlessScript<SignalsObjectFunctionScript.Factory>(SignalsObjectFunctionScript.CONTEXT, foreach) : null,
-                maxIterations);
+                maxIterations, true);
 
         return new ConversionResult<AlertAction>(alertAction, validationErrors);
     }

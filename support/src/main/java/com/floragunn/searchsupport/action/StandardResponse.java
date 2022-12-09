@@ -30,6 +30,11 @@ import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchsupport.action.Action.UnparsedMessage;
 
 public class StandardResponse extends Action.Response {
+    
+    public static StandardResponse internalServerError() {
+        return new StandardResponse(500, new Error("Internal Server Error"));
+    }
+    
     private Error error;
     private String message;
     private Object data;
@@ -82,14 +87,18 @@ public class StandardResponse extends Action.Response {
     }
 
     public StandardResponse data(Map<?, ? extends Document<?>> map) {
-        Map<String, Object> plainMap = new LinkedHashMap<>(map.size());
+        if(map == null) {
+            this.data = null;
+        } else {
 
-        for (Map.Entry<?, ? extends Document<?>> entry : map.entrySet()) {
-            plainMap.put(String.valueOf(entry.getKey()), entry.getValue() != null ? entry.getValue().toBasicObject() : null);
+            Map<String, Object> plainMap = new LinkedHashMap<>(map.size());
+
+            for (Map.Entry<?, ? extends Document<?>> entry : map.entrySet()) {
+                plainMap.put(String.valueOf(entry.getKey()), entry.getValue() != null ? entry.getValue().toBasicObject() : null);
+            }
+
+            this.data = plainMap;
         }
-
-        this.data = plainMap;
-
         return this;
     }
 

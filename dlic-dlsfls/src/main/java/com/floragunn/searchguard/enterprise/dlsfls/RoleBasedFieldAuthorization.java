@@ -72,7 +72,14 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
             StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
             if (!statefulIndexQueries.indices.contains(index)) {
-                throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
+                // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
+                // For non-existing indices, it is safe to assume that no documents can be accessed.
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("Index {} do not exist. Assuming full field restriction.", index);
+                }
+
+                return FlsRule.DENY_ALL;
             }
 
             ImmutableSet<String> rolesWithoutRule = statefulIndexQueries.indexToRoleWithoutRule.get(index);
@@ -142,8 +149,14 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
             StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
             if (!statefulIndexQueries.indices.containsAll(indices)) {
-                throw new IllegalStateException("Index " + ImmutableSet.of(indices).without(this.statefulIndexQueries.indices)
-                        + " is not registered in " + this.statefulIndexQueries);
+                // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
+                // For non-existing indices, it is safe to assume that no documents can be accessed.
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("Indices {} do not exist. Assuming full field restriction.", indices);
+                }
+                
+                return true;
             }
 
             for (String index : indices) {
@@ -171,7 +184,14 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
             StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
             if (!statefulIndexQueries.indices.contains(index)) {
-                throw new IllegalStateException("Index " + index + " is not registered in " + this.statefulIndexQueries);
+                // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
+                // For non-existing indices, it is safe to assume that no documents can be accessed.
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("Index {} do not exist. Assuming full field restriction.", index);
+                }
+                
+                return true;
             }
 
             return hasFlsRestrictions(context, index, statefulIndexQueries);
@@ -423,6 +443,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
         }
 
         public static final FlsRule ALLOW_ALL = new FlsRule.SingleRole(ImmutableList.empty());
+        public static final FlsRule DENY_ALL = new FlsRule.SingleRole(ImmutableList.of(Role.Index.FlsPattern.EXCLUDE_ALL));
 
         public abstract boolean isAllowed(String field);
 

@@ -22,7 +22,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +42,7 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -60,6 +61,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -152,7 +154,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final PrivilegedConfigClient privilegedConfigClient;
     private final ThreadPool threadPool;
 
-    public final static ImmutableMap<String, Object> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Arrays.asList(ImmutableMap
+    public final static ImmutableMap<String, Object> SG_INDEX_MAPPING = ImmutableMap.of("dynamic_templates", Collections.singletonList(ImmutableMap
             .of("encoded_config", ImmutableMap.of("match", "*", "match_mapping_type", "*", "mapping", ImmutableMap.of("type", "binary")))));
 
     private final static ImmutableMap<String, Object> SG_INDEX_SETTINGS = ImmutableMap.of("index.number_of_shards", 1, "index.auto_expand_replicas",
@@ -162,8 +164,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Context parserContext;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
-            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
-            NamedXContentRegistry xContentRegistry) {
+                                   ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
+                                   NamedXContentRegistry xContentRegistry, Environment environment) {
         this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
         this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
@@ -175,7 +177,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.componentState.setMandatory(true);
         this.mainConfigLoader = new ConfigurationLoader(client, componentState, this, staticSgConfig);
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
-        this.variableResolvers = VariableResolvers.ALL_PRIVILEGED.with("var", (key) -> configVarService.get(key));
+        this.variableResolvers = new VariableResolvers()
+                .with("file", (file) -> VariableResolvers.FILE_PRIVILEGED.apply(environment.configFile().resolve(file).toAbsolutePath().toString()))
+                .with("env", VariableResolvers.ENV)
+                .with("var", (key) -> configVarService.get(key));
         this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry);
         this.threadPool = threadPool;
 
@@ -244,9 +249,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     /**
-     * 
      * @param configurationType
-     * @return can also return empty in case it was never loaded 
+     * @return can also return empty in case it was never loaded
      */
     public <T> SgDynamicConfiguration<T> getConfiguration(CType<T> configurationType) {
         if (currentConfig == null) {
@@ -335,10 +339,43 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 try {
                     response = client.admin().cluster()
                             .health(new ClusterHealthRequest(searchguardIndex).waitForActiveShards(1).waitForYellowStatus()).actionGet();
+
                 } catch (Exception e1) {
                     LOGGER.debug("Catched again a {} but we just try again ...", e1.toString());
                 }
                 continue;
+            }
+
+            final int maxAttempts = 30;
+            final long requiredDocCount = CType.all().stream().filter(cType -> cType.isRequired()).count();
+
+            componentState.setState(State.INITIALIZING, "waiting_for_docs_in_index");
+
+            long docCount = 0;
+            int attempts = 0;
+            while (docCount < requiredDocCount && attempts < maxAttempts) {
+
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e1) {
+                    Thread.currentThread().interrupt();
+                    LOGGER.debug("Thread was interrupted so we cancel initialization");
+                    break;
+                }
+
+                try {
+                    docCount = client.admin().indices().stats(new IndicesStatsRequest().indices(searchguardIndex).docs(true)).actionGet()
+                            .getIndex(searchguardIndex).getTotal().docs.getCount();
+                    if (docCount < requiredDocCount) {
+                        LOGGER.info("Got {} documents, waiting for {} in total, we just try again ...", docCount, requiredDocCount);
+                    } else {
+                        break;
+                    }
+                } catch (Exception e1) {
+                    LOGGER.warn("Catched a {} but we just try again ...", e1.toString());
+                }
+
+                attempts++;
             }
 
             componentState.setState(State.INITIALIZING, "loading");
@@ -606,7 +643,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     /**
      * This retrieves the config directly from the index without caching involved
-     * 
+     *
      * @param configType
      * @return
      * @throws ConfigUnavailableException
@@ -617,7 +654,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     /**
      * This retrieves the config directly from the index without caching involved
-     * 
+     *
      * @param configTypes
      * @return
      * @throws ConfigUnavailableException
@@ -1144,7 +1181,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         return ImmutableSet.of(configuredSearchguardIndexOld, configuredSearchguardIndexNew);
     }
 
-    public static enum PatchDefaultHandling {
+    public enum PatchDefaultHandling {
         FAIL_ON_MISSING_DOCUMENT, TREAT_MISSING_DOCUMENT_AS_EMPTY_DOCUMENT
     }
 }

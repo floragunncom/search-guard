@@ -134,7 +134,7 @@ public class JwtAuthenticator implements HttpAuthenticationFrontend {
 
         if (openidConnectUrl != null) {
             boolean cacheJwksEndpoint = vNode.get("signing.keys_from_openid_configuration.cache_jwks_endpoint").withDefault(false).asBoolean();
-            TLSConfig tlsConfig = vNode.get("signing.keys_from_openid_configuration.tls").by(TLSConfig::parse);
+            TLSConfig tlsConfig = vNode.get("signing.keys_from_openid_configuration.tls").by((Parser<TLSConfig, Parser.Context>) TLSConfig::parse);
             ProxyConfig proxyConfig = vNode.get("signing.keys_from_openid_configuration.proxy")
                     .by((ValidatingFunction<DocNode, ProxyConfig>) ProxyConfig::parse);
 
@@ -148,7 +148,7 @@ public class JwtAuthenticator implements HttpAuthenticationFrontend {
         URI jwksUrl = vNode.get("signing.jwks_endpoint.url").asURI();
 
         if (jwksUrl != null) {
-            TLSConfig tlsConfig = vNode.get("signing.jwks_endpoint.tls").by(TLSConfig::parse);
+            TLSConfig tlsConfig = vNode.get("signing.jwks_endpoint.tls").by((Parser<TLSConfig, Parser.Context>) TLSConfig::parse);
             ProxyConfig proxyConfig = vNode.get("signing.jwks_endpoint.proxy").by((ValidatingFunction<DocNode, ProxyConfig>) ProxyConfig::parse);
 
             JwksProviderClient jwksProviderClient = new JwksProviderClient(tlsConfig, proxyConfig);

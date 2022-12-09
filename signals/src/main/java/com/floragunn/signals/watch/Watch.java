@@ -1,3 +1,20 @@
+/*
+ * Copyright 2019-2022 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals.watch;
 
 import java.io.IOException;
@@ -36,6 +53,7 @@ import com.floragunn.searchsupport.jobs.config.AbstractJobConfigFactory;
 import com.floragunn.searchsupport.jobs.config.JobConfig;
 import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.searchsupport.jobs.config.schedule.Schedule;
+import com.floragunn.signals.NoSuchActionException;
 import com.floragunn.signals.execution.WatchRunner;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.handlers.AutoResolveActionHandler;
@@ -133,6 +151,16 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     public List<AlertAction> getActions() {
         return actions;
+    }
+    
+    public AlertAction getActionByName(String name) throws NoSuchActionException {
+        for (AlertAction action : this.actions) {
+            if (name.equals(action.getName())) {
+                return action;
+            }
+        }
+        
+        throw new NoSuchActionException(getId(), name);
     }
 
     public List<ResolveAction> getNonGeneratedResolveActions() {

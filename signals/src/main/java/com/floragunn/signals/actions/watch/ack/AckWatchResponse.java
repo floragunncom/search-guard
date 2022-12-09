@@ -68,13 +68,13 @@ public class AckWatchResponse extends BaseNodesResponse<TransportAckWatchAction.
         }
 
         for (TransportAckWatchAction.NodeResponse nodeResponse : getNodes()) {
-            if (nodeResponse.getStatus() == Status.ILLEGAL_STATE) {
+            if (nodeResponse.getStatus() == Status.ILLEGAL_STATE || nodeResponse.getStatus() == Status.NO_SUCH_ACTION || nodeResponse.getStatus() == Status.NOT_ACKNOWLEDGEABLE || nodeResponse.getStatus() == Status.NO_SUCH_TENANT) {
                 return nodeResponse;
             }
         }
 
         for (TransportAckWatchAction.NodeResponse nodeResponse : getNodes()) {
-            if (nodeResponse.getStatus() == Status.EXCEPTION) {
+            if (nodeResponse.getStatus() == Status.EXCEPTION || nodeResponse.getStatus() == Status.UNAUTHORIZED) {
                 return nodeResponse;
             }
         }
@@ -83,7 +83,7 @@ public class AckWatchResponse extends BaseNodesResponse<TransportAckWatchAction.
     }
 
     public static enum Status {
-        SUCCESS, NO_SUCH_WATCH, EXCEPTION, ILLEGAL_STATE, NO_SUCH_TENANT, UNAUTHORIZED
+        SUCCESS, NO_SUCH_WATCH, EXCEPTION, ILLEGAL_STATE, NO_SUCH_TENANT, UNAUTHORIZED, NO_SUCH_ACTION, NOT_ACKNOWLEDGEABLE
     }
 
     public Status getStatus() {

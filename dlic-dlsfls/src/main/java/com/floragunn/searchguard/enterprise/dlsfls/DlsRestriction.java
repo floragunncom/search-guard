@@ -33,6 +33,7 @@ import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 public class DlsRestriction {
 
     public static final DlsRestriction NONE = new DlsRestriction(ImmutableList.empty());
+    public static final DlsRestriction FULL = new DlsRestriction(ImmutableList.of(com.floragunn.searchsupport.queries.Query.MATCH_NONE));
 
     private static final Query NON_NESTED_QUERY;
 

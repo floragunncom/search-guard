@@ -17,7 +17,9 @@
 
 package com.floragunn.searchsupport.queries;
 
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.index.query.AbstractQueryBuilder;
+import org.elasticsearch.index.query.MatchNoneQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.XContentParser;
@@ -30,6 +32,8 @@ import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchsupport.xcontent.XContentParserContext;
 
 public class Query implements Document<Query> {
+    public static final Query MATCH_NONE = new Query(new MatchNoneQueryBuilder());
+
     private final QueryBuilder queryBuilder;
     private final String source;
 
@@ -44,6 +48,11 @@ public class Query implements Document<Query> {
         } catch (Exception e) {
             throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
         }
+    }
+
+    public Query(QueryBuilder queryBuilder) {
+        this.queryBuilder = queryBuilder;
+        this.source = Strings.toString(queryBuilder);
     }
 
     @Override

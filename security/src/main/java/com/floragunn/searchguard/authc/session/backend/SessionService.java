@@ -107,7 +107,6 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.User;
@@ -246,10 +245,7 @@ public class SessionService {
                 componentState.replacePartsWithType("auth_domain",
                         authcConfig.getAuthenticationDomains().stream().map((d) -> d.getComponentState()).collect(Collectors.toList()));
 
-                // TODO clientAddressAscertainer from frontend config??
-
-                //   clientAddressAscertainer = ClientAddressAscertainer.create(configMap.get(CType.AUTHCZ).getCEntry("sg_config").getNetwork());
-                clientAddressAscertainer = ClientAddressAscertainer.create(null, (IPAddressCollection) null);
+                clientAddressAscertainer = ClientAddressAscertainer.create(restAuthcConfig != null ? restAuthcConfig.getNetwork() : null);
                 configComponentState.initialized();
                 componentState.updateStateFromParts();
             }
@@ -372,7 +368,6 @@ public class SessionService {
 
         threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, clientInfo.getOriginatingTransportAddress());
 
-        // TODO get the remote Ip address from the request
         if (blockedIpRegistry.isIpBlocked(remoteIpAddress)) {
             if (log.isDebugEnabled()) {
                 log.debug("Rejecting REST request because of blocked address: " + remoteIpAddress);
