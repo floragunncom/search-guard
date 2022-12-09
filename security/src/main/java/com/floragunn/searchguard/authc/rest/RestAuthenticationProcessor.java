@@ -167,7 +167,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
                 }
                 auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
                 meter.close();
-                channel.sendResponse(new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED));
+                channel.sendResponse(AuthenticatingRestFilter.createUnauthorizedResponse(request));
                 onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
                 return;
             }

@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 
 
 import com.floragunn.searchguard.SignalsTenantParamResolver;
+import com.floragunn.searchguard.authc.rest.AuthenticatingRestFilter;
 import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -152,7 +153,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
     }
 
     @Override
-    protected AuthcResult handleChallenge() {
+    protected AuthcResult handleChallenge(RestRequest restRequest) {
 
         if (challenges.size() == 0) {
             return null;
@@ -162,7 +163,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
             log.debug("Sending WWW-Authenticate: " + String.join(", ", challenges));
         }
 
-        RestResponse wwwAuthenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED);
+        RestResponse wwwAuthenticateResponse = AuthenticatingRestFilter.createUnauthorizedResponse(restRequest);
 
         for (String challenge : this.challenges) {
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", challenge);

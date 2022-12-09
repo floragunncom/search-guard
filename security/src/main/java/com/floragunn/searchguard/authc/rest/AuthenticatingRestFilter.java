@@ -19,24 +19,21 @@ package com.floragunn.searchguard.authc.rest;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collections;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.CuckooFilter;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
-import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -213,19 +210,9 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     } else {
                         org.apache.logging.log4j.ThreadContext.remove("user");
 
-                        if (result.getRestStatus() != null && result.getRestStatusMessage() != null) {
+                        if (result.getRestStatus() != null) {
 
-                            RestResponse response;
-
-                            if (isJsonResponseRequested(request)) {
-                                response = new RestResponse(result.getRestStatus(), "application/json", DocNode.of(//
-                                        "status", result.getRestStatus().getStatus(), //
-                                        "error.reason", result.getRestStatusMessage(), //
-                                        "error.type", "authentication_exception" //
-                                ).toJsonString());
-                            } else {
-                                response = new RestResponse(result.getRestStatus(), result.getRestStatusMessage());
-                            }
+                            final RestResponse response = createResponse(request, result);
 
                             if (!result.getHeaders().isEmpty()) {
                                 result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
@@ -244,12 +231,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             } else {
                 original.dispatchRequest(request, channel, threadContext);
             }
-        }
-
-        private boolean isJsonResponseRequested(RestRequest request) {
-            String accept = request.header("accept");
-
-            return accept != null && (accept.startsWith("application/json") || accept.startsWith("application/vnd.elasticsearch+json"));
         }
 
         private boolean isAuthcRequired(RestRequest request) {
@@ -325,6 +306,35 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         }
 
 
+    }
+
+    public static RestResponse createUnauthorizedResponse(RestRequest request) {
+        return createResponse(request, AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED));
+    }
+
+    public static RestResponse createResponse(RestRequest request, AuthcResult result) {
+        final String statusMessage = result.getRestStatusMessage()==null?result.getRestStatus().name():result.getRestStatusMessage();
+        final String accept = request.header("accept");
+
+        if(accept == null || (!accept.startsWith("application/json") && !accept.startsWith("application/vnd.elasticsearch+json"))) {
+            return new RestResponse(result.getRestStatus(), statusMessage);
+        }
+
+        if(accept.startsWith("application/vnd.elasticsearch+json") && accept.contains("compatible-with=8")) {
+            return new RestResponse(result.getRestStatus(), "application/vnd.elasticsearch+json", DocNode.of(//
+                    "status", result.getRestStatus().getStatus(), //
+                    "error.reason", statusMessage, //
+                    "error.rootCause", Collections.emptyList(), //
+                    "error.suppressed", Collections.emptyList(), //
+                    "error.metadata", Collections.emptyMap() //
+            ).toJsonString());
+        }
+
+        return new RestResponse(result.getRestStatus(), "application/json", DocNode.of(//
+                "status", result.getRestStatus().getStatus(), //
+                "error.reason", statusMessage, //
+                "error.type", "authentication_exception" //
+        ).toJsonString());
     }
 
     @Override

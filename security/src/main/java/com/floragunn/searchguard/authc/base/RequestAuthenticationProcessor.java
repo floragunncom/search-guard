@@ -101,7 +101,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
     protected abstract AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<AuthenticatorType> authenticationDomain,
             Consumer<AuthcResult> onResult, Consumer<Exception> onFailure);
 
-    protected AuthcResult handleChallenge() {
+    protected AuthcResult handleChallenge(RestRequest restRequest) {
         return null;
     }
 
@@ -334,7 +334,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
             auditLog.logFailedLogin(authCredentials != null ? authCredentials : AuthCredentials.NONE, false, null, request.getRequest());
             notifyIpAuthFailureListeners(authCredentials);
 
-            AuthcResult challengeHandled = handleChallenge();
+            AuthcResult challengeHandled = handleChallenge(request.getRequest());
 
             if (challengeHandled != null) {
                 return challengeHandled;

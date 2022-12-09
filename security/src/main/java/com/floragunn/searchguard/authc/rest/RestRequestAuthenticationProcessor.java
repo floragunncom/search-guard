@@ -139,7 +139,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
     }
 
     @Override
-    protected AuthcResult handleChallenge() {
+    protected AuthcResult handleChallenge(RestRequest restRequest) {
 
         if (challenges.size() == 0) {
             return null;

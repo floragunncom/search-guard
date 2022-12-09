@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.floragunn.searchguard.authc.rest.AuthenticatingRestFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -136,7 +137,7 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
                 log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
             }
             auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
-            channel.sendResponse(new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED));
+            channel.sendResponse(AuthenticatingRestFilter.createUnauthorizedResponse(request));
             onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
             return;
         }
