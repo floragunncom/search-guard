@@ -86,24 +86,24 @@ public final class AuditLogImpl extends AbstractAuditLog {
             super.logFailedLogin(effectiveUser, sgadmin, initiatingUser, request);
         }
     }
-    
+
     @Override
-    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request,
-    		Task task) {        
-    	if (enabled) {
+    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
+        if (enabled) {
             super.logBlockedUser(effectiveUser, sgadmin, initiatingUser, request, task);
-        }    	
-    }
-    
-    @Override
-    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
-    	if (enabled) {
-            super.logBlockedUser(effectiveUser, sgadmin, initiatingUser, request);
-        }      	
+        }
     }
 
     @Override
-    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, String action, Task task) {
+    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
+        if (enabled) {
+            super.logBlockedUser(effectiveUser, sgadmin, initiatingUser, request);
+        }
+    }
+
+    @Override
+    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request,
+            String action, Task task) {
         if (enabled) {
             super.logSucceededLogin(effectiveUser, sgadmin, initiatingUser, request, action, task);
         }
@@ -155,23 +155,23 @@ public final class AuditLogImpl extends AbstractAuditLog {
     public void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task) {
         if (enabled) {
             super.logBlockedIp(request, action, remoteAddress, task);
-        }  	
+        }
     }
-    
+
     @Override
     public void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress) {
         if (enabled) {
             super.logBlockedIp(request, remoteAddress);
-        }  	    	
-    }    
-    
+        }
+    }
+
     @Override
     public void logSgIndexAttempt(TransportRequest request, String action, Task task) {
         if (enabled) {
             super.logSgIndexAttempt(request, action, task);
         }
     }
-    
+
     @Override
     public void logImmutableIndexAttempt(TransportRequest request, String action, Task task) {
         if (enabled) {
@@ -213,7 +213,5 @@ public final class AuditLogImpl extends AbstractAuditLog {
             super.logDocumentDeleted(shardId, delete, result);
         }
     }
-
-
 
 }

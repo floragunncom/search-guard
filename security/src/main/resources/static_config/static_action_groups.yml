@@ -260,6 +260,17 @@ SGS_SEARCH_TEMPLATES:
   - "indices:data/read/msearch/template"
   type: "cluster"
   description: "Use search templates"
+SGS_PERSONAL_SESSIONS:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:login/session"
+    - "cluster:admin:searchguard:session/_own/get/extended"
+    - "cluster:admin:searchguard:session/_own/delete"
+    - "cluster:admin:searchguard:session/create"
+  type: "cluster"
+  description: "Actions necessary for logging in and out of sessions for Kibana"
   
 ### Auth Tokens
 

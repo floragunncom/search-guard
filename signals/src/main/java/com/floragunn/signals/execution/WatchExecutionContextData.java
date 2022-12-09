@@ -61,12 +61,6 @@ public class WatchExecutionContextData implements ToXContentObject {
         this.triggerInfo = new TriggerInfo();
         this.watch = new WatchInfo(null, null);
     }
-    
-    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch) {
-        this.data = data;
-        this.triggerInfo = new TriggerInfo();
-        this.watch = watch;
-    }
 
     public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, ZonedDateTime executionTime) {
         this.data = data;
@@ -75,17 +69,9 @@ public class WatchExecutionContextData implements ToXContentObject {
         this.watch = watch;
     }
 
-    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, ZonedDateTime executionTime,
-            SeverityMapping.EvaluationResult severity) {
-        this.data = data;
-        this.triggerInfo = triggerInfo;
-        this.executionTime = executionTime;
-        this.severity = severity;
-        this.watch = watch;
-    }
 
-    public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, ZonedDateTime executionTime,
-            SeverityMapping.EvaluationResult severity, NestedValueMap item) {
+    private WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, ZonedDateTime executionTime,
+                                      SeverityMapping.EvaluationResult severity, NestedValueMap item) {
         this.data = data;
         this.triggerInfo = triggerInfo;
         this.executionTime = executionTime;

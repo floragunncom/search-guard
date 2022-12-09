@@ -31,9 +31,12 @@ public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
 
     public static final RestApi REST_API = new RestApi()//
             .handlesGet("/_searchguard/config/fe_multi_tenancy").with(GetAction.INSTANCE)//
+            .handlesGet("/_searchguard/config/frontend_multi_tenancy").with(GetAction.INSTANCE)//
             .handlesPut("/_searchguard/config/fe_multi_tenancy").with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(body.parseAsMap()))//
+            .handlesPut("/_searchguard/config/frontend_multi_tenancy").with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(body.parseAsMap()))//
             .handlesPatch("/_searchguard/config/fe_multi_tenancy").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
-            .name("/_searchguard/config/fe_multi_tenancy");
+            .handlesPatch("/_searchguard/config/frontend_multi_tenancy").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
+            .name("/_searchguard/config/frontend_multi_tenancy");
 
     public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
             new ActionHandler<>(FeMultiTenancyConfigApi.GetAction.INSTANCE, FeMultiTenancyConfigApi.GetAction.Handler.class),

@@ -74,7 +74,7 @@ public class Saml2SettingsProvider {
             Map<String, Object> details = new LinkedHashMap<>();
 
             if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver) {
-                details.put("last_successful_refresh", ((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh());
+                details.put("last_successful_refresh", String.valueOf(((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh()));
             }
 
             if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver

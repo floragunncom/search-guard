@@ -28,6 +28,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -42,12 +43,11 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.Action;
-import com.floragunn.searchsupport.action.Responses;
 import com.floragunn.searchsupport.action.Action.UnparsedMessage;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
-import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
 
 public class SessionApi {
 
@@ -290,13 +290,13 @@ public class SessionApi {
                     User user = client.threadPool().getThreadContext().getTransient(ConfigConstants.SG_USER);
 
                     if (user != null) {
-                        Responses.send(channel, RestStatus.OK, DocNode.of("sso_logout_url", sessionService.getSsoLogoutUrl(user)));
+                        channel.sendResponse(new RestResponse(RestStatus.OK, "application/json", DocNode.of("sso_logout_url", sessionService.getSsoLogoutUrl(user)).toJsonString()));
                     } else {
                         channel.sendResponse(new StandardResponse(404, new StandardResponse.Error("No session")).toRestResponse());
                     }
                 } catch (Exception e) {
                     log.warn("Error while handling request", e);
-                    Responses.sendError(channel, e);
+                    channel.sendResponse(StandardResponse.internalServerError().toRestResponse());
                 }
             };
         }
@@ -311,17 +311,18 @@ public class SessionApi {
                             .readObject(BytesReference.toBytes(body));
 
                     sessionService.authenticateAndCreateSession(requestBody, request, (response) -> {
-                        Responses.send(channel, RestStatus.CREATED, response);
+                        channel.sendResponse(new RestResponse(RestStatus.CREATED, "application/json", response.toJsonString()));
                     }, (authFailureAuthzResult) -> {
-                        Responses.send(channel, authFailureAuthzResult.getRestStatus(), authFailureAuthzResult);
+                        channel.sendResponse(new RestResponse(authFailureAuthzResult.getRestStatus(), "application/json",
+                                authFailureAuthzResult.toJsonString()));
                     }, (e) -> {
                         log.error("Error while handling request", e);
-                        Responses.sendError(channel, e);
+                        channel.sendResponse(StandardResponse.internalServerError().toRestResponse());
                     });
 
                 } catch (Exception e) {
                     log.warn("Error while handling request", e);
-                    Responses.sendError(channel, e);
+                    channel.sendResponse(StandardResponse.internalServerError().toRestResponse());
                 }
             };
         }

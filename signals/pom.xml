@@ -80,6 +80,56 @@
     </dependency>
 
     <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>${org_antlr.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- ##### start painless plugin ##### -->
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>lang-painless</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm</artifactId>
+      <version>${org_ow2_asm.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-analysis</artifactId>
+      <version>${org_ow2_asm.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-commons</artifactId>
+      <version>${org_ow2_asm.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-tree</artifactId>
+      <version>${org_ow2_asm.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-util</artifactId>
+      <version>${org_ow2_asm.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-api-mockito2</artifactId>
       <scope>test</scope>
@@ -110,5 +160,6 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+    <!-- ##### end painless plugin ##### -->
   </dependencies>
 </project>

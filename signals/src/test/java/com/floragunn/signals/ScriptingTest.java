@@ -29,7 +29,6 @@ import net.jcip.annotations.NotThreadSafe;
 
 @NotThreadSafe
 public class ScriptingTest {
-
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
     private static WatchInitializationService watchInitService;
@@ -49,7 +48,6 @@ public class ScriptingTest {
         watchInitService = new WatchInitializationService(null, scriptService);
     }
 
-    @Ignore("TODO why is this ignored?")
     @Test
     public void testPropertyAccessForTriggeredTime() {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -63,7 +61,7 @@ public class ScriptingTest {
                 new WatchInfo("test_id", "test_tenant"), new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
 
         WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
-                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null);
+                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null, null, null);
 
         SignalsObjectFunctionScript script = factory.newInstance(new HashMap<String, Object>(), ctx);
 
@@ -72,7 +70,6 @@ public class ScriptingTest {
         Assert.assertEquals(watchExecutionContextData.getTriggerInfo().getTriggeredTime(), result);
     }
 
-    @Ignore("TODO why is this ignored?")
     @Test
     public void testPropertyAccessForWatchId() {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -86,7 +83,7 @@ public class ScriptingTest {
                 new WatchInfo("test_id", "test_tenant"), new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
 
         WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
-                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null);
+                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null, null, null);
 
         SignalsObjectFunctionScript script = factory.newInstance(new HashMap<String, Object>(), ctx);
 
@@ -94,5 +91,4 @@ public class ScriptingTest {
 
         Assert.assertEquals(watchExecutionContextData.getWatch().getId(), result);
     }
-
 }

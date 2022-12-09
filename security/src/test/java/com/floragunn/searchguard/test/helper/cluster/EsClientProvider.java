@@ -141,6 +141,18 @@ public interface EsClientProvider {
         return new RestHighLevelClient(builder);
     }
 
+    default RestClientBuilder getLowLevelRestClientBuilder(Header... headers) {
+        InetSocketAddress httpAddress = getHttpAddress();
+        return RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
+                .setDefaultHeaders(headers).setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
+                        new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
+    }
+
+    default RestClient getLowLevelRestClient(Header... headers) {
+        return getLowLevelRestClientBuilder(headers).build();
+    }
+
+
     default GenericRestClient createGenericClientRestClient(List<Header> headers) {
         return new GenericRestClient(getHttpAddress(), headers, getAnyClientSslContextProvider().getSslContext(false));
     }

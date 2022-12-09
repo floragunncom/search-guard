@@ -27,16 +27,13 @@ SGS_KIBANA_USER:
   description: "Maps kibanauser to SGS_KIBANA_USER"
 
 SGS_READALL:
-  reserved: true
   backend_roles:
   - "readall"
 
 SGS_MANAGE_SNAPSHOTS:
-  reserved: true
   backend_roles:
   - "snapshotrestore"
 
 SGS_KIBANA_SERVER:
-  reserved: true
   users:
   - "kibanaserver"

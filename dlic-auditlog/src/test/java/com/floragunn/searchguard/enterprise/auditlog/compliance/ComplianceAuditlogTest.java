@@ -14,18 +14,28 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.compliance;
 
-import java.io.File;
-import java.net.URL;
-import java.nio.file.Files;
-import java.time.Duration;
-
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.sgctl.SgctlTool;
+import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
+import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
+import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.junit.AsyncAssert;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -42,16 +52,11 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
-import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
-import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
-import com.floragunn.searchguard.legacy.test.RestHelper;
-import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchsupport.junit.AsyncAssert;
+import java.io.File;
+import java.net.URL;
+import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
 
@@ -451,25 +456,39 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
-                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED,true)
-                .put("searchguard.allow_default_init_sgindex",false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED, true)
+                .put("searchguard.allow_default_init_sgindex", false)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
 
         setup(additionalSettings);
         TestAuditlogImpl.clear();
 
-        URL url = this.getClass().getResource("/" + getResourceFolder()+"/kirk.key.pem");
-        String path = new File(url.toURI()).getParent();
+        final URL resourceUrl = this.getClass().getResource("/" + getResourceFolder() + "/kirk.key.pem");
+        final File resourceRoot = new File(resourceUrl.toURI()).getParentFile();
+        final Map<String, Map<String, ?>> configTypeToConfigMap = new LinkedHashMap<>();
 
-        final String configDir = Files.createTempDirectory("sgctl-test-config").toString();
-        int rc = SgctlTool.exec("connect", "-h", clusterInfo.httpHost, "-p", String.valueOf(clusterInfo.httpPort), "--cert", path+"/kirk.crtfull.pem",
-                "--key", path+"/kirk.key.pem", "--ca-cert", path+"/root-ca.pem", "--debug", "--sgctl-config-dir", configDir);
+        final Map<String, String> configsToUpdate = ImmutableMap.of(
+                "sg_config.yml",
+                "config",
+                "sg_internal_users.yml",
+                "internalusers",
+                "sg_roles.yml",
+                "roles"
+        );
 
-        Assert.assertEquals(0, rc);
-        rc = SgctlTool.exec("update-config", "--sgctl-config-dir", configDir, "--debug", path+"/sg_config.yml", path+"/sg_roles.yml", path+"/sg_internal_users.yml");
-        Assert.assertEquals(0, rc);
-        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
+        for (File file : resourceRoot.listFiles((dir, name) -> configsToUpdate.containsKey(name))) {
+            Format format = Format.getByFileName(file.getName(), Format.YAML);
+            DocNode content = DocNode.wrap(DocReader.format(format).fallbackForEmptyDocuments(ImmutableMap.empty()).readObject(file));
+            configTypeToConfigMap.put(configsToUpdate.get(file.getName()), OrderedImmutableMap.of("content", content));
+        }
+
+        rh.sendHTTPClientCertificate = true;
+        rh.keystore = getResourceFolder() + "/kirk-keystore.jks";
+        HttpResponse response = rh.executePutRequest("/_searchguard/config", DocWriter.json().writeAsString(configTypeToConfigMap));
+
+        Assert.assertEquals(200, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived: " + TestAuditlogImpl.sb.toString(),
                 () ->
                         !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
                                 TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE") &&
@@ -484,10 +503,11 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         //make sure the result does not contain triple escaped json
         //Assert.assertFalse(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("\\\\\\"));
         TestAuditlogImpl.clear();
-        final String outputDir = Files.createTempDirectory("sgctl-test-output").toString();
-        rc = SgctlTool.exec("get-config", "--sgctl-config-dir", configDir, "--debug", "-o", outputDir);
-        Assert.assertEquals(0, rc);
-        AsyncAssert.awaitAssert("Messages arrived: "+TestAuditlogImpl.sb.toString(),
+
+        response = rh.executeGetRequest("/_searchguard/config");
+        Assert.assertEquals(200, response.getStatusCode());
+
+        AsyncAssert.awaitAssert("Messages arrived: " + TestAuditlogImpl.sb.toString(),
                 () ->
                         !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
                                 !TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE") &&
@@ -499,9 +519,23 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                                 TestAuditlogImpl.sb.toString().contains("internalusers")
                 ,
                 Duration.ofSeconds(5));
+
         Assert.assertEquals(8, TestAuditlogImpl.messages.size());
         //make sure the result does not contain triple escaped json
         //Assert.assertFalse(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("\\\\\\"));
+
+        TestAuditlogImpl.clear();
+
+        response = rh.executeGetRequest("/_searchguard/config");
+        Assert.assertEquals(200, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived: " + TestAuditlogImpl.sb.toString(),
+                () ->
+                        !TestAuditlogImpl.sb.toString().contains("eyJfc") &&
+                                TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ") &&
+                                TestAuditlogImpl.sb.toString().contains("sg_all_access") &&
+                                TestAuditlogImpl.sb.toString().contains("internalusers")
+                ,
+                Duration.ofSeconds(5));
     }
 
     private void initializeSgIndex(Client tc, DynamicSgConfig sgconfig) {

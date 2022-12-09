@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019-2022 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 
 package com.floragunn.signals.actions.watch.ack;
 
@@ -24,7 +40,9 @@ import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.signals.NoSuchActionException;
 import com.floragunn.signals.NoSuchWatchOnThisNodeException;
+import com.floragunn.signals.NotAcknowledgeableException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 
@@ -113,6 +131,10 @@ public class TransportAckWatchAction
         } catch (NoSuchWatchOnThisNodeException e) {
             // Note: We checked before signalsTenant.runsWatchLocally: If we get this exception anyway, this can only mean one thing:
             return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.ILLEGAL_STATE, "The watch has not been initialized yet");
+        } catch (NoSuchActionException e) {
+            return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.NO_SUCH_ACTION, e.getMessage());
+        } catch (NotAcknowledgeableException e) {
+            return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.NOT_ACKNOWLEDGEABLE, e.getMessage());            
         } catch (Exception e) {
             log.error("Error while acknowledging " + request.request, e);
             return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.EXCEPTION, e.toString());

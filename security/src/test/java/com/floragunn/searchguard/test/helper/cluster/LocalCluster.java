@@ -24,15 +24,18 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -47,6 +50,8 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
+import org.elasticsearch.plugins.ExtensiblePlugin;
+import org.elasticsearch.plugins.ExtensiblePlugin.ExtensionLoader;
 import org.elasticsearch.plugins.Plugin;
 import org.junit.rules.ExternalResource;
 
@@ -110,6 +115,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         this.clusterDependencies = clusterDependencies;
         this.testIndices = testIndices;
         this.testAliases = testAliases;
+        
+        painlessWhitelistKludge();
     }
 
     @Override
@@ -276,6 +283,40 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         if (testSgConfig != null) {
             initSearchGuardIndex(testSgConfig);
+        }
+    }
+
+    /**
+     * Triggers loading of SPI extensions for the painless plugin. This is only effective when Painless is on the classpath. If Painless is not on the classpath, nothing will be done.
+     */
+    private void painlessWhitelistKludge() {
+        try {
+            ClassLoader classLoader = getClass().getClassLoader();
+            Class<?> painlessExtensionClass = Class.forName("org.elasticsearch.painless.spi.PainlessExtension");
+            ExtensiblePlugin painlessPlugin = (ExtensiblePlugin) Class.forName("org.elasticsearch.painless.PainlessPlugin").getConstructor()
+                    .newInstance();
+
+            painlessPlugin.loadExtensions(new ExtensionLoader() {
+
+                @SuppressWarnings("unchecked")
+                @Override
+                public <T> List<T> loadExtensions(Class<T> extensionPointType) {
+                    if (extensionPointType.equals(painlessExtensionClass)) {
+                        List<?> result = StreamSupport.stream(ServiceLoader.load(painlessExtensionClass, classLoader).spliterator(), false)
+                                .collect(Collectors.toList());
+
+                        return (List<T>) result;
+                    } else {
+                        return Collections.emptyList();
+                    }
+                }
+            });
+            
+            ((Plugin) painlessPlugin).close();
+        } catch (ClassNotFoundException e) {
+            // Ignore this, as this is expected on projects without painless dependency
+        } catch (Exception e) {
+            log.error("Error while applying painlessWhitelistKludge", e);
         }
     }
 

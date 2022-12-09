@@ -1,3 +1,20 @@
+/*
+ * Copyright 2019-2022 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.signals;
 
 import java.io.Closeable;
@@ -59,6 +76,7 @@ import com.floragunn.signals.execution.WatchRunner;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.support.ToXParams;
 import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.action.invokers.AlertAction;
 import com.floragunn.signals.watch.checks.StaticInput;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.result.WatchLog;
@@ -256,6 +274,24 @@ public class SignalsTenant implements Closeable {
         }
     }
 
+    public Watch getLocallyRunningWatch(String watchId) {
+        if (this.scheduler == null) {
+            return null;
+        }
+
+        try {
+            JobDetailWithBaseConfig jobDetail = (JobDetailWithBaseConfig) this.scheduler.getJobDetail(Watch.createJobKey(watchId));
+            
+            if (jobDetail == null) {
+                return null;
+            }
+            
+            return jobDetail.getBaseConfig(Watch.class);
+        } catch (SchedulerException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public int getLocalWatchCount() {
         try {
             if (this.scheduler == null) {
@@ -339,25 +375,43 @@ public class SignalsTenant implements Closeable {
         return indexResponse;
     }
 
-    public List<String> ack(String watchId, User user) {
+    public List<String> ack(String watchId, User user) throws NoSuchWatchOnThisNodeException {
         if (log.isInfoEnabled()) {
             log.info("ack(" + watchId + ", " + user + ")");
+        }
+        
+        Watch watch = getLocallyRunningWatch(watchId);
+        
+        if (watch == null) {
+            throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
         }
 
         WatchState watchState = watchStateManager.getWatchState(watchId);
 
-        List<String> result = watchState.ack(user != null ? user.getName() : null);
+        List<String> result = watchState.ack(user != null ? user.getName() : null, watch);
 
         watchStateWriter.put(watchId, watchState);
 
         return result;
     }
 
-    public void ack(String watchId, String actionId, User user) {
+    public void ack(String watchId, String actionId, User user) throws NoSuchWatchOnThisNodeException, NoSuchActionException, NotAcknowledgeableException {
         if (log.isInfoEnabled()) {
             log.info("ack(" + watchId + ", " + actionId + ", " + user + ")");
         }
 
+        Watch watch = getLocallyRunningWatch(watchId);
+        
+        if (watch == null) {
+            throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
+        }
+        
+        AlertAction action = watch.getActionByName(actionId);
+        
+        if (!action.isAckEnabled()) {
+            throw new NotAcknowledgeableException(watchId, actionId);
+        }
+        
         WatchState watchState = watchStateManager.getWatchState(watchId);
 
         watchState.getActionState(actionId).ack(user != null ? user.getName() : null);
