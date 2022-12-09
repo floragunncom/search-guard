@@ -340,10 +340,10 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                 return challengeHandled;
             }
 
-            return AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON, debug.get());
+            return AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED, debug.get());
         } catch (Exception e) {
             log.error("Error while handling auth failure", e);
-            return AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON, debug.get());
+            return AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED, debug.get());
         }
     }
 

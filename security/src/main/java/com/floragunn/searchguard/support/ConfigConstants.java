@@ -189,7 +189,7 @@ public class ConfigConstants {
     
     public static final String SEARCHGUARD_SSL_CERT_RELOAD_ENABLED = "searchguard.ssl.cert_reload_enabled";
 
-    public static final String UNAUTHORIZED_JSON = " {\"status\": 401, \"error\": {\"reason\":\"Unauthorized\", \"rootCause\": [], \"suppressed\": [], \"metadata\": {}}}";
+    public static final String UNAUTHORIZED = "Unauthorized";
 
     // REST API
     public static final String SEARCHGUARD_RESTAPI_ROLES_ENABLED = "searchguard.restapi.roles_enabled";

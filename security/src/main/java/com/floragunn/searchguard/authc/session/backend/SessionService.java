@@ -374,7 +374,7 @@ public class SessionService {
             }
             subMeter.close();
             auditLog.logBlockedIp(restRequest, clientInfo.getOriginatingTransportAddress().address());
-            onResult.accept(new AuthcResult(AuthcResult.Status.STOP, RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON));
+            onResult.accept(new AuthcResult(AuthcResult.Status.STOP, RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED));
             return;
         }
 

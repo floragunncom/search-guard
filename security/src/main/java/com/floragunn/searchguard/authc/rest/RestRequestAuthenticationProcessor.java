@@ -26,7 +26,6 @@ import com.floragunn.searchguard.SignalsTenantParamResolver;
 import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
@@ -150,7 +149,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
             log.debug("Sending WWW-Authenticate: " + String.join(", ", challenges));
         }
 
-        return AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON, ImmutableMap.of("WWW-Authenticate", ImmutableList.of(challenges)),
+        return AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED, ImmutableMap.of("WWW-Authenticate", ImmutableList.of(challenges)),
                 debug.get());
     }
 

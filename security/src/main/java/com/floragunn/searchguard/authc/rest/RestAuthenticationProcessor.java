@@ -27,7 +27,6 @@ import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -168,7 +167,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
                 }
                 auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
                 meter.close();
-                channel.sendResponse(new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON));
+                channel.sendResponse(new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED));
                 onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
                 return;
             }

@@ -655,23 +655,22 @@ public abstract class AbstractAuditLog implements AuditLog {
                 } else {
                     if (searchguardIndexPattern.matches(index) && !"tattr".equals(id) && !"*".equals(id)) {
                         try {
-//<<<<<<< HEAD
-//                            Map<String, String> map = fieldNameValues.entrySet().stream().filter(e->e.getKey().equals(id))
-//                            .collect(Collectors.toMap(entry -> "id", entry ->
-//                                decodeBase64IfNecessary(entry.getValue())));
-//=======
-                            Map<String, String> map = fieldNameValues.entrySet().stream().filter(e -> e.getKey().equals(id)).collect(Collectors.toMap(
-                                    entry -> "id", entry -> new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)));
-//>>>>>>> master
+                            Map<String, String> map = fieldNameValues.entrySet().stream()
+                                    .filter(e->e.getKey().equals(id))
+                                    .collect(Collectors.toMap(entry -> "id",
+                                            entry -> decodeBase64IfNecessary(entry.getValue())));
+//### This is not working ###
+//                            Map<String, String> map = fieldNameValues.entrySet().stream()
+//                                    .filter(e -> e.getKey().equals(id))
+//                                    .collect(Collectors.toMap(entry -> "id",
+//                                            entry -> new String(BaseEncoding.base64().decode(entry.getValue()), StandardCharsets.UTF_8)));
+//###
                             msg.addMapToRequestBody(Utils.convertJsonToxToStructuredMap(map.get("id")));
                         } catch (Exception e) {
                             log.error("Unexpected Exception {}", e, e);
                         }
-//<<<<<<< HEAD
-//                     } else {
-//=======
+
                     } else {
-//>>>>>>> master
                         msg.addMapToRequestBody(new HashMap<String, Object>(fieldNameValues));
                     }
                 }

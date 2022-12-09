@@ -30,7 +30,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
@@ -42,7 +41,6 @@ import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.RequestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -164,7 +162,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
             log.debug("Sending WWW-Authenticate: " + String.join(", ", challenges));
         }
 
-        RestResponse wwwAuthenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON);
+        RestResponse wwwAuthenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED);
 
         for (String challenge : this.challenges) {
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", challenge);
