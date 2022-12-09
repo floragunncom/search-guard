@@ -286,7 +286,7 @@ public class WatchBuilder {
         protected void addActionHandler(ActionHandler actionHandler, AbstractActionBuilder abstractActionBuilder) {
             if (actionHandler != null) {
                 parent.actions.add(new AlertAction(abstractActionBuilder.name, actionHandler, abstractActionBuilder.throttlePeriod, severityLevelSet,
-                        null, null, null));
+                        null, null, null, abstractActionBuilder.ackEnabled));
             }
 
         }
@@ -312,6 +312,7 @@ public class WatchBuilder {
         protected final BaseActionBuilder parent;
         protected String name;
         protected DurationExpression throttlePeriod;
+        protected boolean ackEnabled = true;
 
         AbstractActionBuilder(BaseActionBuilder parent) {
             this.parent = parent;
@@ -329,6 +330,11 @@ public class WatchBuilder {
 
         public AbstractActionBuilder throttledFor(DurationExpression duration) throws ParseException {
             this.throttlePeriod = duration;
+            return this;
+        }
+        
+        public AbstractActionBuilder ackEnabled(boolean ackEnabled) {
+            this.ackEnabled = ackEnabled;
             return this;
         }
 

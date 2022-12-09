@@ -66,17 +66,6 @@
 
 	<repositories>
 		<repository>
-			<id>sonatype-nexus-snapshots</id>
-			<name>Sonatype Nexus Snapshots</name>
-			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
-			<releases>
-				<enabled>false</enabled>
-			</releases>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
-		</repository>
-		<repository>
 			<id>release</id>
 			<url>https://maven.search-guard.com:443/search-guard-flx-release</url>
 			<releases>
@@ -97,6 +86,36 @@
 			</snapshots>
 		</repository>
 		<repository>
+			<id>util-snapshot</id>
+			<url>https://maven.search-guard.com:443/util-snapshot</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+        <repository>
+            <id>util-release</id>
+            <url>https://maven.search-guard.com:443/util</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+		<repository>
+			<id>third-party</id>
+			<url>https://maven.search-guard.com:443/third-party</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<repository>
 			<id>elasticsearch-releases</id>
 			<url>https://artifacts.elastic.co/maven</url>
 			<releases>
@@ -106,16 +125,17 @@
 				<enabled>false</enabled>
 			</snapshots>
 		</repository>
-        <repository>
-            <id>alpha</id>
-            <url>https://maven.search-guard.com:443/search-guard-suite-alpha</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>   		
+		<repository>
+			<id>sonatype-nexus-snapshots</id>
+			<name>Sonatype Nexus Snapshots</name>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
 	</repositories>
 	<distributionManagement>
 		<repository>
@@ -340,24 +360,17 @@
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
 			</dependency>
-
-			<dependency>
-				<groupId>com.floragunn</groupId>
-				<artifactId>sgctl</artifactId>
-				<version>${sgctl.version}</version>
-				<scope>test</scope>
-			</dependency>
 							
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>codova</artifactId>
-				<version>1.0.0</version>
+				<version>1.1.1</version>
 			</dependency>
 
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>fluent-collections</artifactId>
-				<version>1.0.0</version>
+				<version>1.0.1</version>
 			</dependency>
 
             <dependency>
@@ -392,6 +405,11 @@
     			<version>${elasticsearch.version}</version>
 			</dependency>
 
+			 <dependency>
+    	  		<groupId>co.elastic.clients</groupId>
+      			<artifactId>elasticsearch-java</artifactId>
+    			<version>${elasticsearch.version}</version>
+	    	</dependency>
 
 			<dependency>
 				<groupId>org.powermock</groupId>

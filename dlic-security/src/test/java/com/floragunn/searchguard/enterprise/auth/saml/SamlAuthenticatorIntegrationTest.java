@@ -54,9 +54,18 @@ public class SamlAuthenticatorIntegrationTest {
         mockSamlIdpServer.setAuthenticateUserRoles(Arrays.asList("SGS_KIBANA_USER"));
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        TestSgConfig testSgConfig = new TestSgConfig().resources("saml")
-                .frontendAuthc(new TestSgConfig.FrontendAuthc("saml").label("SAML Label").config("user_mapping.roles.from", "saml_response.roles",
-                        "saml.idp.metadata_url", mockSamlIdpServer.getMetadataUri(), "saml.idp.entity_id", mockSamlIdpServer.getIdpEntityId()));
+        TestSgConfig testSgConfig = new TestSgConfig().resources("saml")//
+                .frontendAuthc("default", //
+                        new TestSgConfig.FrontendAuthc("saml").label("SAML Label")//
+                                .config("user_mapping.roles.from", "saml_response.roles", //
+                                        "saml.idp.metadata_url", mockSamlIdpServer.getMetadataUri(), //
+                                        "saml.idp.entity_id", mockSamlIdpServer.getIdpEntityId()))//
+                .frontendAuthc("invalid", //
+                        new TestSgConfig.FrontendAuthc("saml").label("SAML Label")//
+                                .config("user_mapping.roles.from", "saml_response.roles", //
+                                        "saml.idp.metadata_url", mockSamlIdpServer.getMetadataUri(), //
+                                        "saml.idp.entity_id", "invalid"))//
+                .frontendAuthcDebug("invalid", true);
 
         cluster = new LocalCluster.Builder().sslEnabled().singleNode().resources("saml").enterpriseModulesEnabled().sgConfig(testSgConfig).start();
     }
@@ -82,7 +91,7 @@ public class SamlAuthenticatorIntegrationTest {
     }
 
     @Test
-    public void basicTest() throws Exception {
+    public void basic() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
 
@@ -120,7 +129,44 @@ public class SamlAuthenticatorIntegrationTest {
                 Assert.assertNotNull(logoutAddress);
             }
         }
+    }
 
+    @Test
+    public void loginFailure() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+
+            HttpResponse response = client.get("/_searchguard/auth/config?next_url=/abc/def&frontend_base_url=" + FRONTEND_BASE_URL);
+
+            System.out.println(response.getBody());
+
+            String ssoLocation = response.toJsonNode().path("auth_methods").path(0).path("sso_location").textValue();
+            String ssoContext = response.toJsonNode().path("auth_methods").path(0).path("sso_context").textValue();
+            String id = response.toJsonNode().path("auth_methods").path(0).path("id").textValue();
+
+            Assert.assertNotNull(response.getBody(), ssoLocation);
+
+            response = client.postJson("/_searchguard/auth/session", ImmutableMap.of("method", "saml", "id", id, "saml_response", "invalid",
+                    "sso_context", ssoContext, "frontend_base_url", FRONTEND_BASE_URL));
+
+            System.out.println(response.getBody());
+
+            Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+
+        }
+    }
+
+    @Test
+    public void invalidEntityId() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+
+            HttpResponse response = client
+                    .get("/_searchguard/auth/config?config_id=invalid&next_url=/abc/def&frontend_base_url=" + FRONTEND_BASE_URL);
+
+            Assert.assertEquals(response.getBody(), "Could not find entity descriptor for invalid",
+                    response.toJsonNode().path("auth_methods").path(0).path("message_body").textValue());
+        }
     }
 
 }

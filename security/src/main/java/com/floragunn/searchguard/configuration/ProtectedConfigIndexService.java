@@ -41,6 +41,7 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.nodes.BaseNodeRequest;
@@ -217,9 +218,34 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
                 return "completed";
             }
 
-            if (clusterState.getMetadata().getIndices().containsKey(configIndex.getName())) {
+            IndexMetadata indexMetadata;
+            if ((indexMetadata = clusterState.getMetadata().getIndices().get(configIndex.getName())) != null) {
                 if (log.isTraceEnabled()) {
                     log.trace(configIndex + " does already exist.");
+                }
+
+                //if the index is not hidden we make it hidden
+                if (!indexMetadata.isHidden()) {
+
+                    if (log.isInfoEnabled()) {
+                        log.info("Index settings for " + configIndex.getName() + " needs to be updated");
+                    }
+
+                    client.admin().indices().updateSettings(
+                            new UpdateSettingsRequest(indexMetadata.getIndex().getName())
+                                    .settings(Settings.builder().put(IndexMetadata.SETTING_INDEX_HIDDEN, true).build()),
+                            new ActionListener<AcknowledgedResponse>() {
+
+                                @Override
+                                public void onResponse(AcknowledgedResponse response) {
+                                    log.info("Settings update for " + configIndex + " successful");
+                                }
+
+                                @Override
+                                public void onFailure(Exception e) {
+                                    log.error("Settings update failed for " + configIndex, e);
+                                }
+                            });
                 }
 
                 if (configIndex.mappingUpdates.size() != 0) {
@@ -288,6 +314,8 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
                 return "exists";
             }
+
+            //index does not exist so we will create it
 
             if (!clusterState.nodes().isLocalNodeElectedMaster()) {
                 pendingIndices.add(configIndex);

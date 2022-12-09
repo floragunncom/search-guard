@@ -106,11 +106,7 @@
 			</exclusions>
 		</dependency>		
 		
-		<dependency>
-    		<groupId>org.elasticsearch.plugin</groupId>
-    		<artifactId>elasticsearch-scripting-painless-spi</artifactId>
-    		<scope>provided</scope>
-		</dependency>
+
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
@@ -301,6 +297,12 @@
 			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 		</dependency>
+		
+		 <dependency>
+      		<groupId>co.elastic.clients</groupId>
+      		<artifactId>elasticsearch-java</artifactId>
+      		<scope>test</scope>      		
+    	</dependency>
 
 		<dependency>
 			<groupId>org.mockito</groupId>

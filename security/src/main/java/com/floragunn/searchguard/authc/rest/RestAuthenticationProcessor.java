@@ -83,7 +83,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
         private final ClientAddressAscertainer clientAddressAscertainer;
         private final IPAddressAcceptanceRules ipAddressAcceptanceRules;
         private final List<String> requiredLoginPrivileges = Collections.emptyList();
-        private final ComponentState componentState = new ComponentState("rest_authentication_processor");
+        private final ComponentState componentState = new ComponentState(0, "rest_authentication_processor", "rest_authentication_processor");
 
         private final TimeAggregation authenticateMetrics = new TimeAggregation.Milliseconds();
 

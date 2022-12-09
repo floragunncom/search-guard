@@ -237,11 +237,6 @@ tls:
 EOM
 
 echo >~/.searchguard/sgctl-selected-config.txt test
-
-echo "#!/bin/bash" >$INSTALL_DIR/sgadmin_demo.sh  
-echo \""$INSTALL_DIR/plugins/search-guard-flx/tools/sgadmin.sh"\" -cd \""$INSTALL_DIR/plugins/search-guard-flx/sgconfig"\" -icl -key \""$INSTALL_DIR/config/kirk-key.pem"\" -cert \""$INSTALL_DIR/config/kirk.pem"\" -cacert \""$INSTALL_DIR/config/root-ca.pem"\" -nhnv >> $INSTALL_DIR/sgadmin_demo.sh   
-chmod u+x $INSTALL_DIR/sgadmin_demo.sh    
-chmod u+x $INSTALL_DIR/plugins/search-guard-flx/tools/sgadmin.sh
   
 echo "Starting ES"
 

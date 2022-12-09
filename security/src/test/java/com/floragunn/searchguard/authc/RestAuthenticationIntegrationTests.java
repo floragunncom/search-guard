@@ -28,6 +28,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -47,6 +48,11 @@ import com.floragunn.searchguard.test.TestSgConfig.Authc;
 import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.AdditionalUserInformation;
 import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.transport.ElasticsearchTransport;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
 
 public class RestAuthenticationIntegrationTests {
 
@@ -276,7 +282,7 @@ public class RestAuthenticationIntegrationTests {
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertEquals(response.getBody(), "anonymous", response.getBodyAsDocNode().get("user_name"));
             Assert.assertEquals(response.getBody(), Arrays.asList("anon_role"), response.getBodyAsDocNode().get("backend_roles"));
-            
+
             client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 34 }));
 
             response = client.get("/_searchguard/authinfo");
@@ -285,7 +291,7 @@ public class RestAuthenticationIntegrationTests {
             Assert.assertEquals(response.getBody(), Arrays.asList("anon_role"), response.getBodyAsDocNode().get("backend_roles"));
         }
     }
-    
+
     @Test
     public void challenge() throws Exception {
         try (GenericRestClient client = cluster.getRestClient()) {
@@ -294,7 +300,32 @@ public class RestAuthenticationIntegrationTests {
             Assert.assertEquals(response.getHeaders().toString(), "Basic realm=\"Search Guard\"", response.getHeaderValue("WWW-Authenticate"));
         }
     }
-    
+
+    @Test
+    public void jsonResponse() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient()) {
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo", new BasicHeader("Accept", "application/json"));
+            Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+            Assert.assertEquals(response.getHeaders().toString(), "application/json", response.getHeaderValue("Content-Type"));
+            Assert.assertEquals(response.getBody(), "Unauthorized", response.getBodyAsDocNode().get("error", "reason"));
+            Assert.assertEquals(response.getBody(), 401, response.getBodyAsDocNode().get("status"));
+        }
+    }
+
+    @Test
+    public void jsonResponseEsClientParsing() throws Exception {
+        try (RestClient lowLevelRestClient = cluster.getLowLevelRestClient()) {
+            ElasticsearchClient client = new ElasticsearchClient(new RestClientTransport(lowLevelRestClient, new JacksonJsonpMapper()));
+
+            try {
+                client.cat().indices();
+                Assert.fail();
+            } catch (co.elastic.clients.elasticsearch._types.ElasticsearchException e) {
+                Assert.assertEquals(e.toString(), 401, e.status());
+            }
+        }
+    }
+
     @Test
     public void authDomainInfo() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(ALL_ACCESS)) {

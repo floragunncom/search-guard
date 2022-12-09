@@ -40,6 +40,7 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.Resolve
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
@@ -453,7 +454,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     private boolean isTenantValid(String requestedTenant) {
 
-        if ("SGS_GLOBAL_TENANT".equals(requestedTenant) || USER_TENANT.equals(requestedTenant)) {
+        if (Tenant.GLOBAL_TENANT_ID.equals(requestedTenant) || USER_TENANT.equals(requestedTenant)) {
             return true;
         }
 

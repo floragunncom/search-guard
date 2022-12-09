@@ -25,6 +25,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.http.HttpStatus;
@@ -62,12 +64,13 @@ import org.quartz.TimeOfDay;
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchsupport.junit.LoggingTestWatcher;
 import com.floragunn.signals.support.JsonBuilder;
 import com.floragunn.signals.util.WatchLogSearch;
@@ -224,7 +227,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testPutWatchWithSeverity() throws Exception {
         String tenant = "_main";
@@ -272,7 +274,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testPutWatchWithSeverityValidation() throws Exception {
         String tenant = "_main";
@@ -302,7 +303,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testPutWatchWithSeverity2() throws Exception {
         String tenant = "_main";
@@ -469,7 +469,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testPutInvalidWatch() throws Exception {
         String tenant = "_main";
@@ -500,7 +499,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), "cannot resolve symbol [x]",
                     parsedResponse.path("detail").path("checks[].source").path(0).path("error").asText());
             Assert.assertTrue(response.getBody(),
-                    parsedResponse.path("detail").path("trigger.schedule.cron").path(0).path("error").asText().contains("Invalid cron expression"));
+                    parsedResponse.path("detail").path("trigger.schedule.cron.0").path(0).path("error").asText().contains("Invalid cron expression"));
             Assert.assertTrue(response.getBody(),
                     parsedResponse.path("detail").path("trigger.schedule.x").path(0).path("error").asText().contains("Unsupported attribute"));
             Assert.assertEquals(response.getBody(), "Required attribute is missing",
@@ -1015,7 +1014,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testExecuteAnonymousWatchWithShowAllRuntimeAttributes() throws Exception {
 
@@ -1220,9 +1218,7 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
-    //FLAKY
     public void testAckWatch() throws Exception {
         String tenant = "_main";
         String watchId = "ack_test";
@@ -1306,7 +1302,6 @@ public class RestApiTest {
         }
     }
 
-    @Ignore
     @Test
     public void testUnAckOfFreshWatch() throws Exception {
         String tenant = "_main";
@@ -1334,6 +1329,146 @@ public class RestApiTest {
         }
     }
 
+    @Test
+    public void testAckWithUnacknowledgableActions() throws Exception {
+        String tenant = "_main";
+        String watchId = "ack_with_unack_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String testSource = "testsource_" + watchId;
+        String testSinkAck = "testsink_ack_" + watchId;
+        String testSinkUnack = "testsink_unack_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(testSource)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(testSinkAck)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(testSinkUnack)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(testSource).query("{\"match_all\" : {} }").as("testsearch")
+                    .checkCondition("data.testsearch.hits.hits.length > 0")//
+                    .then().index(testSinkAck).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testaction_ack")//
+                    .and().index(testSinkUnack).refreshPolicy(RefreshPolicy.IMMEDIATE).ackEnabled(false).throttledFor("0").name("testaction_unack").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            response = restClient.put(watchPath + "/_ack");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_PRECONDITION_FAILED, response.getStatusCode());
+
+            client.index(new IndexRequest(testSource).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1", "val1",
+                    "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, testSinkAck, 1);
+            awaitMinCountOfDocuments(client, testSinkUnack, 1);
+
+            response = restClient.put(watchPath + "/_ack");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(500);
+
+            response = restClient.get(watchPath + "/_state");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
+            Assert.assertEquals(response.getBody(), "uhura", statusDoc.at("/actions/testaction_ack/acked/by").textValue());
+            Assert.assertTrue(response.getBody(), statusDoc.at("/actions/testaction_unack/acked").isMissingNode());
+
+            Thread.sleep(200);
+
+            long testSinkAckExecutionCountAfterAck = getCountOfDocuments(client, testSinkAck);
+            long testSinkUnackExecutionCountAfterAck = getCountOfDocuments(client, testSinkUnack);
+
+            Thread.sleep(310);
+
+
+            Assert.assertEquals(testSinkAckExecutionCountAfterAck, getCountOfDocuments(client, testSinkAck));
+            Assert.assertNotEquals(testSinkUnackExecutionCountAfterAck, getCountOfDocuments(client, testSinkUnack));
+        }
+    }
+
+    @Test
+    public void testActionSpecificAckWithUnacknowledgableActions() throws Exception {
+        String tenant = "_main";
+        String watchId = "action_specific_ack_with_unack_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String testSource = "testsource_" + watchId;
+        String testSinkAck = "testsink_ack_" + watchId;
+        String testSinkUnack = "testsink_unack_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(testSource)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(testSinkAck)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(testSinkUnack)).actionGet();
+            client.index(new IndexRequest(testSource).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1", "val1",
+                    "key2", "val2")).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(testSource).query("{\"match_all\" : {} }").as("testsearch")
+                    .checkCondition("data.testsearch.hits.hits.length > 0")//
+                    .then().index(testSinkAck).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testaction_ack")//
+                    .and().index(testSinkUnack).refreshPolicy(RefreshPolicy.IMMEDIATE).ackEnabled(false).throttledFor("0").name("testaction_unack").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            awaitMinCountOfDocuments(client, testSinkAck, 1);
+            awaitMinCountOfDocuments(client, testSinkUnack, 1);
+
+            response = restClient.put(watchPath + "/_ack/testaction_unack");
+
+            System.out.println(response.getBody());
+            
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), "The action 'testaction_unack' is not acknowledgeable", response.getBodyAsDocNode().get("error"));
+        }
+    }
+
+
+    @Test
+    public void testAckWatchLink() throws Exception {
+        String tenant = "_main";
+        String watchId = "test_ack_watch_link";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String frontendBaseUrl = "http://my.frontend";
+
+        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+            EmailAccount account = new EmailAccount();
+            account.setHost("localhost");
+            account.setPort(9999);
+            account.setDefaultFrom("test@test");
+
+            HttpResponse response = restClient.putJson("/_signals/account/email/test_ack_watch_link", account.toJson());            
+            response = restClient.putJson("/_signals/settings/frontend_base_url", DocNode.wrap(frontendBaseUrl).toJsonString());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100000).put("{\"a\": 42}").as("testdata").checkCondition("data.testdata.a > 0")
+                    .then().email("test").account("test_ack_watch_link").body("Watch Link: {{ack_watch_link}}\nAction Link: {{ack_action_link}}")
+                    .to("test@test").name("testaction").build();
+            response = restClient.putJson(watchPath, watch.toJson());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(100);
+
+            response = restClient.postJson(watchPath + "/_execute", DocNode.of("simulate", true).toJsonString());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            String mail = response.getBodyAsDocNode().findSingleNodeByJsonPath("actions[0].request").toString();
+            Matcher mailMatcher = Pattern.compile("Watch Link: (\\S+)\nAction Link: (\\S+)", Pattern.MULTILINE).matcher(mail);
+            
+            if (!mailMatcher.find()) {
+                Assert.fail(response.getBody());
+            }
+            
+            Assert.assertEquals(response.getBody(), "http://my.frontend/app/searchguard-signals?sg_tenant=SGS_GLOBAL_TENANT#/watch/test_ack_watch_link/ack/", mailMatcher.group(1));
+            Assert.assertEquals(response.getBody(), "http://my.frontend/app/searchguard-signals?sg_tenant=SGS_GLOBAL_TENANT#/watch/test_ack_watch_link/ack/testaction/", mailMatcher.group(2));
+        }
+    }
+
+    
     @Test
     public void testSearchWatch() throws Exception {
         String tenant = "_main";
@@ -2251,25 +2386,26 @@ public class RestApiTest {
             Watch watch = new WatchBuilder(watchId1).atMsInterval(100).put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink)
                     .throttledFor("1000h").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath1, watch);
-            
+
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
-            
+
             watch = new WatchBuilder(watchId1).atMsInterval(100).put("{\"bla\": \"now_a_different_type\"}").as("teststatic").then().index(testSink)
                     .throttledFor("1000h").name("testsink").build();
-            response = restClient.putJson(watchPath1, watch);         
-            
+            response = restClient.putJson(watchPath1, watch);
+
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            
-            watch = new WatchBuilder(watchId2).atMsInterval(100).put("{\"bla\": 1234}").as("teststatic").then().index(testSink)
-                    .throttledFor("1000h").name("testsink").build();
-            response = restClient.putJson(watchPath2, watch);         
-            
+
+            watch = new WatchBuilder(watchId2).atMsInterval(100).put("{\"bla\": 1234}").as("teststatic").then().index(testSink).throttledFor("1000h")
+                    .name("testsink").build();
+            response = restClient.putJson(watchPath2, watch);
+
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
-            
+
             response = restClient.get(watchPath2);
-            
-            Assert.assertEquals(response.getBody(), 1234, response.getBodyAsDocNode().getAsNode("_source").getAsListOfNodes("checks").get(0).getAsNode("value").get("bla"));
-            
+
+            Assert.assertEquals(response.getBody(), 1234,
+                    response.getBodyAsDocNode().getAsNode("_source").getAsListOfNodes("checks").get(0).getAsNode("value").get("bla"));
+
         }
     }
 

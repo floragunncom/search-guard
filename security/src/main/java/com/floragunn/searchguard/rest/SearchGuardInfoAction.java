@@ -27,6 +27,7 @@ import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Set;
 
+import com.floragunn.searchguard.configuration.AdminDNs;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.RamUsageEstimator;
@@ -59,13 +60,16 @@ public class SearchGuardInfoAction extends BaseRestHandler {
     private final PrivilegesEvaluator evaluator;
     private final ThreadContext threadContext;
     private final ClusterService clusterService;
+
+    private final AdminDNs adminDNs;
     
-    public SearchGuardInfoAction(Settings settings, RestController controller, AuthorizationService authorizationService, PrivilegesEvaluator evaluator, ThreadPool threadPool, ClusterService clusterService) {
+    public SearchGuardInfoAction(Settings settings, RestController controller, AuthorizationService authorizationService, PrivilegesEvaluator evaluator, ThreadPool threadPool, ClusterService clusterService, AdminDNs adminDNs) {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
         this.clusterService = clusterService;
         this.authorizationService = authorizationService;
+        this.adminDNs = adminDNs;
     }
 
     @Override
@@ -90,15 +94,15 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     final X509Certificate[] certs = threadContext.getTransient(ConfigConstants.SG_SSL_PEER_CERTIFICATES);
                     final User user = (User)threadContext.getTransient(ConfigConstants.SG_USER);
                     final TransportAddress remoteAddress = (TransportAddress) threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-                                        
                     
-                    Set<String> sgRoles = null;
-                    
-                    try {
-                        sgRoles = authorizationService.getMappedRoles(user, remoteAddress);                        
-                    } catch (Exception e) {
-                        log.warn("Error while evaluating roles for user " + user, e);
-                        sgRoles = ImmutableSet.empty();
+                    Set<String> sgRoles = ImmutableSet.empty();
+
+                    if(user != null && !adminDNs.isAdmin(user)) {
+                        try {
+                            sgRoles = authorizationService.getMappedRoles(user, remoteAddress);
+                        } catch (Exception e) {
+                            log.warn("Error while evaluating roles for user " + user, e);
+                        }
                     }
                     
                     builder.startObject();
@@ -110,7 +114,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     builder.field("custom_attribute_names", user==null?null:user.getCustomAttributesMap().keySet());
                     builder.field("attribute_names", user==null?null:user.getStructuredAttributes().keySet());
                     builder.field("sg_roles", sgRoles);
-                    builder.field("sg_tenants", evaluator.mapTenants(user, sgRoles));
+                    builder.field("sg_tenants", user==null?null:evaluator.mapTenants(user, sgRoles));
                     builder.field("principal", (String)threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL));
                     builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
                     

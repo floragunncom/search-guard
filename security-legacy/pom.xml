@@ -70,11 +70,7 @@
 			</exclusions>
 		</dependency>		
 		
-		<dependency>
-    		<groupId>org.elasticsearch.plugin</groupId>
-    		<artifactId>elasticsearch-scripting-painless-spi</artifactId>
-    		<scope>provided</scope>
-		</dependency>
+
 
 		<dependency>
 			<groupId>com.floragunn</groupId>

@@ -384,6 +384,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         public XContentBuilder newBuilder(XContentType xContentType, XContentType responseContentType, boolean useFiltering) throws IOException {
             return null;
         }
+
     }
 
 }

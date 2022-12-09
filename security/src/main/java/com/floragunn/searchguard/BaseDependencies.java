@@ -69,7 +69,6 @@ public class BaseDependencies {
     private final StaticSgConfig staticSgConfig;
     private final DiagnosticContext diagnosticContext;
     private final ConfigVarService configVarService;
-    private final VariableResolvers variableResolvers;
     private final AuditLog auditLog;
     private final PrivilegesEvaluator privilegesEvaluator;
     private final BlockedIpRegistry blockedIpRegistry;
@@ -87,8 +86,7 @@ public class BaseDependencies {
             Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
             StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository, LicenseRepository licenseRepository,
             ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService,
-            VariableResolvers configVariableProviders, DiagnosticContext diagnosticContext, AuditLog auditLog,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService, DiagnosticContext diagnosticContext, AuditLog auditLog,
             PrivilegesEvaluator privilegesEvaluator, BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry,
             SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase, Actions actions,
             AuthorizationService authorizationService, GuiceDependencies guiceDependencies, AuthInfoService authInfoService,
@@ -113,7 +111,6 @@ public class BaseDependencies {
         this.internalAuthTokenProvider = internalAuthTokenProvider;
         this.configVarService = configVarService;
         this.diagnosticContext = diagnosticContext;
-        this.variableResolvers = configVariableProviders;
         this.auditLog = auditLog;
         this.privilegesEvaluator = privilegesEvaluator;
         this.blockedIpRegistry = blockedIpRegistry;
@@ -193,10 +190,6 @@ public class BaseDependencies {
 
     public ConfigVarService getConfigVarService() {
         return configVarService;
-    }
-
-    public VariableResolvers getConfigVarResolvers() {
-        return variableResolvers;
     }
 
     public AuditLog getAuditLog() {

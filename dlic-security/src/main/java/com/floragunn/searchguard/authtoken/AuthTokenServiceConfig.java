@@ -42,7 +42,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 
 public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServiceConfig> {
     public static CType<AuthTokenServiceConfig> TYPE = new CType<AuthTokenServiceConfig>("auth_token_service", "Auth Token Service", 10021,
-            AuthTokenServiceConfig.class, AuthTokenServiceConfig::parse, CType.Storage.OPTIONAL);
+            AuthTokenServiceConfig.class, AuthTokenServiceConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
     public static final String DEFAULT_AUDIENCE = "searchguard_tokenauth";
 
