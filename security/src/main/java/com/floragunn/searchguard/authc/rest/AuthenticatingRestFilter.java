@@ -19,7 +19,6 @@ package com.floragunn.searchguard.authc.rest;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Collections;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 
@@ -318,16 +317,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
         if(accept == null || (!accept.startsWith("application/json") && !accept.startsWith("application/vnd.elasticsearch+json"))) {
             return new RestResponse(result.getRestStatus(), statusMessage);
-        }
-
-        if(accept.startsWith("application/vnd.elasticsearch+json") && accept.contains("compatible-with=8")) {
-            return new RestResponse(result.getRestStatus(), "application/vnd.elasticsearch+json", DocNode.of(//
-                    "status", result.getRestStatus().getStatus(), //
-                    "error.reason", statusMessage, //
-                    "error.rootCause", Collections.emptyList(), //
-                    "error.suppressed", Collections.emptyList(), //
-                    "error.metadata", Collections.emptyMap() //
-            ).toJsonString());
         }
 
         return new RestResponse(result.getRestStatus(), "application/json", DocNode.of(//
