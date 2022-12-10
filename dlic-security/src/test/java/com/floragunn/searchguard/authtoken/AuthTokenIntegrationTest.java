@@ -257,8 +257,6 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            //System.out.println(response.getBody());
-
             Assert.assertEquals(403, response.getStatusCode());
             Assert.assertEquals("Cannot create token. Token limit per user exceeded. Max number of allowed tokens is 10",
                     response.toJsonNode().at("/error/root_cause/0/reason").textValue());

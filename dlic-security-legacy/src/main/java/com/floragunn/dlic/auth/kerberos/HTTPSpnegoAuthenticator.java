@@ -281,9 +281,9 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
         XContentBuilder response = getNegotiateResponseBody();
 
         if (response != null) {
-            wwwAuthenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, response);        	
+            wwwAuthenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, response);
         } else {
-            wwwAuthenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON);
+            wwwAuthenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED);
         }
 
         if(creds == null || creds.getNativeCredentials() == null) {
