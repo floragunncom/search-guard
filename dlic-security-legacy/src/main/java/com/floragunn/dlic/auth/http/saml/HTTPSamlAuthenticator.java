@@ -181,7 +181,7 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
             }
 
             Saml2Settings saml2Settings = this.saml2SettingsProvider.getCached();
-            RestResponse authenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED_JSON);
+            RestResponse authenticateResponse = new RestResponse(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED);
 
             authenticateResponse.addHeader("WWW-Authenticate", getWwwAuthenticateHeader(saml2Settings));
 
