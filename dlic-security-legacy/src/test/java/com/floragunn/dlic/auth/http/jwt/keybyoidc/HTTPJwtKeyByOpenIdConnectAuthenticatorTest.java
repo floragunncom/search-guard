@@ -366,6 +366,11 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         }
 
         @Override
+        public void releaseOutputBuffer() {
+
+        }
+
+        @Override
         public RestRequest request() {
             return restRequest;
         }
