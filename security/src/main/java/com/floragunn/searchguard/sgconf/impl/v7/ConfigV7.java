@@ -93,6 +93,7 @@ public class ConfigV7 {
         public boolean do_not_fail_on_forbidden_empty;
         public String field_anonymization_salt2;
         public HashMap<String, Object> auth_token_provider = new HashMap<>();
+        public boolean support_aliases_in_index_privileges = true;
         
         @Override
         public String toString() {
