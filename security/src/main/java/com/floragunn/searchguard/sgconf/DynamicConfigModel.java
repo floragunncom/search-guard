@@ -41,6 +41,7 @@ public abstract class DynamicConfigModel implements ComponentStateProvider {
     public abstract boolean isDnfofForEmptyResultsEnabled();
     public abstract String getFieldAnonymizationSalt2();    
     public abstract boolean isKibanaRbacEnabled();
+    public abstract boolean isIndexPrivilegeAliasResolutionEnabled();
     
     public abstract List<AuthFailureListener> getIpAuthFailureListeners();
     public abstract Multimap<String, AuthFailureListener> getAuthBackendFailureListeners();

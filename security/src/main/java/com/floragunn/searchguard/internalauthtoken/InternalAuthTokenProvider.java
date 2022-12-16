@@ -58,7 +58,8 @@ public class InternalAuthTokenProvider implements DCFListener {
     private JweDecryptionProvider jweDecryptionProvider;
     private ConfigModel configModel;
     private SgRoles sgRoles;
-
+    private DynamicConfigModel dynamicConfigModel;
+    
     public InternalAuthTokenProvider(DynamicConfigFactory dynamicConfigFactory) {
         dynamicConfigFactory.registerDCFListener(this);
     }
@@ -131,7 +132,7 @@ public class InternalAuthTokenProvider implements DCFListener {
             @SuppressWarnings("unchecked")
             SgDynamicConfiguration<RoleV7> rolesConfigV7 = (SgDynamicConfiguration<RoleV7>) rolesConfig;
 
-            SgRoles sgRoles = ConfigModelV7.SgRoles.create(rolesConfigV7, configModel.getActionGroupResolver());
+            SgRoles sgRoles = ConfigModelV7.SgRoles.create(rolesConfigV7, configModel.getActionGroupResolver(), dynamicConfigModel.isIndexPrivilegeAliasResolutionEnabled());
             String userName = verifiedToken.getClaims().getSubject();
             User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(sgRoles.getRoleNames()).build();
             AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, sgRoles);
@@ -148,6 +149,7 @@ public class InternalAuthTokenProvider implements DCFListener {
     @Override
     public void onChanged(ConfigModel configModel, DynamicConfigModel dynamicConfigModel, InternalUsersModel internalUsersModel) {
         this.configModel = configModel;
+        this.dynamicConfigModel = dynamicConfigModel;
         this.sgRoles = configModel.getSgRoles();
     }
 

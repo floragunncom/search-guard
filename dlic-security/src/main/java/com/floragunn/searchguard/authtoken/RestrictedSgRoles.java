@@ -42,7 +42,7 @@ public class RestrictedSgRoles extends SgRoles {
     RestrictedSgRoles(SgRoles base, RequestedPrivileges restriction, ActionGroupResolver actionGroupResolver) {
         this.base = base;
         this.restriction = restriction;
-        this.restrictionSgRoles = com.floragunn.searchguard.sgconf.ConfigModelV7.SgRoles.create(restriction.toRolesConfig(), actionGroupResolver);
+        this.restrictionSgRoles = com.floragunn.searchguard.sgconf.ConfigModelV7.SgRoles.create(restriction.toRolesConfig(), actionGroupResolver, base.isIndexPrivilegeAliasResolutionEnabled());
     }
 
     @Override
@@ -204,6 +204,11 @@ public class RestrictedSgRoles extends SgRoles {
         }
 
         return result;
+    }
+
+    @Override
+    public boolean isIndexPrivilegeAliasResolutionEnabled() {
+        return base.isIndexPrivilegeAliasResolutionEnabled();
     }
 
   

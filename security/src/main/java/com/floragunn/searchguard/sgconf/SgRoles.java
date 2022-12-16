@@ -50,5 +50,6 @@ public abstract class SgRoles implements ToXContentObject {
         public Set<String> getPermissions();
     }
     
-    
+    public abstract boolean isIndexPrivilegeAliasResolutionEnabled();
+
 }

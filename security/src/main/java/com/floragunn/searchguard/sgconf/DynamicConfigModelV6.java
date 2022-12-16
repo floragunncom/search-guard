@@ -390,4 +390,8 @@ public class DynamicConfigModelV6 extends DynamicConfigModel {
     public ComponentState getComponentState() {
         return componentState;
     }
+    @Override
+    public boolean isIndexPrivilegeAliasResolutionEnabled() {
+        return true;
+    }
 }
