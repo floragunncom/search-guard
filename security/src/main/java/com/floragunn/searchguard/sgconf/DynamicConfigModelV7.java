@@ -399,4 +399,8 @@ public class DynamicConfigModelV7 extends DynamicConfigModel implements Componen
     public ComponentState getComponentState() {
         return componentState;
     }
+    @Override
+    public boolean isIndexPrivilegeAliasResolutionEnabled() {
+        return config.dynamic.support_aliases_in_index_privileges;
+    }
 }

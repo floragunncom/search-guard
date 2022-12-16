@@ -101,6 +101,7 @@ public class ConfigModelV7 extends ConfigModel {
     private ClientBlockRegistry<InetAddress> blockedIpAddresses;
     private ClientBlockRegistry<String> blockedUsers;
     private ClientBlockRegistry<IPAddress> blockeNetmasks;    
+    private boolean indexPrivilegeAliasResolutionEnabled;
 
     public ConfigModelV7(SgDynamicConfiguration<RoleV7> roles, SgDynamicConfiguration<RoleMappingsV7> rolemappings,
                          SgDynamicConfiguration<ActionGroupsV7> actiongroups, SgDynamicConfiguration<TenantV7> tenants,
@@ -117,9 +118,10 @@ public class ConfigModelV7 extends ConfigModel {
             log.error("Cannot apply roles mapping resolution", e);
             rolesMappingResolution = ConfigConstants.RolesMappingResolution.MAPPING_ONLY;
         }
-
+        indexPrivilegeAliasResolutionEnabled = dcm.isIndexPrivilegeAliasResolutionEnabled();
+        
         agr = reloadActionGroups(actiongroups);
-        sgRoles = reload(roles);
+        sgRoles = reload(roles, indexPrivilegeAliasResolutionEnabled);
         roleMappingHolder = new RoleMappingHolder(rolemappings, dcm.getHostsResolverMode());
         blockedIpAddresses = reloadBlockedIpAddresses(blocks);
         blockedUsers = reloadBlockedUsers(blocks);
@@ -304,7 +306,7 @@ public class ConfigModelV7 extends ConfigModel {
         };
     }
 
-    private SgRoles reload(SgDynamicConfiguration<RoleV7> settings) {
+    private SgRoles reload(SgDynamicConfiguration<RoleV7> settings, boolean indexPrivilegeAliasResolutionEnabled) {
 
         final Set<Future<SgRole>> futures = new HashSet<>(5000);
         final ExecutorService execs = Executors.newFixedThreadPool(10);
@@ -316,7 +318,7 @@ public class ConfigModelV7 extends ConfigModel {
                     return null;
                 }
 
-                return SgRole.create(sgRole.getKey(), sgRole.getValue(), agr);
+                return SgRole.create(sgRole.getKey(), sgRole.getValue(), agr, indexPrivilegeAliasResolutionEnabled);
             });
 
             futures.add(future);
@@ -332,7 +334,7 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         try {
-            SgRoles _sgRoles = new SgRoles(futures.size());
+            SgRoles _sgRoles = new SgRoles(futures.size(), indexPrivilegeAliasResolutionEnabled);
             for (Future<SgRole> future : futures) {
                 _sgRoles.addSgRole(future.get());
             }
@@ -351,10 +353,12 @@ public class ConfigModelV7 extends ConfigModel {
 
     //beans
     public static class SgRoles extends com.floragunn.searchguard.sgconf.SgRoles implements ToXContentObject {
+        
+        private final boolean indexPrivilegeAliasResolutionEnabled;
 
-        public static SgRoles create(SgDynamicConfiguration<RoleV7> settings, ActionGroupResolver actionGroupResolver) {
-
-            SgRoles result = new SgRoles(settings.getCEntries().size());
+        public static SgRoles create(SgDynamicConfiguration<RoleV7> settings, ActionGroupResolver actionGroupResolver, boolean indexPrivilegeAliasResolutionEnabled) {
+           
+            SgRoles result = new SgRoles(settings.getCEntries().size(), indexPrivilegeAliasResolutionEnabled);
 
             for (Entry<String, RoleV7> entry : settings.getCEntries().entrySet()) {
 
@@ -362,7 +366,7 @@ public class ConfigModelV7 extends ConfigModel {
                     continue;
                 }
 
-                result.addSgRole(SgRole.create(entry.getKey(), entry.getValue(), actionGroupResolver));
+                result.addSgRole(SgRole.create(entry.getKey(), entry.getValue(), actionGroupResolver, indexPrivilegeAliasResolutionEnabled));
             }
 
             return result;
@@ -373,8 +377,9 @@ public class ConfigModelV7 extends ConfigModel {
 
         final Map<String, SgRole> roles;
 
-        private SgRoles(int roleCount) {
+        private SgRoles(int roleCount, boolean indexPrivilegeAliasResolutionEnabled) {
             roles = new HashMap<>(roleCount);
+            this.indexPrivilegeAliasResolutionEnabled = indexPrivilegeAliasResolutionEnabled;
         }
 
         private SgRoles addSgRole(SgRole sgRole) {
@@ -423,7 +428,7 @@ public class ConfigModelV7 extends ConfigModel {
         }
 
         public SgRoles filter(Set<String> keep) {
-            SgRoles result = new SgRoles(keep.size());
+            SgRoles result = new SgRoles(keep.size(), indexPrivilegeAliasResolutionEnabled);
             
             for (String roleName : keep) {
                 SgRole role = roles.get(roleName);
@@ -767,12 +772,16 @@ public class ConfigModelV7 extends ConfigModel {
             return builder;
         }
 
+        public boolean isIndexPrivilegeAliasResolutionEnabled() {
+            return indexPrivilegeAliasResolutionEnabled;
+        }
+
     }
 
     public static class SgRole implements ToXContentObject {
 
 
-        static SgRole create(String roleName, RoleV7 roleConfig, ActionGroupResolver actionGroupResolver) {
+        static SgRole create(String roleName, RoleV7 roleConfig, ActionGroupResolver actionGroupResolver, boolean indexPrivilegeAliasResolutionEnabled) {
             SgRole result = new SgRole(roleName);
 
             final Set<String> permittedClusterActions = actionGroupResolver.resolvedActions(roleConfig.getCluster_permissions());
@@ -785,7 +794,7 @@ public class ConfigModelV7 extends ConfigModel {
                 final List<String> maskedFields = permittedAliasesIndex.getMasked_fields();
 
                 for (String pat : permittedAliasesIndex.getIndex_patterns()) {
-                    IndexPattern _indexPattern = new IndexPattern(pat);
+                    IndexPattern _indexPattern = new IndexPattern(pat, indexPrivilegeAliasResolutionEnabled);
                     _indexPattern.setDlsQuery(dls);
                     _indexPattern.addFlsFields(fls);
                     _indexPattern.addMaskedFields(maskedFields);
@@ -1087,10 +1096,12 @@ public class ConfigModelV7 extends ConfigModel {
         private final Set<String> fls = new HashSet<>();
         private final Set<String> maskedFields = new HashSet<>();
         private final Set<String> perms = new HashSet<>();
+        private final boolean indexPrivilegeAliasResolutionEnabled;
 
-        public IndexPattern(String indexPattern) {
+        public IndexPattern(String indexPattern, boolean indexPrivilegeAliasResolutionEnabled) {
             super();
             this.indexPattern = Objects.requireNonNull(indexPattern);
+            this.indexPrivilegeAliasResolutionEnabled = indexPrivilegeAliasResolutionEnabled;
         }
 
         public IndexPattern addFlsFields(List<String> flsFields) {
@@ -1182,7 +1193,13 @@ public class ConfigModelV7 extends ConfigModel {
         
         private String[] getResolvedIndexPatterns(User user, IndexNameExpressionResolver resolver, ClusterService cs, boolean appendUnresolved) throws StringInterpolationException {
             String unresolved = getUnresolvedIndexPattern(user);
+            
+            if (!indexPrivilegeAliasResolutionEnabled) {
+                return new String[] { unresolved };
+            }
+
             String[] resolved = null;
+                        
             if (WildcardMatcher.containsWildcard(unresolved)) {                
                 final String[] aliasesForPermittedPattern = cs.state().getMetadata().getIndicesLookup().entrySet().stream()
                         .filter(e -> e.getValue().getType().equals(Type.ALIAS)).filter(e -> WildcardMatcher.match(unresolved, e.getKey())).map(e -> e.getKey())
