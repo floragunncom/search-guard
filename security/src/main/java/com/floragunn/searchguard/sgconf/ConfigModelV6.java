@@ -627,6 +627,11 @@ public class ConfigModelV6 extends ConfigModel {
             builder.endObject();
             return builder;
         }
+
+        @Override
+        public boolean isIndexPrivilegeAliasResolutionEnabled() {
+            return true;
+        }
     }
 
     public static class SgRole implements ToXContentObject {
