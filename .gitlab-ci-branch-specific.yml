@@ -1,6 +1,6 @@
 variables:
   SG_KI_PLUGIN: "https://maven.search-guard.com//search-guard-kibana-plugin-release/com/floragunn/search-guard-kibana-plugin/7.10.2-51.0.0/search-guard-kibana-plugin-7.10.2-51.0.0.zip"
   KI_VERSION: "7.10.2"
-#  IT_BRANCH: "sg-7.52.6-es-7.16.3"
+  IT_BRANCH: "log4jtest7102"
 
 
