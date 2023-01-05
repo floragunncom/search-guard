@@ -52,7 +52,7 @@
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <maven.compiler.release>17</maven.compiler.release>
 
-    <elasticsearch.version>8.4.3</elasticsearch.version>
+    <elasticsearch.version>8.4.0</elasticsearch.version>
 
     <log4j.version>2.18.0</log4j.version>
     <jackson.version>2.13.2</jackson.version>
