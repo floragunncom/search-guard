@@ -20,6 +20,7 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 import java.io.IOException;
 import java.util.List;
 import java.util.SortedMap;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -124,21 +125,20 @@ public class TenantInfoAction extends BaseRestHandler {
             return null;
         }
 
-        try {
-            final int expectedHash = Integer.parseInt(indexParts[1]);
+        Pattern intNumberPattern = Pattern.compile("-?\\d+");
+        if (intNumberPattern.matcher(indexParts[1]).matches()) {
+            final String expectedHash = indexParts[1];
             final String sanitizedName = indexParts[2];
 
             for (String tenant : module.getTenantNames()) {
-                if (tenant.hashCode() == expectedHash && sanitizedName.equals(tenant.toLowerCase().replaceAll("[^a-z0-9]+", ""))) {
+                if (String.valueOf(tenant.hashCode()).equals(expectedHash) && sanitizedName.equals(tenant.toLowerCase().replaceAll("[^a-z0-9]+", ""))) {
                     return tenant;
                 }
             }
 
             return "__private__";
-        } catch (NumberFormatException e) {
-            log.info("Index " + index + " looks like a SG tenant index but we cannot parse the hashcode so we ignore it.");
-            return null;
         }
+        return null;
     }
 
     @Override
