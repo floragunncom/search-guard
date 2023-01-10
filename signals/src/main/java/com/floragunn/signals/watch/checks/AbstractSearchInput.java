@@ -110,7 +110,7 @@ public abstract class AbstractSearchInput extends AbstractInput {
 
         try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY.withRegistry(xContentRegistry).withDeprecationHandler(LoggingDeprecationHandler.INSTANCE), searchBody)) {
 
-            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(parser);
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(parser, true);
             SearchRequest result = new SearchRequest(this.getIndicesAsArray(), searchSourceBuilder);
 
             if (this.searchType != null) {

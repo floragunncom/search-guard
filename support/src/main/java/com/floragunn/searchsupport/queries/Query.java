@@ -44,7 +44,7 @@ public class Query implements Document<Query> {
                             .withRegistry(context.xContentRegistry())
                             .withDeprecationHandler(DeprecationHandler.THROW_UNSUPPORTED_OPERATION),
                     source);
-            this.queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+            this.queryBuilder = AbstractQueryBuilder.parseTopLevelQuery(parser);
         } catch (Exception e) {
             throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
         }

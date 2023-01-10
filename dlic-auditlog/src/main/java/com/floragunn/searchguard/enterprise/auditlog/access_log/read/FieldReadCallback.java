@@ -39,7 +39,7 @@ public final class FieldReadCallback {
     private static final Logger log = LogManager.getLogger(FieldReadCallback.class);
     private final ReadLogContext context;
     private final Index index;
-    private Function<Map<String, ?>, Map<String, Object>> filterFunction;
+    private Function<Map<String, Object>, Map<String, Object>> filterFunction;
     private SourceFieldsContext sfc;
     private Doc doc;
 
@@ -77,7 +77,7 @@ public final class FieldReadCallback {
             if (fieldInfo.name.equals("_source")) {
 
                 if (filterFunction != null) {
-                    final Map<String, Object> filteredSource = filterFunction.apply(DocReader.json().readObject(fieldValue));
+                    final Map<String, ?> filteredSource = filterFunction.apply(DocReader.json().readObject(fieldValue));
                     fieldValue = DocWriter.json().writeAsBytes(filteredSource);
                 }
 

@@ -106,7 +106,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
     private String[] includes;
     private String[] excludes;
     private boolean canOptimize = true;
-    private Function<Map<String, ?>, Map<String, Object>> filterFunction;
+    private Function<Map<String, Object>, Map<String, Object>> filterFunction;
     private final IndexService indexService;
     private final ThreadContext threadContext;
     private final DlsFlsComplianceConfig complianceConfig;

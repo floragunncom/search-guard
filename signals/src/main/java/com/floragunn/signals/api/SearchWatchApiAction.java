@@ -51,7 +51,7 @@ public class SearchWatchApiAction extends BaseRestHandler implements TenantAware
         searchWatchRequest.setSize(size);
 
         if (request.hasContent()) {
-            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(request.contentParser(), true);
 
             searchWatchRequest.setSearchSourceBuilder(searchSourceBuilder);
         }

@@ -118,7 +118,7 @@ public class DlsQueryParser {
                 public QueryBuilder call() throws Exception {
                     final XContentParser parser = JsonXContent.jsonXContent.createParser(XContentParserConfiguration.EMPTY.withRegistry(namedXContentRegistry),
                             unparsedDlsQuery);
-                    final QueryBuilder qb = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+                    final QueryBuilder qb = AbstractQueryBuilder.parseTopLevelQuery(parser);
                     return qb;
                 }
 

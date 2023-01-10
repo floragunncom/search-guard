@@ -57,7 +57,7 @@ public class SearchAuthTokenRestAction extends BaseRestHandler {
         searchWatchRequest.setSize(size);
 
         if (request.hasContent()) {
-            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(request.contentParser(), true);
 
             searchWatchRequest.setSearchSourceBuilder(searchSourceBuilder);
         }

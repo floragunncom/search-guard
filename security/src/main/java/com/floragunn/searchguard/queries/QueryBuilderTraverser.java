@@ -74,7 +74,7 @@ public abstract class QueryBuilderTraverser {
     public boolean check(String query, NamedXContentRegistry namedXContentRegistry) throws IOException {
         XContentParser parser = JsonXContent.jsonXContent.createParser(XContentParserConfiguration.EMPTY.withRegistry(namedXContentRegistry),
                 query);
-        QueryBuilder queryBuilder = AbstractQueryBuilder.parseInnerQueryBuilder(parser);
+        QueryBuilder queryBuilder = AbstractQueryBuilder.parseTopLevelQuery(parser);
 
         return check(queryBuilder);
     }

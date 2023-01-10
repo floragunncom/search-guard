@@ -46,7 +46,7 @@ public class SearchAccountApiAction extends BaseRestHandler {
         searchDestinationRequest.setSize(size);
 
         if (request.hasContent()) {
-            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.fromXContent(request.contentParser());
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(request.contentParser(), true);
 
             searchDestinationRequest.setSearchSourceBuilder(searchSourceBuilder);
         }
