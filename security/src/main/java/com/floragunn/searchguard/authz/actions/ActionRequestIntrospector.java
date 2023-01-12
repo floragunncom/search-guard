@@ -747,7 +747,7 @@ public class ActionRequestIntrospector {
             ImmutableSet<String> result = ImmutableSet.empty();
 
             for (String index : localIndices) {
-                Index concreteIndex = resolver.concreteWriteIndex(clusterService.state(), indicesOptions, index, true, includeDataStreams);
+                Index concreteIndex = resolver.concreteWriteIndex(clusterService.state(), ignoreUnavailable(indicesOptions), index, true, includeDataStreams);
 
                 if (concreteIndex != null) {
                     result = result.with(concreteIndex.getName());
@@ -868,7 +868,15 @@ public class ActionRequestIntrospector {
                 }
             };
         }
-
+        private IndicesOptions ignoreUnavailable(IndicesOptions indicesOptions) {
+            if (indicesOptions.ignoreUnavailable()) {
+                return indicesOptions;
+            } else {
+                EnumSet<IndicesOptions.Option> newOptions = indicesOptions.options().clone();
+                newOptions.add(IndicesOptions.Option.IGNORE_UNAVAILABLE);
+                return new IndicesOptions(newOptions, indicesOptions.expandWildcards());
+            }
+        }
     }
 
     private final ActionRequestInfo UNKNOWN = new ActionRequestInfo(true, false);
