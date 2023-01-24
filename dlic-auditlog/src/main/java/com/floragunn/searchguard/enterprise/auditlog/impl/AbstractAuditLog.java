@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,9 +10,24 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.patch.JsonPatch;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.support.Base64Helper;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserInformation;
+import com.floragunn.searchsupport.PrivilegedCode;
+import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -64,23 +77,6 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xcontent.json.JsonXContent;
-
-import com.floragunn.codova.config.text.Pattern;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.documents.patch.JsonPatch;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.support.Base64Helper;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.searchguard.user.UserInformation;
-import com.floragunn.searchsupport.PrivilegedCode;
-import com.google.common.io.BaseEncoding;
 
 public abstract class AbstractAuditLog implements AuditLog {
 

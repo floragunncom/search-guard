@@ -1,5 +1,4 @@
 /*
- * 
  * Copyright 2020-2022 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,21 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.support;
-
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddress;
 import inet.ipaddr.IPAddressString;
@@ -37,6 +28,10 @@ import inet.ipaddr.ipv4.IPv4Address;
 import inet.ipaddr.ipv4.IPv4AddressTrie;
 import inet.ipaddr.ipv6.IPv6Address;
 import inet.ipaddr.ipv6.IPv6AddressTrie;
+import java.util.Collections;
+import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class IPAddressCollection implements Document<IPAddressCollection> {
     private static final Logger log = LogManager.getLogger(IPAddressCollection.class);

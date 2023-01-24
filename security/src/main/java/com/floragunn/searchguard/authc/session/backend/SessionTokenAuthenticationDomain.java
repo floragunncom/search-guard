@@ -1,10 +1,10 @@
 /*
  * Copyright 2021-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,22 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.session.backend;
-
-import java.util.concurrent.CompletableFuture;
-
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
-import org.apache.cxf.rs.security.jose.jwt.JwtException;
-import org.apache.cxf.rs.security.jose.jwt.JwtToken;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -40,6 +27,16 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import java.util.concurrent.CompletableFuture;
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
+import org.apache.cxf.rs.security.jose.jwt.JwtException;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.rest.RestStatus;
 
 public class SessionTokenAuthenticationDomain implements AuthenticationDomain<HttpAuthenticationFrontend> {
     private final static Logger log = LogManager.getLogger(SessionTokenAuthenticationDomain.class);

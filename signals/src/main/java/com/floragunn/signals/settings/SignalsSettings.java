@@ -1,29 +1,20 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.signals.settings;
-
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.index.IndexNotFoundException;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.codova.config.temporal.ConstantDurationExpression;
 import com.floragunn.codova.config.temporal.DurationExpression;
@@ -39,6 +30,29 @@ import com.floragunn.signals.SignalsInitializationException;
 import com.floragunn.signals.actions.settings.update.SettingsUpdateAction;
 import com.floragunn.signals.support.LuckySisyphos;
 import com.floragunn.signals.watch.common.HttpProxyConfig;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 public class SignalsSettings {
     private static final Logger log = LogManager.getLogger(SignalsSettings.class);
@@ -105,7 +119,7 @@ public class SignalsSettings {
         public static final Setting<String> NODE_FILTER = Setting.simpleString("node_filter");
 
         public static final Setting<String> FRONTEND_BASE_URL = Setting.simpleString("frontend_base_url");
-        
+
         private final String indexName;
         private final SignalsStaticSettings staticSettings;
 
@@ -148,7 +162,7 @@ public class SignalsSettings {
         public String getFrontendBaseUrl() {
             return FRONTEND_BASE_URL.get(settings);
         }
-        
+
         public String getInternalAuthTokenEncryptionKey() {
             String result = INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY.get(settings);
 
@@ -217,7 +231,7 @@ public class SignalsSettings {
                     throw new ConfigValidationException(new ValidationErrors().add(key, e));
                 }
             }
-            
+
             ParsedSettingsKey parsedKey = matchSetting(key);
 
             Settings.Builder settingsBuilder = Settings.builder();
@@ -306,7 +320,7 @@ public class SignalsSettings {
 
             if (value != null) {
                 String json = DocWriter.json().writeAsString(value);
-                
+
                 PrivilegedConfigClient.adapt(client)
                         .index(new IndexRequest(indexName).id(key).source("value", json).setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
             } else {
@@ -455,7 +469,7 @@ public class SignalsSettings {
         static final Setting<String> NODE_FILTER = Setting.simpleString("node_filter");
 
         /**
-         * Note that the default value of ACTIVE is actually determined by the static setting signals.all_tenants_active_by_default 
+         * Note that the default value of ACTIVE is actually determined by the static setting signals.all_tenants_active_by_default
          */
         static final Setting<Boolean> ACTIVE = Setting.boolSetting("active", Boolean.TRUE);
 
@@ -505,20 +519,29 @@ public class SignalsSettings {
                 .withDefault(3).asInteger();
         public static StaticSettings.Attribute<TimeValue> THREAD_KEEP_ALIVE = StaticSettings.Attribute
                 .define("signals.worker_threads.pool.keep_alive").withDefault(TimeValue.timeValueMinutes(100)).asTimeValue();
-        public static StaticSettings.Attribute<Integer> THREAD_PRIO =  StaticSettings.Attribute.define("signals.worker_threads.prio").withDefault(Thread.NORM_PRIORITY).asInteger();
+        public static StaticSettings.Attribute<Integer> THREAD_PRIO = StaticSettings.Attribute.define("signals.worker_threads.prio")
+                .withDefault(Thread.NORM_PRIORITY).asInteger();
 
-        public static StaticSettings.Attribute<Boolean> ACTIVE_BY_DEFAULT =  StaticSettings.Attribute.define("signals.all_tenants_active_by_default").withDefault(true).asBoolean();
-        public static StaticSettings.Attribute<String> WATCH_LOG_REFRESH_POLICY =  StaticSettings.Attribute.define("signals.watch_log.refresh_policy").withDefault((String) null).asString();
-        public static StaticSettings.Attribute<Boolean> WATCH_LOG_SYNC_INDEXING =  StaticSettings.Attribute.define("signals.watch_log.sync_indexing").withDefault(false).asBoolean();
+        public static StaticSettings.Attribute<Boolean> ACTIVE_BY_DEFAULT = StaticSettings.Attribute.define("signals.all_tenants_active_by_default")
+                .withDefault(true).asBoolean();
+        public static StaticSettings.Attribute<String> WATCH_LOG_REFRESH_POLICY = StaticSettings.Attribute.define("signals.watch_log.refresh_policy")
+                .withDefault((String) null).asString();
+        public static StaticSettings.Attribute<Boolean> WATCH_LOG_SYNC_INDEXING = StaticSettings.Attribute.define("signals.watch_log.sync_indexing")
+                .withDefault(false).asBoolean();
 
         public static class IndexNames {
-            public static StaticSettings.Attribute<String> WATCHES =  StaticSettings.Attribute.define("signals.index_names.watches").withDefault(".signals_watches").asString();
-            public static StaticSettings.Attribute<String> WATCHES_STATE =  StaticSettings.Attribute.define("signals.index_names.watches_state").withDefault(".signals_watches_state").asString();
-            public static StaticSettings.Attribute<String> WATCHES_TRIGGER_STATE =  StaticSettings.Attribute.define("signals.index_names.watches_trigger_state").withDefault(
-                    ".signals_watches_trigger_state").asString();
-            public static StaticSettings.Attribute<String> ACCOUNTS =  StaticSettings.Attribute.define("signals.index_names.accounts").withDefault(".signals_accounts").asString();
-            public static StaticSettings.Attribute<String> SETTINGS =  StaticSettings.Attribute.define("signals.index_names.settings").withDefault(".signals_settings").asString();
-            public static StaticSettings.Attribute<String> LOG = StaticSettings.Attribute.define("signals.index_names.log").withDefault("<.signals_log_{now/d}>").asString();
+            public static StaticSettings.Attribute<String> WATCHES = StaticSettings.Attribute.define("signals.index_names.watches")
+                    .withDefault(".signals_watches").asString();
+            public static StaticSettings.Attribute<String> WATCHES_STATE = StaticSettings.Attribute.define("signals.index_names.watches_state")
+                    .withDefault(".signals_watches_state").asString();
+            public static StaticSettings.Attribute<String> WATCHES_TRIGGER_STATE = StaticSettings.Attribute
+                    .define("signals.index_names.watches_trigger_state").withDefault(".signals_watches_trigger_state").asString();
+            public static StaticSettings.Attribute<String> ACCOUNTS = StaticSettings.Attribute.define("signals.index_names.accounts")
+                    .withDefault(".signals_accounts").asString();
+            public static StaticSettings.Attribute<String> SETTINGS = StaticSettings.Attribute.define("signals.index_names.settings")
+                    .withDefault(".signals_settings").asString();
+            public static StaticSettings.Attribute<String> LOG = StaticSettings.Attribute.define("signals.index_names.log")
+                    .withDefault("<.signals_log_{now/d}>").asString();
 
             private final StaticSettings settings;
 
@@ -552,7 +575,7 @@ public class SignalsSettings {
 
         }
 
-        public static StaticSettings.AttributeSet  getAvailableSettings() {
+        public static StaticSettings.AttributeSet getAvailableSettings() {
             return StaticSettings.AttributeSet.of(ENABLED, ENTERPRISE_ENABLED, MAX_THREADS, THREAD_KEEP_ALIVE, THREAD_PRIO, ACTIVE_BY_DEFAULT,
                     WATCH_LOG_REFRESH_POLICY, WATCH_LOG_SYNC_INDEXING, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE,
                     IndexNames.ACCOUNTS, IndexNames.LOG);

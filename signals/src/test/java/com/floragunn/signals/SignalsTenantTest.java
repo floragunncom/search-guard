@@ -1,10 +1,44 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.signals;
 
+import com.floragunn.codova.config.temporal.DurationFormat;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
+import com.floragunn.signals.execution.ActionExecutionException;
+import com.floragunn.signals.execution.WatchExecutionContext;
+import com.floragunn.signals.settings.SignalsSettings;
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
+import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
+import com.floragunn.signals.watch.action.handlers.ActionHandler;
+import com.floragunn.signals.watch.common.Ack;
+import com.floragunn.signals.watch.init.WatchInitializationService;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-
+import net.jcip.annotations.NotThreadSafe;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
@@ -25,27 +59,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import com.floragunn.codova.config.temporal.DurationFormat;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidatingDocNode;
-import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.diag.DiagnosticContext;
-import com.floragunn.signals.execution.ActionExecutionException;
-import com.floragunn.signals.execution.WatchExecutionContext;
-import com.floragunn.signals.settings.SignalsSettings;
-import com.floragunn.signals.watch.Watch;
-import com.floragunn.signals.watch.WatchBuilder;
-import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
-import com.floragunn.signals.watch.action.handlers.ActionHandler;
-import com.floragunn.signals.watch.common.Ack;
-import com.floragunn.signals.watch.init.WatchInitializationService;
-
-import net.jcip.annotations.NotThreadSafe;
-
 @NotThreadSafe
 public class SignalsTenantTest {
 
@@ -65,7 +78,7 @@ public class SignalsTenantTest {
     @BeforeClass
     public static void setupTestData() throws Throwable {
 
-        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
+        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here
         cluster.before();
 
         PluginAwareNode node = cluster.node();

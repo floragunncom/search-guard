@@ -14,13 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.action;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import org.elasticsearch.ExceptionsHelper;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -28,13 +22,16 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchsupport.action.Action.UnparsedMessage;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.elasticsearch.ExceptionsHelper;
 
 public class StandardResponse extends Action.Response {
-    
+
     public static StandardResponse internalServerError() {
         return new StandardResponse(500, new Error("Internal Server Error"));
     }
-    
+
     private Error error;
     private String message;
     private Object data;
@@ -56,16 +53,16 @@ public class StandardResponse extends Action.Response {
         status(status);
         this.error = error;
     }
-    
+
     public StandardResponse(ConfigValidationException e) {
         status(400);
         this.error = new Error(e.getMessage()).details(e.getValidationErrors().toBasicObject());
     }
-    
+
     public StandardResponse(Exception e) {
         if (e instanceof ConfigValidationException) {
             status(400);
-            this.error = new Error(e.getMessage()).details(((ConfigValidationException) e).getValidationErrors().toBasicObject());            
+            this.error = new Error(e.getMessage()).details(((ConfigValidationException) e).getValidationErrors().toBasicObject());
         } else {
             status(ExceptionsHelper.status(e).getStatus());
             this.error = new Error(e.getMessage());
@@ -87,7 +84,7 @@ public class StandardResponse extends Action.Response {
     }
 
     public StandardResponse data(Map<?, ? extends Document<?>> map) {
-        if(map == null) {
+        if (map == null) {
             this.data = null;
         } else {
 

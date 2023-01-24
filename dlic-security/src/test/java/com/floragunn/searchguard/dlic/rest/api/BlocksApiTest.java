@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,18 +10,16 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.dlic.rest.api;
-
-import org.apache.http.HttpStatus;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.apache.http.HttpStatus;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class BlocksApiTest {
 

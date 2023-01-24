@@ -1,14 +1,20 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.signals;
-
-import java.util.Date;
-import java.util.HashMap;
-
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
@@ -23,8 +29,15 @@ import com.floragunn.signals.script.types.SignalsObjectFunctionScript;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.init.WatchInitializationService;
-
+import java.util.Date;
+import java.util.HashMap;
 import net.jcip.annotations.NotThreadSafe;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 @NotThreadSafe
 public class ScriptingTest {

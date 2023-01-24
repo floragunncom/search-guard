@@ -1,44 +1,19 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.saml;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.security.AccessController;
-import java.security.PrivateKey;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.xml.xpath.XPathExpressionException;
-
-import com.floragunn.codova.documents.Parser;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.settings.Settings;
-import org.opensaml.core.config.InitializationException;
-import org.opensaml.core.config.InitializationService;
-import org.opensaml.core.xml.io.UnmarshallingException;
-import org.opensaml.saml.metadata.resolver.MetadataResolver;
-import org.opensaml.saml.metadata.resolver.filter.FilterException;
-
 import com.floragunn.codova.config.net.TLSConfig;
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -68,10 +43,29 @@ import com.onelogin.saml2.logout.LogoutRequest;
 import com.onelogin.saml2.settings.Saml2Settings;
 import com.onelogin.saml2.util.Constants;
 import com.onelogin.saml2.util.Util;
-
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.security.AccessController;
+import java.security.PrivateKey;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.HashMap;
+import java.util.Map;
+import javax.xml.xpath.XPathExpressionException;
 import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
 import net.shibboleth.utilities.java.support.component.DestructableComponent;
 import net.shibboleth.utilities.java.support.resolver.ResolverException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.common.settings.Settings;
+import org.opensaml.core.config.InitializationException;
+import org.opensaml.core.config.InitializationService;
+import org.opensaml.core.xml.io.UnmarshallingException;
+import org.opensaml.saml.metadata.resolver.MetadataResolver;
+import org.opensaml.saml.metadata.resolver.filter.FilterException;
 
 public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable {
     private static final String SSO_CONTEXT_PREFIX = "saml_request_id:";
@@ -267,8 +261,8 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
             if (!PrivilegedCode.execute(() -> samlResponse.isValid(samlRequestId))) {
                 log.info("Error while validating SAML response " + samlRequestId, samlResponse.getValidationException());
-                throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false,
-                        "Invalid SAML response: " + samlResponse.getValidationException(), debugDetails));
+                throw new CredentialsException(
+                        new AuthcResult.DebugInfo(getType(), false, "Invalid SAML response: " + samlResponse.getValidationException(), debugDetails));
             }
 
             String sessionIndex;

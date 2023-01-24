@@ -1,10 +1,10 @@
 /*
  * Copyright 2021 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.configuration.variables;
 
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.google.common.io.BaseEncoding;
+import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -28,7 +35,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -36,21 +42,11 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
-
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocWriter;
-import com.google.common.io.BaseEncoding;
-import com.google.common.io.Files;
 
 public class EncryptionKeys implements ComponentStateProvider {
     private final static Logger log = LogManager.getLogger(EncryptionKeys.class);

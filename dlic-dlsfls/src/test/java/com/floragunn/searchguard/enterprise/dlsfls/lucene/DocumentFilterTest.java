@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,11 +10,7 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.lucene;
-
-import org.junit.Assert;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
@@ -23,6 +18,8 @@ import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsConfig;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
 import com.floragunn.searchguard.enterprise.dlsfls.lucene.FlsStoredFieldVisitor.DocumentFilter;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class DocumentFilterTest {
     @Test

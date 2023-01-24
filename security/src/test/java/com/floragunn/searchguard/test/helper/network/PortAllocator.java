@@ -14,17 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.network;
 
+import com.floragunn.searchguard.test.helper.network.SocketUtils.SocketType;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
-import com.floragunn.searchguard.test.helper.network.SocketUtils.SocketType;
 
 public class PortAllocator {
 

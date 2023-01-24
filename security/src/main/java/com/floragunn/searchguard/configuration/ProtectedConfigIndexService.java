@@ -1,10 +1,10 @@
 /*
  * Copyright 2020-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,20 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.configuration;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
+import com.floragunn.searchguard.SearchGuardVersion;
+import com.floragunn.searchsupport.action.RestApi;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.CountAggregation;
+import com.floragunn.searchsupport.indices.IndexMapping;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,7 +38,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ResourceAlreadyExistsException;
@@ -72,17 +80,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
-import com.floragunn.searchguard.SearchGuardVersion;
-import com.floragunn.searchsupport.action.RestApi;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentState.State;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.floragunn.searchsupport.cstate.metrics.CountAggregation;
-import com.floragunn.searchsupport.indices.IndexMapping;
-import com.google.common.collect.ImmutableMap;
 
 public class ProtectedConfigIndexService implements ComponentStateProvider {
     private final static Logger log = LogManager.getLogger(ProtectedConfigIndexService.class);
@@ -186,7 +183,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
                 log.trace("State not yet recovered. Waiting more.");
                 return;
             }
-            
+
             componentState.setState(State.INITIALIZING, "waiting_for_master");
 
             if (clusterState.nodes().isLocalNodeElectedMaster() || clusterState.nodes().getMasterNode() != null) {

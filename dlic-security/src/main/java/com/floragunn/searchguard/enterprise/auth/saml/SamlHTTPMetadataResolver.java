@@ -1,32 +1,27 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.saml;
 
+import com.floragunn.codova.config.net.TLSConfig;
+import com.floragunn.searchsupport.PrivilegedCode;
 import java.net.URI;
-
+import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
+import net.shibboleth.utilities.java.support.resolver.ResolverException;
+import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.opensaml.saml.metadata.resolver.impl.HTTPMetadataResolver;
-
-import com.floragunn.codova.config.net.TLSConfig;
-import com.floragunn.searchsupport.PrivilegedCode;
-
-import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
-import net.shibboleth.utilities.java.support.resolver.ResolverException;
-import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 
 public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
     private static int componentIdCounter = 0;

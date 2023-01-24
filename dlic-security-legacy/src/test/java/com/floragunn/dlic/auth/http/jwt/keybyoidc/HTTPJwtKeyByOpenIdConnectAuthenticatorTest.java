@@ -1,17 +1,15 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
 import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.MCCOY_SUBJECT;
@@ -20,13 +18,18 @@ import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.TEST_AUDIE
 import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.create;
 import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.createSigned;
 
+import com.browserup.bup.BrowserUpProxy;
+import com.browserup.bup.BrowserUpProxyServer;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.util.FakeRestRequest;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.settings.Settings;
@@ -41,13 +44,6 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.util.FakeRestRequest;
-import com.google.common.collect.ImmutableMap;
 
 @Deprecated
 public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
@@ -98,8 +94,8 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL)
                 .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"))) {
             proxyOnlyMockIdpServer.setRequireValidCodes(false);
-            Settings settings = Settings.builder().put("openid_connect_url", proxyOnlyMockIdpServer.getDiscoverUri().toString()).put("proxy.host", "127.0.0.8")
-                    .put("proxy.port", httpProxy.getPort()).put("proxy.scheme", "http").build();
+            Settings settings = Settings.builder().put("openid_connect_url", proxyOnlyMockIdpServer.getDiscoverUri().toString())
+                    .put("proxy.host", "127.0.0.8").put("proxy.port", httpProxy.getPort()).put("proxy.scheme", "http").build();
 
             HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
@@ -154,8 +150,8 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
     @Test
     public void testRoles() throws Exception {
-        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri().toString()).put("roles_key", TestJwts.ROLES_CLAIM)
-                .build();
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri().toString())
+                .put("roles_key", TestJwts.ROLES_CLAIM).build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
@@ -290,10 +286,11 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
         Assert.assertEquals(0, creds.getBackendRoles().size());
         Assert.assertEquals(3, creds.getAttributes().size());
     }
-    
+
     @Test
     public void testSubjectPattern() {
-        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri().toString()).put("subject_pattern", "^(.)(?:.*)$").build();
+        Settings settings = Settings.builder().put("openid_connect_url", mockIdpServer.getDiscoverUri().toString())
+                .put("subject_pattern", "^(.)(?:.*)$").build();
 
         HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
@@ -387,7 +384,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
         @Override
         public void releaseOutputBuffer() {
-            
+
         }
     }
 

@@ -1,39 +1,16 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
+ *
  * This software is free of charge for non-commercial and academic use.
  * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.dlic.rest.api;
-
-import java.io.IOException;
-import java.nio.file.Path;
-import java.security.SecureRandom;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
@@ -53,6 +30,25 @@ import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValid
 import com.floragunn.searchguard.dlic.rest.validation.InternalUsersValidator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.threadpool.ThreadPool;
 
 public class InternalUsersApiAction extends PatchableResourceApiAction {
 
@@ -65,7 +61,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
     }
-    
+
     @Override
     public List<Route> routes() {
         return getStandardResourceRoutes("internalusers");
@@ -90,12 +86,12 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         // order to minimize duplicated logic
 
         SgDynamicConfiguration<InternalUser> configuration;
-		try {
-			configuration = load(getConfigName(), false);
-		} catch (ConfigUnavailableException e1) {
-			internalErrorResponse(channel, e1.getMessage());
-			return;
-		}
+        try {
+            configuration = load(getConfigName(), false);
+        } catch (ConfigUnavailableException e1) {
+            internalErrorResponse(channel, e1.getMessage());
+            return;
+        }
 
         if (isHidden(configuration, username)) {
             forbidden(channel, "Resource '" + username + "' is not available.");
@@ -107,26 +103,26 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
             forbidden(channel, "Resource '" + username + "' is read-only.");
             return;
         }
-        
+
         // if password is set, it takes precedence over hash
         final String plainTextPassword = content.getAsString("password");
         final String origHash = content.getAsString("hash");
         if (plainTextPassword != null && plainTextPassword.length() > 0) {
             content = content.without("password").with(DocNode.of("hash", hash(plainTextPassword.toCharArray())));
-        } else if(origHash != null && origHash.length() > 0) {
+        } else if (origHash != null && origHash.length() > 0) {
             content = content.without("password");
-        } else if(plainTextPassword != null && plainTextPassword.isEmpty() && origHash == null) {
+        } else if (plainTextPassword != null && plainTextPassword.isEmpty() && origHash == null) {
             content = content.without("password");
         }
-        
+
         // check if user exists
         SgDynamicConfiguration<InternalUser> internaluser;
-		try {
-			internaluser = load(CType.INTERNALUSERS, false);
-		} catch (ConfigUnavailableException e1) {
-			internalErrorResponse(channel, e1.getMessage());
-			return;
-		}
+        try {
+            internaluser = load(CType.INTERNALUSERS, false);
+        } catch (ConfigUnavailableException e1) {
+            internalErrorResponse(channel, e1.getMessage());
+            return;
+        }
 
         final boolean userExisted = internaluser.exists(username);
 
@@ -144,15 +140,14 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
             // sanity check, this should usually not happen
             final String hash = internaluser.getCEntry(username).getPasswordHash();
             if (hash == null || hash.length() == 0) {
-                internalErrorResponse(channel, 
-                        "Existing user " + username + " has no password, and no new password or hash was specified.");
+                internalErrorResponse(channel, "Existing user " + username + " has no password, and no new password or hash was specified.");
                 return;
             }
             content = content.with(DocNode.of("hash", hash));
         }
 
         String newJson = content.toJsonString();
-        
+
         // checks complete, create or update the user
         try {
             internaluser = internaluser.with(username, InternalUser.parse(DocReader.json().readObject(newJson), cl.getParserContext()).get());
@@ -161,7 +156,7 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
         }
 
         saveAnUpdateConfigs(client, request, CType.INTERNALUSERS, internaluser, new OnSucessActionListener<IndexResponse>(channel) {
-            
+
             @Override
             public void onResponse(IndexResponse response) {
                 if (userExisted) {
@@ -169,14 +164,12 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
                 } else {
                     createdResponse(channel, "'" + username + "' created.");
                 }
-                
+
             }
         });
 
-        
-
     }
-    
+
     @Override
     protected DocNode postProcessApplyPatchResult(RestChannel channel, RestRequest request, DocNode existingResourceAsJsonNode,
             DocNode updatedResourceAsJsonNode, String resourceName) throws ConfigValidationException {
@@ -184,15 +177,15 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
 
         if (plainTextPassword != null) {
             Map<String, Object> updatedResource = new LinkedHashMap<>(updatedResourceAsJsonNode.toMap());
-            
+
             String userName = resourceName;
-            
+
             ErrorType error = InternalUsersValidator.validatePassword(userName, plainTextPassword, settings);
-            
+
             if (error != null) {
                 throw new ConfigValidationException(new ValidationError("password", error.getMessage()));
-            }            
-            
+            }
+
             updatedResource.remove("password");
             updatedResource.put("hash", hash(plainTextPassword.toCharArray()));
             return DocNode.wrap(updatedResource);

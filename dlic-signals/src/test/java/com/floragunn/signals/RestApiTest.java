@@ -1,5 +1,23 @@
+/*
+  * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.signals;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
+import com.floragunn.signals.watch.init.WatchInitializationService;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -10,13 +28,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.signals.watch.Watch;
-import com.floragunn.signals.watch.WatchBuilder;
-import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class RestApiTest {
 

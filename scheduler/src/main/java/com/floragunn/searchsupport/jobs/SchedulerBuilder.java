@@ -1,5 +1,32 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchsupport.jobs;
 
+import com.floragunn.searchsupport.jobs.cluster.DistributedJobStore;
+import com.floragunn.searchsupport.jobs.cluster.JobDistributor;
+import com.floragunn.searchsupport.jobs.cluster.NodeComparator;
+import com.floragunn.searchsupport.jobs.cluster.NodeIdComparator;
+import com.floragunn.searchsupport.jobs.config.IndexJobConfigSource;
+import com.floragunn.searchsupport.jobs.config.JobConfig;
+import com.floragunn.searchsupport.jobs.config.JobConfigFactory;
+import com.floragunn.searchsupport.jobs.core.DynamicQuartzThreadPool;
+import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
+import com.floragunn.searchsupport.jobs.core.QuartzSchedulerWithCustomizableThreadGroup;
+import com.floragunn.searchsupport.jobs.execution.AuthorizingJobDecorator;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -14,7 +41,6 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
@@ -51,18 +77,6 @@ import org.quartz.spi.JobFactory;
 import org.quartz.spi.JobStore;
 import org.quartz.spi.SchedulerPlugin;
 import org.quartz.spi.ThreadPool;
-
-import com.floragunn.searchsupport.jobs.cluster.DistributedJobStore;
-import com.floragunn.searchsupport.jobs.cluster.JobDistributor;
-import com.floragunn.searchsupport.jobs.cluster.NodeComparator;
-import com.floragunn.searchsupport.jobs.cluster.NodeIdComparator;
-import com.floragunn.searchsupport.jobs.config.IndexJobConfigSource;
-import com.floragunn.searchsupport.jobs.config.JobConfig;
-import com.floragunn.searchsupport.jobs.config.JobConfigFactory;
-import com.floragunn.searchsupport.jobs.core.DynamicQuartzThreadPool;
-import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
-import com.floragunn.searchsupport.jobs.core.QuartzSchedulerWithCustomizableThreadGroup;
-import com.floragunn.searchsupport.jobs.execution.AuthorizingJobDecorator;
 
 public class SchedulerBuilder<JobType extends JobConfig> {
     private final static Logger log = LogManager.getLogger(SchedulerBuilder.class);
@@ -147,7 +161,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         this.threadPriority = threadPriority;
         return this;
     }
-    
+
     public SchedulerBuilder<JobType> threadKeepAlive(Duration threadKeepAlive) {
         this.threadKeepAlive = threadKeepAlive;
         return this;
@@ -229,12 +243,13 @@ public class SchedulerBuilder<JobType extends JobConfig> {
 
         if (this.threadPool == null) {
             String suffix = "";
-            
+
             if (clusterService != null) {
                 suffix = "[" + clusterService.getNodeName() + "]";
             }
-            
-            this.threadPool = new DynamicQuartzThreadPool(Thread.currentThread().getThreadGroup(), name, suffix, maxThreads, threadPriority, threadKeepAlive);
+
+            this.threadPool = new DynamicQuartzThreadPool(Thread.currentThread().getThreadGroup(), name, suffix, maxThreads, threadPriority,
+                    threadKeepAlive);
         }
 
         schedulerPluginMap.put(CleanupSchedulerPlugin.class.getName(), new CleanupSchedulerPlugin(clusterService, jobDistributor, jobStore));
@@ -267,7 +282,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         QuartzScheduler quartzScheduler = new QuartzSchedulerWithCustomizableThreadGroup(qrs, Thread.currentThread().getThreadGroup(), idleWaitTime,
                 dbFailureRetryInterval);
         ClassLoadHelper classLoadHelper = initClassLoadHelper();
-        
+
         jobStore.initialize(classLoadHelper, quartzScheduler.getSchedulerSignaler());
 
         Scheduler scheduler = new StdScheduler(quartzScheduler);

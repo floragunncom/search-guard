@@ -1,29 +1,16 @@
 /*
- * Copyright 2022 floragunn GmbH
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
+ * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls;
-
-import java.util.concurrent.atomic.AtomicReference;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.search.QueryCachingPolicy;
-import org.apache.lucene.search.Weight;
-import org.elasticsearch.index.Index;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardModule;
@@ -35,6 +22,12 @@ import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.search.QueryCachingPolicy;
+import org.apache.lucene.search.Weight;
+import org.elasticsearch.index.Index;
 
 public class FlsQueryCacheWeightProvider implements SearchGuardModule.QueryCacheWeightProvider, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(FlsQueryCacheWeightProvider.class);

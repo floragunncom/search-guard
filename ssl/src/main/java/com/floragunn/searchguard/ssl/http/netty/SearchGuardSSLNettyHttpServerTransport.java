@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,16 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.ssl.http.netty;
 
+import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
+import com.floragunn.searchguard.ssl.SslExceptionHandler;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.ssl.SslHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.network.NetworkService;
@@ -30,14 +35,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
-import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
-import com.floragunn.searchguard.ssl.SslExceptionHandler;
-
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.handler.codec.DecoderException;
-import io.netty.handler.ssl.SslHandler;
-
 public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTransport {
 
     private static final Logger logger = LogManager.getLogger(SearchGuardSSLNettyHttpServerTransport.class);
@@ -46,7 +43,8 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
 
     public SearchGuardSSLNettyHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
             final ThreadPool threadPool, final SearchGuardKeyStore sgks, final NamedXContentRegistry namedXContentRegistry,
-            final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory, final SslExceptionHandler errorHandler) {
+            final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory,
+            final SslExceptionHandler errorHandler) {
         super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
         this.sgks = sgks;
         this.errorHandler = errorHandler;
@@ -67,11 +65,11 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
         }
 
         errorHandler.logError(cause, true);
-        
+
         if (logger.isDebugEnabled()) {
             logger.debug("Exception during establishing a SSL connection: " + cause, cause);
         }
-        
+
         super.onException(channel, cause0);
     }
 

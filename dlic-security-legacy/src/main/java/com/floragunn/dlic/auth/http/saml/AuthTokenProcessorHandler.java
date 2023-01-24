@@ -1,19 +1,29 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.http.saml;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.google.common.base.Strings;
+import com.onelogin.saml2.authn.SamlResponse;
+import com.onelogin.saml2.exception.SettingsException;
+import com.onelogin.saml2.exception.ValidationError;
+import com.onelogin.saml2.settings.Saml2Settings;
+import com.onelogin.saml2.util.Util;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
@@ -26,10 +36,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPathExpressionException;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.cxf.jaxrs.json.basic.JsonMapObjectReaderWriter;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
@@ -56,19 +64,6 @@ import org.joda.time.DateTime;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
-
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.google.common.base.Strings;
-import com.onelogin.saml2.authn.SamlResponse;
-import com.onelogin.saml2.exception.SettingsException;
-import com.onelogin.saml2.exception.ValidationError;
-import com.onelogin.saml2.settings.Saml2Settings;
-import com.onelogin.saml2.util.Util;
 
 @Deprecated
 class AuthTokenProcessorHandler {
@@ -262,7 +257,8 @@ class AuthTokenProcessorHandler {
             Settings jwkSettings = jwtSettings.getAsSettings("key");
 
             if (jwkSettings.isEmpty()) {
-                throw new RuntimeException("Settings for key exchange missing. Please specify at least the option exchange_key with a shared secret.");
+                throw new RuntimeException(
+                        "Settings for key exchange missing. Please specify at least the option exchange_key with a shared secret.");
             }
 
             JsonWebKey jwk = new JsonWebKey();

@@ -1,6 +1,5 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,15 +10,13 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.access_log.read;
-
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexService;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.index.Index;
+import org.elasticsearch.index.IndexService;
 
 public class ReadLogContext {
     private final Index index;

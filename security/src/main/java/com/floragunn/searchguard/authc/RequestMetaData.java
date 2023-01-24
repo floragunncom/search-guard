@@ -14,17 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc;
 
+import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
+import inet.ipaddr.IPAddress;
 import java.util.List;
 import java.util.Map;
-
 import org.elasticsearch.rest.RestRequest;
-
-import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
-
-import inet.ipaddr.IPAddress;
 
 public abstract class RequestMetaData<T> {
     private final T request;
@@ -74,7 +70,7 @@ public abstract class RequestMetaData<T> {
     public abstract Map<String, List<String>> getHeaders();
 
     public abstract String getParam(String paramName);
-    
+
     public String getAuthorizationByScheme(String header, String scheme) {
         String authorization = getHeader(header);
         if (authorization == null) {

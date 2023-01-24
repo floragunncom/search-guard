@@ -14,9 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.configuration;
 
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,7 +31,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -45,11 +47,6 @@ import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
-
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentState.State;
 
 public class ConfigurationLoader {
     private static final Logger log = LogManager.getLogger(ConfigurationLoader.class);

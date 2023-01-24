@@ -14,9 +14,10 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.ssl.test;
 
+import com.floragunn.searchguard.ssl.test.helper.file.FileHelper;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import java.io.FileNotFoundException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -24,7 +25,6 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
@@ -36,9 +36,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
-
-import com.floragunn.searchguard.ssl.test.helper.file.FileHelper;
-import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 
 public abstract class AbstractSGUnitTest {
 

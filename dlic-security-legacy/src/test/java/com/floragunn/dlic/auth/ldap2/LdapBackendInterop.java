@@ -1,27 +1,16 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.ldap2;
-
-import java.util.ArrayList;
-import java.util.TreeSet;
-
-import org.elasticsearch.common.settings.Settings;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend;
@@ -29,6 +18,13 @@ import com.floragunn.dlic.auth.ldap.backend.LDAPAuthorizationBackend;
 import com.floragunn.dlic.auth.ldap.srv.LdapServer;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.searchguard.user.AuthCredentials;
+import java.util.ArrayList;
+import java.util.TreeSet;
+import org.elasticsearch.common.settings.Settings;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class LdapBackendInterop {
 
@@ -40,10 +36,10 @@ public class LdapBackendInterop {
     }
 
     private static LdapServer ldapServer = null;
-    
+
     @BeforeClass
     public static void startLdapServer() throws Exception {
-        ldapServer = LdapServer.createPlainText("base.ldif","base2.ldif");
+        ldapServer = LdapServer.createPlainText("base.ldif", "base2.ldif");
     }
 
     protected Settings.Builder createBaseSettings() {
@@ -53,11 +49,9 @@ public class LdapBackendInterop {
     @Test
     public void testLdapAuthorizationInterop() throws Exception {
 
-        final Settings settings = createBaseSettings()
-                .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapServer.getPort())
-                .put("users.u1.search", "(uid={0})").put("users.u1.base", "ou=people,o=TEST")
-                .put("roles.g1.base", "ou=groups,o=TEST").put(ConfigConstants.LDAP_AUTHZ_ROLENAME, "cn")
-                .put("roles.g1.search", "(uniqueMember={0})")
+        final Settings settings = createBaseSettings().putList(ConfigConstants.LDAP_HOSTS, "localhost:" + ldapServer.getPort())
+                .put("users.u1.search", "(uid={0})").put("users.u1.base", "ou=people,o=TEST").put("roles.g1.base", "ou=groups,o=TEST")
+                .put(ConfigConstants.LDAP_AUTHZ_ROLENAME, "cn").put("roles.g1.search", "(uniqueMember={0})")
                 // .put("searchguard.authentication.authorization.ldap.userrolename",
                 // "(uniqueMember={0})")
                 .build();
@@ -72,8 +66,7 @@ public class LdapBackendInterop {
         Assert.assertEquals(2, user1.getRoles().size());
         Assert.assertEquals("ceo", new ArrayList<>(new TreeSet<>(user1.getRoles())).get(0));
         Assert.assertEquals(user1.getName(), user1.getUserEntry().getDN());
-        
-        
+
         final LdapUser user2 = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
                 .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
 

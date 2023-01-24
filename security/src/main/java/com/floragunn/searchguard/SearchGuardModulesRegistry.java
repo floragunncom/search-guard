@@ -14,9 +14,24 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.SearchGuardModule.QueryCacheWeightProvider;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authc.AuthenticationBackend;
+import com.floragunn.searchguard.authc.AuthenticationDomain;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.AnonymousAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.HttpClientCertAuthenticationFrontend;
+import com.floragunn.searchguard.authc.rest.authenticators.HttpTrustedOriginAuthenticationFrontend;
+import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.authc.session.LinkApiAuthenticationFrontend;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -30,7 +45,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
@@ -53,23 +67,6 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
-
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.SearchGuardModule.QueryCacheWeightProvider;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authc.AuthenticationBackend;
-import com.floragunn.searchguard.authc.AuthenticationDomain;
-import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
-import com.floragunn.searchguard.authc.rest.authenticators.AnonymousAuthenticationFrontend;
-import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticationFrontend;
-import com.floragunn.searchguard.authc.rest.authenticators.HttpClientCertAuthenticationFrontend;
-import com.floragunn.searchguard.authc.rest.authenticators.HttpTrustedOriginAuthenticationFrontend;
-import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
-import com.floragunn.searchguard.authc.session.LinkApiAuthenticationFrontend;
-import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
 public class SearchGuardModulesRegistry {
 
@@ -228,7 +225,7 @@ public class SearchGuardModulesRegistry {
 
         return result;
     }
-        
+
     public ImmutableList<SearchOperationListener> getSearchOperationListeners() {
 
         ImmutableList<SearchOperationListener> result = this.searchOperationListeners;
@@ -262,7 +259,7 @@ public class SearchGuardModulesRegistry {
 
         return result;
     }
-    
+
     public ImmutableList<SyncAuthorizationFilter> getSyncAuthorizationFilters() {
         ImmutableList<SyncAuthorizationFilter> result = this.syncAuthorizationFilters;
 
@@ -324,16 +321,16 @@ public class SearchGuardModulesRegistry {
 
         return result.build();
     }
-    
+
     public AuditLog getAuditLog() {
         for (SearchGuardModule module : modules) {
             AuditLog auditLog = module.getAuditLog();
-            
+
             if (auditLog != null) {
                 return auditLog;
             }
         }
-        
+
         return null;
     }
 

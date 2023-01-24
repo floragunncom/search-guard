@@ -14,9 +14,20 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.ContentType;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format.UnknownDocTypeException;
+import com.floragunn.codova.documents.patch.DocPatch;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -28,9 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import javax.net.ssl.SSLContext;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -57,19 +66,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.xcontent.ToXContentObject;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.codova.documents.ContentType;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.Format.UnknownDocTypeException;
-import com.floragunn.codova.documents.patch.DocPatch;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
-import com.google.common.collect.Lists;
 
 public class GenericRestClient implements AutoCloseable {
     private static final Logger log = LogManager.getLogger(GenericRestClient.class);
@@ -130,7 +126,7 @@ public class GenericRestClient implements AutoCloseable {
     public HttpResponse putJson(String path, Document<?> body) throws Exception {
         return putJson(path, body.toJsonString());
     }
-    
+
     public HttpResponse putJson(String path, ToXContentObject body) throws Exception {
         return putJson(path, Strings.toString(body));
     }
@@ -175,17 +171,17 @@ public class GenericRestClient implements AutoCloseable {
         uriRequest.setEntity(new StringEntity(body));
         return executeRequest(uriRequest, CONTENT_TYPE_JSON);
     }
-    
+
     public HttpResponse patch(String path, DocPatch docPatch, Header... headers) throws Exception {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(docPatch.toJsonString()));
         return executeRequest(uriRequest, mergeHeaders(new BasicHeader("Content-Type", docPatch.getMediaType()), headers));
     }
-    
+
     public HttpResponse patchJsonMerge(String path, Document<?> body, Header... headers) throws Exception {
         return patchJsonMerge(path, body.toJsonString(), headers);
     }
-    
+
     public HttpResponse patchJsonMerge(String path, String body, Header... headers) throws Exception {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(body));
@@ -219,8 +215,9 @@ public class GenericRestClient implements AutoCloseable {
             }
         }
     }
-    
-    protected CloseableHttpResponse innerExecuteRequest(CloseableHttpClient httpClient, HttpUriRequest uriRequest) throws ClientProtocolException, IOException {
+
+    protected CloseableHttpResponse innerExecuteRequest(CloseableHttpClient httpClient, HttpUriRequest uriRequest)
+            throws ClientProtocolException, IOException {
         return httpClient.execute(uriRequest);
     }
 
@@ -274,16 +271,15 @@ public class GenericRestClient implements AutoCloseable {
         if (requestConfig != null) {
             clientBuilder.setDefaultRequestConfig(requestConfig);
         }
-        
+
         configureHttpClientBuilder(clientBuilder);
 
         return clientBuilder.build();
     }
-    
-    protected void configureHttpClientBuilder(HttpClientBuilder clientBuilder) {
-        
-    }
 
+    protected void configureHttpClientBuilder(HttpClientBuilder clientBuilder) {
+
+    }
 
     private Header[] mergeHeaders(Header header, Header... headers) {
 
@@ -392,14 +388,14 @@ public class GenericRestClient implements AutoCloseable {
         public List<Header> getHeaders() {
             return headers == null ? Collections.emptyList() : Arrays.asList(headers);
         }
-        
+
         public String getHeaderValue(String name) {
             for (Header header : this.headers) {
                 if (header.getName().equalsIgnoreCase(name)) {
                     return header.getValue();
                 }
             }
-            
+
             return null;
         }
 

@@ -1,189 +1,182 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <!-- Copyright 2016-2017 by floragunn GmbH - All rights reserved Unless required 
 	by applicable law or agreed to in writing, software distributed here is distributed 
 	on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either 
 	express or implied. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.floragunn</groupId>
+    <artifactId>search-guard-flx-parent</artifactId>
+    <version>${revision}</version>
+  </parent>
 
-	<parent>
-		<groupId>com.floragunn</groupId>
-		<artifactId>search-guard-flx-parent</artifactId>
-		<version>${revision}</version>
-	</parent>
+  <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
+  <packaging>jar</packaging>
+  <name>Search Guard FLX: Document and Field Level Security (Enterprise)</name>
 
-	<artifactId>dlic-search-guard-flx-dlsfls</artifactId>
-	<packaging>jar</packaging>
-	<name>Search Guard FLX: Document and Field Level Security (Enterprise)</name>
+  <dependencies>
 
-	<dependencies>
-		<!-- Security -->
-		<dependency>
-			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-flx-security</artifactId>
-			<scope>provided</scope>
-		</dependency>
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>codova</artifactId>
+    </dependency>
 
-		<dependency>
-			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-flx-ssl</artifactId>
-			<scope>test</scope>
-		</dependency>
+    <dependency>
+      <groupId>com.github.wnameless</groupId>
+      <artifactId>json-flattener</artifactId>
+      <version>0.5.0</version>
+    </dependency>
 
-		<dependency>
-			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-flx-support</artifactId>
-			<scope>provided</scope>
-		</dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+    <!-- Security -->
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-flx-security</artifactId>
+      <scope>provided</scope>
+    </dependency>
 
-		<dependency>
-			<groupId>com.floragunn</groupId>
-			<artifactId>codova</artifactId>
-		</dependency>
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-flx-support</artifactId>
+      <scope>provided</scope>
+    </dependency>
 
-		<dependency>
-			<groupId>com.github.wnameless</groupId>
-			<artifactId>json-flattener</artifactId>
-			<version>0.5.0</version>
-		</dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <version>${log4j.version}</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-api</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
+    <!-- provided scoped deps -->
+    <dependency>
+      <groupId>org.elasticsearch</groupId>
+      <artifactId>elasticsearch</artifactId>
+      <scope>provided</scope>
+    </dependency>
 
-		<!-- provided scoped deps -->
-		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch</artifactId>
-			<scope>provided</scope>
-		</dependency>
+    <dependency>
+      <groupId>org.elasticsearch.client</groupId>
+      <artifactId>elasticsearch-rest-high-level-client</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.elasticsearch</groupId>
+          <artifactId>elasticsearch</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
-		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
-			<artifactId>lang-mustache-client</artifactId>
-			<scope>provided</scope>
-		</dependency>
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>lang-mustache-client</artifactId>
+      <scope>provided</scope>
+    </dependency>
 
-		<!-- Security Test -->
-		<dependency>
-			<groupId>com.floragunn</groupId>
-			<artifactId>search-guard-flx-security</artifactId>
-			<classifier>tests</classifier>
-			<scope>test</scope>
-		</dependency>
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-flx-ssl</artifactId>
+      <scope>test</scope>
+    </dependency>
 
-		<!-- needed because maven does not get the transitive test-scoped dependencies 
+    <!-- needed because maven does not get the transitive test-scoped dependencies 
 			automatically. Maven only resolves the compile-time dependencies, so you'll 
 			have to add all the other required test-scoped dependencies by hand. -->
-		<dependency>
-			<groupId>io.github.hakky54</groupId>
-			<artifactId>sslcontext-kickstart-for-pem</artifactId>
-			<scope>test</scope>
-		</dependency>
+    <dependency>
+      <groupId>io.github.hakky54</groupId>
+      <artifactId>sslcontext-kickstart-for-pem</artifactId>
+      <scope>test</scope>
+    </dependency>
 
-		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-slf4j-impl</artifactId>
-			<version>${log4j.version}</version>
-			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
 
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
-		</dependency>
+    <!-- Only test scoped dependencies hereafter -->
 
-		<!-- Only test scoped dependencies hereafter -->
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-all</artifactId>
+      <scope>test</scope>
+    </dependency>
 
-		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-all</artifactId>
-			<scope>test</scope>
-		</dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
 
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
+    <!-- Security Test -->
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-flx-security</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
 
+  </dependencies>
 
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<version>${mockito.version}</version>
-			<scope>test</scope>
-		</dependency>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+            <configuration>
+              <propertyName>surefireArgLine</propertyName>
+            </configuration>
+          </execution>
+          <execution>
+            <id>default-report</id>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>-Xmx3072m ${surefireArgLine}</argLine>
+          <rerunFailingTestsCount>0</rerunFailingTestsCount>
+          <forkCount>3</forkCount>
+          <reuseForks>true</reuseForks>
+          <systemPropertyVariables>
+            <forkno>fork_${surefire.forkNumber}</forkno>
+          </systemPropertyVariables>
 
-
-		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>elasticsearch-rest-high-level-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.elasticsearch</groupId>
-					<artifactId>elasticsearch</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-	</dependencies>
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.jacoco</groupId>
-				<artifactId>jacoco-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>prepare-agent</id>
-						<goals>
-							<goal>prepare-agent</goal>
-						</goals>
-						<configuration>
-							<propertyName>surefireArgLine</propertyName>
-						</configuration>
-					</execution>
-					<execution>
-						<id>default-report</id>
-						<goals>
-							<goal>report</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<argLine>-Xmx3072m ${surefireArgLine}</argLine>
-					<rerunFailingTestsCount>0</rerunFailingTestsCount>
-					<forkCount>3</forkCount>
-					<reuseForks>true</reuseForks>
-					<systemPropertyVariables>
-						<forkno>fork_${surefire.forkNumber}</forkno>
-					</systemPropertyVariables>
-
-					<includes>
-						<include>**/*.java</include>
-					</includes>
-					<trimStackTrace>false</trimStackTrace>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
+          <includes>
+            <include>**/*.java</include>
+          </includes>
+          <trimStackTrace>false</trimStackTrace>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,14 +10,16 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
+import com.floragunn.searchguard.enterprise.auditlog.routing.AuditMessageRouter;
+import com.floragunn.searchguard.user.UserInformation;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.Map;
-
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -34,11 +35,6 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
-
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
-import com.floragunn.searchguard.enterprise.auditlog.routing.AuditMessageRouter;
-import com.floragunn.searchguard.user.UserInformation;
 
 public final class AuditLogImpl extends AbstractAuditLog {
 

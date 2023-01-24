@@ -14,15 +14,18 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.api;
 
 import static org.elasticsearch.rest.RestRequest.Method.DELETE;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
 
+import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
+import com.floragunn.signals.actions.watch.ack.AckWatchAction;
+import com.floragunn.signals.actions.watch.ack.AckWatchRequest;
+import com.floragunn.signals.actions.watch.ack.AckWatchResponse;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
-
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
@@ -30,12 +33,6 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
-
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
-import com.floragunn.signals.actions.watch.ack.AckWatchAction;
-import com.floragunn.signals.actions.watch.ack.AckWatchRequest;
-import com.floragunn.signals.actions.watch.ack.AckWatchResponse;
-import com.google.common.collect.ImmutableList;
 
 public class AckWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
 
@@ -69,9 +66,9 @@ public class AckWatchApiAction extends SignalsBaseRestHandler implements TenantA
                             } else if (response.getStatus() == AckWatchResponse.Status.ILLEGAL_STATE) {
                                 errorResponse(channel, RestStatus.PRECONDITION_FAILED, response.getStatusMessage());
                             } else if (response.getStatus() == AckWatchResponse.Status.NO_SUCH_ACTION) {
-                                errorResponse(channel, RestStatus.NOT_FOUND, response.getStatusMessage());                                
+                                errorResponse(channel, RestStatus.NOT_FOUND, response.getStatusMessage());
                             } else if (response.getStatus() == AckWatchResponse.Status.NOT_ACKNOWLEDGEABLE) {
-                                errorResponse(channel, RestStatus.BAD_REQUEST, response.getStatusMessage());                                
+                                errorResponse(channel, RestStatus.BAD_REQUEST, response.getStatusMessage());
                             } else {
                                 errorResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, response.getStatusMessage());
                             }

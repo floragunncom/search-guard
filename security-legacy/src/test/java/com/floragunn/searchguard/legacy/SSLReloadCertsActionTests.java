@@ -1,6 +1,4 @@
-/* This product includes software developed by Amazon.com, Inc.
- * (https://github.com/opendistro-for-elasticsearch/security)
- *
+/*
  * Copyright 2015-2020 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,29 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.legacy;
-
-import java.io.File;
-import java.net.InetSocketAddress;
-import java.net.SocketException;
-import java.nio.charset.StandardCharsets;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
-
-import org.apache.commons.io.FileUtils;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.junit.Assert;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
@@ -52,6 +28,24 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestCertificateBasedSSLContextProvider;
 import com.google.common.collect.ImmutableMap;
+import java.io.File;
+import java.net.InetSocketAddress;
+import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
+import org.apache.commons.io.FileUtils;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class SSLReloadCertsActionTests extends SingleClusterTest {
 

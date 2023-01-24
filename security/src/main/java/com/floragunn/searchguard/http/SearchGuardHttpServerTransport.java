@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,15 +12,20 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.http;
 
+import com.floragunn.codova.documents.ContentType;
+import com.floragunn.codova.documents.Format.UnknownDocTypeException;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
+import com.floragunn.searchguard.ssl.SslExceptionHandler;
+import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
+import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -38,14 +43,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
-import com.floragunn.codova.documents.ContentType;
-import com.floragunn.codova.documents.Format.UnknownDocTypeException;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
-import com.floragunn.searchguard.ssl.SslExceptionHandler;
-import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
-import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
-
 public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServerTransport {
     private static final Logger log = LogManager.getLogger(SearchGuardHttpServerTransport.class);
 
@@ -53,7 +50,8 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
             final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
             final NamedXContentRegistry namedXContentRegistry, final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings,
             SharedGroupFactory sharedGroupFactory) {
-        super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
+        super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory,
+                sslExceptionHandler);
     }
 
     @Override
@@ -63,7 +61,7 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
 
     /**
      * Elasticsearch has normally a very limited choice of allowed Content-Type headers in requests. In order to support
-     * any Content-Type header in our REST APIs, we preempt those requests here and save the original Content-Type in 
+     * any Content-Type header in our REST APIs, we preempt those requests here and save the original Content-Type in
      * X-SG-Original-Content-Type and set Content-Type to a supported header.
      */
     private HttpRequest fixNonStandardContentType(HttpRequest httpRequest) {

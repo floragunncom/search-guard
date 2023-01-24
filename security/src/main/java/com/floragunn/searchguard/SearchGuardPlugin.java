@@ -14,102 +14,10 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermission;
-import java.security.AccessController;
-import java.security.MessageDigest;
-import java.security.PrivilegedAction;
-import java.security.Security;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.search.QueryCachingPolicy;
-import org.apache.lucene.search.Weight;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.Version;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.search.SearchScrollAction;
-import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.component.LifecycleComponent;
-import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
-import org.elasticsearch.common.network.NetworkModule;
-import org.elasticsearch.common.network.NetworkService;
-import org.elasticsearch.common.settings.ClusterSettings;
-import org.elasticsearch.common.settings.IndexScopedSettings;
-import org.elasticsearch.common.settings.Setting;
-import org.elasticsearch.common.settings.Setting.Property;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsFilter;
-import org.elasticsearch.common.util.BigArrays;
-import org.elasticsearch.common.util.PageCacheRecycler;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.core.CheckedFunction;
-import org.elasticsearch.env.Environment;
-import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.http.HttpServerTransport;
-import org.elasticsearch.http.HttpServerTransport.Dispatcher;
-import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexModule;
-import org.elasticsearch.index.IndexService;
-import org.elasticsearch.index.cache.query.QueryCache;
-import org.elasticsearch.index.shard.IndexingOperationListener;
-import org.elasticsearch.index.shard.SearchOperationListener;
-import org.elasticsearch.indices.breaker.CircuitBreakerService;
-import org.elasticsearch.plugins.ClusterPlugin;
-import org.elasticsearch.plugins.MapperPlugin;
-import org.elasticsearch.plugins.ScriptPlugin;
-import org.elasticsearch.repositories.RepositoriesService;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.script.ScriptContext;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.search.internal.ReaderContext;
-import org.elasticsearch.search.internal.ScrollContext;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.Transport;
-import org.elasticsearch.transport.Transport.Connection;
-import org.elasticsearch.transport.TransportInterceptor;
-import org.elasticsearch.transport.TransportRequest;
-import org.elasticsearch.transport.TransportRequestHandler;
-import org.elasticsearch.transport.TransportRequestOptions;
-import org.elasticsearch.transport.TransportResponse;
-import org.elasticsearch.transport.TransportResponseHandler;
-import org.elasticsearch.watcher.ResourceWatcherService;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.SearchGuardModule.QueryCacheWeightProvider;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -181,6 +89,94 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.security.AccessController;
+import java.security.MessageDigest;
+import java.security.PrivilegedAction;
+import java.security.Security;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.search.QueryCachingPolicy;
+import org.apache.lucene.search.Weight;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.Version;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.search.SearchScrollAction;
+import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.component.LifecycleComponent;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+import org.elasticsearch.common.network.NetworkModule;
+import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.settings.ClusterSettings;
+import org.elasticsearch.common.settings.IndexScopedSettings;
+import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.settings.Setting.Property;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.PageCacheRecycler;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.core.CheckedFunction;
+import org.elasticsearch.env.Environment;
+import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.http.HttpServerTransport;
+import org.elasticsearch.http.HttpServerTransport.Dispatcher;
+import org.elasticsearch.index.Index;
+import org.elasticsearch.index.IndexModule;
+import org.elasticsearch.index.IndexService;
+import org.elasticsearch.index.cache.query.QueryCache;
+import org.elasticsearch.index.shard.IndexingOperationListener;
+import org.elasticsearch.index.shard.SearchOperationListener;
+import org.elasticsearch.indices.breaker.CircuitBreakerService;
+import org.elasticsearch.plugins.ClusterPlugin;
+import org.elasticsearch.plugins.MapperPlugin;
+import org.elasticsearch.plugins.ScriptPlugin;
+import org.elasticsearch.repositories.RepositoriesService;
+import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.script.ScriptContext;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.search.internal.ReaderContext;
+import org.elasticsearch.search.internal.ScrollContext;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.Transport;
+import org.elasticsearch.transport.Transport.Connection;
+import org.elasticsearch.transport.TransportInterceptor;
+import org.elasticsearch.transport.TransportRequest;
+import org.elasticsearch.transport.TransportRequestHandler;
+import org.elasticsearch.transport.TransportRequestOptions;
+import org.elasticsearch.transport.TransportResponse;
+import org.elasticsearch.transport.TransportResponseHandler;
+import org.elasticsearch.watcher.ResourceWatcherService;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin, ScriptPlugin {
 
@@ -217,7 +213,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private ConfigVarService configVarService;
     private LicenseRepository licenseRepository;
     private Actions actions;
-    
+
     @Override
     public void close() throws IOException {
         if (auditLog != null) {
@@ -324,7 +320,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             throw new IllegalStateException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED + " must be set to 'true'");
         }
 
-     
         if (!client) {
             final List<Path> filesWithWrongPermissions = AccessController.doPrivileged(new PrivilegedAction<List<Path>>() {
                 @Override
@@ -472,15 +467,15 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     indexNameExpressionResolver, nodesInCluster));
 
             if (!sslOnly) {
-                handlers.add(
-                        new SearchGuardInfoAction(settings, restController, authorizationService, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool), clusterService, adminDns));
+                handlers.add(new SearchGuardInfoAction(settings, restController, authorizationService, Objects.requireNonNull(evaluator),
+                        Objects.requireNonNull(threadPool), clusterService, adminDns));
                 handlers.add(new KibanaInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
                 handlers.add(new SearchGuardHealthAction(settings, restController, cr));
                 handlers.add(new PermissionAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
 
                 handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr,
-                        staticSgConfig, clusterService, Objects.requireNonNull(principalExtractor), authorizationService, specialPrivilegesEvaluationContextProviderRegistry,
-                        threadPool, Objects.requireNonNull(auditLog)));
+                        staticSgConfig, clusterService, Objects.requireNonNull(principalExtractor), authorizationService,
+                        specialPrivilegesEvaluationContextProviderRegistry, threadPool, Objects.requireNonNull(auditLog)));
 
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
                 handlers.add(new ComponentStateRestAction());
@@ -493,7 +488,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(FrontendAuthcConfigApi.DocumentLevel.REST_API);
                 handlers.add(SearchGuardLicenseKeyApi.REST_API);
                 handlers.add(SearchGuardLicenseInfoAction.REST_API);
-                handlers.add(SearchGuardCapabilities.GetCapabilitiesAction.REST_API);       
+                handlers.add(SearchGuardCapabilities.GetCapabilitiesAction.REST_API);
                 handlers.add(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.REST_API);
                 handlers.add(GetActivatedFrontendConfigAction.REST_API);
                 handlers.add(MigrateConfigIndexApi.REST_API);
@@ -544,11 +539,16 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(RestAuthcConfigApi.PatchAction.INSTANCE, RestAuthcConfigApi.PatchAction.Handler.class));
             actions.addAll(AuthorizationConfigApi.ACTION_HANDLERS);
             actions.addAll(SearchGuardLicenseKeyApi.ACTION_HANDLERS);
-            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.GetAction.Handler.class));
-            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PutAction.Handler.class));
-            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PatchAction.Handler.class));
-            actions.add(new ActionHandler<>(SearchGuardCapabilities.GetCapabilitiesAction.INSTANCE, SearchGuardCapabilities.GetCapabilitiesAction.TransportAction.class));
-            actions.add(new ActionHandler<>(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.INSTANCE, ProtectedConfigIndexService.TriggerConfigIndexCreationAction.TransportAction.class));
+            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.GetAction.INSTANCE,
+                    FrontendAuthcConfigApi.TypeLevel.GetAction.Handler.class));
+            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PutAction.INSTANCE,
+                    FrontendAuthcConfigApi.TypeLevel.PutAction.Handler.class));
+            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PatchAction.INSTANCE,
+                    FrontendAuthcConfigApi.TypeLevel.PatchAction.Handler.class));
+            actions.add(new ActionHandler<>(SearchGuardCapabilities.GetCapabilitiesAction.INSTANCE,
+                    SearchGuardCapabilities.GetCapabilitiesAction.TransportAction.class));
+            actions.add(new ActionHandler<>(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.INSTANCE,
+                    ProtectedConfigIndexService.TriggerConfigIndexCreationAction.TransportAction.class));
 
             actions.add(new ActionHandler<>(MigrateConfigIndexApi.INSTANCE, MigrateConfigIndexApi.Handler.class));
 
@@ -567,8 +567,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public void onIndexModule(IndexModule indexModule) {
         // called for every index!
-        
-        if (!disabled && !client && !sslOnly) {            
+
+        if (!disabled && !client && !sslOnly) {
             if (adminDns == null) {
                 throw new IllegalStateException("adminDns is not yet initialized");
             }
@@ -577,15 +577,14 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     .getDirectoryReaderWrappersForNormalOperations();
             ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForAllOperations = this.moduleRegistry
                     .getDirectoryReaderWrappersForAllOperations();
-            
-            indexModule.setReaderWrapper(
-                    indexService -> new SearchGuardDirectoryReaderWrapper(indexService, adminDns, directoryReaderWrappersForNormalOperations, directoryReaderWrappersForAllOperations));
-            
+
+            indexModule.setReaderWrapper(indexService -> new SearchGuardDirectoryReaderWrapper(indexService, adminDns,
+                    directoryReaderWrappersForNormalOperations, directoryReaderWrappersForAllOperations));
+
             ImmutableList<QueryCacheWeightProvider> queryCacheWeightProviders = moduleRegistry.getQueryCacheWeightProviders();
-            
+
             if (!queryCacheWeightProviders.isEmpty()) {
-         
-                
+
                 indexModule.forceQueryCacheProvider((indexSettings, nodeCache) -> new QueryCache() {
 
                     @Override
@@ -616,8 +615,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         return nodeCache.doCache(weight, policy);
                     }
                 });
-            } 
-            
+            }
+
             indexModule.addSearchOperationListener(new SearchOperationListener() {
 
                 @Override
@@ -656,11 +655,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     }
                 }
             });
-            
+
             for (SearchOperationListener searchOperationListener : this.moduleRegistry.getSearchOperationListeners()) {
                 indexModule.addSearchOperationListener(searchOperationListener);
             }
-            
+
             for (IndexingOperationListener indexOperationListener : this.moduleRegistry.getIndexOperationListeners()) {
                 indexModule.addIndexOperationListener(indexOperationListener);
             }
@@ -671,7 +670,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public List<ActionFilter> getActionFilters() {
         List<ActionFilter> filters = new ArrayList<>(1);
         if (!client && !disabled && !sslOnly) {
-            ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedConfigIndexService, evaluator, settings);
+            ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedConfigIndexService,
+                    evaluator, settings);
             ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
             SearchGuardFilter searchGuardFilter = new SearchGuardFilter(authorizationService, evaluator, adminDns,
                     moduleRegistry.getSyncAuthorizationFilters(), auditLog, threadPool, clusterService, diagnosticContext, complianceConfig, actions,
@@ -775,7 +775,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
             IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier) {
-        
+
         if (sslOnly) {
             return super.createComponents(localClient, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry,
                     environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier);
@@ -800,7 +800,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         this.clusterService.addListener(cih);
 
         actionRequestIntrospector = new ActionRequestIntrospector(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
-    
+
         final String DEFAULT_INTERCLUSTER_REQUEST_EVALUATOR_CLASS = DefaultInterClusterRequestEvaluator.class.getName();
         InterClusterRequestEvaluator interClusterRequestEvaluator = new DefaultInterClusterRequestEvaluator(settings);
 
@@ -816,34 +816,34 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         moduleRegistry.addComponentStateProvider(protectedConfigIndexService);
         configVarService = new ConfigVarService(localClient, clusterService, threadPool, protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(configVarService);
-        
-        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig, xContentRegistry, environment);
+
+        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig,
+                xContentRegistry, environment);
         moduleRegistry.addComponentStateProvider(cr);
-        
+
         licenseRepository = new LicenseRepository(settings, localClient, clusterService, cr);
-       
+
         sslExceptionHandler = new AuditLogSslExceptionHandler(auditLog);
 
         complianceConfig = new ComplianceConfig(environment, actionRequestIntrospector, cr);
 
         licenseRepository.subscribeOnLicenseChange(complianceConfig);
         moduleRegistry.addComponentStateProvider(licenseRepository);
-        
+
         Actions actions = new Actions(moduleRegistry);
-        
+
         this.authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
         this.authorizationService = new AuthorizationService(cr, staticSettings, authInfoService);
-        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, authorizationService, indexNameExpressionResolver, auditLog, staticSettings, cih,
-                actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
-                enterpriseModulesEnabled);
+        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, authorizationService, indexNameExpressionResolver, auditLog,
+                staticSettings, cih, actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies,
+                xContentRegistry, enterpriseModulesEnabled);
         moduleRegistry.addComponentStateProvider(evaluator);
-        
+
         InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(authorizationService, evaluator, actions, cr);
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
 
         diagnosticContext = new DiagnosticContext(settings, threadPool.getThreadContext());
-     
-        
+
         InternalUsersDatabase internalUsersDatabase = new InternalUsersDatabase(cr);
         moduleRegistry.addComponentStateProvider(internalUsersDatabase);
         moduleRegistry.getTypedComponentRegistry().register(new InternalUsersAuthenticationBackend.Info(internalUsersDatabase));
@@ -859,11 +859,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         BlockedIpRegistry blockedIpRegistry = new BlockedIpRegistry(cr);
         BlockedUserRegistry blockedUserRegistry = new BlockedUserRegistry(cr);
-        
-        BaseDependencies baseDependencies = new BaseDependencies(settings, staticSettings, localClient, clusterService, threadPool, resourceWatcherService,
-                scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, staticSgConfig, cr,
-                licenseRepository, protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
-                diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
+
+        BaseDependencies baseDependencies = new BaseDependencies(settings, staticSettings, localClient, clusterService, threadPool,
+                resourceWatcherService, scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, staticSgConfig,
+                cr, licenseRepository, protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry,
+                configVarService, diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
                 internalUsersDatabase, actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector);
 
         sgi = new SearchGuardInterceptor(settings, threadPool, auditLog, principalExtractor, interClusterRequestEvaluator, clusterService,
@@ -886,12 +886,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(baseDependencies);
 
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
-        
+
         components.addAll(moduleComponents);
-            
+
         capabilities = new SearchGuardCapabilities(moduleRegistry.getModules(), clusterService, localClient);
         components.add(capabilities);
-        
+
         {
             AuditLog auditLog = moduleRegistry.getAuditLog();
 
@@ -899,20 +899,20 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 this.auditLog.setAuditLog(auditLog);
             }
         }
-        
+
         sgRestHandler = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool,
                 principalExtractor, evaluator, settings, configPath, diagnosticContext);
 
         evaluator.setPrivilegesInterceptor(moduleRegistry.getPrivilegesInterceptor());
 
         moduleRegistry.addComponentStateProvider(sgRestHandler);
-        
+
         this.actions = actions;
-        
+
         return components;
 
     }
-    
+
     @Override
     public Settings additionalSettings() {
 
@@ -949,15 +949,15 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_NODES_DN, Collections.emptyList(), Function.identity(), Property.NodeScope));//not filtered here
 
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DISABLED, false, Property.NodeScope, Property.Filtered));
-           
+
             //SG6
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true, Property.NodeScope, Property.Filtered));
             settings.add(
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false, Property.NodeScope, Property.Filtered));
-          
+
             settings.add(Setting.groupSetting(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS + ".", Property.NodeScope)); //not filtered here
 
-            // SG6 - Audit        
+            // SG6 - Audit
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, Property.NodeScope, Property.Filtered));
             settings.add(Setting.groupSetting(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ROUTES + ".", Property.NodeScope));
             settings.add(Setting.groupSetting(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_ENDPOINTS + ".", Property.NodeScope));
@@ -1111,8 +1111,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, Collections.emptyList(), Function.identity(),
                     Property.NodeScope));
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, false, Property.NodeScope, Property.Filtered, Property.Deprecated));
-            
+            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, false, Property.NodeScope, Property.Filtered,
+                    Property.Deprecated));
+
             // system integration
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_UNSUPPORTED_ALLOW_NOW_IN_DLS, false, Property.NodeScope, Property.Filtered));
 
@@ -1160,7 +1161,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             cr.initOnNodeStart();
             moduleRegistry.onNodeStarted();
             protectedConfigIndexService.onNodeStart();
-        }       
+        }
     }
 
     //below is a hack because it seems not possible to access RepositoriesService from a non guice class
@@ -1177,23 +1178,23 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public Function<String, Predicate<String>> getFieldFilter() {        
+    public Function<String, Predicate<String>> getFieldFilter() {
         return (index) -> {
             ImmutableList<Function<String, Predicate<String>>> fieldFilters = this.moduleRegistry.getFieldFilters();
 
             List<Predicate<String>> predicates = new ArrayList<>(fieldFilters.size());
-            
+
             for (Function<String, Predicate<String>> filter : fieldFilters) {
-                predicates.add(filter.apply(index));                
+                predicates.add(filter.apply(index));
             }
-            
+
             return (field) -> {
                 for (Predicate<String> predicate : predicates) {
                     if (!predicate.test(field)) {
                         return false;
                     }
                 }
-                
+
                 return true;
             };
         };
@@ -1206,7 +1207,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public static final class ProtectedIndices {
         final Set<String> protectedPatterns;
         Pattern protectedPatternsPattern = Pattern.blank();
-        
+
         public ProtectedIndices() {
             protectedPatterns = new HashSet<>();
         }

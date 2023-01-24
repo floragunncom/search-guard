@@ -1,23 +1,31 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.ldap;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Authc;
+import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.AdditionalUserInformation;
+import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
-
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -34,18 +42,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.TestSgConfig.Authc;
-import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.AdditionalUserInformation;
-import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class LdapIntegrationTest {
     // @ClassRule
@@ -113,7 +109,7 @@ public class LdapIntegrationTest {
                             "group_search.filter.raw", "(uniqueMember=${dn})", //
                             "group_search.role_name_attribute", "dn", //
                             "group_search.recursive.enabled", true))
-                    .skipIps("127.0.0.16/30")// 
+                    .skipIps("127.0.0.16/30")//
                     .userMapping(new UserMapping()//
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
                             .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //
@@ -132,7 +128,7 @@ public class LdapIntegrationTest {
                     .userMapping(new UserMapping()//
                             .userNameFromBackend("ldap_user_entry.displayName")//
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
-                            .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //   
+                            .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //
             new Authc.Domain("basic/ldap")//
                     .description("group search based on attribute of ldap_user_entry")//
                     .backend(DocNode.of(//
@@ -147,7 +143,7 @@ public class LdapIntegrationTest {
                     .acceptIps("127.0.0.18")//
                     .userMapping(new UserMapping()//
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
-                            .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //                    
+                            .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //
             new Authc.Domain("basic/internal_users_db")//
                     .additionalUserInformation(new AdditionalUserInformation("ldap", DocNode.of(//
                             "idp.hosts", "#{var:ldapHost}", //
@@ -291,7 +287,6 @@ public class LdapIntegrationTest {
         }
     }
 
-    
     @Test
     public void wrongPassword() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(KARLOTTA.getName(), "wrong-password")) {
@@ -299,7 +294,7 @@ public class LdapIntegrationTest {
             Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
         }
     }
-    
+
     @Test
     public void userNotFound() throws Exception {
         try (GenericRestClient client = cluster.getRestClient("unknown-user", "password")) {

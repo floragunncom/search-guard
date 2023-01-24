@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
@@ -22,10 +21,6 @@ import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
@@ -35,6 +30,9 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 /**
  * This class tests ignore_unauthorized_index: false together with the legacy non-hidden searchguard index. This will make more queries fail with 403, because they match on the searchguard  index.

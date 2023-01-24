@@ -14,14 +14,22 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.support;
 
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authz.AuthorizationService;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.StaticSgConfig;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
+import com.floragunn.searchguard.ssl.transport.DefaultPrincipalExtractor;
+import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
+import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
+import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
@@ -31,22 +39,10 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authz.AuthorizationService;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.StaticSgConfig;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.ssl.transport.DefaultPrincipalExtractor;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
-import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
-
 public class ReflectionHelper {
 
     protected static final Logger log = LogManager.getLogger(ReflectionHelper.class);
-   
+
     private static boolean enterpriseModulesDisabled() {
         return !enterpriseModulesEnabled;
     }
@@ -72,7 +68,8 @@ public class ReflectionHelper {
 
     public static Collection<RestHandler> instantiateMngtRestApiHandler(final Settings settings, final Path configPath,
             final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
-            StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
+            StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor,
+            AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, final ThreadPool threadPool,
             final AuditLog auditlog) {
 
@@ -81,14 +78,15 @@ public class ReflectionHelper {
         }
 
         return instantiateRestApiHandler("com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions", settings, configPath, restController,
-                localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService, specialPrivilegesEvaluationContextProviderRegistry,
-                threadPool, auditlog);
+                localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditlog);
     }
 
     @SuppressWarnings("unchecked")
     public static Collection<RestHandler> instantiateRestApiHandler(final String className, final Settings settings, final Path configPath,
             final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
-            StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
+            StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor,
+            AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, final ThreadPool threadPool,
             final AuditLog auditlog) {
 
@@ -96,19 +94,19 @@ public class ReflectionHelper {
             final Class<?> clazz = Class.forName(className);
             Collection<RestHandler> result;
             try {
-                result = (Collection<RestHandler>) clazz
-                        .getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class, Client.class, AdminDNs.class,
-                                ConfigurationRepository.class, StaticSgConfig.class, ClusterService.class, PrincipalExtractor.class,
-                                AuthorizationService.class, SpecialPrivilegesEvaluationContextProviderRegistry.class, ThreadPool.class, AuditLog.class)
-                        .invoke(null, settings, configPath, restController, localClient, adminDns, cr, staticSgConfig, cs, principalExtractor,
-                                authorizationService, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditlog);
+                result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
+                        Client.class, AdminDNs.class, ConfigurationRepository.class, StaticSgConfig.class, ClusterService.class,
+                        PrincipalExtractor.class, AuthorizationService.class, SpecialPrivilegesEvaluationContextProviderRegistry.class,
+                        ThreadPool.class, AuditLog.class).invoke(null, settings, configPath, restController, localClient, adminDns, cr,
+                                staticSgConfig, cs, principalExtractor, authorizationService, specialPrivilegesEvaluationContextProviderRegistry,
+                                threadPool, auditlog);
             } catch (NoSuchMethodException e) {
                 try {
                     result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
                             Client.class, AdminDNs.class, ConfigurationRepository.class, StaticSgConfig.class, ClusterService.class,
                             PrincipalExtractor.class, AuthorizationService.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath,
-                                    restController, localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService, threadPool,
-                                    auditlog);
+                                    restController, localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService,
+                                    threadPool, auditlog);
                 } catch (NoSuchMethodException e1) {
                     try {
                         result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,

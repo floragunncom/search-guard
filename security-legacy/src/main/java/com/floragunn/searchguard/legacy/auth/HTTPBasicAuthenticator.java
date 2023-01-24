@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,21 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.legacy.auth;
-
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.util.Base64;
-import java.util.Map;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -40,13 +28,22 @@ import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.cstate.ComponentState;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.Base64;
+import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestRequest;
 
 public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthenticationFrontend {
 
     protected final static Logger log = LogManager.getLogger(HTTPBasicAuthenticator.class);
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "basic", HTTPBasicAuthenticator.class)
             .initialized();
-    
+
     public HTTPBasicAuthenticator(final Settings settings, final Path configPath) {
 
     }
@@ -123,7 +120,7 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
     public ComponentState getComponentState() {
         return componentState;
     }
-    
+
     private static AuthCredentials.Builder extractCredentials(String authorizationHeader) {
 
         if (authorizationHeader != null) {
@@ -132,8 +129,7 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
                 return null;
             } else {
 
-                final String decodedBasicHeader = new String(Base64.getDecoder().decode(authorizationHeader.split(" ")[1]),
-                        StandardCharsets.UTF_8);
+                final String decodedBasicHeader = new String(Base64.getDecoder().decode(authorizationHeader.split(" ")[1]), StandardCharsets.UTF_8);
 
                 //username:password
                 //special case
@@ -141,7 +137,7 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
                 //   username:pass:word
                 //blank password
                 //   username:
-                
+
                 final int firstColonIndex = decodedBasicHeader.indexOf(':');
 
                 String username = null;
@@ -149,12 +145,12 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
 
                 if (firstColonIndex > 0) {
                     username = decodedBasicHeader.substring(0, firstColonIndex);
-                    
-                    if(decodedBasicHeader.length() - 1 != firstColonIndex) {
+
+                    if (decodedBasicHeader.length() - 1 != firstColonIndex) {
                         password = decodedBasicHeader.substring(firstColonIndex + 1);
                     } else {
                         //blank password
-                        password="";
+                        password = "";
                     }
                 }
 

@@ -1,32 +1,16 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken;
-
-import java.time.Duration;
-import java.util.Collections;
-import java.util.Map;
-
-import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
@@ -44,11 +28,22 @@ import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.StaticSettings;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.Map;
+import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class AuthTokenServiceTest {
 
@@ -93,8 +88,8 @@ public class AuthTokenServiceTest {
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
-                threadPool, clusterService, protectedConfigIndexService, actions, config);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator,
+                configHistoryService, StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
         try {
             authTokenService.setSendTokenUpdates(false);
             authTokenService.waitForInitComplete(10000);
@@ -137,8 +132,8 @@ public class AuthTokenServiceTest {
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
-                threadPool, clusterService, protectedConfigIndexService, actions, config);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator,
+                configHistoryService, StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
 
         try {
             authTokenService.setSendTokenUpdates(false);
@@ -182,8 +177,8 @@ public class AuthTokenServiceTest {
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient,  authorizationService, privilegesEvaluator, configHistoryService, StaticSettings.EMPTY,
-                threadPool, clusterService, protectedConfigIndexService, actions, config);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator,
+                configHistoryService, StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
 
         try {
             authTokenService.setSendTokenUpdates(false);
@@ -212,8 +207,8 @@ public class AuthTokenServiceTest {
             ConfigHistoryService configHistoryService2 = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                     protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
 
-            AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient,  authorizationService, privilegesEvaluator, configHistoryService2,
-                    StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
+            AuthTokenService authTokenService2 = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator,
+                    configHistoryService2, StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
             authTokenService2.setSendTokenUpdates(false);
             authTokenService2.waitForInitComplete(20000);
 
@@ -243,8 +238,9 @@ public class AuthTokenServiceTest {
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator, configHistoryService,
-               new StaticSettings(authTokenServiceSettings, null), threadPool, clusterService, protectedConfigIndexService, actions, config);
+        AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator,
+                configHistoryService, new StaticSettings(authTokenServiceSettings, null), threadPool, clusterService, protectedConfigIndexService,
+                actions, config);
         try {
             authTokenService.setSendTokenUpdates(false);
             authTokenService.waitForInitComplete(10000);
@@ -305,8 +301,8 @@ public class AuthTokenServiceTest {
 
             ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                     protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
-            AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator, configHistoryService,
-                    StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
+            AuthTokenService authTokenService = new AuthTokenService(privilegedConfigClient, authorizationService, privilegesEvaluator,
+                    configHistoryService, StaticSettings.EMPTY, threadPool, clusterService, protectedConfigIndexService, actions, config);
             try {
                 authTokenService.setSendTokenUpdates(false);
                 authTokenService.waitForInitComplete(10000);

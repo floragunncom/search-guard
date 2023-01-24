@@ -14,9 +14,11 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.cluster;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -26,7 +28,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
@@ -42,10 +43,6 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.elasticsearch.client.RestHighLevelClient;
-
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 
 public interface EsClientProvider {
 
@@ -139,15 +136,15 @@ public interface EsClientProvider {
 
     default RestClientBuilder getLowLevelRestClientBuilder(Header... headers) {
         InetSocketAddress httpAddress = getHttpAddress();
-        return RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
-                .setDefaultHeaders(headers).setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
+        return RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https")).setDefaultHeaders(headers)
+                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
                         new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
     }
-    
+
     default RestClient getLowLevelRestClient(Header... headers) {
         return getLowLevelRestClientBuilder(headers).build();
     }
-    
+
     @Deprecated
     default Client getAdminCertClient() {
         return new LocalEsClusterTransportClient(getClusterName(), getTransportAddress(), getTestCertificates().getAdminCertificate(),

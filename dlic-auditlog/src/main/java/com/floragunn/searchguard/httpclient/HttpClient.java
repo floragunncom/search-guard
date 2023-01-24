@@ -1,19 +1,18 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.httpclient;
 
+import com.google.common.collect.Lists;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
@@ -29,10 +28,8 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
-
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
@@ -57,8 +54,6 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.xcontent.XContentType;
 
-import com.google.common.collect.Lists;
-
 public class HttpClient implements Closeable {
 
     public static class HttpClientBuilder {
@@ -71,7 +66,7 @@ public class HttpClient implements Closeable {
         private boolean verifyHostnames;
         private String[] supportedProtocols = null;
         private String[] supportedCipherSuites = null;
-        
+
         private final String[] servers;
         private boolean ssl;
 
@@ -101,22 +96,22 @@ public class HttpClient implements Closeable {
             this.keystoreAlias = keystoreAlias;
             return this;
         }
-        
+
         public HttpClientBuilder setSupportedProtocols(String[] protocols) {
             this.supportedProtocols = protocols;
             return this;
         }
-        
+
         public HttpClientBuilder setSupportedCipherSuites(String[] cipherSuites) {
             this.supportedCipherSuites = cipherSuites;
             return this;
         }
 
         public HttpClient build() throws Exception {
-            return new HttpClient(trustStore, basicCredentials, keystore, keyPassword, keystoreAlias, verifyHostnames, ssl,
-                    supportedProtocols, supportedCipherSuites, servers);
+            return new HttpClient(trustStore, basicCredentials, keystore, keyPassword, keystoreAlias, verifyHostnames, ssl, supportedProtocols,
+                    supportedCipherSuites, servers);
         }
-        
+
         private static String encodeBasicHeader(final String username, final String password) {
             return Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8));
         }
@@ -139,10 +134,10 @@ public class HttpClient implements Closeable {
     private String[] supportedProtocols;
     private String[] supportedCipherSuites;
 
-    private HttpClient(final KeyStore trustStore, final String basicCredentials, final KeyStore keystore,
-            final char[] keyPassword, final String keystoreAlias, final boolean verifyHostnames, final boolean ssl, String[] supportedProtocols, String[] supportedCipherSuites, final String... servers)
-            throws UnrecoverableKeyException, KeyManagementException, NoSuchAlgorithmException, KeyStoreException, CertificateException,
-            IOException {
+    private HttpClient(final KeyStore trustStore, final String basicCredentials, final KeyStore keystore, final char[] keyPassword,
+            final String keystoreAlias, final boolean verifyHostnames, final boolean ssl, String[] supportedProtocols, String[] supportedCipherSuites,
+            final String... servers)
+            throws UnrecoverableKeyException, KeyManagementException, NoSuchAlgorithmException, KeyStoreException, CertificateException, IOException {
         super();
         this.trustStore = trustStore;
         this.basicCredentials = basicCredentials;
@@ -154,14 +149,11 @@ public class HttpClient implements Closeable {
         this.supportedCipherSuites = supportedCipherSuites;
         this.keystoreAlias = keystoreAlias;
 
-        HttpHost[] hosts = Arrays.stream(servers)
-                .map(s->s.split(":"))
-                .map(s->new HttpHost(s[0], Integer.parseInt(s[1]),ssl?"https":"http"))
+        HttpHost[] hosts = Arrays.stream(servers).map(s -> s.split(":")).map(s -> new HttpHost(s[0], Integer.parseInt(s[1]), ssl ? "https" : "http"))
                 .collect(Collectors.toList()).toArray(new HttpHost[0]);
-                
-        
+
         RestClientBuilder builder = RestClient.builder(hosts);
-        
+
         //builder.setMaxRetryTimeoutMillis(10000);
 
         builder.setFailureListener(new RestClient.FailureListener() {
@@ -169,7 +161,7 @@ public class HttpClient implements Closeable {
             public void onFailure(Node node) {
 
             }
-            
+
         });
 
         builder.setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
@@ -178,34 +170,34 @@ public class HttpClient implements Closeable {
                 try {
                     return asyncClientBuilder(httpClientBuilder);
                 } catch (Exception e) {
-                    log.error("Unable to build http client",e);
+                    log.error("Unable to build http client", e);
                     throw new RuntimeException(e);
                 }
             }
         });
-        
+
         rclient = new RestHighLevelClient(builder);
     }
 
     public boolean index(final String content, final String index, final String type, final boolean refresh) {
 
-            try {
+        try {
 
-                final IndexRequest ir = type==null?new IndexRequest(index):new IndexRequest(index);
-                
-                final IndexResponse response = rclient.index(ir
-                              .setRefreshPolicy(refresh?RefreshPolicy.IMMEDIATE:RefreshPolicy.NONE)
-                              .source(content, XContentType.JSON), RequestOptions.DEFAULT);
+            final IndexRequest ir = type == null ? new IndexRequest(index) : new IndexRequest(index);
 
-                return response.getShardInfo().getSuccessful() > 0 && response.getShardInfo().getFailed() == 0;
-                
-            } catch (Exception e) {
-                log.error(e.toString(),e);
-                return false;
-            }
+            final IndexResponse response = rclient.index(
+                    ir.setRefreshPolicy(refresh ? RefreshPolicy.IMMEDIATE : RefreshPolicy.NONE).source(content, XContentType.JSON),
+                    RequestOptions.DEFAULT);
+
+            return response.getShardInfo().getSuccessful() > 0 && response.getShardInfo().getFailed() == 0;
+
+        } catch (Exception e) {
+            log.error(e.toString(), e);
+            return false;
+        }
     }
 
-    private final HttpAsyncClientBuilder asyncClientBuilder(HttpAsyncClientBuilder httpClientBuilder) 
+    private final HttpAsyncClientBuilder asyncClientBuilder(HttpAsyncClientBuilder httpClientBuilder)
             throws NoSuchAlgorithmException, KeyStoreException, UnrecoverableKeyException, KeyManagementException {
 
         // basic auth
@@ -225,48 +217,42 @@ public class HttpClient implements Closeable {
 
             if (keystore != null) {
                 sslContextBuilder.loadKeyMaterial(keystore, keyPassword, new PrivateKeyStrategy() {
-                    
+
                     @Override
                     public String chooseAlias(Map<String, PrivateKeyDetails> aliases, Socket socket) {
-                        if(aliases == null || aliases.isEmpty()) {
+                        if (aliases == null || aliases.isEmpty()) {
                             return keystoreAlias;
                         }
-                        
-                        if(keystoreAlias == null || keystoreAlias.isEmpty()) {
+
+                        if (keystoreAlias == null || keystoreAlias.isEmpty()) {
                             return aliases.keySet().iterator().next();
                         }
-                        
-                        return keystoreAlias;                    }
+
+                        return keystoreAlias;
+                    }
                 });
             }
 
-            final HostnameVerifier hnv = verifyHostnames?new DefaultHostnameVerifier():NoopHostnameVerifier.INSTANCE;
-            
+            final HostnameVerifier hnv = verifyHostnames ? new DefaultHostnameVerifier() : NoopHostnameVerifier.INSTANCE;
+
             final SSLContext sslContext = sslContextBuilder.build();
-            httpClientBuilder.setSSLStrategy(new SSLIOSessionStrategy(
-                    sslContext,
-                    supportedProtocols,
-                    supportedCipherSuites,
-                    hnv
-                    ));
+            httpClientBuilder.setSSLStrategy(new SSLIOSessionStrategy(sslContext, supportedProtocols, supportedCipherSuites, hnv));
         }
 
         if (basicCredentials != null) {
             httpClientBuilder.setDefaultHeaders(Lists.newArrayList(new BasicHeader(HttpHeaders.AUTHORIZATION, "Basic " + basicCredentials)));
         }
-        
+
         // TODO: set a timeout until we have a proper way to deal with back pressure
         int timeout = 5;
-        
-        RequestConfig config = RequestConfig.custom()
-          .setConnectTimeout(timeout * 1000)
-          .setConnectionRequestTimeout(timeout * 1000)
-          .setSocketTimeout(timeout * 1000).build();
-        
+
+        RequestConfig config = RequestConfig.custom().setConnectTimeout(timeout * 1000).setConnectionRequestTimeout(timeout * 1000)
+                .setSocketTimeout(timeout * 1000).build();
+
         httpClientBuilder.setDefaultRequestConfig(config);
-        
+
         return httpClientBuilder;
-        
+
     }
 
     @Override

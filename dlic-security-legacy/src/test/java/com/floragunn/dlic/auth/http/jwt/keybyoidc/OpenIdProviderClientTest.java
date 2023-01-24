@@ -1,19 +1,26 @@
 /*
- * Copyright 2016-2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
+import com.browserup.bup.BrowserUpProxy;
+import com.browserup.bup.BrowserUpProxyServer;
+import com.floragunn.codova.config.net.ProxyConfig;
+import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.hash.Hashing;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,7 +30,6 @@ import java.security.KeyStore;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.Map;
-
 import org.apache.http.HttpException;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
@@ -40,16 +46,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
-import com.floragunn.codova.config.net.ProxyConfig;
-import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.hash.Hashing;
 
 public class OpenIdProviderClientTest {
     protected static MockIpdServer mockIdpServer;

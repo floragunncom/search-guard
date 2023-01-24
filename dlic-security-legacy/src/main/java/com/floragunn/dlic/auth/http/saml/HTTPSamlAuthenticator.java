@@ -1,42 +1,16 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.http.saml;
-
-import java.net.URL;
-import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivateKey;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-
-import org.apache.commons.lang3.StringEscapeUtils;
-import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
-import org.opensaml.core.config.InitializationException;
-import org.opensaml.core.config.InitializationService;
-import org.opensaml.saml.metadata.resolver.MetadataResolver;
-import org.opensaml.saml.metadata.resolver.impl.AbstractReloadingMetadataResolver;
 
 import com.floragunn.dlic.auth.http.jwt.AbstractHTTPJwtAuthenticator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
@@ -58,10 +32,31 @@ import com.onelogin.saml2.logout.LogoutRequest;
 import com.onelogin.saml2.settings.Saml2Settings;
 import com.onelogin.saml2.util.Constants;
 import com.onelogin.saml2.util.Util;
-
+import java.net.URL;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivateKey;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
 import net.shibboleth.utilities.java.support.component.DestructableComponent;
 import net.shibboleth.utilities.java.support.resolver.ResolverException;
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+import org.opensaml.core.config.InitializationException;
+import org.opensaml.core.config.InitializationService;
+import org.opensaml.saml.metadata.resolver.MetadataResolver;
+import org.opensaml.saml.metadata.resolver.impl.AbstractReloadingMetadataResolver;
 
 @Deprecated
 public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyable {
@@ -83,9 +78,9 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
     private Settings jwtSettings;
     private boolean checkIssuer;
 
-    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "saml",
-            HTTPSamlAuthenticator.class).initialized().requiresEnterpriseLicense();
-    
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "saml", HTTPSamlAuthenticator.class).initialized()
+            .requiresEnterpriseLicense();
+
     public HTTPSamlAuthenticator(final Settings settings, final Path configPath) {
         try {
             ensureOpenSamlInitialization();
@@ -131,8 +126,7 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
             }
             this.jwtSettings = this.createJwtAuthenticatorSettings(settings);
 
-            this.authTokenProcessorHandler = new AuthTokenProcessorHandler(settings, jwtSettings,
-                    this.saml2SettingsProvider);
+            this.authTokenProcessorHandler = new AuthTokenProcessorHandler(settings, jwtSettings, this.saml2SettingsProvider);
 
             this.httpJwtAuthenticator = new HTTPJwtAuthenticator(this.jwtSettings, configPath);
 
@@ -143,8 +137,7 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
     }
 
     @Override
-    public AuthCredentials extractCredentials(RestRequest restRequest, ThreadContext threadContext)
-            throws ElasticsearchSecurityException {
+    public AuthCredentials extractCredentials(RestRequest restRequest, ThreadContext threadContext) throws ElasticsearchSecurityException {
         if ("/_searchguard/api/authtoken".equals(restRequest.path())) {
             return null;
         }
@@ -170,11 +163,11 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
 
             if ("/_searchguard/api/authtoken".equals(restRequest.path())) {
                 String samlResponseBase64 = this.authTokenProcessorHandler.getSamlResponseBase64(restRequest);
-                
+
                 if (checkIssuer && !this.authTokenProcessorHandler.isResponseFromConfiguredEntity(samlResponseBase64)) {
                     return false;
                 }
-                
+
                 if (this.authTokenProcessorHandler.handle(restRequest, restChannel)) {
                     return true;
                 }
@@ -199,8 +192,8 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
         AuthnRequest authnRequest = this.buildAuthnRequest(saml2Settings);
 
         return "X-SG-IdP realm=\"Search Guard\" location=\""
-                + StringEscapeUtils.escapeJava(getSamlRequestRedirectBindingLocation(IdpEndpointType.SSO, saml2Settings,
-                        authnRequest.getEncodedAuthnRequest(true)))
+                + StringEscapeUtils.escapeJava(
+                        getSamlRequestRedirectBindingLocation(IdpEndpointType.SSO, saml2Settings, authnRequest.getEncodedAuthnRequest(true)))
                 + "\" requestId=\"" + StringEscapeUtils.escapeJava(authnRequest.getId()) + "\"";
     }
 
@@ -294,8 +287,8 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
         }
     }
 
-    private AbstractReloadingMetadataResolver createMetadataResolver(final Settings settings, final Path configPath) throws ResolverException, SSLConfigException, ComponentInitializationException
-             {
+    private AbstractReloadingMetadataResolver createMetadataResolver(final Settings settings, final Path configPath)
+            throws ResolverException, SSLConfigException, ComponentInitializationException {
         final AbstractReloadingMetadataResolver metadataResolver;
 
         if (idpMetadataUrl != null) {
@@ -361,14 +354,12 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
 
             String nameIdClaim = this.subjectKey == null ? "sub" : "saml_ni";
             String nameId = authCredentials.getAttributes().get("attr.jwt." + nameIdClaim);
-            String nameIdFormat = SamlNameIdFormat
-                    .getByShortName(authCredentials.getAttributes().get("attr.jwt.saml_nif")).getUri();
+            String nameIdFormat = SamlNameIdFormat.getByShortName(authCredentials.getAttributes().get("attr.jwt.saml_nif")).getUri();
             String sessionIndex = authCredentials.getAttributes().get("attr.jwt.saml_si");
 
             LogoutRequest logoutRequest = new LogoutRequest(saml2Settings, null, nameId, sessionIndex, nameIdFormat);
 
-            return getSamlRequestRedirectBindingLocation(IdpEndpointType.SLO, saml2Settings,
-                    logoutRequest.getEncodedLogoutRequest(true));
+            return getSamlRequestRedirectBindingLocation(IdpEndpointType.SLO, saml2Settings, logoutRequest.getEncodedLogoutRequest(true));
 
         } catch (Exception e) {
             log.error("Error while creating logout URL. Logout will be not available", e);
@@ -381,11 +372,11 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
         threadContext.putTransient(ConfigConstants.SSO_LOGOUT_URL, buildLogoutUrl(authCredentials));
     }
 
-    private String getSamlRequestRedirectBindingLocation(IdpEndpointType idpEndpointType, Saml2Settings saml2Settings,
-            String samlRequest) throws Exception {
-        
+    private String getSamlRequestRedirectBindingLocation(IdpEndpointType idpEndpointType, Saml2Settings saml2Settings, String samlRequest)
+            throws Exception {
+
         URL idpUrl = getIdpUrl(idpEndpointType, saml2Settings);
-        
+
         if (Strings.isNullOrEmpty(idpUrl.getQuery())) {
             return getIdpUrl(idpEndpointType, saml2Settings) + "?" + this.getSamlRequestQueryString(samlRequest);
         } else {
@@ -400,8 +391,7 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
             return "SAMLRequest=" + Util.urlEncoder(samlRequest);
         }
 
-        String queryString = "SAMLRequest=" + Util.urlEncoder(samlRequest) + "&SigAlg="
-                + Util.urlEncoder(this.spSignatureAlgorithm);
+        String queryString = "SAMLRequest=" + Util.urlEncoder(samlRequest) + "&SigAlg=" + Util.urlEncoder(this.spSignatureAlgorithm);
 
         String signature = getSamlRequestQueryStringSignature(queryString);
 
@@ -412,8 +402,7 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
 
     private String getSamlRequestQueryStringSignature(String samlRequestQueryString) throws Exception {
         try {
-            return Util.base64encoder(
-                    Util.sign(samlRequestQueryString, this.spSignaturePrivateKey, this.spSignatureAlgorithm));
+            return Util.base64encoder(Util.sign(samlRequestQueryString, this.spSignaturePrivateKey, this.spSignatureAlgorithm));
         } catch (Exception e) {
             throw new Exception("Error while signing SAML request", e);
         }
@@ -421,9 +410,9 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
 
     class HTTPJwtAuthenticator extends AbstractHTTPJwtAuthenticator {
 
-        private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "saml_jwt",
-                HTTPJwtAuthenticator.class).initialized().requiresEnterpriseLicense();
-        
+        private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "saml_jwt", HTTPJwtAuthenticator.class)
+                .initialized().requiresEnterpriseLicense();
+
         public HTTPJwtAuthenticator(Settings settings, Path configPath) {
             super(settings, configPath);
         }
@@ -438,8 +427,7 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
             return new KeyProvider() {
 
                 @Override
-                public JsonWebKey getKeyAfterRefresh(String kid)
-                        throws AuthenticatorUnavailableException, BadCredentialsException {
+                public JsonWebKey getKeyAfterRefresh(String kid) throws AuthenticatorUnavailableException, BadCredentialsException {
                     return authTokenProcessorHandler.getSigningKey();
                 }
 
@@ -456,11 +444,10 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
         }
 
     }
-    
+
     private enum IdpEndpointType {
         SSO, SLO
     }
-
 
     public static TypedComponent.Info<LegacyHTTPAuthenticator> INFO = new TypedComponent.Info<LegacyHTTPAuthenticator>() {
 

@@ -14,14 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.legacy;
-
-import org.junit.Assert;
-import org.junit.Test;
 
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class FrontendConfigIntegrationTests {
 

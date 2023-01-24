@@ -14,12 +14,16 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz.indices;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.SearchGuardPlugin;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
+import com.floragunn.searchguard.user.User;
 import java.io.IOException;
 import java.util.function.Function;
-
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FilterDirectoryReader;
 import org.apache.lucene.index.FilterLeafReader;
@@ -29,13 +33,6 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
-
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.SearchGuardPlugin;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.HeaderHelper;
-import com.floragunn.searchguard.user.User;
 
 public class SearchGuardDirectoryReaderWrapper implements CheckedFunction<DirectoryReader, DirectoryReader, IOException> {
 
@@ -107,9 +104,9 @@ public class SearchGuardDirectoryReaderWrapper implements CheckedFunction<Direct
 
     /* The class EmptyFilterLeafReader is based on https://github.com/apache/lucene-solr/blob/1d85cd783863f75cea133fb9c452302214165a4d/lucene/test-framework/src/java/org/apache/lucene/index/AllDeletedFilterReader.java
      * from Apache 2 licensed Apache Solr project.
-     * 
+     *
      * Original license header:
-     * 
+     *
      * Licensed to the Apache Software Foundation (ASF) under one or more
      * contributor license agreements.  See the NOTICE file distributed with
      * this work for additional information regarding copyright ownership.

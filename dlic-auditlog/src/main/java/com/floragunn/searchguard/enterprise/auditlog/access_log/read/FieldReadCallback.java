@@ -1,6 +1,5 @@
 /*
- * Copyright 2018-2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2018-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,28 +10,25 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.access_log.read;
-
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.index.FieldInfo;
-import org.elasticsearch.common.xcontent.support.XContentMapValues;
-import org.elasticsearch.index.Index;
-import org.elasticsearch.index.mapper.Uid;
 
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SourceFieldsContext;
 import com.github.wnameless.json.flattener.JsonFlattener;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.FieldInfo;
+import org.elasticsearch.common.xcontent.support.XContentMapValues;
+import org.elasticsearch.index.Index;
+import org.elasticsearch.index.mapper.Uid;
 
 public final class FieldReadCallback {
 

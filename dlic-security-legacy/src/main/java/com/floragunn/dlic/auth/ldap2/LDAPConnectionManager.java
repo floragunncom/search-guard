@@ -1,23 +1,16 @@
+/*
+  * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.dlic.auth.ldap2;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-
-import javax.net.SocketFactory;
-import javax.net.ssl.SSLSocketFactory;
-
-import com.unboundid.util.ssl.HostNameSSLSocketVerifier;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
@@ -48,6 +41,22 @@ import com.unboundid.ldap.sdk.SearchScope;
 import com.unboundid.ldap.sdk.ServerSet;
 import com.unboundid.ldap.sdk.SimpleBindRequest;
 import com.unboundid.ldap.sdk.StartTLSPostConnectProcessor;
+import com.unboundid.util.ssl.HostNameSSLSocketVerifier;
+import java.io.Closeable;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLSocketFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.settings.Settings;
 
 public final class LDAPConnectionManager implements Closeable {
 
@@ -57,14 +66,12 @@ public final class LDAPConnectionManager implements Closeable {
     private final LDAPUserSearcher userSearcher;
     private final Settings settings;
 
-
     public LDAPConnectionManager(Settings settings, Path configPath) throws LDAPException, SSLConfigException {
 
         this.sslConfig = new SettingsBasedSSLConfigurator(settings, configPath, "").buildSSLConfig();
         this.settings = settings;
 
-        List<String> ldapStrings = this.settings.getAsList(ConfigConstants.LDAP_HOSTS,
-                Collections.singletonList("localhost"));
+        List<String> ldapStrings = this.settings.getAsList(ConfigConstants.LDAP_HOSTS, Collections.singletonList("localhost"));
 
         String bindDn = settings.get(ConfigConstants.LDAP_BIND_DN, null);
         String password = settings.get(ConfigConstants.LDAP_PASSWORD, null);
@@ -115,8 +122,9 @@ public final class LDAPConnectionManager implements Closeable {
         }
 
         try {
-            pool = AccessController.doPrivileged((PrivilegedExceptionAction<LDAPConnectionPool>) () ->
-                    new LDAPConnectionPool(createServerSet(ldapStrings, opts), bindRequest, poolMinSize, poolMaxSize, null, false));
+            pool = AccessController
+                    .doPrivileged((PrivilegedExceptionAction<LDAPConnectionPool>) () -> new LDAPConnectionPool(createServerSet(ldapStrings, opts),
+                            bindRequest, poolMinSize, poolMaxSize, null, false));
         } catch (PrivilegedActionException e) {
             if (e.getException() instanceof LDAPException) {
                 throw (LDAPException) e.getException();
@@ -225,14 +233,16 @@ public final class LDAPConnectionManager implements Closeable {
 
         if (sslConfig != null && sslConfig.isStartTlsEnabled()) {
             final SSLSocketFactory sf = sslConfig.getRestrictedSSLSocketFactory();
-            return newServerSetImpl(ldapHosts.toArray(new String[0]), Ints.toArray(ldapPorts), null, opts, null, new StartTLSPostConnectProcessor(sf));
+            return newServerSetImpl(ldapHosts.toArray(new String[0]), Ints.toArray(ldapPorts), null, opts, null,
+                    new StartTLSPostConnectProcessor(sf));
         }
 
         return newServerSetImpl(ldapHosts.toArray(new String[0]), Ints.toArray(ldapPorts), null, opts, null, null);
     }
 
     private ServerSet newServerSetImpl(final String[] addresses, final int[] ports, final SocketFactory socketFactory,
-                                       final LDAPConnectionOptions connectionOptions, final BindRequest bindRequest, final PostConnectProcessor postConnectProcessor) throws LDAPException {
+            final LDAPConnectionOptions connectionOptions, final BindRequest bindRequest, final PostConnectProcessor postConnectProcessor)
+            throws LDAPException {
 
         final String impl = settings.get(ConfigConstants.LDAP_CONNECTION_STRATEGY, "roundrobin").toLowerCase();
 
@@ -267,9 +277,10 @@ public final class LDAPConnectionManager implements Closeable {
         pool.bindAndRevertAuthentication(new SimpleBindRequest(dn, password));
     }
 
-    public List<SearchResultEntry> search(LDAPConnection con, final String baseDN, final SearchScope scope,
-                                          final ParametrizedFilter filter) throws LDAPException {
-        SearchRequest sr = new SearchRequest(baseDN, scope, filter.toString(), SearchRequest.ALL_OPERATIONAL_ATTRIBUTES, SearchRequest.ALL_USER_ATTRIBUTES);
+    public List<SearchResultEntry> search(LDAPConnection con, final String baseDN, final SearchScope scope, final ParametrizedFilter filter)
+            throws LDAPException {
+        SearchRequest sr = new SearchRequest(baseDN, scope, filter.toString(), SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
+                SearchRequest.ALL_USER_ATTRIBUTES);
         sr.setDerefPolicy(DereferencePolicy.ALWAYS);
         SearchResult searchResult = con.search(sr);
         return searchResult.getSearchEntries();

@@ -1,43 +1,16 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.http.jwt;
-
-import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.Key;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Collection;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.codova.documents.DocReader;
@@ -58,7 +31,6 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.PathNotFoundException;
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
@@ -66,12 +38,34 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.DeserializationException;
 import io.jsonwebtoken.io.Deserializer;
 import io.jsonwebtoken.security.WeakKeyException;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.Key;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Collection;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestRequest;
 
 public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthenticationFrontend {
 
-    
     private static final Logger log = LogManager.getLogger(HTTPJwtAuthenticator.class);
-    
+
     private static final String BEARER = "bearer ";
     private final JwtParser jwtParser;
     private final String jwtHeaderName;
@@ -88,18 +82,18 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
 
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "jwt", HTTPJwtAuthenticator.class).initialized()
             .requiresEnterpriseLicense();
-    
+
     public HTTPJwtAuthenticator(final Settings settings, final Path configPath) {
         super();
-        
+
         subjectPattern = getSubjectPattern(settings);
 
         JwtParser _jwtParser = null;
-        
+
         try {
             String signingKey = settings.get("signing_key");
-            
-            if(signingKey == null || signingKey.length() == 0) {
+
+            if (signingKey == null || signingKey.length() == 0) {
                 log.error("signingKey must not be null or empty. JWT authentication will not work");
             } else {
 
@@ -121,45 +115,45 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                     log.debug("No public ECDSA key, try other algos ({})", e.toString());
                 }
 
-                if(key != null) {
+                if (key != null) {
                     _jwtParser = Jwts.parser().setSigningKey(key).deserializeJsonWith(jsonDeserializer);
                 } else {
                     _jwtParser = Jwts.parser().setSigningKey(decoded).deserializeJsonWith(jsonDeserializer);
                 }
 
-            }  
+            }
         } catch (Throwable e) {
-            log.error("Error creating JWT authenticator: "+e+". JWT authentication will not work", e);
+            log.error("Error creating JWT authenticator: " + e + ". JWT authentication will not work", e);
         }
-        
+
         jwtUrlParameter = settings.get("jwt_url_parameter");
-        jwtHeaderName = settings.get("jwt_header","Authorization");
+        jwtHeaderName = settings.get("jwt_header", "Authorization");
         rolesKey = settings.get("roles_key");
         subjectKey = settings.get("subject_key");
         jsonRolesPath = settings.get("roles_path");
         jsonSubjectPath = settings.get("subject_path");
         requireAudience = settings.get("required_audience");
         requireIssuer = settings.get("required_issuer");
-        
+
         if (requireAudience != null) {
             _jwtParser.requireAudience(requireAudience);
         }
-        
+
         if (requireIssuer != null) {
             _jwtParser.requireIssuer(requireIssuer);
         }
-        
+
         jwtParser = _jwtParser;
         attributeMapping = Attributes.getAttributeMapping(settings.getAsSettings("map_claims_to_user_attrs"));
 
         if ((subjectKey != null && jsonSubjectPath != null) || (rolesKey != null && jsonRolesPath != null)) {
-            throw new IllegalStateException("Both, subject_key and subject_path or roles_key and roles_path have simultaneously provided." +
-                    " Please provide only one combination.");
+            throw new IllegalStateException("Both, subject_key and subject_path or roles_key and roles_path have simultaneously provided."
+                    + " Please provide only one combination.");
         }
 
         jsonPathConfig = BasicJsonPathDefaultConfiguration.builder().options(Option.ALWAYS_RETURN_LIST).build();
     }
-    
+
     @Override
     public AuthCredentials extractCredentials(RestRequest request, ThreadContext context) throws ElasticsearchSecurityException {
         final SecurityManager sm = System.getSecurityManager();
@@ -170,7 +164,7 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
 
         return AccessController.doPrivileged((PrivilegedAction<AuthCredentials>) () -> extractCredentials0(request));
     }
-    
+
     @Override
     public AuthCredentials extractCredentials(Map<String, Object> request) throws ElasticsearchSecurityException, ConfigValidationException {
         String jwtString = request.containsKey("jwt") ? String.valueOf(request.get("jwt")) : null;
@@ -178,56 +172,55 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
         if (jwtString == null) {
             throw new ConfigValidationException(new MissingAttribute("jwt"));
         }
-        
+
         return extractCredentials(jwtString);
     }
- 
 
-    private AuthCredentials extractCredentials0(final RestRequest request) {        
+    private AuthCredentials extractCredentials0(final RestRequest request) {
         if (jwtParser == null) {
             log.error("Missing Signing Key. JWT authentication will not work");
             return null;
         }
-        
+
         String jwtToken = request.header(jwtHeaderName);
-        
-        if((jwtToken == null || jwtToken.isEmpty()) && jwtUrlParameter != null) {
+
+        if ((jwtToken == null || jwtToken.isEmpty()) && jwtUrlParameter != null) {
             jwtToken = request.param(jwtUrlParameter);
         } else {
             //just consume to avoid "contains unrecognized parameter"
             request.param(jwtUrlParameter);
         }
-        
+
         if (jwtToken == null || jwtToken.length() == 0) {
-            if(log.isDebugEnabled()) {
-                log.debug("No JWT token found in '{}' {} header", jwtUrlParameter==null?jwtHeaderName:jwtUrlParameter, jwtUrlParameter==null?"header":"url parameter");
+            if (log.isDebugEnabled()) {
+                log.debug("No JWT token found in '{}' {} header", jwtUrlParameter == null ? jwtHeaderName : jwtUrlParameter,
+                        jwtUrlParameter == null ? "header" : "url parameter");
             }
             return null;
         }
-        
+
         final int index;
-        if((index = jwtToken.toLowerCase().indexOf(BEARER)) > -1) { //detect Bearer 
-            jwtToken = jwtToken.substring(index+BEARER.length());
+        if ((index = jwtToken.toLowerCase().indexOf(BEARER)) > -1) { //detect Bearer
+            jwtToken = jwtToken.substring(index + BEARER.length());
         } else {
-            if(log.isDebugEnabled()) {
-        	    log.debug("No Bearer scheme found in header");
+            if (log.isDebugEnabled()) {
+                log.debug("No Bearer scheme found in header");
             }
         }
-        
-        
+
         return extractCredentials(jwtToken);
     }
-    
-    private AuthCredentials extractCredentials(String jwtToken) {        
+
+    private AuthCredentials extractCredentials(String jwtToken) {
         if (jwtParser == null) {
             log.error("Missing Signing Key. JWT authentication will not work");
             return null;
         }
-        
+
         try {
 
             Claims claims;
-            
+
             try {
                 claims = AccessController.doPrivileged((PrivilegedExceptionAction<Claims>) () -> jwtParser.parseClaimsJws(jwtToken).getBody());
             } catch (PrivilegedActionException e) {
@@ -237,24 +230,24 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                     throw new RuntimeException(e.getCause());
                 }
             }
-            
+
             final String subject = extractSubject(claims);
-            
+
             if (subject == null) {
                 log.error("No subject found in JWT token");
                 return null;
             }
-            
+
             final String[] roles = extractRoles(claims);
-            
+
             return AuthCredentials.forUser(subject).authenticatorType(getType()).backendRoles(roles).attributesByJsonPath(attributeMapping, claims)
                     .prefixOldAttributes("attr.jwt.", claims).complete().build();
-            
+
         } catch (WeakKeyException e) {
-            log.error("Cannot authenticate user with JWT because of "+e, e);
+            log.error("Cannot authenticate user with JWT because of " + e, e);
             return null;
         } catch (Exception e) {
-            if(log.isDebugEnabled()) {
+            if (log.isDebugEnabled()) {
                 log.debug("Invalid or expired JWT token.", e);
             }
             return null;
@@ -265,23 +258,23 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
     public String getType() {
         return "jwt";
     }
-    
+
     protected String extractSubject(final Claims claims) {
-        String subject = claims.getSubject();        
-        if(subjectKey != null) {
-    		// try to get roles from claims, first as Object to avoid having to catch the ExpectedTypeException
+        String subject = claims.getSubject();
+        if (subjectKey != null) {
+            // try to get roles from claims, first as Object to avoid having to catch the ExpectedTypeException
             Object subjectObject = claims.get(subjectKey, Object.class);
-            if(subjectObject == null) {
+            if (subjectObject == null) {
                 log.warn("Failed to get subject from JWT claims, check if subject_key '{}' is correct.", subjectKey);
                 return null;
             }
-        	// We expect a String. If we find something else, convert to String but issue a warning
-            if(!(subjectObject instanceof String)) {
-        		log.warn("Expected type String for roles in the JWT for subject_key {}, but value was '{}' ({}). Will convert this value to String.", subjectKey, subjectObject, subjectObject.getClass());    					
+            // We expect a String. If we find something else, convert to String but issue a warning
+            if (!(subjectObject instanceof String)) {
+                log.warn("Expected type String for roles in the JWT for subject_key {}, but value was '{}' ({}). Will convert this value to String.",
+                        subjectKey, subjectObject, subjectObject.getClass());
             }
             subject = String.valueOf(subjectObject);
-        }
-        else if (jsonSubjectPath != null) {
+        } else if (jsonSubjectPath != null) {
             try {
                 Object subjectObject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims).read(jsonSubjectPath);
 
@@ -314,26 +307,26 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                 return null;
             }
         }
-        
+
         if (subject != null && subjectPattern != null) {
             Matcher matcher = subjectPattern.matcher(subject);
-            
+
             if (!matcher.matches()) {
                 log.warn("Subject " + subject + " does not match subject_pattern " + subjectPattern);
                 return null;
             }
-            
+
             if (matcher.groupCount() == 1) {
                 subject = matcher.group(1);
             } else if (matcher.groupCount() > 1) {
                 StringBuilder subjectBuilder = new StringBuilder();
-                
+
                 for (int i = 1; i <= matcher.groupCount(); i++) {
                     if (matcher.group(i) != null) {
                         subjectBuilder.append(matcher.group(i));
                     }
                 }
-                
+
                 if (subjectBuilder.length() != 0) {
                     subject = subjectBuilder.toString();
                 } else {
@@ -341,7 +334,7 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                 }
             }
         }
-        
+
         return subject;
     }
 
@@ -390,18 +383,18 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
         }
     }
 
-    private final Deserializer<Map<String, ?>> jsonDeserializer = new Deserializer<Map<String,?>>() {
-        
+    private final Deserializer<Map<String, ?>> jsonDeserializer = new Deserializer<Map<String, ?>>() {
+
         @Override
         public Map<String, ?> deserialize(byte[] bytes) throws DeserializationException {
             try {
                 return DocReader.json().readObject(bytes);
             } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
-               throw new DeserializationException(e.getMessage(), e);
+                throw new DeserializationException(e.getMessage(), e);
             }
         }
     };
-    
+
     public static TypedComponent.Info<LegacyHTTPAuthenticator> INFO = new TypedComponent.Info<LegacyHTTPAuthenticator>() {
 
         @Override

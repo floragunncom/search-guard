@@ -14,12 +14,17 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.actions.watch.ack;
 
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.signals.NoSuchActionException;
+import com.floragunn.signals.NoSuchWatchOnThisNodeException;
+import com.floragunn.signals.NotAcknowledgeableException;
+import com.floragunn.signals.Signals;
+import com.floragunn.signals.SignalsTenant;
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.FailedNodeException;
@@ -36,14 +41,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
-
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.signals.NoSuchActionException;
-import com.floragunn.signals.NoSuchWatchOnThisNodeException;
-import com.floragunn.signals.NotAcknowledgeableException;
-import com.floragunn.signals.Signals;
-import com.floragunn.signals.SignalsTenant;
 
 public class TransportAckWatchAction
         extends TransportNodesAction<AckWatchRequest, AckWatchResponse, TransportAckWatchAction.NodeRequest, TransportAckWatchAction.NodeResponse> {
@@ -133,7 +130,7 @@ public class TransportAckWatchAction
         } catch (NoSuchActionException e) {
             return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.NO_SUCH_ACTION, e.getMessage());
         } catch (NotAcknowledgeableException e) {
-            return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.NOT_ACKNOWLEDGEABLE, e.getMessage());            
+            return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.NOT_ACKNOWLEDGEABLE, e.getMessage());
         } catch (Exception e) {
             log.error("Error while acknowledging " + request.request, e);
             return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.EXCEPTION, e.toString());

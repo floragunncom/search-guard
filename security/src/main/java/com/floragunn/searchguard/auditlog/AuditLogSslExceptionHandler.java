@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,19 +12,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.auditlog;
 
+import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.floragunn.searchguard.ssl.SslExceptionHandler;
-
-public class AuditLogSslExceptionHandler implements SslExceptionHandler{
+public class AuditLogSslExceptionHandler implements SslExceptionHandler {
 
     private final AuditLog auditLog;
 
@@ -60,7 +58,7 @@ public class AuditLogSslExceptionHandler implements SslExceptionHandler{
     public void logError(Throwable t, TransportRequest request, String action, Task task, int type) {
         switch (type) {
         case 0:
-            if(t instanceof ElasticsearchException) {
+            if (t instanceof ElasticsearchException) {
                 auditLog.logMissingPrivileges(action, request, task);
             } else {
                 auditLog.logSSLException(request, t, action, task);

@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,27 +10,7 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.dlic.rest.validation;
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestRequest.Method;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentType;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
@@ -44,6 +23,23 @@ import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestRequest.Method;
+import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentType;
 
 public abstract class AbstractConfigurationValidator {
 
@@ -157,12 +153,12 @@ public abstract class AbstractConfigurationValidator {
         Set<String> requested = new HashSet<String>();
         try {
             contentAsNode = DocNode.parse(Format.JSON).from(content.utf8ToString());
-            
+
             if (contentAsNode == null || contentAsNode.isNull()) {
                 this.errorType = ErrorType.BODY_NOT_PARSEABLE;
                 return false;
-             }
-            
+            }
+
             requested.addAll(ImmutableList.copyOf(contentAsNode.keySet()));
         } catch (Exception e) {
             log.error(ErrorType.BODY_NOT_PARSEABLE.toString(), e);
@@ -221,21 +217,21 @@ public abstract class AbstractConfigurationValidator {
                     if (dataType != null) {
                         JsonToken valueToken = parser.nextToken();
                         switch (dataType) {
-                            case STRING:
-                                if (!valueToken.equals(JsonToken.VALUE_STRING)) {
-                                    wrongDatatypes.put(currentName, "String expected");
-                                }
-                                break;
-                            case ARRAY:
-                                if (!valueToken.equals(JsonToken.START_ARRAY) && !valueToken.equals(JsonToken.END_ARRAY)) {
-                                    wrongDatatypes.put(currentName, "Array expected");
-                                }
-                                break;
-                            case OBJECT:
-                                if (!valueToken.equals(JsonToken.START_OBJECT) && !valueToken.equals(JsonToken.END_OBJECT)) {
-                                    wrongDatatypes.put(currentName, "Object expected");
-                                }
-                                break;
+                        case STRING:
+                            if (!valueToken.equals(JsonToken.VALUE_STRING)) {
+                                wrongDatatypes.put(currentName, "String expected");
+                            }
+                            break;
+                        case ARRAY:
+                            if (!valueToken.equals(JsonToken.START_ARRAY) && !valueToken.equals(JsonToken.END_ARRAY)) {
+                                wrongDatatypes.put(currentName, "Array expected");
+                            }
+                            break;
+                        case OBJECT:
+                            if (!valueToken.equals(JsonToken.START_OBJECT) && !valueToken.equals(JsonToken.END_OBJECT)) {
+                                wrongDatatypes.put(currentName, "Object expected");
+                            }
+                            break;
                         }
                     }
                 }
@@ -252,28 +248,28 @@ public abstract class AbstractConfigurationValidator {
                 builder.field("details", lastException.toString());
             }
             switch (this.errorType) {
-                case INVALID_CONFIGURATION:
-                    builder.field("status", "error");
-                    builder.field("reason", ErrorType.INVALID_CONFIGURATION.getMessage());
-                    addErrorMessage(builder, INVALID_KEYS_KEY, invalidKeys);
-                    addErrorMessage(builder, MISSING_MANDATORY_KEYS_KEY, missingMandatoryKeys);
-                    addErrorMessage(builder, MISSING_MANDATORY_OR_KEYS_KEY, missingMandatoryKeys);
-                    break;
-                case INVALID_PASSWORD:
-                    builder.field("status", "error");
-                    builder.field("reason", esSettings.get(ConfigConstants.SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_ERROR_MESSAGE,
-                            "Password does not match minimum criterias"));
-                    break;
-                case WRONG_DATATYPE:
-                    builder.field("status", "error");
-                    builder.field("reason", ErrorType.WRONG_DATATYPE.getMessage());
-                    for (Entry<String, String> entry : wrongDatatypes.entrySet()) {
-                        builder.field(entry.getKey(), entry.getValue());
-                    }
-                    break;
-                default:
-                    builder.field("status", "error");
-                    builder.field("reason", errorType.getMessage());
+            case INVALID_CONFIGURATION:
+                builder.field("status", "error");
+                builder.field("reason", ErrorType.INVALID_CONFIGURATION.getMessage());
+                addErrorMessage(builder, INVALID_KEYS_KEY, invalidKeys);
+                addErrorMessage(builder, MISSING_MANDATORY_KEYS_KEY, missingMandatoryKeys);
+                addErrorMessage(builder, MISSING_MANDATORY_OR_KEYS_KEY, missingMandatoryKeys);
+                break;
+            case INVALID_PASSWORD:
+                builder.field("status", "error");
+                builder.field("reason", esSettings.get(ConfigConstants.SEARCHGUARD_RESTAPI_PASSWORD_VALIDATION_ERROR_MESSAGE,
+                        "Password does not match minimum criterias"));
+                break;
+            case WRONG_DATATYPE:
+                builder.field("status", "error");
+                builder.field("reason", ErrorType.WRONG_DATATYPE.getMessage());
+                for (Entry<String, String> entry : wrongDatatypes.entrySet()) {
+                    builder.field(entry.getKey(), entry.getValue());
+                }
+                break;
+            default:
+                builder.field("status", "error");
+                builder.field("reason", errorType.getMessage());
             }
             builder.endObject();
             return builder;

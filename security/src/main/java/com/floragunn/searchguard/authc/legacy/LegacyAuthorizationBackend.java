@@ -16,15 +16,13 @@
  */
 package com.floragunn.searchguard.authc.legacy;
 
-import java.util.concurrent.CompletableFuture;
-
-import org.elasticsearch.ElasticsearchSecurityException;
-
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
+import java.util.concurrent.CompletableFuture;
+import org.elasticsearch.ElasticsearchSecurityException;
 
 public interface LegacyAuthorizationBackend extends UserInformationBackend {
     /**
@@ -34,13 +32,14 @@ public interface LegacyAuthorizationBackend extends UserInformationBackend {
      * </P>
      * @param user The authenticated user to populate with backend roles, never null
      * @param credentials Credentials to authenticate to the authorization backend, maybe null.
-     * <em>This parameter is for future usage, currently always empty credentials are passed!</em> 
-     * @throws ElasticsearchSecurityException in case when the authorization backend cannot be reached 
+     * <em>This parameter is for future usage, currently always empty credentials are passed!</em>
+     * @throws ElasticsearchSecurityException in case when the authorization backend cannot be reached
      * or the {@code credentials} are insufficient to authenticate to the authorization backend.
      */
     void fillRoles(User user, AuthCredentials credentials) throws AuthenticatorUnavailableException;
 
-    default CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter) throws AuthenticatorUnavailableException {
+    default CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter)
+            throws AuthenticatorUnavailableException {
         User tempUser = User.forUser(userInformation.getName()).with(userInformation).build();
 
         fillRoles(tempUser, userInformation);

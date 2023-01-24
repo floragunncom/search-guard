@@ -1,23 +1,36 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
+import com.google.common.io.BaseEncoding;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
-
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -36,23 +49,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
-import com.google.common.io.BaseEncoding;
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
 
 public class AuthTokenIntegrationTest {
     private static String SGCONFIG = //
@@ -303,8 +299,7 @@ public class AuthTokenIntegrationTest {
 
                 response = tokenAuthRestClient.postJson("/_searchguard/authtoken", request);
                 Assert.assertEquals(response.getBody(), 403, response.getStatusCode());
-                Assert.assertTrue(response.getBody(),
-                        response.getBody().contains("Insufficient permissions"));
+                Assert.assertTrue(response.getBody(), response.getBody().contains("Insufficient permissions"));
             }
         }
     }
@@ -725,7 +720,7 @@ public class AuthTokenIntegrationTest {
                         "    auth_token_provider: \n" + //
                         "      enabled: true\n" + //
                         "      jwt_signing_key: \n" + //
-                        "        kty: EC\n" + // 
+                        "        kty: EC\n" + //
                         "        d: \"1nlQeqOq48OPWiDkmOIXLF_XBWUe9LSznBvWzPI4Ggo\"\n" + //
                         "        use: sig\n" + "        crv: P-256\n" + //
                         "        x: \"lBybOJZyK6r8Nx54Jn4cKoDUZgyOdLlsQ2EHk-7LStk\"\n" + //
@@ -911,16 +906,16 @@ public class AuthTokenIntegrationTest {
             Assert.assertTrue(response.getBody(), response.toJsonNode().get("enabled").asBoolean());
         }
     }
-    
+
     @Test
     public void bulkConfigApi() throws Exception {
-        
+
         DocNode config = DocNode.of("jwt_signing_key_hs512", TestJwk.OCT_1_K, "max_tokens_per_user", 100, "enabled", true);
-        
-        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {                        
-            HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));                        
+
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
+            HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            
+
             response = restClient.get("/_searchguard/config");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertEquals(config.toMap(), response.getBodyAsDocNode().get("auth_token_service", "content"));

@@ -14,9 +14,11 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -29,7 +31,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -40,10 +41,6 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.joda.time.Instant;
-
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 
 public class TestData {
     private static final Logger log = LogManager.getLogger(TestData.class);
@@ -229,8 +226,7 @@ public class TestData {
     }
 
     private String randomTimestamp(Random random) {
-        long epochMillis = random.longs(1,-2857691960709L, 2857691960709L)
-                .findFirst().getAsLong();
+        long epochMillis = random.longs(1, -2857691960709L, 2857691960709L).findFirst().getAsLong();
         return Instant.ofEpochMilli(epochMillis).toString();
     }
 
@@ -430,9 +426,9 @@ public class TestData {
         public Map<String, ?> getContent() {
             return content;
         }
-        
+
         public String getUri(String index) {
-            return "/" + index + "/_doc/" + id; 
+            return "/" + index + "/_doc/" + id;
         }
     }
 }

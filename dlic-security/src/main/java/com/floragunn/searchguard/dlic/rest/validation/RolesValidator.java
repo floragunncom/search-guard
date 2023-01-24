@@ -1,50 +1,46 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.dlic.rest.validation;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
-import org.bouncycastle.crypto.digests.Blake2bDigest;
-import org.bouncycastle.util.encoders.Hex;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.google.common.base.Splitter;
 import com.google.common.primitives.Bytes;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.ReadContext;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import org.bouncycastle.crypto.digests.Blake2bDigest;
+import org.bouncycastle.util.encoders.Hex;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestRequest;
 
 public class RolesValidator extends AbstractConfigurationValidator {
 
-	public RolesValidator(final RestRequest request, final BytesReference ref, final Settings esSettings, Object... param) {
-		super(request, ref, esSettings, param);
-		this.payloadMandatory = true;
-		allowedKeys.put("cluster_permissions", DataType.ARRAY);
-		allowedKeys.put("tenant_permissions", DataType.ARRAY);
-		allowedKeys.put("index_permissions", DataType.ARRAY);
+    public RolesValidator(final RestRequest request, final BytesReference ref, final Settings esSettings, Object... param) {
+        super(request, ref, esSettings, param);
+        this.payloadMandatory = true;
+        allowedKeys.put("cluster_permissions", DataType.ARRAY);
+        allowedKeys.put("tenant_permissions", DataType.ARRAY);
+        allowedKeys.put("index_permissions", DataType.ARRAY);
         allowedKeys.put("exclude_cluster_permissions", DataType.ARRAY);
         allowedKeys.put("exclude_index_permissions", DataType.ARRAY);
-		allowedKeys.put("description", DataType.STRING);
-	}
+        allowedKeys.put("description", DataType.STRING);
+    }
 
     @Override
     public boolean validate() {
@@ -52,8 +48,8 @@ public class RolesValidator extends AbstractConfigurationValidator {
         if (!super.validate()) {
             return false;
         }
-        
-        boolean valid=true;
+
+        boolean valid = true;
 
         if (this.content != null && this.content.length() > 0) {
 
@@ -61,7 +57,7 @@ public class RolesValidator extends AbstractConfigurationValidator {
             final List<String> maskedFields = ctx.read("$..masked_fields[*]");
 
             if (maskedFields != null) {
-                
+
                 for (String mf : maskedFields) {
                     if (!validateMaskedFieldSyntax(mf)) {
                         valid = false;
@@ -69,9 +65,9 @@ public class RolesValidator extends AbstractConfigurationValidator {
                 }
             }
         }
-        
-        if(!valid) {
-           this.errorType = ErrorType.WRONG_DATATYPE;
+
+        if (!valid) {
+            this.errorType = ErrorType.WRONG_DATATYPE;
         }
 
         return valid;
@@ -79,9 +75,9 @@ public class RolesValidator extends AbstractConfigurationValidator {
 
     private boolean validateMaskedFieldSyntax(String mf) {
         try {
-            new MaskedField(mf, new byte[] {1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,6}, null, null).isValid();
+            new MaskedField(mf, new byte[] { 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 6 }, null, null).isValid();
         } catch (Exception e) {
-            wrongDatatypes.put("Masked field not valid: "+mf, e.getMessage());
+            wrongDatatypes.put("Masked field not valid: " + mf, e.getMessage());
             return false;
         }
         return true;

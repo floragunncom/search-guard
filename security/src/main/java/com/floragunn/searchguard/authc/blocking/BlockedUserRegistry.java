@@ -14,29 +14,26 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.blocking;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.core.Tuple;
 
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.core.Tuple;
 
 public class BlockedUserRegistry {
     protected static final Logger log = LogManager.getLogger(BlockedIpRegistry.class);
 
     private volatile ClientBlockRegistry<String> blockedUsers;
-    
+
     public BlockedUserRegistry(ConfigurationRepository configurationRepository) {
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
 
@@ -46,15 +43,14 @@ public class BlockedUserRegistry {
 
                 if (blocks != null) {
                     blockedUsers = reloadBlockedUsers(blocks);
-                    
+
                     if (log.isDebugEnabled()) {
                         log.debug("Updated confiuration: " + blocks + "\nBlockedUsers: " + blockedUsers);
                     }
-                } 
+                }
             }
         });
     }
-    
 
     public boolean isUserBlocked(String userName) {
         if (userName == null) {
@@ -64,11 +60,9 @@ public class BlockedUserRegistry {
         if (blockedUsers == null) {
             return false;
         }
-        
+
         return blockedUsers.isBlocked(userName);
     }
-    
-    
 
     private ClientBlockRegistry<String> reloadBlockedUsers(SgDynamicConfiguration<Blocks> blocks) {
         Tuple<Set<String>, Set<String>> b = readBlocks(blocks, Blocks.Type.name);

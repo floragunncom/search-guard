@@ -14,11 +14,16 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
+import com.floragunn.signals.watch.init.WatchInitializationService;
 import java.util.concurrent.ExecutionException;
-
+import net.jcip.annotations.NotThreadSafe;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,15 +41,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.signals.watch.Watch;
-import com.floragunn.signals.watch.WatchBuilder;
-import com.floragunn.signals.watch.init.WatchInitializationService;
-
-import net.jcip.annotations.NotThreadSafe;
 
 /**
  * Integration tests for signals.all_tenants_active_by_default: false

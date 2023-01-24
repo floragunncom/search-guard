@@ -1,43 +1,21 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.oidc;
-
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import com.floragunn.codova.documents.Parser;
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtToken;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.client.utils.URLEncodedUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidatingFunction;
@@ -62,6 +40,24 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
 import com.google.common.hash.Hashing;
 import com.google.common.io.BaseEncoding;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(OidcAuthenticator.class);
@@ -80,7 +76,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final String logoutUrl;
     private final boolean usePkce;
     private final boolean useUserInfoEndpoint;
-    
+
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "oidc", OidcAuthenticator.class).initialized()
             .requiresEnterpriseLicense();
 
@@ -258,8 +254,8 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         debugDetails.put("state", state);
 
         if (!Objects.equals(expectedStateToken, actualStateToken)) {
-            throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false,
-                    "Invalid state token: " + expectedStateToken + "/" + actualStateToken, debugDetails));
+            throw new CredentialsException(
+                    new AuthcResult.DebugInfo(getType(), false, "Invalid state token: " + expectedStateToken + "/" + actualStateToken, debugDetails));
         }
 
         String oidcRedirectUri = getLoginPostURI(frontendBaseUrl).toASCIIString();
@@ -311,8 +307,8 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             debugDetails.put("oidc_user_info", userInfo);
 
             if (!userInfoSubject.equals(jwt.getClaims().getSubject())) {
-                throw new CredentialsException(new AuthcResult.DebugInfo(getType(), false,
-                        "sub claim from user info does not match sub claim from ID token", debugDetails));
+                throw new CredentialsException(
+                        new AuthcResult.DebugInfo(getType(), false, "sub claim from user info does not match sub claim from ID token", debugDetails));
             }
 
         }

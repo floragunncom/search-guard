@@ -14,23 +14,20 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.certificate;
 
 import static com.floragunn.searchguard.test.helper.certificate.TestCertificateFactory.rsaBaseCertificateFactory;
 import static java.util.Collections.emptyList;
 
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Function;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class TestCertificates {
 
@@ -41,8 +38,9 @@ public class TestCertificates {
     private final List<TestCertificate> nodeCertificates;
     private final List<TestCertificate> clientCertificates;
     private final File resources;
-    
-    private TestCertificates(TestCertificate caCertificate, List<TestCertificate> nodeCertificates, List<TestCertificate> clientCertificates, TestCertificateFactory testCertificateFactory, File resources) {
+
+    private TestCertificates(TestCertificate caCertificate, List<TestCertificate> nodeCertificates, List<TestCertificate> clientCertificates,
+            TestCertificateFactory testCertificateFactory, File resources) {
         this.caCertificate = caCertificate;
         this.nodeCertificates = nodeCertificates;
         this.clientCertificates = clientCertificates;
@@ -89,13 +87,13 @@ public class TestCertificates {
     public TestCertificate create(String dn) {
         String privateKeyPassword = "secret_" + (new Random().nextInt());
         TestCertificatesBuilder.CertificatesDefaults certificatesDefaults = new TestCertificatesBuilder.CertificatesDefaults();
-        
+
         CertificateWithKeyPair certificateWithKeyPair = testCertificateFactory.createClientCertificate(dn, certificatesDefaults.validityDays,
                 caCertificate.getCertificate(), caCertificate.getKeyPair().getPrivate());
-        return new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(),
-                privateKeyPassword, CertificateType.other, resources);
+        return new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(), privateKeyPassword,
+                CertificateType.other, resources);
     }
-    
+
     /**
      * Uses: {@link TestCertificateFactory#rsaBaseCertificateFactory(java.security.Provider)} as {@link TestCertificateFactory}
      */

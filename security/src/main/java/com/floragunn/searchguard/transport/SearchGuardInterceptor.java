@@ -14,9 +14,20 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.transport;
 
+import com.floragunn.searchguard.GuiceDependencies;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.ClusterInfoHolder;
+import com.floragunn.searchguard.ssl.SslExceptionHandler;
+import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
+import com.floragunn.searchguard.support.Base64Helper;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,7 +39,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction;
@@ -53,19 +63,6 @@ import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
 
-import com.floragunn.searchguard.GuiceDependencies;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.ClusterInfoHolder;
-import com.floragunn.searchguard.ssl.SslExceptionHandler;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.support.Base64Helper;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.diag.DiagnosticContext;
-import com.google.common.collect.Maps;
-
 public class SearchGuardInterceptor {
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
@@ -82,10 +79,9 @@ public class SearchGuardInterceptor {
     private final GuiceDependencies guiceDependencies;
     private final AdminDNs adminDns;
 
-    public SearchGuardInterceptor(Settings settings, ThreadPool threadPool,AuditLog auditLog,
-            PrincipalExtractor principalExtractor, InterClusterRequestEvaluator requestEvalProvider, ClusterService cs,
-            SslExceptionHandler sslExceptionHandler, ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies,
-            DiagnosticContext diagnosticContext, AdminDNs adminDns) {
+    public SearchGuardInterceptor(Settings settings, ThreadPool threadPool, AuditLog auditLog, PrincipalExtractor principalExtractor,
+            InterClusterRequestEvaluator requestEvalProvider, ClusterService cs, SslExceptionHandler sslExceptionHandler,
+            ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies, DiagnosticContext diagnosticContext, AdminDNs adminDns) {
         this.auditLog = auditLog;
         this.threadPool = threadPool;
         this.principalExtractor = principalExtractor;
@@ -99,15 +95,14 @@ public class SearchGuardInterceptor {
         this.adminDns = adminDns;
     }
 
-    public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action,
-            TransportRequestHandler<T> actualHandler) {
-        return new SearchGuardRequestHandler<T>(action, actualHandler, threadPool, auditLog,
-                principalExtractor, requestEvalProvider, cs, sslExceptionHandler, adminDns);
+    public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action, TransportRequestHandler<T> actualHandler) {
+        return new SearchGuardRequestHandler<T>(action, actualHandler, threadPool, auditLog, principalExtractor, requestEvalProvider, cs,
+                sslExceptionHandler, adminDns);
     }
 
-    public <T extends TransportResponse> void sendRequestDecorate(AsyncSender sender, Connection connection, String action,
-            TransportRequest request, TransportRequestOptions options, TransportResponseHandler<T> handler) {
-        
+    public <T extends TransportResponse> void sendRequestDecorate(AsyncSender sender, Connection connection, String action, TransportRequest request,
+            TransportRequestOptions options, TransportResponseHandler<T> handler) {
+
         final Map<String, String> origHeaders0 = getThreadContext().getHeaders();
         final User user0 = getThreadContext().getTransient(ConfigConstants.SG_USER);
         final String origin0 = getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
@@ -116,38 +111,28 @@ public class SearchGuardInterceptor {
         final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
         String actionStack = diagnosticContext.getActionStack();
-                  
+
         //stash headers and transient objects
         try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
-            
+
             final TransportResponseHandler<T> restoringHandler = new RestoringTransportResponseHandler<T>(handler, stashedContext);
             getThreadContext().putHeader("_sg_remotecn", cs.getClusterName().value());
-                        
-            final Map<String, String> headerMap = new HashMap<>(Maps.filterKeys(origHeaders0, k->k!=null && (
-                    k.equals(ConfigConstants.SG_CONF_REQUEST_HEADER)
-                    || k.equals(ConfigConstants.SG_ORIGIN_HEADER)
-                    || k.equals(ConfigConstants.SG_REMOTE_ADDRESS_HEADER)
-                    || k.equals(ConfigConstants.SG_USER_HEADER)
-                    || k.equals(ConfigConstants.SG_DLS_QUERY_HEADER)
-                    || k.equals(ConfigConstants.SG_FLS_FIELDS_HEADER)
-                    || k.equals(ConfigConstants.SG_MASKED_FIELD_HEADER)
-                    || k.equals(ConfigConstants.SG_DOC_WHITELST_HEADER)
-                    || k.equals(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE)
-                    || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
-                    || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER)
-                    || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
-                    || k.startsWith("_sg_trace")
-                    || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
-                    || checkCustomAllowedHeader(k)
-                    )));
-            
+
+            final Map<String, String> headerMap = new HashMap<>(Maps.filterKeys(origHeaders0,
+                    k -> k != null && (k.equals(ConfigConstants.SG_CONF_REQUEST_HEADER) || k.equals(ConfigConstants.SG_ORIGIN_HEADER)
+                            || k.equals(ConfigConstants.SG_REMOTE_ADDRESS_HEADER) || k.equals(ConfigConstants.SG_USER_HEADER)
+                            || k.equals(ConfigConstants.SG_DLS_QUERY_HEADER) || k.equals(ConfigConstants.SG_FLS_FIELDS_HEADER)
+                            || k.equals(ConfigConstants.SG_MASKED_FIELD_HEADER) || k.equals(ConfigConstants.SG_DOC_WHITELST_HEADER)
+                            || k.equals(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE) || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
+                            || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER)
+                            || (k.equals("_sg_source_field_context") && !(request instanceof SearchRequest) && !(request instanceof GetRequest))
+                            || k.startsWith("_sg_trace") || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
+                            || checkCustomAllowedHeader(k))));
+
             RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
-                        
-            if (remoteClusterService.isCrossClusterSearchEnabled() 
-                    && clusterInfoHolder.isInitialized()
-                    && (action.equals(ClusterSearchShardsAction.NAME)
-                            || action.equals(SearchAction.NAME) 
-)
+
+            if (remoteClusterService.isCrossClusterSearchEnabled() && clusterInfoHolder.isInitialized()
+                    && (action.equals(ClusterSearchShardsAction.NAME) || action.equals(SearchAction.NAME))
                     && !clusterInfoHolder.hasNode(connection.getNode())) {
                 if (log.isDebugEnabled()) {
                     log.debug("remove dls/fls/mf because we sent a ccs request to a remote cluster");
@@ -160,17 +145,14 @@ public class SearchGuardInterceptor {
                 headerMap.remove(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER);
                 headerMap.remove(ConfigConstants.SG_DOC_WHITELST_HEADER);
             }
-            
-            if (remoteClusterService.isCrossClusterSearchEnabled() 
-                  && clusterInfoHolder.isInitialized()
-                  && !action.startsWith("internal:") 
-                  && !action.equals(ClusterSearchShardsAction.NAME) 
-                  && !clusterInfoHolder.hasNode(connection.getNode())) {
-                
+
+            if (remoteClusterService.isCrossClusterSearchEnabled() && clusterInfoHolder.isInitialized() && !action.startsWith("internal:")
+                    && !action.equals(ClusterSearchShardsAction.NAME) && !clusterInfoHolder.hasNode(connection.getNode())) {
+
                 if (log.isDebugEnabled()) {
                     log.debug("add dls/fls/mf from transient");
                 }
-                
+
                 if (origCCSTransientDls != null && !origCCSTransientDls.isEmpty()) {
                     headerMap.put(ConfigConstants.SG_DLS_QUERY_HEADER, origCCSTransientDls);
                 }
@@ -179,19 +161,21 @@ public class SearchGuardInterceptor {
                 }
                 if (origCCSTransientFls != null && !origCCSTransientFls.isEmpty()) {
                     headerMap.put(ConfigConstants.SG_FLS_FIELDS_HEADER, origCCSTransientFls);
-                }               
+                }
             }
 
             if (actionStack != null) {
                 getThreadContext().putHeader(DiagnosticContext.ACTION_STACK_HEADER, actionStack);
             }
-            
+
             getThreadContext().putHeader(headerMap);
 
             ensureCorrectHeaders(remoteAdress0, user0, origin0);
 
-            if(actionTrace.isTraceEnabled()) {
-                getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" IC -> "+action+" "+getThreadContext().getHeaders().entrySet().stream().filter(p->!p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
+            if (actionTrace.isTraceEnabled()) {
+                getThreadContext().putHeader("_sg_trace" + System.currentTimeMillis() + "#" + UUID.randomUUID().toString(),
+                        Thread.currentThread().getName() + " IC -> " + action + " " + getThreadContext().getHeaders().entrySet().stream()
+                                .filter(p -> !p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
             }
 
             sender.sendRequest(connection, action, request, options, restoringHandler);
@@ -201,11 +185,12 @@ public class SearchGuardInterceptor {
     private void ensureCorrectHeaders(final Object remoteAdr, final User origUser, final String origin) {
         // keep original address
 
-        if(origin != null && !origin.isEmpty() /*&& !Origin.LOCAL.toString().equalsIgnoreCase(origin)*/ && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
+        if (origin != null && !origin.isEmpty() /*&& !Origin.LOCAL.toString().equalsIgnoreCase(origin)*/
+                && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
             getThreadContext().putHeader(ConfigConstants.SG_ORIGIN_HEADER, origin);
         }
 
-        if(origin == null && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
+        if (origin == null && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
             getThreadContext().putHeader(ConfigConstants.SG_ORIGIN_HEADER, Origin.LOCAL.toString());
         }
 
@@ -213,15 +198,16 @@ public class SearchGuardInterceptor {
 
             String remoteAddressHeader = getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER);
 
-            if(remoteAddressHeader == null) {
-                getThreadContext().putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(((TransportAddress) remoteAdr).address()));
+            if (remoteAddressHeader == null) {
+                getThreadContext().putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER,
+                        Base64Helper.serializeObject(((TransportAddress) remoteAdr).address()));
             }
         }
 
-        if(origUser != null) {
+        if (origUser != null) {
             String userHeader = getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER);
 
-            if(userHeader == null) {
+            if (userHeader == null) {
                 getThreadContext().putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(origUser));
             }
         }
@@ -231,32 +217,32 @@ public class SearchGuardInterceptor {
         return threadPool.getThreadContext();
     }
 
-    private boolean checkCustomAllowedHeader(String headerKey) {        
+    private boolean checkCustomAllowedHeader(String headerKey) {
         if (headerKey.startsWith(ConfigConstants.SG_CONFIG_PREFIX)) {
             // SG specific headers are sensitive and thus should not be externally manipulated
             return false;
         }
-        
+
         if (headerKey.equals(Task.X_OPAQUE_ID_HTTP_HEADER)) {
             // This is included anyway. Including it again would cause an error.
             return false;
         }
-        
+
         if (customAllowedHeaderPatterns.size() == 0) {
             return false;
         }
-        
+
         for (Pattern pattern : customAllowedHeaderPatterns) {
             Matcher matcher = pattern.matcher(headerKey);
-            
+
             if (matcher.matches()) {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     private static List<Pattern> getCustomAllowedHeaderPatterns(Settings settings) {
         List<String> patternStrings = settings.getAsList(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, Collections.emptyList());
         List<Pattern> result = new ArrayList<>(patternStrings.size());
@@ -272,7 +258,7 @@ public class SearchGuardInterceptor {
         return Collections.unmodifiableList(result);
     }
 
-     //based on
+    //based on
     //org.elasticsearch.transport.TransportService.ContextRestoreResponseHandler<T>
     //which is private scoped
     private class RestoringTransportResponseHandler<T extends TransportResponse> implements TransportResponseHandler<T> {
@@ -301,7 +287,7 @@ public class SearchGuardInterceptor {
 
             contextToRestore.restore();
 
-            if (response instanceof ClusterSearchShardsResponse) {           
+            if (response instanceof ClusterSearchShardsResponse) {
                 if (flsResponseHeader != null && !flsResponseHeader.isEmpty()) {
                     threadContext.putTransient(ConfigConstants.SG_FLS_FIELDS_CCS, flsResponseHeader.get(0));
                 }

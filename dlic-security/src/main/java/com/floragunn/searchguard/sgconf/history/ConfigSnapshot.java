@@ -1,23 +1,20 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.sgconf.history;
-
-import java.util.Map;
 
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import java.util.Map;
 
 public class ConfigSnapshot {
     private final Map<CType<?>, SgDynamicConfiguration<?>> configByType;
@@ -67,7 +64,7 @@ public class ConfigSnapshot {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public <T> SgDynamicConfiguration<T> getConfigByType(Class<T> configType) {
         SgDynamicConfiguration config = getConfigByType(CType.getByClass(configType));
-        
+
         return (SgDynamicConfiguration<T>) config;
     }
 

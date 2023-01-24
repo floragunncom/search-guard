@@ -14,19 +14,17 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.privileges.extended_action_handling;
 
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
-
-import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
 
 public class ExtendedActionHandlingService {
     private final ResourceOwnerService resourceOwnerService;

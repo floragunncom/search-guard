@@ -1,6 +1,5 @@
 /*
- * Copyright 2017-2021 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2017-2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,12 +10,15 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.femt;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.DocWriteResponse;
@@ -44,12 +46,6 @@ import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.codova.config.text.Pattern;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.google.common.collect.ImmutableMap;
 
 public class MultitenancyTests {
 
@@ -169,7 +165,7 @@ public class MultitenancyTests {
             Assert.assertTrue(res.getBody().contains("\"result\" : \"created\""));
 
             Assert.assertEquals(HttpStatus.SC_OK, (res = client.get("_cat/indices")).getStatusCode());
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));            
+            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
         }
     }
 

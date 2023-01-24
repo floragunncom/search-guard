@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,18 +10,7 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls;
-
-import java.util.Set;
-import java.util.regex.Pattern;
-
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.fluent.collections.ImmutableList;
@@ -36,6 +24,14 @@ import com.jayway.jsonpath.Configuration.Defaults;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
+import java.util.Set;
+import java.util.regex.Pattern;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.settings.Settings;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class FmIntTest {
     static {

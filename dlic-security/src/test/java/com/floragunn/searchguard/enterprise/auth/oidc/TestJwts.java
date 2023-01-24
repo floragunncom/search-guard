@@ -1,22 +1,21 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
 import java.util.Set;
-
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jws.JwsHeaders;
 import org.apache.cxf.rs.security.jose.jws.JwsSignatureProvider;
@@ -26,9 +25,6 @@ import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.util.Strings;
-
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
 public class TestJwts {
     public static final String ROLES_CLAIM = "roles";
@@ -69,7 +65,7 @@ public class TestJwts {
 
     public static class PeculiarEscaping {
         // CXF starting with 3.3.11 can be no longer used to create the peculiar escaping: https://github.com/apache/cxf/pull/819
-        // Thus, we need to hardcode the value here. This was produced with 
+        // Thus, we need to hardcode the value here. This was produced with
         //         jwsHeaders.setKeyId(jwk.getKeyId().replace("/", "\\/"));
         public static final String MC_COY_SIGNED_RSA_1 = "eyJraWQiOiJraWRcLzEiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJMZW9uYXJkIE1jQ295IiwiYXVkIjoiVGVzdEF1ZGllbmNlIiwicm9sZXMiOiJyb2xlMSxyb2xlMiJ9.C0ntlhZtalpOYzgrzq_I4c6NxeQEmUk9Id5fVI6SXLIyscBrpS8nQ3bZrtX3qDiCYZDbp5n1OJMp3nhC7Ro2qdWjFe3FRSewKyZSowzVdQSlPetEsyLh3KdEs2ZPx3vry_y8SeCcJw_tiUOysceTMKzseL3DzF2PmoRRARLbQVI6zQvanRC8-WREraA2gTXpv_R-haOy7sf00VQhjGPMTCjqxXTfO6gzCz5-02tpGOOooQ8BcPy_At0nKjmuZgw_jODTL4TYs_T48M9tHxuY02qF3zv6iLonFz1mrb7Ff-65OUo4QVfqiOMxCOAe1JFP9o1tbtgaoiaWVznezjRK6A";
     }

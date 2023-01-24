@@ -12,22 +12,21 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
-
 package com.floragunn.searchguard.authc.rest;
 
-import org.elasticsearch.rest.RestHandler;
-
 import com.floragunn.searchguard.authc.RequestMetaData;
+import org.elasticsearch.rest.RestHandler;
 
 public interface TenantAwareRestHandler extends RestHandler {
     default String getTenantParamName() {
         return "tenant";
     }
 
-    default String getTenantName(RequestMetaData<?> request) {      
+    default String getTenantName(RequestMetaData<?> request) {
         String result = request.getParam(getTenantParamName());
-        
+
         if ("_main".equals(result)) {
             return null;
         } else {

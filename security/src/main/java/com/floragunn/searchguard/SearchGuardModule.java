@@ -14,9 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authc.AuthenticationDomain;
+import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchsupport.StaticSettings;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,7 +30,6 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -46,14 +51,6 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
-
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authc.AuthenticationDomain;
-import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
-import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchsupport.StaticSettings;
 
 public interface SearchGuardModule {
     default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
@@ -97,7 +94,7 @@ public interface SearchGuardModule {
     default ImmutableSet<String> getPublicCapabilities() {
         return ImmutableSet.empty();
     }
-    
+
     /**
      * These readers are not executed when an admin certificate user has initiated the operation
      */
@@ -111,7 +108,7 @@ public interface SearchGuardModule {
     default ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> getDirectoryReaderWrappersForAllOperations() {
         return ImmutableList.empty();
     }
-    
+
     default ImmutableList<SearchOperationListener> getSearchOperationListeners() {
         return ImmutableList.empty();
     }

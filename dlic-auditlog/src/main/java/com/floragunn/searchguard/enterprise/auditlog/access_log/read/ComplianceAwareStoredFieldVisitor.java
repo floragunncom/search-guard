@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -13,10 +12,9 @@
  */
 package com.floragunn.searchguard.enterprise.auditlog.access_log.read;
 
+import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
 import java.io.IOException;
 import java.util.function.Function;
-
-import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.StoredFieldVisitor;
 

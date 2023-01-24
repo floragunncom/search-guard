@@ -1,6 +1,5 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -13,16 +12,15 @@
  */
 package com.floragunn.searchguard.enterprise.dlsfls.lucene;
 
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsLicenseInfo;
+import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
+import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.ShardId;
-
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsLicenseInfo;
-import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
-import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
 
 public class DlsFlsActionContext {
     private final FlsRule flsRule;
@@ -34,8 +32,8 @@ public class DlsFlsActionContext {
     private final FieldMaskingRule fieldMaskingRule;
     private final ShardId shardId;
 
-    public DlsFlsActionContext(Query dlsQuery, FlsRule flsRule, FieldMaskingRule fieldMaskingRule, IndexService indexService, ThreadContext threadContext,
-            DlsFlsLicenseInfo licenseInfo, AuditLog auditlog, ShardId shardId) {
+    public DlsFlsActionContext(Query dlsQuery, FlsRule flsRule, FieldMaskingRule fieldMaskingRule, IndexService indexService,
+            ThreadContext threadContext, DlsFlsLicenseInfo licenseInfo, AuditLog auditlog, ShardId shardId) {
         this.dlsQuery = dlsQuery;
         this.flsRule = flsRule;
         this.indexService = indexService;

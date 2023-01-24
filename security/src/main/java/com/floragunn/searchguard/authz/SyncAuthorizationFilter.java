@@ -14,11 +14,9 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
 
 import java.util.stream.Collectors;
-
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.rest.RestStatus;
@@ -52,7 +50,7 @@ public interface SyncAuthorizationFilter {
         public Result cause(Exception exception) {
             return new Result(this.status, this.reason, exception);
         }
-        
+
         public static enum Status {
             OK, DENIED, INTERCEPTED;
         }

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchsupport.reflection;
 
 import java.lang.reflect.Method;
@@ -5,7 +21,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-
 import org.elasticsearch.SpecialPermission;
 
 public class ReflectiveAttributeAccessors {
@@ -16,7 +31,7 @@ public class ReflectiveAttributeAccessors {
     public static <O, R> Function<O, R> objectAttr(String name, Class<R> type) {
         return new ReflectiveAttributeGetter<O, R>(name, type);
     }
-    
+
     public static <O, R> Function<O, R> protectedObjectAttr(String name, Class<R> type) {
         return new ProtectedReflectiveAttributeGetter<O, R>(name, type);
     }
@@ -100,7 +115,6 @@ public class ReflectiveAttributeAccessors {
         }
     }
 
-    
     static class ReflectiveAttributeSetter<O, R> implements BiFunction<O, R, Void> {
         private final String attribute;
         private final String methodName;

@@ -1,6 +1,5 @@
 /*
- * Copyright 2021 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,16 +10,17 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
 import static com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsTermsLookupAsserts.assertAccessCodesMatch;
 
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -55,17 +55,14 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-
 public class DlsTermsLookupTest2 {
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().ignoreUnauthorizedIndices(true)
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled()
+            .ignoreUnauthorizedIndices(true)
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*").on("tlqdummy").indexPermissions("*").dls(
                     "{ \"terms\": { \"access_codes\": { \"index\": \"user_access_codes\", \"id\": \"${user.name}\", \"path\": \"access_codes\" } } }")
                     .on("tlqdocuments")
@@ -162,7 +159,7 @@ public class DlsTermsLookupTest2 {
     public void testSimpleSearch_AccessCode_1337() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337", "password")) {
             SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
-            // 10 docs, all need to have access code 1337    
+            // 10 docs, all need to have access code 1337
             Assert.assertEquals(searchResponse.toString(), 10, searchResponse.getHits().getTotalHits().value);
             // fields need to have 1337 access code
             assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 1337 });
@@ -173,7 +170,7 @@ public class DlsTermsLookupTest2 {
     public void testSimpleSearch_AccessCode_42() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_42", "password")) {
             SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
-            // 10 docs, all need to have access code 42    
+            // 10 docs, all need to have access code 42
             Assert.assertEquals(searchResponse.toString(), 10, searchResponse.getHits().getTotalHits().value);
             // fields need to have 42 access code
             assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 42 });
@@ -184,7 +181,7 @@ public class DlsTermsLookupTest2 {
     public void testSimpleSearch_AccessCodes_1337_42() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_1337_42", "password")) {
             SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
-            // 15 docs, all need to have either access code 1337 or 42    
+            // 15 docs, all need to have either access code 1337 or 42
             Assert.assertEquals(searchResponse.toString(), 15, searchResponse.getHits().getTotalHits().value);
             // fields need to have 42 or 1337 access code
             assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 42, 1337 });
@@ -195,7 +192,7 @@ public class DlsTermsLookupTest2 {
     public void testSimpleSearch_AccessCodes_999() throws Exception {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient("tlq_999", "password")) {
             SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
-            // no docs match, expect empty result    
+            // no docs match, expect empty result
             Assert.assertEquals(searchResponse.toString(), 0, searchResponse.getHits().getTotalHits().value);
         }
     }
@@ -237,7 +234,7 @@ public class DlsTermsLookupTest2 {
             // assume hits from 2 indices:
             // - tlqdocuments, must contain only docs with access code 1337
             // - tlqdummy, contains all documents
-            // no access to user_access_codes must be granted 
+            // no access to user_access_codes must be granted
 
             // check all 5 tlqdummy entries present, index is not protected by DLS
             Set<SearchHit> tlqdummyHits = Arrays.asList(searchResponse.getHits().getHits()).stream().filter((h) -> h.getIndex().equals("tlqdummy"))
@@ -268,7 +265,7 @@ public class DlsTermsLookupTest2 {
             // assume hits from 2 indices:
             // - tlqdocuments, must contain only docs with access code 1337
             // - tlqdummy, contains all documents
-            // no access to user_access_codes must be granted 
+            // no access to user_access_codes must be granted
 
             // check all 5 tlqdummy entries present, index is not protected by DLS
             Set<SearchHit> tlqdummyHits = Arrays.asList(searchResponse.getHits().getHits()).stream().filter((h) -> h.getIndex().equals("tlqdummy"))
@@ -300,14 +297,14 @@ public class DlsTermsLookupTest2 {
             // assume hits from 2 indices:
             // - tlqdocuments, must contain only docs with access code 1337
             // - tlqdummy, contains all documents
-            // no access to user_access_codes must be granted 
+            // no access to user_access_codes must be granted
 
             // check all 5 tlqdummy entries present, index is not protected by DLS
             Set<SearchHit> tlqdummyHits = Arrays.asList(searchResponse.getHits().getHits()).stream().filter((h) -> h.getIndex().equals("tlqdummy"))
                     .collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 5, tlqdummyHits.size());
 
-            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered            
+            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
             Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
                     .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
@@ -338,7 +335,7 @@ public class DlsTermsLookupTest2 {
                     .collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 5, tlqdummyHits.size());
 
-            // ccheck 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered         
+            // ccheck 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
             Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
                     .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());

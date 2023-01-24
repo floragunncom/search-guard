@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2021 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.ssl.test.helper.rest;
 
+import com.floragunn.searchguard.ssl.test.helper.cluster.ClusterInfo;
+import com.floragunn.searchguard.ssl.test.helper.file.FileHelper;
+import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -26,9 +28,7 @@ import java.security.KeyStore;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import javax.net.ssl.SSLContext;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -54,131 +54,128 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.floragunn.searchguard.ssl.test.helper.cluster.ClusterInfo;
-import com.floragunn.searchguard.ssl.test.helper.file.FileHelper;
-import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
-
 public class RestHelper {
 
-	protected final Logger log = LogManager.getLogger(RestHelper.class);
-	
-	public boolean enableHTTPClientSSL = true;
-	public boolean enableHTTPClientSSLv3Only = false;
-	public boolean sendHTTPClientCertificate = false;
-	public boolean trustHTTPServerCertificate = true;
-	public String keystore = "node-0-keystore.jks";
-	public final String resourceFolder;
-	//public String truststore = "truststore.jks";
-	private ClusterInfo clusterInfo;
-	private int nodeIndex = -1;
-	private GenericSSLConfig sslConfig;
-	private  RequestConfig requestConfig;
-	
-	public RestHelper(ClusterInfo clusterInfo, String resourceFolder) {
-		this.clusterInfo = clusterInfo;
-		this.resourceFolder = resourceFolder;
-	}
-	
-	public RestHelper(ClusterInfo clusterInfo, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String resourceFolder) {
-		this.clusterInfo = clusterInfo;
-		this.enableHTTPClientSSL = enableHTTPClientSSL;
-		this.trustHTTPServerCertificate = trustHTTPServerCertificate;
-		this.resourceFolder = resourceFolder;
-	}
-	public String executeSimpleRequest(final String request) throws Exception {
+    protected final Logger log = LogManager.getLogger(RestHelper.class);
 
-		CloseableHttpClient httpClient = null;
-		CloseableHttpResponse response = null;
-		try {
-			httpClient = getHTTPClient();
-			response = httpClient.execute(new HttpGet(getHttpServerUri() + "/" + request));
+    public boolean enableHTTPClientSSL = true;
+    public boolean enableHTTPClientSSLv3Only = false;
+    public boolean sendHTTPClientCertificate = false;
+    public boolean trustHTTPServerCertificate = true;
+    public String keystore = "node-0-keystore.jks";
+    public final String resourceFolder;
+    //public String truststore = "truststore.jks";
+    private ClusterInfo clusterInfo;
+    private int nodeIndex = -1;
+    private GenericSSLConfig sslConfig;
+    private RequestConfig requestConfig;
 
-			if (response.getStatusLine().getStatusCode() >= 300) {
-				throw new Exception("Statuscode " + response.getStatusLine().getStatusCode());
-			}
+    public RestHelper(ClusterInfo clusterInfo, String resourceFolder) {
+        this.clusterInfo = clusterInfo;
+        this.resourceFolder = resourceFolder;
+    }
 
-			return IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
-		} finally {
+    public RestHelper(ClusterInfo clusterInfo, boolean enableHTTPClientSSL, boolean trustHTTPServerCertificate, String resourceFolder) {
+        this.clusterInfo = clusterInfo;
+        this.enableHTTPClientSSL = enableHTTPClientSSL;
+        this.trustHTTPServerCertificate = trustHTTPServerCertificate;
+        this.resourceFolder = resourceFolder;
+    }
 
-			if (response != null) {
-				response.close();
-			}
+    public String executeSimpleRequest(final String request) throws Exception {
 
-			if (httpClient != null) {
-				httpClient.close();
-			}
-		}
-	}
+        CloseableHttpClient httpClient = null;
+        CloseableHttpResponse response = null;
+        try {
+            httpClient = getHTTPClient();
+            response = httpClient.execute(new HttpGet(getHttpServerUri() + "/" + request));
 
-	public HttpResponse executeGetRequest(final String request, Header... header) throws Exception {
-	    return executeRequest(new HttpGet(getHttpServerUri() + "/" + request), header);
-	}
-	
-	public HttpResponse executeHeadRequest(final String request, Header... header) throws Exception {
+            if (response.getStatusLine().getStatusCode() >= 300) {
+                throw new Exception("Statuscode " + response.getStatusLine().getStatusCode());
+            }
+
+            return IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
+        } finally {
+
+            if (response != null) {
+                response.close();
+            }
+
+            if (httpClient != null) {
+                httpClient.close();
+            }
+        }
+    }
+
+    public HttpResponse executeGetRequest(final String request, Header... header) throws Exception {
+        return executeRequest(new HttpGet(getHttpServerUri() + "/" + request), header);
+    }
+
+    public HttpResponse executeHeadRequest(final String request, Header... header) throws Exception {
         return executeRequest(new HttpHead(getHttpServerUri() + "/" + request), header);
     }
 
-	public HttpResponse executeOptionsRequest(final String request) throws Exception {
+    public HttpResponse executeOptionsRequest(final String request) throws Exception {
         return executeRequest(new HttpOptions(getHttpServerUri() + "/" + request));
     }
 
-	public HttpResponse executePutRequest(final String request, String body, Header... header) throws Exception {
-		HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + request);
-		if (body != null && !body.isEmpty()) {
-			uriRequest.setEntity(new StringEntity(body));
-		}
-		return executeRequest(uriRequest, header);
-	}
+    public HttpResponse executePutRequest(final String request, String body, Header... header) throws Exception {
+        HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + request);
+        if (body != null && !body.isEmpty()) {
+            uriRequest.setEntity(new StringEntity(body));
+        }
+        return executeRequest(uriRequest, header);
+    }
 
-	public HttpResponse executeDeleteRequest(final String request, Header... header) throws Exception {
-		return executeRequest(new HttpDelete(getHttpServerUri() + "/" + request), header);
-	}
+    public HttpResponse executeDeleteRequest(final String request, Header... header) throws Exception {
+        return executeRequest(new HttpDelete(getHttpServerUri() + "/" + request), header);
+    }
 
-	public HttpResponse executePostRequest(final String request, String body, Header... header) throws Exception {
-		HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + request);
-		if (body != null && !body.isEmpty()) {
-			uriRequest.setEntity(new StringEntity(body));
-		}
+    public HttpResponse executePostRequest(final String request, String body, Header... header) throws Exception {
+        HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + request);
+        if (body != null && !body.isEmpty()) {
+            uriRequest.setEntity(new StringEntity(body));
+        }
 
-		return executeRequest(uriRequest, header);
-	}
-	
+        return executeRequest(uriRequest, header);
+    }
+
     public HttpResponse executePatchRequest(final String request, String body, Header... header) throws Exception {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + request);
         if (body != null && !body.isEmpty()) {
             uriRequest.setEntity(new StringEntity(body));
         }
         return executeRequest(uriRequest, header);
-    }	
-	
-	public HttpResponse executeRequest(HttpUriRequest uriRequest, Header... header) throws Exception {
+    }
 
-		CloseableHttpClient httpClient = null;
-		try {
+    public HttpResponse executeRequest(HttpUriRequest uriRequest, Header... header) throws Exception {
 
-			httpClient = getHTTPClient();
+        CloseableHttpClient httpClient = null;
+        try {
 
-			if (header != null && header.length > 0) {
-				for (int i = 0; i < header.length; i++) {
-					Header h = header[i];
-					uriRequest.addHeader(h);
-				}
-			}
+            httpClient = getHTTPClient();
 
-			if (!uriRequest.containsHeader("Content-Type")) {
-			    uriRequest.addHeader("Content-Type","application/json");
-			}
-			HttpResponse res = new HttpResponse(httpClient.execute(uriRequest));
-			log.debug(res.getBody());
-			return res;
-		} finally {
+            if (header != null && header.length > 0) {
+                for (int i = 0; i < header.length; i++) {
+                    Header h = header[i];
+                    uriRequest.addHeader(h);
+                }
+            }
 
-			if (httpClient != null) {
-				httpClient.close();
-			}
-		}
-	}
-	
+            if (!uriRequest.containsHeader("Content-Type")) {
+                uriRequest.addHeader("Content-Type", "application/json");
+            }
+            HttpResponse res = new HttpResponse(httpClient.execute(uriRequest));
+            log.debug(res.getBody());
+            return res;
+        } finally {
+
+            if (httpClient != null) {
+                httpClient.close();
+            }
+        }
+    }
+
     protected final String getHttpServerUri() {
         if (nodeIndex == -1) {
             return "http" + (enableHTTPClientSSL ? "s" : "") + "://" + clusterInfo.httpHost + ":" + clusterInfo.httpPort;
@@ -187,10 +184,10 @@ public class RestHelper {
                     + clusterInfo.httpAdresses.get(nodeIndex).getPort();
         }
     }
-	
-	protected final CloseableHttpClient getHTTPClient() throws Exception {
 
-		final HttpClientBuilder hcb = HttpClients.custom();
+    protected final CloseableHttpClient getHTTPClient() throws Exception {
+
+        final HttpClientBuilder hcb = HttpClients.custom();
 
         if (sslConfig != null) {
             hcb.setSSLSocketFactory(sslConfig.toSSLConnectionSocketFactory());
@@ -203,11 +200,11 @@ public class RestHelper {
             }
 
             String truststore = "truststore.jks";
-            
+
             if (resourceFolder != null) {
                 truststore = resourceFolder + "/" + truststore;
             }
-            
+
             File keyStoreFile = FileHelper.getAbsoluteFilePathFromClassPath(truststore).toFile();
 
             final KeyStore myTrustStore = KeyStore.getInstance("JKS");
@@ -241,86 +238,84 @@ public class RestHelper {
             hcb.setSSLSocketFactory(sslsf);
         }
 
-		hcb.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 1000).build());
-		
-		if (requestConfig != null) {
-		    hcb.setDefaultRequestConfig(requestConfig);
-		}
-		
-		return hcb.build();
-	}
+        hcb.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 1000).build());
 
-	
-	public static class HttpResponse {
-		private final CloseableHttpResponse inner;
-		private final String body;
-		private final Header[] header;
-		private final int statusCode;
-		private final String statusReason;
+        if (requestConfig != null) {
+            hcb.setDefaultRequestConfig(requestConfig);
+        }
 
-		public HttpResponse(CloseableHttpResponse inner) throws IllegalStateException, IOException {
-			super();
-			this.inner = inner;
-			final HttpEntity entity = inner.getEntity();
-			if(entity == null) { //head request does not have a entity
-			    this.body = "";
-			} else {
-			    this.body = IOUtils.toString(entity.getContent(), StandardCharsets.UTF_8);
-			}
-			this.header = inner.getAllHeaders();
-			this.statusCode = inner.getStatusLine().getStatusCode();
-			this.statusReason = inner.getStatusLine().getReasonPhrase();
-			inner.close();
-		}
-		
-		public String getContentType() {
-		    Header h = getInner().getFirstHeader("content-type");
-		    if(h!= null) {
-		        return h.getValue();
-		    }
-		    return null;
-		}
-		
-		public boolean isJsonContentType() {
+        return hcb.build();
+    }
+
+    public static class HttpResponse {
+        private final CloseableHttpResponse inner;
+        private final String body;
+        private final Header[] header;
+        private final int statusCode;
+        private final String statusReason;
+
+        public HttpResponse(CloseableHttpResponse inner) throws IllegalStateException, IOException {
+            super();
+            this.inner = inner;
+            final HttpEntity entity = inner.getEntity();
+            if (entity == null) { //head request does not have a entity
+                this.body = "";
+            } else {
+                this.body = IOUtils.toString(entity.getContent(), StandardCharsets.UTF_8);
+            }
+            this.header = inner.getAllHeaders();
+            this.statusCode = inner.getStatusLine().getStatusCode();
+            this.statusReason = inner.getStatusLine().getReasonPhrase();
+            inner.close();
+        }
+
+        public String getContentType() {
+            Header h = getInner().getFirstHeader("content-type");
+            if (h != null) {
+                return h.getValue();
+            }
+            return null;
+        }
+
+        public boolean isJsonContentType() {
             String ct = getContentType();
-            if(ct == null) {
+            if (ct == null) {
                 return false;
             }
             return ct.contains("application/json");
         }
 
-		public CloseableHttpResponse getInner() {
-			return inner;
-		}
-
-		public String getBody() {
-			return body;
-		}
-
-		public Header[] getHeader() {
-			return header;
-		}
-
-		public int getStatusCode() {
-			return statusCode;
-		}
-
-		public String getStatusReason() {
-			return statusReason;
-		}
-		
-		public List<Header> getHeaders() {
-            return header==null?Collections.emptyList():Arrays.asList(header);
+        public CloseableHttpResponse getInner() {
+            return inner;
         }
-		
+
+        public String getBody() {
+            return body;
+        }
+
+        public Header[] getHeader() {
+            return header;
+        }
+
+        public int getStatusCode() {
+            return statusCode;
+        }
+
+        public String getStatusReason() {
+            return statusReason;
+        }
+
+        public List<Header> getHeaders() {
+            return header == null ? Collections.emptyList() : Arrays.asList(header);
+        }
+
         @Override
         public String toString() {
             return "HttpResponse [inner=" + inner + ", body=" + body + ", header=" + Arrays.toString(header) + ", statusCode=" + statusCode
                     + ", statusReason=" + statusReason + "]";
         }
 
-	}
-
+    }
 
     public int getNodeIndex() {
         return nodeIndex;
@@ -358,5 +353,5 @@ public class RestHelper {
             requestConfig = RequestConfig.copy(requestConfig).setLocalAddress(inetAddress).build();
         }
     }
-	
+
 }

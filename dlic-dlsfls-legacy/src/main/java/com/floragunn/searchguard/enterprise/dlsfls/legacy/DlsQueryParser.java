@@ -1,25 +1,26 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.searchguard.queries.QueryBuilderTraverser;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.Term;
@@ -40,11 +41,6 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.json.JsonXContent;
 
-import com.floragunn.searchguard.queries.QueryBuilderTraverser;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.util.concurrent.UncheckedExecutionException;
-
 public class DlsQueryParser {
 
     private static final Logger log = LogManager.getLogger(DlsQueryParser.class);
@@ -52,7 +48,7 @@ public class DlsQueryParser {
 
     static {
         //Match all documents but not the nested ones
-        //Nested document types start with __ 
+        //Nested document types start with __
         //https://discuss.elastic.co/t/whats-nested-documents-layout-inside-the-lucene/59944/9
         NON_NESTED_QUERY = new BooleanQuery.Builder().add(new MatchAllDocsQuery(), Occur.FILTER)
                 .add(new PrefixQuery(new Term("_type", "__")), Occur.MUST_NOT).build();
@@ -135,7 +131,7 @@ public class DlsQueryParser {
                 if (log.isDebugEnabled()) {
                     log.debug("containsTermLookupQuery() returns true due to " + query + "\nqueries: " + unparsedQueries);
                 }
-                
+
                 return true;
             }
         }
@@ -143,11 +139,11 @@ public class DlsQueryParser {
         if (log.isDebugEnabled()) {
             log.debug("containsTermLookupQuery() returns false\nqueries: " + unparsedQueries);
         }
-        
+
         return false;
     }
 
-    boolean containsTermLookupQuery(String query)  {
+    boolean containsTermLookupQuery(String query) {
         try {
             return queryContainsTlqCache.get(query, () -> {
                 QueryBuilder queryBuilder = parse(query);
@@ -160,5 +156,4 @@ public class DlsQueryParser {
         }
     }
 
-  
 }

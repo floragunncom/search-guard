@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,18 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authz.config;
-
-import java.util.Collections;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.transport.TransportAddress;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.config.text.PatternMap;
@@ -50,9 +41,14 @@ import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-
 import inet.ipaddr.IPAddress;
 import inet.ipaddr.IPAddressNetwork.IPAddressGenerator;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Map.Entry;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.transport.TransportAddress;
 
 public class RoleMapping implements Document<RoleMapping>, Hideable {
 
@@ -222,7 +218,7 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
             } else {
                 evaluations = CountAggregation.noop();
             }
-            
+
             componentState.addMetrics("evaluations", evaluations);
             componentState.initialized();
         }
@@ -283,7 +279,7 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
             try {
                 return IPAddressCollection.parse(Collections.singletonList(source));
             } catch (Exception e) {
-                // This should not happen, as the pattern has been complied before 
+                // This should not happen, as the pattern has been complied before
                 log.error("Error while compiling IP address " + source, e);
                 return null;
             }

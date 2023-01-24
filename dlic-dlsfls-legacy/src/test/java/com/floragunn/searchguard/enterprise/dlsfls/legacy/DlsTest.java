@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,25 +10,13 @@
  * from https://floragunn.com
  *
  */
-/*
- * Includes parts from https://github.com/opensearch-project/security/blob/c18a50ac4c5f7116e0e7c3411944d1438f9c44e9/src/test/java/org/opensearch/security/dlic/dlsfls/DlsTest.java
- * 
- * Copyright OpenSearch Contributors
- *
- *  Licensed under the Apache License, Version 2.0 (the "License").
- *  You may not use this file except in compliance with the License.
- *  A copy of the License is located at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  or in the "license" file accompanying this file. This file is distributed
- *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- *  express or implied. See the License for the specific language governing
- *  permissions and limitations under the License.
- */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -40,12 +27,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class DlsTest {
 
@@ -257,8 +238,8 @@ public class DlsTest {
     public void testDlsWithMinDocCountZeroAggregations() throws Exception {
 
         try (Client client = cluster.getInternalNodeClient()) {
-            client.admin().indices().create(new CreateIndexRequest("logs")
-                    .mapping("_doc", ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
+            client.admin().indices().create(new CreateIndexRequest("logs").mapping("_doc",
+                    ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
 
             for (int i = 0; i < 3; i++) {
                 client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "A", "timestamp",

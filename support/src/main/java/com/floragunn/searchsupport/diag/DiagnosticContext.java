@@ -14,13 +14,11 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.diag;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -129,12 +127,12 @@ public final class DiagnosticContext {
         }
 
         ClusterName clusterName = clusterService.getClusterName();
-        
+
         if (clusterName != null) {
             org.apache.logging.log4j.ThreadContext.put("cluster_name", clusterName.value());
         }
-        
-        org.apache.logging.log4j.ThreadContext.put("node_name", clusterService.getNodeName());        
+
+        org.apache.logging.log4j.ThreadContext.put("node_name", clusterService.getNodeName());
         org.apache.logging.log4j.ThreadContext.put("sg_origin", threadContext.getTransient("_sg_origin"));
         org.apache.logging.log4j.ThreadContext.put("sg_channel_type", threadContext.getTransient("_sg_channel_type"));
     }

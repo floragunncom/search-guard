@@ -14,19 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
-
-import java.net.InetAddress;
-import java.util.Arrays;
-
-import org.apache.http.Header;
-import org.apache.http.HttpStatus;
-import org.apache.http.message.BasicHeader;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -34,6 +22,15 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.collect.ImmutableMap;
+import java.net.InetAddress;
+import java.util.Arrays;
+import org.apache.http.Header;
+import org.apache.http.HttpStatus;
+import org.apache.http.message.BasicHeader;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class BackendRegistryTests {
 
@@ -166,5 +163,4 @@ public class BackendRegistryTests {
         }
     }
 
- 
 }

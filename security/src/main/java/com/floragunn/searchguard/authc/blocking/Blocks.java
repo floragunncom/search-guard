@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.blocking;
 
 import com.floragunn.codova.documents.DocNode;
@@ -24,7 +23,6 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.fluent.collections.ImmutableList;
-
 
 /**
  * Deprecation pre-notice: this configuration tries to achieve too many things at once. Also, for dynamic updates (which you might want
@@ -43,17 +41,15 @@ public class Blocks implements Document<Blocks> {
 
         vNode.checkForUnusedAttributes();
 
-        return new ValidationResult<Blocks>(new Blocks(docNode, type, verdict, value, description),
-                validationErrors);
+        return new ValidationResult<Blocks>(new Blocks(docNode, type, verdict, value, description), validationErrors);
     }
 
-    
     private final DocNode source;
     private final Type type;
     private final Verdict verdict;
     private final ImmutableList<String> value;
     private final String description;
-    
+
     public Blocks(DocNode source, Type type, Verdict verdict, ImmutableList<String> value, String description) {
         this.source = source;
         this.type = type;
@@ -61,7 +57,7 @@ public class Blocks implements Document<Blocks> {
         this.value = value;
         this.description = description;
     }
-    
+
     public Type getType() {
         return type;
     }
@@ -77,12 +73,12 @@ public class Blocks implements Document<Blocks> {
     public String getDescription() {
         return description;
     }
-    
+
     @Override
     public Object toBasicObject() {
         return source;
     }
-    
+
     public enum Type {
         ip("ip"), name("name"), net_mask("net_mask");
 

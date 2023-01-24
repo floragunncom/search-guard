@@ -1,41 +1,16 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
  *
- * Based on https://github.com/inbloom/ldap-in-memory 
- * 
- * 
  */
-
-
 package com.floragunn.dlic.auth.ldap.srv;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.StringReader;
-import java.net.BindException;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
-
-import javax.net.ssl.SSLServerSocketFactory;
-import javax.net.ssl.SSLSocketFactory;
-
-import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
@@ -50,6 +25,22 @@ import com.unboundid.ldif.LDIFReader;
 import com.unboundid.util.ssl.KeyStoreKeyManager;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustStoreTrustManager;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.StringReader;
+import java.net.BindException;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocketFactory;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class LdapServer {
     public static LdapServer createTls(String... ldifFiles) {
@@ -126,11 +117,10 @@ public abstract class LdapServer {
     private static final String SERVER_NOT_STARTED = "The LDAP server is not started.";
     private static final String SERVER_ALREADY_STARTED = "The LDAP server is already started.";
 
-
     private RestrictedInMemoryDirectoryServer server;
     private final AtomicBoolean isStarted = new AtomicBoolean(Boolean.FALSE);
     private final ReentrantLock serverStateLock = new ReentrantLock();
-    
+
     private int port = -1;
 
     public LdapServer() {
@@ -142,13 +132,13 @@ public abstract class LdapServer {
 
     public int getPort() {
         return this.port;
-    }    
-    
+    }
+
     public String hostAndPort() {
         return "localhost:" + this.port;
     }
-    
-    public int  start(String... ldifFiles) throws Exception {
+
+    public int start(String... ldifFiles) throws Exception {
         boolean hasLock = false;
         try {
             hasLock = serverStateLock.tryLock(LdapServer.LOCK_TIMEOUT, LdapServer.TIME_UNIT);
@@ -167,7 +157,7 @@ public abstract class LdapServer {
                 serverStateLock.unlock();
             }
         }
-        
+
         return -1;
     }
 
@@ -177,34 +167,33 @@ public abstract class LdapServer {
         }
         return configureAndStartServer(ldifFiles);
     }
-    
+
     abstract InMemoryListenerConfig getInMemoryListenerConfig() throws LDAPException;
-    
+
     private final String loadFile(final String file) throws IOException {
         String ldif;
-        
-        try (final Reader reader = new InputStreamReader(this.getClass().getResourceAsStream("/ldap/" + file),StandardCharsets.UTF_8)) {
+
+        try (final Reader reader = new InputStreamReader(this.getClass().getResourceAsStream("/ldap/" + file), StandardCharsets.UTF_8)) {
             ldif = CharStreams.toString(reader);
         }
-        
 
         ldif = ldif.replace("${hostname}", "localhost");
         ldif = ldif.replace("${port}", String.valueOf(port));
         return ldif;
-        
+
     }
 
     private synchronized int configureAndStartServer(String... ldifFiles) throws Exception {
         InMemoryListenerConfig listenerConfig = getInMemoryListenerConfig();
 
         port = listenerConfig.getListenPort();
-        
+
         Schema schema = Schema.getDefaultStandardSchema();
 
         final String rootObjectDN = "o=TEST";
         InMemoryDirectoryServerConfig config = new InMemoryDirectoryServerConfig(new DN(rootObjectDN));
 
-        config.setSchema(schema);  //schema can be set on the rootDN too, per javadoc.
+        config.setSchema(schema); //schema can be set on the rootDN too, per javadoc.
         config.setListenerConfigs(Collections.singletonList(listenerConfig));
         config.setEnforceAttributeSyntaxCompliance(false);
         config.setEnforceSingleStructuralObjectClass(false);
@@ -212,11 +201,11 @@ public abstract class LdapServer {
         //config.setLDAPDebugLogHandler(DEBUG_HANDLER);
         //config.setAccessLogHandler(DEBUG_HANDLER);
         //config.addAdditionalBindCredentials(configuration.getBindDn(), configuration.getPassword());
-        
+
         //config.setMaxConnections(1);
 
         server = new RestrictedInMemoryDirectoryServer(config);
-        
+
         try {
             /* Clear entries from server. */
             server.clear();
@@ -258,13 +247,13 @@ public abstract class LdapServer {
         int ldifLoadCount = 0;
         for (String ldif : ldifFiles) {
             ldifLoadCount++;
-            try (LDIFReader r = new LDIFReader(new BufferedReader(new StringReader(loadFile(ldif))))){
+            try (LDIFReader r = new LDIFReader(new BufferedReader(new StringReader(loadFile(ldif))))) {
                 Entry entry = null;
                 while ((entry = r.readEntry()) != null) {
                     server.add(entry);
                     ldifLoadCount++;
                 }
-            } catch(Exception e) {
+            } catch (Exception e) {
                 LOG.error(e.toString(), e);
                 throw e;
             }
@@ -272,30 +261,27 @@ public abstract class LdapServer {
         return ldifLoadCount;
     }
 
-    
-    
     /*private static class DebugHandler extends Handler {
         private final static Logger LOG = LoggerFactory.getLogger(DebugHandler.class);
-
+    
         @Override
         public void publish(LogRecord logRecord) {
            //LOG.debug(ToStringBuilder.reflectionToString(logRecord, ToStringStyle.MULTI_LINE_STYLE));
         }
-
+    
         @Override
         public void flush() {
-
+    
         }
-
+    
         @Override
         public void close() throws SecurityException {
-
+    
         }
     }
     
     private static final DebugHandler DEBUG_HANDLER = new DebugHandler();*/
-    
-    
+
 }
 
 class TlsLdapServer extends LdapServer {

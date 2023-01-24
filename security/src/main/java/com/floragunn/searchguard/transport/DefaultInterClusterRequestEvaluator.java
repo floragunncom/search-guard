@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,10 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 package com.floragunn.searchguard.transport;
 
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.WildcardMatcher;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
@@ -23,15 +25,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.transport.TransportRequest;
-
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.WildcardMatcher;
 
 public final class DefaultInterClusterRequestEvaluator implements InterClusterRequestEvaluator {
 
@@ -47,27 +45,26 @@ public final class DefaultInterClusterRequestEvaluator implements InterClusterRe
     @Override
     public boolean isInterClusterRequest(TransportRequest request, X509Certificate[] localCerts, X509Certificate[] peerCerts,
             final String principal) {
-        
+
         String[] principals = new String[2];
-        
+
         if (principal != null && principal.length() > 0) {
             principals[0] = principal;
-            principals[1] = principal.replace(" ","");
+            principals[1] = principal.replace(" ", "");
         }
-        
+
         if (principals[0] != null && WildcardMatcher.matchAny(nodesDn, principals, true)) {
-            
+
             if (log.isTraceEnabled()) {
-                log.trace("Treat certificate with principal {} as other node because of it matches one of {}", Arrays.toString(principals),
-                        nodesDn);
+                log.trace("Treat certificate with principal {} as other node because of it matches one of {}", Arrays.toString(principals), nodesDn);
             }
-            
+
             return true;
-            
+
         } else {
             if (log.isTraceEnabled()) {
-                log.trace("Treat certificate with principal {} NOT as other node because we it does not matches one of {}", Arrays.toString(principals),
-                        nodesDn);
+                log.trace("Treat certificate with principal {} NOT as other node because we it does not matches one of {}",
+                        Arrays.toString(principals), nodesDn);
             }
         }
 

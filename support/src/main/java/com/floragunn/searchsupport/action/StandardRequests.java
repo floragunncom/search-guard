@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.action;
 
 import com.floragunn.codova.validation.ConfigValidationException;

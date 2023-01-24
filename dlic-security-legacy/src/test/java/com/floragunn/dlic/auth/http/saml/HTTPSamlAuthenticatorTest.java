@@ -1,19 +1,23 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.http.saml;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.util.FakeRestRequest;
+import com.google.common.collect.ImmutableMap;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,9 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.net.ssl.KeyManagerFactory;
-
 import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -54,25 +56,17 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.opensaml.saml.saml2.core.NameIDType;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchguard.util.FakeRestRequest;
-import com.google.common.collect.ImmutableMap;
-
 @Deprecated
 public class HTTPSamlAuthenticatorTest {
-    
+
     static {
-        
-        
+
         if (Security.getProvider("BC") == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
-        
+
     }
-    
+
     protected static MockSamlIdpServer mockSamlIdpServer;
     private static final Pattern WWW_AUTHENTICATE_PATTERN = Pattern
             .compile("([^\\s]+)\\s*([^\\s=]+)=\"([^\"]+)\"\\s*([^\\s=]+)=\"([^\"]+)\"\\s*([^\\s=]+)=\"([^\"]+)\"\\s*");
@@ -103,8 +97,7 @@ public class HTTPSamlAuthenticatorTest {
             + "DPFm5LZu0jZMDj9a+oGkv4hfp1xSXSUjhjiGz47xFJb6PH9pOUIkhTEdFCgEXbaR\n"
             + "fXcR+kakLOotL4X1cT9cpxdimN3CCTBpr03gCv2NCVYMYhHKHK+CQVngJrY+PzMH\n"
             + "q6fw81bUNcixZyeXFfLFN6GK75k51UV7YS/X2H8YkqGeIVNaFjrcqUoVAN8jQOeb\n"
-            + "XXIa8gT/MdNT0+W3NHKcbE31pDhOI92COZWlhOyp1cLhyo1ytayjxPTl/2RM/Vtj\n" + "T9IKkp7810LOKhrCDQ==\n"
-            + "-----END ENCRYPTED PRIVATE KEY-----";
+            + "XXIa8gT/MdNT0+W3NHKcbE31pDhOI92COZWlhOyp1cLhyo1ytayjxPTl/2RM/Vtj\n" + "T9IKkp7810LOKhrCDQ==\n" + "-----END ENCRYPTED PRIVATE KEY-----";
 
     private static X509Certificate spSigningCertificate;
     private static PrivateKey spSigningPrivateKey;
@@ -134,9 +127,9 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("horst");
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".")
+                .build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
@@ -150,9 +143,8 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson, new TypeReference<HashMap<String, Object>>() {
+        });
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -171,24 +163,22 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setEndpointQueryString(null);
         mockSamlIdpServer.setDefaultAssertionConsumerService("http://wherever/searchguard/saml/acs/idpinitiated");
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".")
+                .build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
         String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
 
-        RestRequest tokenRestRequest = buildTokenExchangeRestRequest(encodedSamlResponse, null,
-                "/searchguard/saml/acs/idpinitiated");
+        RestRequest tokenRestRequest = buildTokenExchangeRestRequest(encodedSamlResponse, null, "/searchguard/saml/acs/idpinitiated");
         TestRestChannel tokenRestChannel = new TestRestChannel(tokenRestRequest);
 
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson, new TypeReference<HashMap<String, Object>>() {
+        });
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -207,19 +197,17 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setEndpointQueryString(null);
         mockSamlIdpServer.setDefaultAssertionConsumerService("http://wherever/searchguard/saml/acs/idpinitiated");
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".")
+                .build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
         String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
 
-        AuthenticateHeaders authenticateHeaders = new AuthenticateHeaders("http://wherever/searchguard/saml/acs/",
-                "wrong_request_id");
+        AuthenticateHeaders authenticateHeaders = new AuthenticateHeaders("http://wherever/searchguard/saml/acs/", "wrong_request_id");
 
-        RestRequest tokenRestRequest = buildTokenExchangeRestRequest(encodedSamlResponse, authenticateHeaders,
-                "/searchguard/saml/acs/idpinitiated");
+        RestRequest tokenRestRequest = buildTokenExchangeRestRequest(encodedSamlResponse, authenticateHeaders, "/searchguard/saml/acs/idpinitiated");
         TestRestChannel tokenRestChannel = new TestRestChannel(tokenRestRequest);
 
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
@@ -234,9 +222,9 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("horst");
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".")
+                .build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
@@ -260,9 +248,9 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("horst");
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".")
+                .build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
@@ -287,9 +275,9 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUserRoles(Arrays.asList("a", "b"));
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".")
+                .build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
@@ -303,9 +291,8 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson, new TypeReference<HashMap<String, Object>>() {
+        });
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -314,8 +301,7 @@ public class HTTPSamlAuthenticatorTest {
         JwtToken jwt = jwtConsumer.getJwtToken();
 
         Assert.assertEquals("horst", jwt.getClaim("sub"));
-        Assert.assertArrayEquals(new String[] { "a", "b" },
-                ((List<String>) jwt.getClaim("roles")).toArray(new String[0]));
+        Assert.assertArrayEquals(new String[] { "a", "b" }, ((List<String>) jwt.getClaim("roles")).toArray(new String[0]));
     }
 
     @Test
@@ -325,9 +311,9 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("horst");
         mockSamlIdpServer.setEndpointQueryString("extra=query");
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".")
+                .build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
@@ -341,9 +327,8 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson, new TypeReference<HashMap<String, Object>>() {
+        });
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -363,10 +348,9 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUserRoles(Arrays.asList("a,b"));
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("roles_seperator", ",").put("path.home", ".")
-                .build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles")
+                .put("roles_seperator", ",").put("path.home", ".").build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
@@ -380,9 +364,8 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson, new TypeReference<HashMap<String, Object>>() {
+        });
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -391,8 +374,7 @@ public class HTTPSamlAuthenticatorTest {
         JwtToken jwt = jwtConsumer.getJwtToken();
 
         Assert.assertEquals("horst", jwt.getClaim("sub"));
-        Assert.assertArrayEquals(new String[] { "a", "b" },
-                ((List<String>) jwt.getClaim("roles")).toArray(new String[0]));
+        Assert.assertArrayEquals(new String[] { "a", "b" }, ((List<String>) jwt.getClaim("roles")).toArray(new String[0]));
     }
 
     @Test
@@ -403,18 +385,17 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setSpSignatureCertificate(spSigningCertificate);
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles")
-                .put("sp.signature_private_key", "-BEGIN PRIVATE KEY-\n"
-                        + Base64.getEncoder().encodeToString(spSigningPrivateKey.getEncoded()) + "-END PRIVATE KEY-")
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles")
+                .put("sp.signature_private_key",
+                        "-BEGIN PRIVATE KEY-\n" + Base64.getEncoder().encodeToString(spSigningPrivateKey.getEncoded()) + "-END PRIVATE KEY-")
                 .put("path.home", ".").build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
         AuthCredentials authCredentials = AuthCredentials.forUser("horst").oldAttribute("attr.jwt.sub", "horst")
                 .oldAttribute("attr.jwt.saml_nif", NameIDType.UNSPECIFIED).oldAttribute("attr.jwt.saml_si", "si123").build();
- 
+
         String logoutUrl = samlAuthenticator.buildLogoutUrl(authCredentials);
 
         mockSamlIdpServer.handleSloGetRequestURI(logoutUrl);
@@ -429,10 +410,9 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setSpSignatureCertificate(spSigningCertificate);
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("sp.signature_private_key", SPOCK_KEY)
-                .put("sp.signature_private_key_password", "changeit").put("path.home", ".").build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles")
+                .put("sp.signature_private_key", SPOCK_KEY).put("sp.signature_private_key_password", "changeit").put("path.home", ".").build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
@@ -444,26 +424,25 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.handleSloGetRequestURI(logoutUrl);
 
     }
-    
+
     @Test
     public void initialConnectionFailureTest() throws Exception {
         try (MockSamlIdpServer mockSamlIdpServer = new MockSamlIdpServer()) {
-                        
-            Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                    .put("idp.min_refresh_delay", 100)
-                    .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                    .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
+
+            Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("idp.min_refresh_delay", 100)
+                    .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc")
+                    .put("roles_key", "roles").put("path.home", ".").build();
 
             HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
             RestRequest restRequest = new FakeRestRequest(ImmutableMap.of(), new HashMap<String, String>());
             TestRestChannel restChannel = new TestRestChannel(restRequest);
             samlAuthenticator.reRequestAuthentication(restChannel, null);
-            
+
             Assert.assertNull(restChannel.response);
-                        
+
             mockSamlIdpServer.start();
-            
+
             mockSamlIdpServer.setSignResponses(true);
             mockSamlIdpServer.loadSigningKeys("saml-legacy/kirk-keystore.jks", "kirk");
             mockSamlIdpServer.setAuthenticateUser("horst");
@@ -481,9 +460,8 @@ public class HTTPSamlAuthenticatorTest {
             samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
             String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-            HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                    new TypeReference<HashMap<String, Object>>() {
-                    });
+            HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson, new TypeReference<HashMap<String, Object>>() {
+            });
             String authorization = (String) response.get("authorization");
 
             Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -494,7 +472,7 @@ public class HTTPSamlAuthenticatorTest {
             Assert.assertEquals("horst", jwt.getClaim("sub"));
         }
     }
-    
+
     @Test
     public void subjectPatternTest() throws Exception {
         mockSamlIdpServer.setSignResponses(true);
@@ -502,9 +480,9 @@ public class HTTPSamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("leonard@example.com");
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").put("subject_pattern", "^(.+)@(?:.+)$").build();
+        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri()).put("kibana_url", "http://wherever")
+                .put("idp.entity_id", mockSamlIdpServer.getIdpEntityId()).put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".")
+                .put("subject_pattern", "^(.+)@(?:.+)$").build();
 
         HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
 
@@ -518,9 +496,8 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson, new TypeReference<HashMap<String, Object>>() {
+        });
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -540,8 +517,7 @@ public class HTTPSamlAuthenticatorTest {
         List<String> wwwAuthenticateHeaders = restChannel.response.getHeaders().get("WWW-Authenticate");
 
         Assert.assertNotNull(wwwAuthenticateHeaders);
-        Assert.assertEquals("More than one WWW-Authenticate header: " + wwwAuthenticateHeaders, 1,
-                wwwAuthenticateHeaders.size());
+        Assert.assertEquals("More than one WWW-Authenticate header: " + wwwAuthenticateHeaders, 1, wwwAuthenticateHeaders.size());
 
         String wwwAuthenticateHeader = wwwAuthenticateHeaders.get(0);
 
@@ -561,26 +537,21 @@ public class HTTPSamlAuthenticatorTest {
         return new AuthenticateHeaders(location, requestId);
     }
 
-    private RestRequest buildTokenExchangeRestRequest(String encodedSamlResponse,
-            AuthenticateHeaders authenticateHeaders) {
+    private RestRequest buildTokenExchangeRestRequest(String encodedSamlResponse, AuthenticateHeaders authenticateHeaders) {
         return buildTokenExchangeRestRequest(encodedSamlResponse, authenticateHeaders, "/searchguard/saml/acs");
     }
 
-    private RestRequest buildTokenExchangeRestRequest(String encodedSamlResponse,
-            AuthenticateHeaders authenticateHeaders, String acsEndpoint) {
+    private RestRequest buildTokenExchangeRestRequest(String encodedSamlResponse, AuthenticateHeaders authenticateHeaders, String acsEndpoint) {
         String authtokenPostJson;
 
         if (authenticateHeaders != null) {
-            authtokenPostJson = "{\"SAMLResponse\": \"" + encodedSamlResponse + "\", \"RequestId\": \""
-                    + authenticateHeaders.requestId + "\"}";
+            authtokenPostJson = "{\"SAMLResponse\": \"" + encodedSamlResponse + "\", \"RequestId\": \"" + authenticateHeaders.requestId + "\"}";
         } else {
-            authtokenPostJson = "{\"SAMLResponse\": \"" + encodedSamlResponse
-                    + "\", \"RequestId\": null, \"acsEndpoint\": \"" + acsEndpoint + "\" }";
+            authtokenPostJson = "{\"SAMLResponse\": \"" + encodedSamlResponse + "\", \"RequestId\": null, \"acsEndpoint\": \"" + acsEndpoint + "\" }";
         }
 
         return new FakeRestRequest.Builder().withPath("/_searchguard/api/authtoken").withMethod(Method.POST)
-                .withContent(new BytesArray(authtokenPostJson))
-                .withHeaders(ImmutableMap.of("Content-Type", "application/json")).build();
+                .withContent(new BytesArray(authtokenPostJson)).withHeaders(ImmutableMap.of("Content-Type", "application/json")).build();
     }
 
     private static void initSpSigningKeys() {
@@ -588,8 +559,7 @@ public class HTTPSamlAuthenticatorTest {
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 
             KeyStore keyStore = KeyStore.getInstance("JKS");
-            InputStream keyStream = new FileInputStream(
-                    FileHelper.getAbsoluteFilePathFromClassPath("saml-legacy/spock-keystore.jks").toFile());
+            InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("saml-legacy/spock-keystore.jks").toFile());
 
             keyStore.load(keyStream, "changeit".toCharArray());
             kmf.init(keyStore, "changeit".toCharArray());
@@ -598,8 +568,7 @@ public class HTTPSamlAuthenticatorTest {
 
             spSigningPrivateKey = (PrivateKey) keyStore.getKey("spock", "changeit".toCharArray());
 
-        } catch (NoSuchAlgorithmException | KeyStoreException | CertificateException | IOException
-                | UnrecoverableKeyException e) {
+        } catch (NoSuchAlgorithmException | KeyStoreException | CertificateException | IOException | UnrecoverableKeyException e) {
             throw new RuntimeException(e);
         }
     }
@@ -655,7 +624,7 @@ public class HTTPSamlAuthenticatorTest {
         }
 
         @Override
-        public void releaseOutputBuffer() {            
+        public void releaseOutputBuffer() {
         }
     }
 

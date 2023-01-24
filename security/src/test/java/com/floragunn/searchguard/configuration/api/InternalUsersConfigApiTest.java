@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.configuration.api;
 
 import static java.util.Arrays.asList;
@@ -22,20 +21,18 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.UUID;
-
 import org.apache.http.message.BasicHeader;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.google.common.collect.ImmutableMap;
 
 public class InternalUsersConfigApiTest {
 
@@ -68,7 +65,7 @@ public class InternalUsersConfigApiTest {
 
             HttpResponse response = client.putJson("/_searchguard/internal_users/" + userName, userData.toJsonString());
 
-            assertEquals(400, response.getStatusCode());    
+            assertEquals(400, response.getStatusCode());
         }
     }
 

@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,9 +10,16 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy.lucene;
 
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsFlsComplianceConfig;
+import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsFlsProcessedConfig;
+import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsQueryParser;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
+import com.floragunn.searchguard.support.SgUtils;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -21,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
-
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.Query;
@@ -35,15 +40,6 @@ import org.elasticsearch.index.query.SearchExecutionContext;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardUtils;
 import org.elasticsearch.indices.IndicesModule;
-
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsFlsComplianceConfig;
-import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsFlsProcessedConfig;
-import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsQueryParser;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.HeaderHelper;
-import com.floragunn.searchguard.support.SgUtils;
-import com.google.common.collect.Sets;
 
 public class SearchGuardFlsDlsIndexSearcherWrapper implements CheckedFunction<DirectoryReader, DirectoryReader, IOException> {
 
@@ -80,7 +76,7 @@ public class SearchGuardFlsDlsIndexSearcherWrapper implements CheckedFunction<Di
     }
 
     @Override
-    public final DirectoryReader apply(DirectoryReader reader) throws IOException {       
+    public final DirectoryReader apply(DirectoryReader reader) throws IOException {
         if (!config.get().isEnabled()) {
             return reader;
         }

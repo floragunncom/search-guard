@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,16 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authz.config;
-
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.PatternSyntaxException;
 
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
@@ -39,6 +32,11 @@ import com.floragunn.searchguard.configuration.StaticDefinable;
 import com.floragunn.searchsupport.queries.Query;
 import com.floragunn.searchsupport.xcontent.XContentParserContext;
 import com.google.common.base.Splitter;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.PatternSyntaxException;
 
 public class Role implements Document<Role>, Hideable, StaticDefinable {
 
@@ -129,7 +127,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             this.fls = vNode.get("fls").asList().ofObjectsParsedByString(FlsPattern::new);
             this.maskedFields = vNode.get("masked_fields").asList().withEmptyListAsDefault().ofObjectsParsedByString(FieldMaskingExpression::new);
 
-            // Just for validation: 
+            // Just for validation:
             vNode.get("allowed_actions").by(Pattern::parse);
 
             this.allowedActions = ImmutableList.of(vNode.get("allowed_actions").asList().withEmptyListAsDefault().ofStrings());
@@ -213,7 +211,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
         public static class FieldMaskingExpression {
             public static final FieldMaskingExpression MASK_ALL = new FieldMaskingExpression(Pattern.wildcard(), "*");
-            
+
             private final Pattern pattern;
             private final MessageDigest algo;
             private final List<RegexReplacement> regexReplacements;
@@ -243,7 +241,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                     }
                 }
             }
-            
+
             private FieldMaskingExpression(Pattern pattern, String source) {
                 this.pattern = pattern;
                 this.source = source;

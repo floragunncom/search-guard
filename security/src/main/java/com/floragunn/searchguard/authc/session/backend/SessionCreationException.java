@@ -1,17 +1,19 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
- * 
+ * Copyright 2020 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed here is distributed on an "AS IS" BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
- * from https://floragunn.com
- * 
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
  */
-
 package com.floragunn.searchguard.authc.session.backend;
 
 import org.elasticsearch.rest.RestStatus;
@@ -19,7 +21,7 @@ import org.elasticsearch.rest.RestStatus;
 public class SessionCreationException extends Exception {
 
     private static final long serialVersionUID = -47600121877964762L;
-    
+
     private RestStatus restStatus;
 
     public SessionCreationException(String message, RestStatus restStatus, Throwable cause) {
@@ -31,8 +33,7 @@ public class SessionCreationException extends Exception {
         super(message);
         this.restStatus = restStatus;
     }
-    
-    
+
     public RestStatus getRestStatus() {
         return restStatus;
     }
@@ -40,7 +41,5 @@ public class SessionCreationException extends Exception {
     public void setRestStatus(RestStatus restStatus) {
         this.restStatus = restStatus;
     }
-
-
 
 }

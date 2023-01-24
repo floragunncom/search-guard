@@ -14,14 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.certificate.utils;
 
 import com.google.common.base.Strings;
+import java.util.function.Function;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.RFC4519Style;
-
-import java.util.function.Function;
 
 @FunctionalInterface
 public interface DnGenerator extends Function<String, X500Name> {

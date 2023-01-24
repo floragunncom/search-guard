@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,30 +10,7 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.dlic.auth.http.jwt;
-
-import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
-
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtToken;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.dlic.util.Roles;
@@ -49,6 +25,26 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.PathNotFoundException;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
 
 public abstract class AbstractHTTPJwtAuthenticator implements LegacyHTTPAuthenticator {
     private final static Logger log = LogManager.getLogger(AbstractHTTPJwtAuthenticator.class);
@@ -196,7 +192,8 @@ public abstract class AbstractHTTPJwtAuthenticator implements LegacyHTTPAuthenti
             }
         } else if (jsonSubjectPath != null) {
             try {
-                Object subjectObject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap()).read(jsonSubjectPath);
+                Object subjectObject = JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(claims.asMap())
+                        .read(jsonSubjectPath);
 
                 if (subjectObject == null) {
                     log.error("The subject is null: " + jsonSubjectPath);

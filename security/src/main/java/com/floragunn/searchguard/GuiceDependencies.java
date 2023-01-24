@@ -14,12 +14,11 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import org.elasticsearch.common.component.Lifecycle.State;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.component.LifecycleListener;
-import org.elasticsearch.common.component.Lifecycle.State;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.repositories.RepositoriesService;
@@ -32,14 +31,14 @@ public class GuiceDependencies {
     private RepositoriesService repositoriesService;
     private TransportService transportService;
     private IndicesService indicesService;
-    
-    /** 
+
+    /**
      * Can be only used via instance from SearchGuardPlugin
      */
     GuiceDependencies() {
-        
+
     }
-    
+
     public RepositoriesService getRepositoriesService() {
         return repositoriesService;
     }
@@ -51,11 +50,12 @@ public class GuiceDependencies {
     public IndicesService getIndicesService() {
         return indicesService;
     }
-    
+
     public static class GuiceRedirector implements LifecycleComponent {
 
         @Inject
-        public GuiceRedirector(GuiceDependencies baseDependencies, RepositoriesService repositoriesService, TransportService transportService, IndicesService indicesService) {
+        public GuiceRedirector(GuiceDependencies baseDependencies, RepositoriesService repositoriesService, TransportService transportService,
+                IndicesService indicesService) {
             baseDependencies.repositoriesService = repositoriesService;
             baseDependencies.transportService = transportService;
             baseDependencies.indicesService = indicesService;

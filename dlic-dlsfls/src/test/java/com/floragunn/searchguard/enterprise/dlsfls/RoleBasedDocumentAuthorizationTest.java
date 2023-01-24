@@ -1,6 +1,5 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,19 +10,7 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls;
-
-import java.io.IOException;
-
-import org.elasticsearch.core.CheckedFunction;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.TermQueryBuilder;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
-import org.elasticsearch.xcontent.ParseField;
-import org.elasticsearch.xcontent.XContentParser;
-import org.junit.Assert;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
@@ -37,6 +24,15 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import java.io.IOException;
+import org.elasticsearch.core.CheckedFunction;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.ParseField;
+import org.elasticsearch.xcontent.XContentParser;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class RoleBasedDocumentAuthorizationTest {
 

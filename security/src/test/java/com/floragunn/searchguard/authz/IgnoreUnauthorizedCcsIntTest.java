@@ -1,3 +1,19 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
@@ -12,6 +28,16 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestAlias;
+import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -19,17 +45,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestAlias;
-import com.floragunn.searchguard.test.TestIndex;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 @RunWith(Parameterized.class)
 public class IgnoreUnauthorizedCcsIntTest {
@@ -522,7 +537,7 @@ public class IgnoreUnauthorizedCcsIntTest {
             Assert.assertThat(httpResponse, json(distinctNodesAt("aggregations.indices.buckets", matchesDocCount(ImmutableMap.of("b1", index_coord_b1)
                     .with("b2", index_coord_b2).with("my_remote:a1", index_remote_a1).with("my_remote:a2", index_remote_a2)))));
         }
-        
+
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.postJson(query, body);
 
@@ -580,7 +595,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
             // This is slightly counter-intuitive, but correct:
             // The user does not have privileges for an index called notfound
-            // Thus, as the index expression contains wildcards, it is removed 
+            // Thus, as the index expression contains wildcards, it is removed
             // from the index expression. Thus, the search is successful.
 
             Assert.assertThat(httpResponse, isOk());

@@ -14,14 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc;
 
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
 public interface AuthenticationFrontend extends ComponentStateProvider {
     /**
-     * The type (name) of the authenticator. Only for logging.  
+     * The type (name) of the authenticator. Only for logging.
      * @return the type
      */
     String getType();

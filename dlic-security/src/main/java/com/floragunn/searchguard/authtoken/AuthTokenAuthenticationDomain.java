@@ -1,22 +1,16 @@
 /*
- * Copyright 2020-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken;
-
-import java.util.concurrent.CompletableFuture;
-
-import org.elasticsearch.ElasticsearchSecurityException;
 
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
@@ -27,6 +21,8 @@ import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
+import java.util.concurrent.CompletableFuture;
+import org.elasticsearch.ElasticsearchSecurityException;
 
 public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HttpAuthenticationFrontend> {
 
@@ -37,7 +33,7 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HttpA
     public AuthTokenAuthenticationDomain(AuthTokenService authTokenService) {
         this.authTokenService = authTokenService;
         this.httpAuthenticator = new AuthTokenHttpJwtAuthenticator(authTokenService);
-        
+
         this.componentState = new ComponentState(0, "auth_domain", "sg_auth_token", AuthTokenAuthenticationDomain.class);
         this.componentState.addPart(this.httpAuthenticator.getComponentState());
         this.componentState.updateStateFromParts();
@@ -68,7 +64,7 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HttpA
                             .specialAuthzConfig(authToken.getId()).attributes(authToken.getBase().getAttributes()).authzComplete().build());
                 } else {
                     // This auth token has restrictions or must use the snapshotted config specified in authToken.getBase().getConfigVersions()
-                    // Thus, we won't initialize a "normal" User object. Rather, the user object won't contain any roles, 
+                    // Thus, we won't initialize a "normal" User object. Rather, the user object won't contain any roles,
                     // as these would not refer to the current configuration. Code which is supposed to support auth tokens with frozen configuration,
                     // needs to use the SpecialPrivilegesEvaluationContextProvider API to retrieve the correct configuration
 
@@ -124,7 +120,7 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HttpA
     public boolean cacheUser() {
         return false;
     }
-    
+
     @Override
     public String toString() {
         return getType();

@@ -14,16 +14,14 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.privileges;
-
-import org.elasticsearch.common.transport.TransportAddress;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
+import org.elasticsearch.common.transport.TransportAddress;
 
 public interface SpecialPrivilegesEvaluationContext {
     User getUser();

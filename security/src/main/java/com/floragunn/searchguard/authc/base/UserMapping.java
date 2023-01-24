@@ -1,10 +1,10 @@
 /*
  * Copyright 2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,20 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.base;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.codova.documents.DocNode;
@@ -37,9 +26,9 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.CredentialsException;
-import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Splitter;
@@ -48,6 +37,14 @@ import com.jayway.jsonpath.InvalidPathException;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.PathNotFoundException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.stream.Collectors;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class UserMapping implements UserMapper, AuthenticationDomain.CredentialsMapper {
     private static final Logger log = LogManager.getLogger(UserMapping.class);
@@ -93,21 +90,21 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
 
         if (userNameFromBackend != null && !userNameFromBackend.isEmpty()) {
             ImmutableSet<String> newUserNames = MappingSpecification.apply(userNameFromBackend, authCredentials);
-            
+
             if (newUserNames.size() == 0) {
                 throw new CredentialsException(new AuthcResult.DebugInfo(null, false, "No user name found", debugDetails));
             } else if (newUserNames.size() != 1) {
                 throw new CredentialsException(new AuthcResult.DebugInfo(null, false, "More than one candidate for the user name was found",
                         debugDetails.with("user_name_candidates", newUserNames)));
             }
-            
+
             if (log.isDebugEnabled()) {
                 log.debug("Mapped user name: " + newUserNames.only());
             }
-            
+
             result.userName(newUserNames.only());
         }
-        
+
         if (roles != null && !roles.isEmpty()) {
             ImmutableSet<String> backendRoles = MappingSpecification.apply(roles, authCredentials);
             result.backendRoles(backendRoles);
@@ -142,7 +139,7 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
 
         ImmutableList<MappingSpecification> roles = vNode.get("roles").by(MappingSpecification::parseRoleMapping);
         ImmutableList<MapMappingSpecification> attributes = vNode.get("attrs").by(MapMappingSpecification::parse);
-        
+
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
@@ -155,7 +152,8 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
     private final ImmutableList<MappingSpecification> roles;
     private final ImmutableList<MapMappingSpecification> attrs;
 
-    public UserMapping(DocNode source, ImmutableList<MappingSpecification> userName, ImmutableList<MappingSpecification> userNameFromBackend, ImmutableList<MappingSpecification> roles, ImmutableList<MapMappingSpecification> attrs) {
+    public UserMapping(DocNode source, ImmutableList<MappingSpecification> userName, ImmutableList<MappingSpecification> userNameFromBackend,
+            ImmutableList<MappingSpecification> roles, ImmutableList<MapMappingSpecification> attrs) {
         this.source = source;
         this.userName = userName;
         this.userNameFromBackend = userNameFromBackend;
@@ -215,7 +213,7 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
                 throw new ConfigValidationException(new InvalidAttributeValue(null, docNode, "JSON Path"));
             }
         }
-        
+
         static FromAttribute parseCommaSeparated(DocNode docNode, Parser.Context context) throws ConfigValidationException {
             if (docNode.isString()) {
                 try {
@@ -298,12 +296,14 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
 
             return ImmutableList.concat(from, staticValues);
         }
-        
-        static ImmutableList<MappingSpecification> parseUserNameFromBackendMapping(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+
+        static ImmutableList<MappingSpecification> parseUserNameFromBackendMapping(DocNode docNode, Parser.Context context)
+                throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-            ImmutableList<MappingSpecification> from = vNode.get("from_backend").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute::parse);
+            ImmutableList<MappingSpecification> from = vNode.get("from_backend").asList().withEmptyListAsDefault()
+                    .ofObjectsParsedBy(FromAttribute::parse);
 
             validationErrors.throwExceptionForPresentErrors();
 
@@ -315,7 +315,8 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
             List<FromAttribute> from = vNode.get("from").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute::parse);
-            List<FromAttribute> fromCsv = vNode.get("from_comma_separated_string").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute::parseCommaSeparated);
+            List<FromAttribute> fromCsv = vNode.get("from_comma_separated_string").asList().withEmptyListAsDefault()
+                    .ofObjectsParsedBy(FromAttribute::parseCommaSeparated);
             List<Static> staticValues = vNode.get("static").asList().withEmptyListAsDefault().ofObjectsParsedBy(Static::parse);
 
             vNode.checkForUnusedAttributes();

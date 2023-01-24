@@ -1,5 +1,22 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchguard.ssl.util.config;
 
+import com.floragunn.searchguard.support.PemKeyReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -10,21 +27,17 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.pkcs.PKCSException;
-
-import com.floragunn.searchguard.support.PemKeyReader;
 
 public class ClientAuthCredentials {
     public static Builder from() {
         return new Builder();
     }
-    
+
     private KeyStore keyStore;
     private char[] keyPassword;
     private String keyAlias;
-    
 
     public KeyStore getKeyStore() {
         return keyStore;
@@ -58,7 +71,7 @@ public class ClientAuthCredentials {
         public Builder certPem(Path path) throws GenericSSLConfigException {
             return certPem(path.toFile());
         }
-        
+
         public Builder certPem(InputStream inputStream) throws CertificateException {
             authenticationCertificate = PemKeyReader.loadCertificatesFromStream(inputStream);
             return this;
@@ -77,13 +90,13 @@ public class ClientAuthCredentials {
         public Builder certKeyPem(Path path, String password) throws GenericSSLConfigException {
             return certKeyPem(path.toFile(), password);
         }
-        
+
         public Builder certKeyPem(InputStream inputStream, String password) throws GenericSSLConfigException {
             try {
-				authenticationKey = PemKeyReader.toPrivateKey(inputStream, password);
-			} catch (OperatorCreationException | IOException | PKCSException e) {
-				throw new GenericSSLConfigException("Could not load private key", e);
-			}
+                authenticationKey = PemKeyReader.toPrivateKey(inputStream, password);
+            } catch (OperatorCreationException | IOException | PKCSException e) {
+                throw new GenericSSLConfigException("Could not load private key", e);
+            }
 
             return this;
         }
@@ -140,8 +153,7 @@ public class ClientAuthCredentials {
                 } else if (authenticationCertificate != null && authenticationKey != null) {
                     result.keyPassword = PemKeyReader.randomChars(12);
                     result.keyAlias = "al";
-                    result.keyStore = PemKeyReader.toKeystore(result.keyAlias, result.keyPassword,
-                            authenticationCertificate, authenticationKey);
+                    result.keyStore = PemKeyReader.toKeystore(result.keyAlias, result.keyPassword, authenticationCertificate, authenticationKey);
                 } else {
                     throw new IllegalStateException("Builder not completely initialized: " + this);
                 }

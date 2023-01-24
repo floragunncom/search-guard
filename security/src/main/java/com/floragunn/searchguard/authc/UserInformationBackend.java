@@ -16,10 +16,9 @@
  */
 package com.floragunn.searchguard.authc;
 
-import java.util.concurrent.CompletableFuture;
-
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
+import java.util.concurrent.CompletableFuture;
 
 public interface UserInformationBackend {
     String getType();

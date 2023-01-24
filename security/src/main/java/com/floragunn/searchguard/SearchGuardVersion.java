@@ -14,16 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import java.io.InputStream;
 import java.util.Properties;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.floragunn.fluent.collections.ImmutableMap;
 
 public class SearchGuardVersion {
 

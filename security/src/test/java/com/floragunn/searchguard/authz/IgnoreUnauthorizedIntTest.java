@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
@@ -26,8 +25,17 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestAlias;
+import com.floragunn.searchguard.test.TestData.TestDocument;
+import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import java.util.Arrays;
-
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
@@ -35,17 +43,6 @@ import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestAlias;
-import com.floragunn.searchguard.test.TestData.TestDocument;
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.TestIndex;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class IgnoreUnauthorizedIntTest {
     @ClassRule

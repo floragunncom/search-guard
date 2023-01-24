@@ -1,27 +1,16 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken.api;
-
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authtoken.AuthToken;
@@ -30,6 +19,14 @@ import com.floragunn.searchguard.authtoken.NoSuchAuthTokenException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.tasks.Task;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportService;
 
 public class TransportGetAuthTokenAction extends AbstractTransportAuthTokenAction<GetAuthTokenRequest, GetAuthTokenResponse> {
 

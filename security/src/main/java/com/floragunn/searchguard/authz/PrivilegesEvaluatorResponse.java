@@ -14,20 +14,17 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
 
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.elasticsearch.action.support.ActionFilter;
-
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 
 public class PrivilegesEvaluatorResponse {
     boolean allowed = false;
@@ -41,7 +38,7 @@ public class PrivilegesEvaluatorResponse {
     public ActionRequestInfo getActionRequestInfo() {
         return actionRequestInfo;
     }
-    
+
     public ResolvedIndices getResolvedIndices() {
         return actionRequestInfo != null ? actionRequestInfo.getResolvedIndices() : null;
     }
@@ -88,7 +85,7 @@ public class PrivilegesEvaluatorResponse {
 
         this.additionalActionFilters.add(actionFilter);
     }
-    
+
     public boolean hasAdditionalActionFilters() {
         return additionalActionFilters != null && additionalActionFilters.size() > 0;
     }

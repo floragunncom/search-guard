@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.user;
 
+import com.floragunn.codova.config.templates.AttributeSource;
+import com.google.common.collect.Lists;
+import com.jayway.jsonpath.JsonPath;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,13 +27,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.floragunn.codova.config.templates.AttributeSource;
-import com.google.common.collect.Lists;
-import com.jayway.jsonpath.JsonPath;
 
 /**
  * A authenticated user and attributes associated to them (like roles, tenant, custom attributes)
@@ -70,7 +67,8 @@ public class User implements Serializable, UserInformation, AttributeSource {
     private transient boolean authzComplete = false;
 
     public User(String name, String subName, AuthDomainInfo authDomainInfo, String type, Set<String> roles, Set<String> searchGuardRoles,
-            Object specialAuthzConfig, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes, boolean authzComplete) {
+            Object specialAuthzConfig, String requestedTenant, Map<String, Object> structuredAttributes, Map<String, String> attributes,
+            boolean authzComplete) {
         super();
         this.name = name;
         this.subName = subName;
@@ -87,7 +85,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
 
     /**
      * Create a new authenticated user
-     * 
+     *
      * @param name The username (must not be null or empty)
      * @param roles Roles of which the user is a member off (maybe null)
      * @param customAttributes Custom attributes associated with this (maybe null)
@@ -127,7 +125,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
 
     /**
      * Create a new authenticated user without roles and attributes
-     * 
+     *
      * @param name The username (must not be null or empty)
      * @throws IllegalArgumentException if name is null or empty
      */
@@ -148,7 +146,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
     }
 
     /**
-     * 
+     *
      * @return A unmodifiable set of the backend roles this user is a member of
      */
     public final Set<String> getRoles() {
@@ -157,7 +155,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
 
     /**
      * Associate this user with a backend role
-     * 
+     *
      * @param role The backend role
      */
     public final void addRole(final String role) {
@@ -166,7 +164,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
 
     /**
      * Associate this user with a set of backend roles
-     * 
+     *
      * @param roles The backend roles
      */
     public final void addRoles(final Collection<String> roles) {
@@ -177,7 +175,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
 
     /**
      * Check if this user is a member of a backend role
-     * 
+     *
      * @param role The backend role
      * @return true if this user is a member of the backend role, false otherwise
      */
@@ -333,9 +331,9 @@ public class User implements Serializable, UserInformation, AttributeSource {
 
     /**
      * Get the custom attributes associated with this user
-     * 
+     *
      * @return A modifiable map with all the current custom attributes associated with this user
-     * 
+     *
      * @deprecated use getStructuredAttributes() instead
      */
     @Deprecated

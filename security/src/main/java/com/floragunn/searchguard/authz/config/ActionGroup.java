@@ -14,17 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz.config;
-
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -39,9 +29,16 @@ import com.floragunn.searchguard.configuration.Hideable;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticDefinable;
 import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Count;
-import com.floragunn.searchsupport.cstate.ComponentState.State;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefinable {
 
@@ -111,10 +108,10 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
     public Object toBasicObject() {
         return source;
     }
-    
+
     public static class FlattenedIndex implements ComponentStateProvider {
         public static final FlattenedIndex EMPTY = new FlattenedIndex();
-        
+
         private static final Logger log = LogManager.getLogger(FlattenedIndex.class);
 
         private final ImmutableMap<String, Set<String>> resolvedActionGroups;
@@ -122,7 +119,7 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
         private final Count size = new Count();
         private final Count initRounds = new Count();
 
-        public FlattenedIndex(SgDynamicConfiguration<ActionGroup> actionGroups) {            
+        public FlattenedIndex(SgDynamicConfiguration<ActionGroup> actionGroups) {
             boolean tooDeep = false;
 
             Map<String, Set<String>> resolved = new HashMap<>(actionGroups.getCEntries().size());
@@ -176,14 +173,14 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
 
             this.resolvedActionGroups = ImmutableMap.of(resolved);
             this.size.set(this.resolvedActionGroups.size());
-            
+
             this.componentState.addMetrics("size", size, "init_rounds", initRounds);
-            
+
             if (tooDeep) {
                 this.componentState.setState(State.PARTIALLY_INITIALIZED, "too_deply_nested_action_groups");
                 this.componentState.setMessage("Found too deeply nested action groups. Action groups are not fully initialized.");
             } else {
-                this.componentState.initialized();   
+                this.componentState.initialized();
             }
         }
 
@@ -193,28 +190,28 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
         private FlattenedIndex() {
             this.resolvedActionGroups = ImmutableMap.empty();
         }
-        
+
         @Override
         public String toString() {
             return resolvedActionGroups.toString();
         }
-        
+
         public ImmutableSet<String> resolve(Collection<String> actions) {
             ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>();
-            
+
             for (String action : actions) {
                 if (action == null) {
                     continue;
                 }
-                
+
                 result.add(action);
-                
-                Set<String> mappedActions = this.resolvedActionGroups.get(action);            
+
+                Set<String> mappedActions = this.resolvedActionGroups.get(action);
                 if (mappedActions != null) {
                     result.addAll(mappedActions);
                 }
             }
-            
+
             return result.build();
         }
 

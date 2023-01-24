@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2021 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,17 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authz.actions;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.GuiceDependencies;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
+import com.floragunn.searchguard.configuration.ClusterInfoHolder;
+import com.floragunn.searchguard.support.SnapshotRestoreHelper;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,7 +36,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.CompositeIndicesRequest;
@@ -69,14 +74,6 @@ import org.elasticsearch.indices.InvalidIndexNameException;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotUtils;
 import org.elasticsearch.transport.RemoteClusterService;
-
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.GuiceDependencies;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
-import com.floragunn.searchguard.configuration.ClusterInfoHolder;
-import com.floragunn.searchguard.support.SnapshotRestoreHelper;
 
 public class ActionRequestIntrospector {
 
@@ -118,7 +115,7 @@ public class ActionRequestIntrospector {
                 }
             } else if (request instanceof FieldCapabilitiesIndexRequest) {
                 // FieldCapabilitiesIndexRequest implements IndicesRequest. However,  this delegates to the original indices specified in the FieldCapabilitiesIndexRequest.
-                // On the level of FieldCapabilitiesIndexRequest, it is sufficient to only consider the index stored in the index attribute. 
+                // On the level of FieldCapabilitiesIndexRequest, it is sufficient to only consider the index stored in the index attribute.
 
                 return new ActionRequestInfo(((FieldCapabilitiesIndexRequest) request).index(), EXACT);
             } else if (request instanceof ResizeRequest) {
@@ -185,14 +182,14 @@ public class ActionRequestIntrospector {
             if (action.startsWith("index:")) {
                 log.warn("Unknown action request: " + request.getClass().getName());
             } else {
-                log.debug("Unknown action request: " + request.getClass().getName());                
+                log.debug("Unknown action request: " + request.getClass().getName());
             }
             return UNKNOWN;
         }
     }
 
-    public PrivilegesEvaluationResult reduceIndices(String action, Object request, Set<String> keepIndices,
-            ActionRequestInfo actionRequestInfo) throws PrivilegesEvaluationException {
+    public PrivilegesEvaluationResult reduceIndices(String action, Object request, Set<String> keepIndices, ActionRequestInfo actionRequestInfo)
+            throws PrivilegesEvaluationException {
 
         if (request instanceof IndicesRequest.Replaceable) {
             IndicesRequest.Replaceable replaceableIndicesRequest = (IndicesRequest.Replaceable) request;
@@ -239,12 +236,13 @@ public class ActionRequestIntrospector {
         if (request instanceof IndicesRequest.Replaceable) {
             IndicesRequest.Replaceable replaceableIndicesRequest = (IndicesRequest.Replaceable) request;
 
-            if (replaceableIndicesRequest.indicesOptions().expandWildcardsOpen() || replaceableIndicesRequest.indicesOptions().expandWildcardsClosed()) {
-                replaceableIndicesRequest.indices(new String [] {".force_no_index*", "-*"});
+            if (replaceableIndicesRequest.indicesOptions().expandWildcardsOpen()
+                    || replaceableIndicesRequest.indicesOptions().expandWildcardsClosed()) {
+                replaceableIndicesRequest.indices(new String[] { ".force_no_index*", "-*" });
             } else {
-                replaceableIndicesRequest.indices(new String [0]);
+                replaceableIndicesRequest.indices(new String[0]);
             }
-            
+
             validateIndexReduction("", replaceableIndicesRequest, Collections.emptySet());
 
             return true;
@@ -697,7 +695,7 @@ public class ActionRequestIntrospector {
                         return ImmutableSet.ofArray(resolver.concreteIndexNames(clusterService.state(), allowNoIndices(indicesOptions),
                                 this.asIndicesRequestWithoutRemoteIndices()));
                     } catch (IndexNotFoundException | IndexClosedException | InvalidIndexNameException e) {
-                        // For some reason, concreteIndexNames() also throws IndexNotFoundException in some cases when ALLOW_NO_INDICES is specified. 
+                        // For some reason, concreteIndexNames() also throws IndexNotFoundException in some cases when ALLOW_NO_INDICES is specified.
                         // We catch this and just return the raw index names as fallback
 
                         if (log.isTraceEnabled()) {
@@ -878,7 +876,7 @@ public class ActionRequestIntrospector {
     private final static ResolvedIndices EMPTY = new ResolvedIndices(false, ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
 
     public static class ResolvedIndices {
-                
+
         private final boolean localAll;
         private ImmutableSet<IndicesRequestInfo> deferredRequests;
         private ImmutableSet<String> localIndices;
@@ -975,11 +973,11 @@ public class ActionRequestIntrospector {
         public ResolvedIndices localIndices(ImmutableSet<String> localIndices) {
             return new ResolvedIndices(false, localIndices, remoteIndices, ImmutableSet.empty());
         }
-        
+
         public ResolvedIndices localIndices(String... localIndices) {
             return localIndices(ImmutableSet.ofArray(localIndices));
         }
-        
+
         public static ResolvedIndices empty() {
             return EMPTY;
         }
@@ -1024,16 +1022,16 @@ public class ActionRequestIntrospector {
         return index == null || index.contains("*");
     }
 
-    private static boolean containsWildcard(IndicesRequest request) {        
+    private static boolean containsWildcard(IndicesRequest request) {
         String[] indices = request.indices();
 
-        if (indices == null || indices.length == 0)  {
+        if (indices == null || indices.length == 0) {
             return true;
         }
-        
+
         if (!request.indicesOptions().expandWildcardsOpen() && !request.indicesOptions().expandWildcardsClosed()) {
             return false;
-        }        
+        }
 
         for (int i = 0; i < indices.length; i++) {
             if (indices[i].equals("_all") || indices[i].equals("*")) {

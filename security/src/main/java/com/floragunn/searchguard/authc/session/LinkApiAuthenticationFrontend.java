@@ -14,13 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.session;
-
-import java.net.URI;
-import java.util.Map;
-
-import org.elasticsearch.ElasticsearchSecurityException;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -31,6 +25,9 @@ import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction.
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.cstate.ComponentState;
+import java.net.URI;
+import java.util.Map;
+import org.elasticsearch.ElasticsearchSecurityException;
 
 public class LinkApiAuthenticationFrontend implements ApiAuthenticationFrontend {
 
@@ -42,7 +39,7 @@ public class LinkApiAuthenticationFrontend implements ApiAuthenticationFrontend 
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors);
 
         url = vNode.get("url").required().asAbsoluteURI();
-        
+
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
     }

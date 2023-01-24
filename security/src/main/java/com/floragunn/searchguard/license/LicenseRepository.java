@@ -14,26 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.license;
-
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.engine.VersionConflictEngineException;
-import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
@@ -46,6 +27,22 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.engine.VersionConflictEngineException;
+import org.elasticsearch.xcontent.XContentType;
 
 public class LicenseRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(LicenseRepository.class);
@@ -107,7 +104,7 @@ public class LicenseRepository implements ComponentStateProvider {
     }
 
     private SearchGuardLicense createOrGetTrial(String msg) {
-        
+
         String searchguardIndex;
         try {
             searchguardIndex = this.configurationRepository.getEffectiveSearchGuardIndexAndCreateIfNecessary();

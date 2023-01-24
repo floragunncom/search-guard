@@ -14,15 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.cluster;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
-
-import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
-
 import nl.altindag.ssl.SSLFactory;
 import nl.altindag.ssl.util.PemUtils;
 

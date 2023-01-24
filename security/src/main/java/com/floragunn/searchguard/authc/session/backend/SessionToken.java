@@ -1,10 +1,10 @@
 /*
  * Copyright 2021 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,21 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.session.backend;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.time.Instant;
-import java.util.Map;
-
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -34,6 +22,15 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
+import java.io.Serializable;
+import java.time.Instant;
+import java.util.Map;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class SessionToken implements ToXContentObject, Writeable, Serializable {
     private static final long serialVersionUID = -968321214418424644L;
@@ -52,8 +49,8 @@ public class SessionToken implements ToXContentObject, Writeable, Serializable {
 
     private final SessionPrivileges base;
 
-    SessionToken(String id, String userName, SessionPrivileges base, Instant creationTime, Instant expiryTime,
-            Instant dynamicExpiryTime, Instant revokedAt) {
+    SessionToken(String id, String userName, SessionPrivileges base, Instant creationTime, Instant expiryTime, Instant dynamicExpiryTime,
+            Instant revokedAt) {
         this.id = id;
         this.userName = userName;
         this.tokenName = null;
@@ -154,7 +151,7 @@ public class SessionToken implements ToXContentObject, Writeable, Serializable {
 
         validationErrors.throwExceptionForPresentErrors();
 
-        return new SessionToken(id, userName,  base, createdAt, expiry, dynamicExpiry, revokedAt);
+        return new SessionToken(id, userName, base, createdAt, expiry, dynamicExpiry, revokedAt);
     }
 
     public Instant getCreationTime() {

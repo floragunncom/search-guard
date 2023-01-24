@@ -14,11 +14,18 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
+import com.floragunn.searchsupport.junit.AsyncAssert;
+import com.floragunn.searchsupport.junit.LoggingTestWatcher;
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
 import java.time.Duration;
-
+import net.jcip.annotations.NotThreadSafe;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
@@ -30,17 +37,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
-import com.floragunn.searchsupport.junit.AsyncAssert;
-import com.floragunn.searchsupport.junit.LoggingTestWatcher;
-import com.floragunn.signals.watch.Watch;
-import com.floragunn.signals.watch.WatchBuilder;
-
-import net.jcip.annotations.NotThreadSafe;
 
 /**
  * Tests which prove stressful for the engineer

@@ -14,13 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.auditlog;
 
+import com.floragunn.searchguard.user.UserInformation;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
-
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
@@ -33,8 +32,6 @@ import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
-
-import com.floragunn.searchguard.user.UserInformation;
 
 public class AuditLogRelay implements AuditLog {
     private AuditLog auditLog = NullAuditLog.INSTANCE;

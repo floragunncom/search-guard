@@ -1,31 +1,16 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
-
-import java.io.IOException;
-import java.util.Collection;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
-import java.util.function.Predicate;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.index.DirectoryReader;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.core.CheckedFunction;
-import org.elasticsearch.index.IndexService;
-import org.elasticsearch.index.shard.SearchOperationListener;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -38,6 +23,18 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.dlsfls.legacy.lucene.SearchGuardFlsDlsIndexSearcherWrapper;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.DirectoryReader;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.core.CheckedFunction;
+import org.elasticsearch.index.IndexService;
+import org.elasticsearch.index.shard.SearchOperationListener;
 
 public class LegacyDlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(LegacyDlsFlsModule.class);
@@ -67,8 +64,8 @@ public class LegacyDlsFlsModule implements SearchGuardModule, ComponentStateProv
 
         this.flsFieldFilter = new FlsFieldFilter(baseDependencies.getThreadPool(), config);
         this.flsQueryCacheWeightProvider = new FlsQueryCacheWeightProvider(baseDependencies.getThreadPool(), config);
-        this.directoryReaderWrapper = (indexService) -> new SearchGuardFlsDlsIndexSearcherWrapper(indexService,
-                baseDependencies.getSettings(), baseDependencies.getClusterService(), baseDependencies.getAuditLog(), complianceConfig, config);
+        this.directoryReaderWrapper = (indexService) -> new SearchGuardFlsDlsIndexSearcherWrapper(indexService, baseDependencies.getSettings(),
+                baseDependencies.getClusterService(), baseDependencies.getAuditLog(), complianceConfig, config);
 
         ConfigurationRepository configurationRepository = baseDependencies.getConfigurationRepository();
         ClusterService clusterService = baseDependencies.getClusterService();
@@ -78,13 +75,14 @@ public class LegacyDlsFlsModule implements SearchGuardModule, ComponentStateProv
             @Override
             public void onChange(ConfigMap configMap) {
                 DlsFlsProcessedConfig newConfig = DlsFlsProcessedConfig.createFrom(configMap, componentState,
-                        baseDependencies.getIndexNameExpressionResolver(), clusterService); 
-                
+                        baseDependencies.getIndexNameExpressionResolver(), clusterService);
+
                 DlsFlsProcessedConfig oldConfig = LegacyDlsFlsModule.this.config.get();
-                                
+
                 if (oldConfig.isEnabled() != newConfig.isEnabled()) {
-                    log.info(newConfig.isEnabled() ? "Legacy DLS/FLS implementation is now ENABLED" : "Legacy DLS/FLS implementation is now DISABLED");
-                } 
+                    log.info(
+                            newConfig.isEnabled() ? "Legacy DLS/FLS implementation is now ENABLED" : "Legacy DLS/FLS implementation is now DISABLED");
+                }
                 LegacyDlsFlsModule.this.config.set(newConfig);
 
             }
@@ -122,7 +120,7 @@ public class LegacyDlsFlsModule implements SearchGuardModule, ComponentStateProv
     public ComponentState getComponentState() {
         return componentState;
     }
-    
+
     @Override
     public ImmutableSet<String> getCapabilities() {
         return ImmutableSet.of("dls", "fls", "field_masking");

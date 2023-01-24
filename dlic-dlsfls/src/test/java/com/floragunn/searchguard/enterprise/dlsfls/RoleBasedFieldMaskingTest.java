@@ -1,6 +1,5 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -13,9 +12,6 @@
  */
 package com.floragunn.searchguard.enterprise.dlsfls;
 
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
@@ -26,6 +22,8 @@ import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMa
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class RoleBasedFieldMaskingTest {
     @Test

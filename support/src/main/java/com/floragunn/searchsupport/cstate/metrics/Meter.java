@@ -1,10 +1,10 @@
 /*
  * Copyright 2021-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,17 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchsupport.cstate.metrics;
 
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation.Nanoseconds;
 import java.util.function.Consumer;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.floragunn.searchsupport.cstate.metrics.TimeAggregation.Nanoseconds;
 
 public interface Meter extends AutoCloseable {
     static final Logger log = LogManager.getLogger(Meter.class);
@@ -32,7 +29,7 @@ public interface Meter extends AutoCloseable {
             log.error("null level supplied to Meter. Ignoring.", new Exception());
             return NO_OP;
         }
-        
+
         if (level.basicEnabled()) {
             return new SystemCurrentTimeMillisMeter(level, sink);
         } else {

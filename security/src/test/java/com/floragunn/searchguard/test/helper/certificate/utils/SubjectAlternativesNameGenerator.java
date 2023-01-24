@@ -14,16 +14,14 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.certificate.utils;
 
 import com.google.common.base.Strings;
+import java.util.ArrayList;
+import java.util.List;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.x509.GeneralName;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class SubjectAlternativesNameGenerator {
 

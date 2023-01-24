@@ -1,22 +1,16 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.license;
-
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -25,6 +19,9 @@ import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Authc;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class LicenseInfoIntegrationTest {
     static TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(//

@@ -1,6 +1,5 @@
 /*
- * Copyright 2021 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,12 +10,15 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
 import java.util.stream.Collectors;
-
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
@@ -40,12 +42,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
 public class DlsTermsLookupTest {
 
@@ -259,7 +255,6 @@ public class DlsTermsLookupTest {
         }
     }
 
-    
     @Test
     public void testDlsWithTermsLookupSingleIndexUnmatchedQuery() throws Exception {
 
@@ -394,8 +389,8 @@ public class DlsTermsLookupTest {
     @Test
     public void testDlsWithTermsLookupGetTLQDisabled() throws Exception {
 
-        try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy").nodeSettings("searchguard.dls.mode", "lucene_level")
-                .enterpriseModulesEnabled().start()) {
+        try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy")
+                .nodeSettings("searchguard.dls.mode", "lucene_level").enterpriseModulesEnabled().start()) {
 
             try (Client client = cluster.getInternalNodeClient()) {
 

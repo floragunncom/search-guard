@@ -1,5 +1,22 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchsupport.xcontent;
 
+import com.google.common.base.Charsets;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -16,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
@@ -33,8 +49,6 @@ import org.elasticsearch.xcontent.XContentGenerator;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xcontent.support.filtering.FilterPath;
-
-import com.google.common.base.Charsets;
 
 public class ObjectTreeXContent implements XContent {
     private final static Logger log = LogManager.getLogger(ObjectTreeXContent.class);
@@ -134,7 +148,7 @@ public class ObjectTreeXContent implements XContent {
         throw new UnsupportedOperationException();
 
     }
-    
+
     @Override
     public XContentParser createParser(NamedXContentRegistry xContentRegistry, DeprecationHandler deprecationHandler, InputStream is,
             FilterPath[] includes, FilterPath[] excludes) throws IOException {
@@ -408,12 +422,12 @@ public class ObjectTreeXContent implements XContent {
                 copyCurrentStructure(parser);
             }
         }
-        
+
         @Override
         public boolean isClosed() {
             return false;
         }
-        
+
         Object getTopLevelObject() {
             if (topLevelObjects.size() == 0) {
                 return null;
@@ -466,6 +480,5 @@ public class ObjectTreeXContent implements XContent {
         }
 
     }
-
 
 }

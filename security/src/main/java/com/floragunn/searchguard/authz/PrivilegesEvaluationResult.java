@@ -14,21 +14,18 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.CheckTable;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.rest.RestStatus;
 
 public class PrivilegesEvaluationResult {
 

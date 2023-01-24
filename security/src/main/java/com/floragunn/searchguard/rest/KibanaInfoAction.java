@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,17 +12,19 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.rest;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.node.NodeClient;
@@ -37,11 +39,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-import com.google.common.collect.ImmutableList;
-
 public class KibanaInfoAction extends BaseRestHandler {
 
     private final Logger log = LogManager.getLogger(this.getClass());
@@ -54,7 +51,7 @@ public class KibanaInfoAction extends BaseRestHandler {
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
     }
-    
+
     @Override
     public List<Route> routes() {
         return ImmutableList.of(new Route(GET, "/_searchguard/kibanainfo"), new Route(POST, "/_searchguard/kibanainfo"));
@@ -77,8 +74,8 @@ public class KibanaInfoAction extends BaseRestHandler {
                     builder.field("user_name", user == null ? null : user.getName());
                     builder.field("not_fail_on_forbidden_enabled", evaluator.notFailOnForbiddenEnabled());
                     builder.field("kibana_mt_enabled", evaluator.multitenancyEnabled());
-                    builder.field("kibana_index", evaluator.getKibanaIndex()); 
-                    builder.field("kibana_server_user", evaluator.getKibanaServerUser()); 
+                    builder.field("kibana_index", evaluator.getKibanaIndex());
+                    builder.field("kibana_server_user", evaluator.getKibanaServerUser());
                     builder.field("kibana_rbac_enabled", false);
                     builder.endObject();
 

@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.certificate.utils;
 
 import java.io.File;
@@ -22,7 +21,6 @@ import java.io.FileWriter;
 import java.io.StringWriter;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
@@ -50,7 +48,7 @@ public class CertificateAndPrivateKeyWriter {
 
         return stringWriter.toString();
     }
-    
+
     public static void saveCertificate(File certificateFile, X509CertificateHolder certificate) {
         try (JcaPEMWriter writer = new JcaPEMWriter(new FileWriter(certificateFile))) {
             writer.writeObject(certificate);

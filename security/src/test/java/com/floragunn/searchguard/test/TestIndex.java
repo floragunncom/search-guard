@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test;
 
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;

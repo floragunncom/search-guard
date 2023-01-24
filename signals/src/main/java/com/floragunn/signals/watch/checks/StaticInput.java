@@ -14,15 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.checks;
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -30,6 +22,11 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.support.NestedValueMap;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class StaticInput extends AbstractInput {
     private Map<String, Object> value;
@@ -104,8 +101,8 @@ public class StaticInput extends AbstractInput {
 
     /**
      * Fixes bug in regard to index mapping. Dynamic index mapping was originally enabled for the attribute "value", which made using
-     * different value structures impossible. As index mappings for specific fields cannot be changed retroactively, we need to write this   
-     * to a new field name. 
+     * different value structures impossible. As index mappings for specific fields cannot be changed retroactively, we need to write this
+     * to a new field name.
      */
     public static void patchForIndexMappingBugFix(Map<String, Object> watchJson) {
         if (watchJson.get("checks") instanceof List) {
@@ -156,7 +153,7 @@ public class StaticInput extends AbstractInput {
             }
         }
     }
-    
+
     public static void unpatchForIndexMappingBugFix(Map<String, Object> watchJson) {
         if (watchJson.get("checks") instanceof List) {
             for (Object checkObject : (List<?>) watchJson.get("checks")) {

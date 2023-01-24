@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
@@ -23,12 +22,6 @@ import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-
-import java.util.Arrays;
-
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -40,6 +33,10 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import java.util.Arrays;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class IgnoreUnauthorizedDisabledIntTest {
     @ClassRule

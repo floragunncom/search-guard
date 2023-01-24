@@ -14,9 +14,25 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.cluster;
 
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.SearchGuardModule;
+import com.floragunn.searchguard.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchguard.test.TestAlias;
+import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -36,7 +52,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
@@ -53,24 +68,6 @@ import org.elasticsearch.plugins.ExtensiblePlugin;
 import org.elasticsearch.plugins.ExtensiblePlugin.ExtensionLoader;
 import org.elasticsearch.plugins.Plugin;
 import org.junit.rules.ExternalResource;
-
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.SearchGuardModule;
-import com.floragunn.searchguard.SearchGuardModulesRegistry;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchguard.test.TestAlias;
-import com.floragunn.searchguard.test.TestIndex;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
 
@@ -114,7 +111,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         this.clusterDependencies = clusterDependencies;
         this.testIndices = testIndices;
         this.testAliases = testAliases;
-        
+
         painlessWhitelistKludge();
     }
 
@@ -309,8 +306,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                     }
                 }
             });
-            
-            ((Plugin) painlessPlugin).close();            
+
+            ((Plugin) painlessPlugin).close();
         } catch (ClassNotFoundException e) {
             // Ignore this, as this is expected on projects without painless dependency
         } catch (Exception e) {
@@ -493,7 +490,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             testSgConfig.dlsFls(dlsfls);
             return this;
         }
-        
+
         public Builder authTokenService(TestSgConfig.AuthTokenService authTokenService) {
             testSgConfig.authTokenService(authTokenService);
             return this;

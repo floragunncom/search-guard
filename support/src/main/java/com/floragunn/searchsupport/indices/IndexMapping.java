@@ -14,17 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.indices;
-
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class IndexMapping implements Document<IndexMapping> {
 

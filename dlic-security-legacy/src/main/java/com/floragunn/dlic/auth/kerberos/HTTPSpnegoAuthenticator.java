@@ -1,19 +1,23 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.kerberos;
 
+import com.floragunn.searchguard.TypedComponent;
+import com.floragunn.searchguard.TypedComponent.Factory;
+import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
+import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.google.common.base.Strings;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,10 +31,8 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -51,17 +53,10 @@ import org.ietf.jgss.GSSManager;
 import org.ietf.jgss.GSSName;
 import org.ietf.jgss.Oid;
 
-import com.floragunn.searchguard.TypedComponent;
-import com.floragunn.searchguard.TypedComponent.Factory;
-import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
-import com.floragunn.searchguard.user.AuthCredentials;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.google.common.base.Strings;
-
 public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
 
     private static final String EMPTY_STRING = "";
-    private static final Oid[] KRB_OIDS = new Oid[] {KrbConstants.SPNEGO, KrbConstants.KRB5MECH};
+    private static final Oid[] KRB_OIDS = new Oid[] { KrbConstants.SPNEGO, KrbConstants.KRB5MECH };
 
     protected final Logger log = LogManager.getLogger(this.getClass());
 
@@ -69,10 +64,9 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
     private Set<String> acceptorPrincipal;
     private Path acceptorKeyTabPath;
 
-    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "kerberos",
-            HTTPSpnegoAuthenticator.class).initialized().requiresEnterpriseLicense();
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "kerberos", HTTPSpnegoAuthenticator.class)
+            .initialized().requiresEnterpriseLicense();
 
-   
     public HTTPSpnegoAuthenticator(final Settings settings, final Path configPath) {
         super();
         try {
@@ -88,7 +82,7 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
             AccessController.doPrivileged(new PrivilegedAction<Void>() {
 
                 @Override
-                public Void run() {       
+                public Void run() {
 
                     try {
                         if (settings.getAsBoolean("krb_debug", false)) {
@@ -104,17 +98,17 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
                         }
                     } catch (Throwable e) {
                         log.error("Unable to enable krb_debug due to ", e);
-                        System.err.println("Unable to enable krb_debug due to "+ExceptionsHelper.stackTrace(e));
-                        System.out.println("Unable to enable krb_debug due to "+ExceptionsHelper.stackTrace(e));
+                        System.err.println("Unable to enable krb_debug due to " + ExceptionsHelper.stackTrace(e));
+                        System.out.println("Unable to enable krb_debug due to " + ExceptionsHelper.stackTrace(e));
                     }
 
                     System.setProperty(KrbConstants.USE_SUBJECT_CREDS_ONLY_PROP, "false");
 
                     String krb5Path = krb5PathSetting;
 
-                    if(!Strings.isNullOrEmpty(krb5Path)) {
+                    if (!Strings.isNullOrEmpty(krb5Path)) {
 
-                        if(Paths.get(krb5Path).isAbsolute()) {
+                        if (Paths.get(krb5Path).isAbsolute()) {
                             log.debug("krb5_filepath: {}", krb5Path);
                             System.setProperty(KrbConstants.KRB5_CONF_PROP, krb5Path);
                         } else {
@@ -124,7 +118,7 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
 
                         System.setProperty(KrbConstants.KRB5_CONF_PROP, krb5Path);
                     } else {
-                        if(Strings.isNullOrEmpty(System.getProperty(KrbConstants.KRB5_CONF_PROP))) {
+                        if (Strings.isNullOrEmpty(System.getProperty(KrbConstants.KRB5_CONF_PROP))) {
                             System.setProperty(KrbConstants.KRB5_CONF_PROP, "/etc/krb5.conf");
                             log.debug("krb5_filepath (was not set or configured, set to default): /etc/krb5.conf");
                         }
@@ -134,26 +128,28 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
                     acceptorPrincipal = new HashSet<>(settings.getAsList("searchguard.kerberos.acceptor_principal", Collections.emptyList()));
                     final String _acceptorKeyTabPath = settings.get("searchguard.kerberos.acceptor_keytab_filepath");
 
-                    if(acceptorPrincipal == null || acceptorPrincipal.size() == 0) {
+                    if (acceptorPrincipal == null || acceptorPrincipal.size() == 0) {
                         log.error("acceptor_principal must not be null or empty. Kerberos authentication will not work");
                         acceptorPrincipal = null;
-                    } 
+                    }
 
-                    if(_acceptorKeyTabPath == null || _acceptorKeyTabPath.length() == 0) {
+                    if (_acceptorKeyTabPath == null || _acceptorKeyTabPath.length() == 0) {
                         log.error("searchguard.kerberos.acceptor_keytab_filepath must not be null or empty. Kerberos authentication will not work");
                         acceptorKeyTabPath = null;
                     } else {
                         acceptorKeyTabPath = configDir.resolve(settings.get("searchguard.kerberos.acceptor_keytab_filepath"));
 
-                        if(!Files.exists(acceptorKeyTabPath)) {
-                            log.error("Unable to read keytab from {} - Maybe the file does not exist or is not readable. Kerberos authentication will not work", acceptorKeyTabPath);
+                        if (!Files.exists(acceptorKeyTabPath)) {
+                            log.error(
+                                    "Unable to read keytab from {} - Maybe the file does not exist or is not readable. Kerberos authentication will not work",
+                                    acceptorKeyTabPath);
                             acceptorKeyTabPath = null;
                         }
                     }
 
                     return null;
                 }
-            });      
+            });
 
             log.debug("strip_realm_from_principal {}", stripRealmFromPrincipalName);
             log.debug("acceptor_principal {}", acceptorPrincipal);
@@ -177,7 +173,7 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
 
         AuthCredentials creds = AccessController.doPrivileged(new PrivilegedAction<AuthCredentials>() {
             @Override
-            public AuthCredentials run() {                        
+            public AuthCredentials run() {
                 return extractCredentials0(request);
             }
         });
@@ -257,10 +253,9 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
                     return AuthCredentials.forUser("_incomplete_").authenticatorType(getType()).nativeCredentials(outToken).build();
                 }
 
-
                 final String username = ((SimpleUserPrincipal) principal).getName();
 
-                if(username == null || username.length() == 0) {
+                if (username == null || username.length() == 0) {
                     return null;
                 }
 
@@ -280,15 +275,16 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
         XContentBuilder response = getNegotiateResponseBody();
 
         if (response != null) {
-            wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, response);        	
+            wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, response);
         } else {
             wwwAuthenticateResponse = new BytesRestResponse(RestStatus.UNAUTHORIZED, EMPTY_STRING);
         }
 
-        if(creds == null || creds.getNativeCredentials() == null) {
+        if (creds == null || creds.getNativeCredentials() == null) {
             wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate");
         } else {
-            wwwAuthenticateResponse.addHeader("WWW-Authenticate", "Negotiate "+Base64.getEncoder().encodeToString((byte[]) creds.getNativeCredentials()));
+            wwwAuthenticateResponse.addHeader("WWW-Authenticate",
+                    "Negotiate " + Base64.getEncoder().encodeToString((byte[]) creds.getNativeCredentials()));
         }
         channel.sendResponse(wwwAuthenticateResponse);
         return true;
@@ -382,7 +378,7 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
         }
     }
 
-    private static String stripRealmName(String name, boolean strip){
+    private static String stripRealmName(String name, boolean strip) {
         if (strip && name != null) {
             final int i = name.indexOf('@');
             if (i > 0) {
@@ -457,7 +453,7 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
             return "Negotiate";
         }
     }
-   
+
     public static TypedComponent.Info<LegacyHTTPAuthenticator> INFO = new TypedComponent.Info<LegacyHTTPAuthenticator>() {
 
         @Override
@@ -478,12 +474,12 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
                 if (context.getStaticSettings() != null) {
                     settings.put(context.getStaticSettings().getPlatformSettings());
                 }
-                
-                return new HTTPSpnegoAuthenticator(settings.build(), context.getStaticSettings() != null ? context.getStaticSettings().getConfigPath() : null);
+
+                return new HTTPSpnegoAuthenticator(settings.build(),
+                        context.getStaticSettings() != null ? context.getStaticSettings().getConfigPath() : null);
             };
         }
     };
-
 
     @Override
     public ComponentState getComponentState() {

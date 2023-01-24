@@ -1,34 +1,23 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 package com.floragunn.searchguard.enterprise.auth.oidc;
-
-import java.io.FileNotFoundException;
-import java.net.InetAddress;
-import java.net.URLEncoder;
-import java.util.Map;
-
-import com.floragunn.codova.validation.VariableResolvers;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
@@ -36,6 +25,14 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.collect.ImmutableMap;
+import java.io.FileNotFoundException;
+import java.net.InetAddress;
+import java.net.URLEncoder;
+import java.util.Map;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 public class OidcAuthenticatorTest {
     protected static MockIpdServer mockIdpServer;

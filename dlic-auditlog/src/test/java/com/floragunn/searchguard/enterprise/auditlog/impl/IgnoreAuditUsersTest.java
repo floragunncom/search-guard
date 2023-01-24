@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,14 +10,16 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
 import java.net.InetSocketAddress;
-
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -30,13 +31,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AbstractAuditLog;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditLogImpl;
-import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
 
 /**
  * Created by martin.stange on 19.04.2017.
@@ -67,19 +61,15 @@ public class IgnoreAuditUsersTest {
         sr.indices("index1", "logstash*");
     }
 
-
-
     @Test
     public void testConfiguredIgnoreUser() {
 
-        Settings settings = Settings.builder()
-                .put("searchguard.audit.ignore_users", ignoreUser)
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.enable_request_details", true)
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
+        Settings settings = Settings.builder().put("searchguard.audit.ignore_users", ignoreUser)
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName()).put("searchguard.audit.enable_request_details", true)
+                .put("searchguard.audit.threadpool.size", 0).build();
         @SuppressWarnings("resource")
-        AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs, configurationRepository);
+        AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs,
+                configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(0, TestAuditlogImpl.messages.size());
@@ -87,15 +77,13 @@ public class IgnoreAuditUsersTest {
 
     @Test
     public void testNonConfiguredIgnoreUser() {
-        Settings settings = Settings.builder()
-                .put("searchguard.audit.ignore_users", nonIgnoreUser)
+        Settings settings = Settings.builder().put("searchguard.audit.ignore_users", nonIgnoreUser)
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
         @SuppressWarnings("resource")
-        AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs, configurationRepository);
+        AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs,
+                configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -103,14 +91,12 @@ public class IgnoreAuditUsersTest {
 
     @Test
     public void testNonExistingIgnoreUser() {
-        Settings settings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+        Settings settings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
         @SuppressWarnings("resource")
-        AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs, configurationRepository);
+        AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_USER, ignoreUserObj), null, cs,
+                configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
@@ -124,80 +110,63 @@ public class IgnoreAuditUsersTest {
         //sr.putInContext(ConfigConstants.SG_REMOTE_ADDRESS, "8.8.8.8");
         //sr.putInContext(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE");
         //sr.putHeader("myheader", "hval");
-        sr.indices("index1","logstash*");
+        sr.indices("index1", "logstash*");
         //sr.source("{\"query\": false}");
 
-        Settings settings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put("searchguard.audit.enable_request_details", true)
-                .put("searchguard.audit.threadpool.size", 0)
-                .putList("searchguard.audit.ignore_users", "*")
-                .build();
+        Settings settings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true).put("searchguard.audit.enable_request_details", true)
+                .put("searchguard.audit.threadpool.size", 0).putList("searchguard.audit.ignore_users", "*").build();
 
-        TransportAddress ta = new TransportAddress(new InetSocketAddress("8.8.8.8",80));
+        TransportAddress ta = new TransportAddress(new InetSocketAddress("8.8.8.8", 80));
 
         @SuppressWarnings("resource")
-        AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
-                                                                             ConfigConstants.SG_USER, new User("John Doe", null),
-                                                                             ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
-                                                                              ), null, cs, configurationRepository);
+        AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta, ConfigConstants.SG_USER,
+                new User("John Doe", null), ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"), null, cs,
+                configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(0, TestAuditlogImpl.messages.size());
 
-        settings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.threadpool.size", 0)
+        settings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName()).put("searchguard.audit.threadpool.size", 0)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .putList("searchguard.audit.ignore_users", "xxx")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").putList("searchguard.audit.ignore_users", "xxx")
                 .build();
-        al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
-                ConfigConstants.SG_USER, new User("John Doe", null),
-                ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
-                 ), null, cs, configurationRepository);
+        al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta, ConfigConstants.SG_USER,
+                new User("John Doe", null), ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"), null, cs,
+                configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
 
-        settings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+        settings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .putList("searchguard.audit.ignore_users", "John Doe","Capatin Kirk")
-                .build();
-        al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
-                ConfigConstants.SG_USER, new User("John Doe", null),
-                ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
-                 ), null, cs, configurationRepository);
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0)
+                .putList("searchguard.audit.ignore_users", "John Doe", "Capatin Kirk").build();
+        al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta, ConfigConstants.SG_USER,
+                new User("John Doe", null), ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"), null, cs,
+                configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
         al.logSgIndexAttempt(sr, "indices:data/read/search", null);
-        al.logMissingPrivileges("indices:data/read/search",sr, null);
+        al.logMissingPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(TestAuditlogImpl.messages.toString(), 0, TestAuditlogImpl.messages.size());
 
-        settings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+        settings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .putList("searchguard.audit.ignore_users", "Wil Riker","Capatin Kirk")
-                .build();
-        al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
-                ConfigConstants.SG_USER, new User("John Doe", null),
-                ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
-                 ), null, cs, configurationRepository);
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0)
+                .putList("searchguard.audit.ignore_users", "Wil Riker", "Capatin Kirk").build();
+        al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta, ConfigConstants.SG_USER,
+                new User("John Doe", null), ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"), null, cs,
+                configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
     }
 
     private static ThreadPool newThreadPool(Object... transients) {
-        ThreadPool tp = new ThreadPool(Settings.builder().put("node.name",  "mock").build());
-        for(int i=0;i<transients.length;i=i+2)
-            tp.getThreadContext().putTransient((String)transients[i], transients[i+1]);
+        ThreadPool tp = new ThreadPool(Settings.builder().put("node.name", "mock").build());
+        for (int i = 0; i < transients.length; i = i + 2)
+            tp.getThreadContext().putTransient((String) transients[i], transients[i + 1]);
         return tp;
     }
 }

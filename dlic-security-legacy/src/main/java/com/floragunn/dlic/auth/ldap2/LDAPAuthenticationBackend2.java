@@ -1,36 +1,16 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.ldap2;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.LdapUser.DirEntry;
@@ -49,6 +29,22 @@ import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SearchResultEntry;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.common.settings.Settings;
 
 public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, Destroyable {
 
@@ -99,7 +95,6 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
         }
     }
 
-
     private User authenticate0(final AuthCredentials credentials) throws ElasticsearchSecurityException {
 
         final String user = credentials.getUsername();
@@ -117,11 +112,9 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
             // makes guessing if a user exists or not harder when looking on the
             // authentication delay time
             if (entry == null && settings.getAsBoolean(ConfigConstants.LDAP_FAKE_LOGIN_ENABLED, false)) {
-                String fakeLognDn = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_DN,
-                        "CN=faketomakebindfail,DC=" + UUID.randomUUID().toString());
+                String fakeLognDn = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_DN, "CN=faketomakebindfail,DC=" + UUID.randomUUID().toString());
                 entry = new SearchResultEntry(fakeLognDn, new Attribute[0]);
-                password = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_PASSWORD, "fakeLoginPwd123")
-                        .getBytes(StandardCharsets.UTF_8);
+                password = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_PASSWORD, "fakeLoginPwd123").getBytes(StandardCharsets.UTF_8);
             } else if (entry == null) {
                 throw new ElasticsearchSecurityException("No user " + user + " found");
             }
@@ -131,7 +124,7 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
             if (log.isTraceEnabled()) {
                 log.trace("Try to authenticate dn {}", dn);
             }
-            
+
             lcm.checkDnPassword(dn, password);
 
             final String usernameAttribute = settings.get(ConfigConstants.LDAP_AUTHC_USERNAME_ATTRIBUTE, null);
@@ -149,10 +142,11 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
             // length of 36 are included in the user object
             // if the whitelist contains at least one value then all attributes will be
             // additional check if whitelisted (whitelist can contain wildcard and regex)
-            LdapUser ldapUser = new LdapUser(username, credentials.getAuthDomainInfo().authBackendType(getType()), user, new DirEntry(entry), credentials, customAttrMaxValueLen, whitelistedAttributes);
+            LdapUser ldapUser = new LdapUser(username, credentials.getAuthDomainInfo().authBackendType(getType()), user, new DirEntry(entry),
+                    credentials, customAttrMaxValueLen, whitelistedAttributes);
 
             processAttributeMapping(ldapUser, entry);
-            
+
             return ldapUser;
         } catch (final Exception e) {
             if (log.isDebugEnabled()) {
@@ -170,7 +164,7 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
     public String getType() {
         return "ldap";
     }
-    
+
     private void processAttributeMapping(User user, SearchResultEntry ldapEntry) {
         for (Map.Entry<String, String> entry : attributeMapping.entrySet()) {
             String sourceAttributeName = entry.getValue();
@@ -189,8 +183,6 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
             }
         }
     }
-    
-  
 
     @Override
     public void destroy() {
@@ -247,7 +239,7 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
             return false;
         }
     }
-    
+
     public static TypedComponent.Info<LegacyAuthenticationBackend> INFO = new TypedComponent.Info<LegacyAuthenticationBackend>() {
 
         @Override
@@ -264,6 +256,6 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
         public Factory<LegacyAuthenticationBackend> getFactory() {
             return LegacyComponentFactory.adapt(LDAPAuthenticationBackend2::new);
         }
-    };    
+    };
 
 }

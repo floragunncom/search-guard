@@ -1,40 +1,36 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-/*
- * Includes parts from https://github.com/opensearch-project/security/blob/c18a50ac4c5f7116e0e7c3411944d1438f9c44e9/src/main/java/org/opensearch/security/configuration/DlsFlsValveImpl.java
- * 
- * Copyright OpenSearch Contributors
- *
- *  Licensed under the Apache License, Version 2.0 (the "License").
- *  You may not use this file except in compliance with the License.
- *  A copy of the License is located at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  or in the "license" file accompanying this file. This file is distributed
- *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- *  express or implied. See the License for the specific language governing
- *  permissions and limitations under the License.
- */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.GuiceDependencies;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.enterprise.dlsfls.legacy.filter.DlsFilterLevelActionHandler;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
+import com.floragunn.searchguard.support.Base64Helper;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
+import com.floragunn.searchguard.user.User;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -54,22 +50,6 @@ import org.elasticsearch.search.aggregations.bucket.terms.SignificantTermsAggreg
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
-
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.GuiceDependencies;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.authz.config.Role;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.enterprise.dlsfls.legacy.filter.DlsFilterLevelActionHandler;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
-import com.floragunn.searchguard.support.Base64Helper;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.HeaderHelper;
-import com.floragunn.searchguard.user.User;
 
 public class DlsFlsValve implements SyncAuthorizationFilter {
     private static final String MAP_EXECUTION_HINT = "map";
@@ -128,7 +108,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
         }
 
         LegacyRoleBasedDocumentAuthorization documentAuthorization = config.getDocumentAuthorization();
-        
+
         if (specialPrivilegesEvaluationContext != null && specialPrivilegesEvaluationContext.getRolesConfig() != null) {
             SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
             documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);

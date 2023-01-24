@@ -1,29 +1,16 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.saml;
-
-import java.security.Security;
-import java.util.Arrays;
-import java.util.Map;
-
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.opensaml.core.config.InitializationService;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
@@ -35,7 +22,15 @@ import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
-
+import java.security.Security;
+import java.util.Arrays;
+import java.util.Map;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.opensaml.core.config.InitializationService;
 
 public class SamlAuthenticatorTest {
 
@@ -85,7 +80,8 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
 
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -113,7 +109,8 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(inlineMetadataAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
 
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -203,7 +200,8 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
 
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         mockSamlIdpServer.loadSigningKeys("saml/spock-keystore.jks", "spock");
 
@@ -229,7 +227,8 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
 
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -255,7 +254,8 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
 
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -277,7 +277,8 @@ public class SamlAuthenticatorTest {
         SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
 
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
@@ -299,7 +300,8 @@ public class SamlAuthenticatorTest {
             ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
 
             try {
-                authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+                authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                        new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
                 Assert.fail(authMethod.toString());
             } catch (AuthenticatorUnavailableException e) {
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("SAML metadata is not yet available"));
@@ -325,7 +327,8 @@ public class SamlAuthenticatorTest {
             Thread.sleep(500);
 
             authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-            authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+            authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
             encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
             request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",

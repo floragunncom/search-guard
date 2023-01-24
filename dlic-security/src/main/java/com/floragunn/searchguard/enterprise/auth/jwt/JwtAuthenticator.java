@@ -1,39 +1,16 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.jwt;
-
-import java.io.ByteArrayInputStream;
-import java.io.StringReader;
-import java.net.URI;
-import java.security.KeyFactory;
-import java.security.PublicKey;
-import java.security.cert.CertificateFactory;
-import java.security.interfaces.ECPublicKey;
-import java.security.interfaces.RSAPublicKey;
-import java.security.spec.X509EncodedKeySpec;
-
-import org.apache.cxf.rs.security.jose.jwa.AlgorithmUtils;
-import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
-import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtToken;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemReader;
 
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
@@ -65,6 +42,25 @@ import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
+import java.io.ByteArrayInputStream;
+import java.io.StringReader;
+import java.net.URI;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.cert.CertificateFactory;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import org.apache.cxf.rs.security.jose.jwa.AlgorithmUtils;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
+import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
 
 public class JwtAuthenticator implements HttpAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(JwtAuthenticator.class);
@@ -169,8 +165,7 @@ public class JwtAuthenticator implements HttpAuthenticationFrontend {
     }
 
     @Override
-    public AuthCredentials extractCredentials(RequestMetaData<?> request)
-            throws CredentialsException, AuthenticatorUnavailableException {
+    public AuthCredentials extractCredentials(RequestMetaData<?> request) throws CredentialsException, AuthenticatorUnavailableException {
         String jwtString = request.getAuthorizationByScheme(jwtHeaderName, "bearer");
         String jwtTokenFromParam = jwtUrlParameter != null ? request.getParam(jwtUrlParameter) : null;
 

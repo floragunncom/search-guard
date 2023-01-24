@@ -14,9 +14,10 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.support;
 
+import com.floragunn.searchguard.user.User;
+import com.google.common.io.BaseEncoding;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -33,11 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
 import org.elasticsearch.ElasticsearchException;
-
-import com.floragunn.searchguard.user.User;
-import com.google.common.io.BaseEncoding;
 
 public class Base64Helper {
 
@@ -106,20 +103,10 @@ public class Base64Helper {
 
             Class<?> clazz = super.resolveClass(desc);
 
-            if (
-                    clazz.isArray() ||
-                    clazz.equals(String.class) ||
-                    clazz.equals(SocketAddress.class) ||
-                    clazz.equals(InetSocketAddress.class) ||
-                    InetAddress.class.isAssignableFrom(clazz) ||
-                    Number.class.isAssignableFrom(clazz) ||
-                    Collection.class.isAssignableFrom(clazz) ||
-                    Map.class.isAssignableFrom(clazz) ||
-                    Enum.class.isAssignableFrom(clazz) ||
-                    clazz.equals(User.class) ||
-                    clazz.equals(SourceFieldsContext.class) ||
-                    SAFE_CLASSES.contains(clazz.getName())
-               ) {
+            if (clazz.isArray() || clazz.equals(String.class) || clazz.equals(SocketAddress.class) || clazz.equals(InetSocketAddress.class)
+                    || InetAddress.class.isAssignableFrom(clazz) || Number.class.isAssignableFrom(clazz) || Collection.class.isAssignableFrom(clazz)
+                    || Map.class.isAssignableFrom(clazz) || Enum.class.isAssignableFrom(clazz) || clazz.equals(User.class)
+                    || clazz.equals(SourceFieldsContext.class) || SAFE_CLASSES.contains(clazz.getName())) {
 
                 return clazz;
             }

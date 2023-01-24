@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport;
 
 import java.security.AccessController;
@@ -22,7 +21,6 @@ import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.function.Supplier;
-
 import org.elasticsearch.SpecialPermission;
 
 public class PrivilegedCode {
@@ -41,7 +39,7 @@ public class PrivilegedCode {
             }
         });
     }
-    
+
     public static void execute(Runnable runnable) {
         SecurityManager sm = System.getSecurityManager();
 

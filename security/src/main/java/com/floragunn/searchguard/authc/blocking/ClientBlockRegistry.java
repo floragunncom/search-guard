@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.blocking;
 
 public interface ClientBlockRegistry<ClientIdType> {

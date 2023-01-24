@@ -1,6 +1,4 @@
-/* This product includes software developed by Amazon.com, Inc.
- * (https://github.com/opendistro-for-elasticsearch/security)
- *
+/*
  * Copyright 2015-2020 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,15 +14,17 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.rest;
 
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BaseRestHandler;
@@ -35,11 +35,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-
 public class SSLReloadCertAction extends BaseRestHandler {
     private static final List<Route> routes = Collections.singletonList(new Route(POST, "_searchguard/api/ssl/{certType}/reloadcerts/"));
 
@@ -48,7 +43,8 @@ public class SSLReloadCertAction extends BaseRestHandler {
     private final boolean sslCertReloadEnabled;
     private final AdminDNs adminDns;
 
-    public SSLReloadCertAction(final SearchGuardKeyStore keyStore, final ThreadPool threadPool, final AdminDNs adminDns, boolean sslCertReloadEnabled) {
+    public SSLReloadCertAction(final SearchGuardKeyStore keyStore, final ThreadPool threadPool, final AdminDNs adminDns,
+            boolean sslCertReloadEnabled) {
         this.keyStore = keyStore;
         this.adminDns = adminDns;
         this.threadContext = threadPool.getThreadContext();
@@ -86,24 +82,24 @@ public class SSLReloadCertAction extends BaseRestHandler {
                         builder.startObject();
                         if (keyStore != null) {
                             switch (certType) {
-                                case "http":
-                                    keyStore.initHttpSSLConfig();
-                                    builder.field("message", "updated http certs");
-                                    builder.endObject();
-                                    response = new BytesRestResponse(RestStatus.OK, builder);
-                                    break;
-                                case "transport":
-                                    keyStore.initTransportSSLConfig();
-                                    builder.field("message", "updated transport certs");
-                                    builder.endObject();
-                                    response = new BytesRestResponse(RestStatus.OK, builder);
-                                    break;
-                                default:
-                                    builder.field("message", "invalid uri path, please use /_searchguard/api/ssl/http/reload or "
-                                            + "/_searchguard/api/ssl/transport/reload");
-                                    builder.endObject();
-                                    response = new BytesRestResponse(RestStatus.FORBIDDEN, builder);
-                                    break;
+                            case "http":
+                                keyStore.initHttpSSLConfig();
+                                builder.field("message", "updated http certs");
+                                builder.endObject();
+                                response = new BytesRestResponse(RestStatus.OK, builder);
+                                break;
+                            case "transport":
+                                keyStore.initTransportSSLConfig();
+                                builder.field("message", "updated transport certs");
+                                builder.endObject();
+                                response = new BytesRestResponse(RestStatus.OK, builder);
+                                break;
+                            default:
+                                builder.field("message", "invalid uri path, please use /_searchguard/api/ssl/http/reload or "
+                                        + "/_searchguard/api/ssl/transport/reload");
+                                builder.endObject();
+                                response = new BytesRestResponse(RestStatus.FORBIDDEN, builder);
+                                break;
                             }
                         } else {
                             builder.field("message", "keystore is not initialized");

@@ -14,10 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc;
-
-import java.util.concurrent.CompletableFuture;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -25,17 +22,18 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
+import java.util.concurrent.CompletableFuture;
 
 public interface AuthenticationBackend extends ComponentStateProvider {
 
     /**
-     * The type (name) of the authenticator. 
+     * The type (name) of the authenticator.
      * @return the type
      */
     String getType();
 
     /**
-     * Validate credentials and return an authenticated user 
+     * Validate credentials and return an authenticated user
      *
      * @param The credentials to be validated, never null
      * @return the authenticated User, or null if the user does not exist
@@ -45,8 +43,8 @@ public interface AuthenticationBackend extends ComponentStateProvider {
             throws AuthenticatorUnavailableException, CredentialsException;
 
     /**
-     * Are users produced by this authentication backend allowed to be cached in a node-local heap-based cache? 
-     * 
+     * Are users produced by this authentication backend allowed to be cached in a node-local heap-based cache?
+     *
      * In most cases, ALWAYS can be returned here. Return false if the user objects are not suitable for caching AND retrieval of users is fast.
      */
     default UserCachingPolicy userCachingPolicy() {

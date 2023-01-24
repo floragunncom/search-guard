@@ -1,20 +1,16 @@
 /*
- * Copyright 2020-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken;
-
-import java.util.Set;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
@@ -24,8 +20,9 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import java.util.Set;
 
 public class RestrictedActionAuthorization implements ActionAuthorization {
 

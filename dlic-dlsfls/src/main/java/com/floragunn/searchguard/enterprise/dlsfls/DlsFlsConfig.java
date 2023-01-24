@@ -1,20 +1,16 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls;
-
-import java.util.Arrays;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -31,6 +27,7 @@ import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.io.BaseEncoding;
+import java.util.Arrays;
 
 public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
     public static CType<DlsFlsConfig> TYPE = new CType<DlsFlsConfig>("authz_dlsfls", "Document Level Security and Field Level Security", 10011,

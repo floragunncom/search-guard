@@ -1,13 +1,20 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchsupport.jobs;
-
-import java.io.FileNotFoundException;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.node.PluginAwareNode;
-import org.junit.rules.ExternalResource;
 
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
@@ -17,6 +24,13 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import java.io.FileNotFoundException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.node.PluginAwareNode;
+import org.junit.rules.ExternalResource;
 
 public class LocalCluster extends ExternalResource {
 
@@ -100,10 +114,7 @@ public class LocalCluster extends ExternalResource {
             throw new RuntimeException(e);
         }
 
-       
     }
-
-    
 
     private Settings ccs(Settings nodeOverride) throws Exception {
 
@@ -114,8 +125,7 @@ public class LocalCluster extends ExternalResource {
         try {
             final String prefix = getResourceFolder() == null ? "" : getResourceFolder() + "/";
 
-            Settings.Builder builder = Settings.builder()
-                    .put("searchguard.ssl.transport.keystore_alias", "node-0")
+            Settings.Builder builder = Settings.builder().put("searchguard.ssl.transport.keystore_alias", "node-0")
                     .put("searchguard.ssl.transport.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "node-0-keystore.jks"))
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath(prefix + "truststore.jks"))
                     .put("searchguard.ssl.transport.enforce_hostname_verification", false);

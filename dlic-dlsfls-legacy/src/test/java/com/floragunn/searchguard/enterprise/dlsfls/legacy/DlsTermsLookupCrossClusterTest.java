@@ -1,6 +1,5 @@
 /*
- * Copyright 2021 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,7 +10,6 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
 import static com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsTermsLookupAsserts.assertAccessCodesMatch;
@@ -19,11 +17,14 @@ import static com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsTermsLookupA
 import static com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsTermsLookupAsserts.assertAllHitsComeFromLocalCluster;
 import static com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsTermsLookupAsserts.assertBuMatches;
 
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -53,11 +54,6 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-
 /**
  * Tests TLQ DLS with CCS
  * @author jkressin
@@ -67,16 +63,13 @@ public class DlsTermsLookupCrossClusterTest {
 
     private final static String CLUSTER_ALIAS = "my_remote";
 
-    private final static TestCertificates testCertificates = TestCertificates.builder()
-            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
-            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .build();
+    private final static TestCertificates testCertificates = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build();
 
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup(); 
-    
+    @ClassRule
+    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+
     @ClassRule
     public static LocalCluster remote = new LocalCluster.Builder().singleNode().resources("dlsfls_legacy").sslEnabled(testCertificates)//
             .nodeSettings("searchguard.logging.context.extended", true)//
@@ -95,7 +88,8 @@ public class DlsTermsLookupCrossClusterTest {
             .build();
 
     @ClassRule
-    public static LocalCluster coordinating = new LocalCluster.Builder().singleNode().resources("dlsfls_legacy").sslEnabled(testCertificates).remote(CLUSTER_ALIAS, remote)//
+    public static LocalCluster coordinating = new LocalCluster.Builder().singleNode().resources("dlsfls_legacy").sslEnabled(testCertificates)
+            .remote(CLUSTER_ALIAS, remote)//
             .nodeSettings("searchguard.logging.context.extended", true)//
             .clusterName("coordinating")//
             .enterpriseModulesEnabled()//
@@ -200,7 +194,7 @@ public class DlsTermsLookupCrossClusterTest {
     public void testSimpleSearch_Coordinating_To_Remote_AccessCode_1337() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
             SearchResponse searchResponse = client.search(new SearchRequest("my_remote:tlqdocuments"), RequestOptions.DEFAULT);
-            // 10 docs, all need to have access code 1337    
+            // 10 docs, all need to have access code 1337
             Assert.assertEquals(searchResponse.toString(), 10, searchResponse.getHits().getTotalHits().value);
             // fields need to have 1337 access code
             assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 1337 });
@@ -213,7 +207,7 @@ public class DlsTermsLookupCrossClusterTest {
     public void testSimpleSearch_Coordinating_To_Remote_tlqdummy_no_restrictions() throws Exception {
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
             SearchResponse searchResponse = client.search(new SearchRequest("my_remote:tlqdummy"), RequestOptions.DEFAULT);
-            // 5 docs, role on remote has no restrictions on tlqdummy 
+            // 5 docs, role on remote has no restrictions on tlqdummy
             Assert.assertEquals(searchResponse.toString(), 5, searchResponse.getHits().getTotalHits().value);
             // all hits come from remote cluster
             assertAllHitsComeFromCluster(searchResponse.getHits().getHits(), CLUSTER_ALIAS);
@@ -225,7 +219,7 @@ public class DlsTermsLookupCrossClusterTest {
         // Role on coordinating node has different DLS so we expect only documents where bu == AAA
         try (RestHighLevelClient client = coordinating.getRestHighLevelClient("tlq_1337", "password")) {
             SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
-            // 3 docs, all need to have bu code AAA  
+            // 3 docs, all need to have bu code AAA
             // NOTE: IF ISSUE WITH TLQ DLS ON BOTH CLUSTERS IS FIXED, THIS TEST NEEDS TO BE ADAPTED!
             Assert.assertEquals(searchResponse.toString(), 3, searchResponse.getHits().getTotalHits().value);
             assertBuMatches(searchResponse.getHits().getHits(), "AAA");
@@ -237,7 +231,7 @@ public class DlsTermsLookupCrossClusterTest {
     public void testSimpleSearch_Remote_AccessCode_1337() throws Exception {
         try (RestHighLevelClient client = remote.getRestHighLevelClient("tlq_1337", "password")) {
             SearchResponse searchResponse = client.search(new SearchRequest("tlqdocuments"), RequestOptions.DEFAULT);
-            // 10 docs, all need to have access code 1337    
+            // 10 docs, all need to have access code 1337
             Assert.assertEquals(searchResponse.toString(), 10, searchResponse.getHits().getTotalHits().value);
             // fields need to have 1337 access code
             assertAccessCodesMatch(searchResponse.getHits().getHits(), new Integer[] { 1337 });
@@ -260,7 +254,7 @@ public class DlsTermsLookupCrossClusterTest {
             // assume hits from 2 indices:
             // - tlqdocuments, must contain only 10 docs with access code 1337
             // - tlqdummy, must contain all 5 docs, no restrictions on remote
-            // no access to user_access_codes must be granted 
+            // no access to user_access_codes must be granted
 
             // check all 5 tlqdummy entries present, index is not protected by DLS
             Set<SearchHit> tlqdummyHits = Arrays.asList(searchResponse.getHits().getHits()).stream().filter((h) -> h.getIndex().equals("tlqdummy"))
@@ -269,7 +263,7 @@ public class DlsTermsLookupCrossClusterTest {
             // all hits come from remote cluster
             assertAllHitsComeFromCluster(tlqdummyHits, CLUSTER_ALIAS);
 
-            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered            
+            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
             Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
                     .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
@@ -307,7 +301,7 @@ public class DlsTermsLookupCrossClusterTest {
             // all hits come from remote cluster
             assertAllHitsComeFromCluster(tlqdummyHits, CLUSTER_ALIAS);
 
-            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered            
+            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
             Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
                     .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
@@ -335,7 +329,7 @@ public class DlsTermsLookupCrossClusterTest {
             Assert.assertEquals(searchResponse.toString(), 5, tlqdummyHits.size());
             assertAllHitsComeFromCluster(tlqdummyHits, CLUSTER_ALIAS);
 
-            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered            
+            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
             Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
                     .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
@@ -369,7 +363,7 @@ public class DlsTermsLookupCrossClusterTest {
             // all hits come from remote cluster
             assertAllHitsComeFromCluster(tlqdummyHits, CLUSTER_ALIAS);
 
-            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered            
+            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
             Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
                     .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
@@ -404,7 +398,7 @@ public class DlsTermsLookupCrossClusterTest {
             // all hits come from remote cluster
             assertAllHitsComeFromLocalCluster(tlqdummyHits);
 
-            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered            
+            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
             Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
                     .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());
@@ -441,7 +435,7 @@ public class DlsTermsLookupCrossClusterTest {
             // all hits come from remote cluster
             assertAllHitsComeFromLocalCluster(tlqdummyHits);
 
-            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered            
+            // check 10 hits with code 1337 from tlqdocuments index. All other documents must be filtered
             Set<SearchHit> tlqdocumentHits = Arrays.asList(searchResponse.getHits().getHits()).stream()
                     .filter((h) -> h.getIndex().equals("tlqdocuments")).collect(Collectors.toSet());
             Assert.assertEquals(searchResponse.toString(), 10, tlqdocumentHits.size());

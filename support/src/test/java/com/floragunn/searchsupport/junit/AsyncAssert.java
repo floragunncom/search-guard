@@ -14,11 +14,9 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.junit;
 
 import java.time.Duration;
-
 import org.junit.Assert;
 
 public class AsyncAssert {

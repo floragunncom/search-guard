@@ -14,12 +14,35 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.filter;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.action.whoami.WhoAmIAction;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.authz.AuthorizationService;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.compliance.ComplianceConfig;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
+import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
+import com.floragunn.searchguard.support.Base64Helper;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
+import com.floragunn.searchguard.support.SourceFieldsContext;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -55,32 +78,6 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
-
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.action.whoami.WhoAmIAction;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.authz.AuthorizationService;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
-import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.compliance.ComplianceConfig;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
-import com.floragunn.searchguard.support.Base64Helper;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.HeaderHelper;
-import com.floragunn.searchguard.support.SourceFieldsContext;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.diag.DiagnosticContext;
 
 public class SearchGuardFilter implements ActionFilter {
 

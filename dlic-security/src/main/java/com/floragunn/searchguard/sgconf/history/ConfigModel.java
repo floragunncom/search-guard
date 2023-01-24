@@ -1,21 +1,16 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.sgconf.history;
-
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
 
 import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authz.ActionAuthorization;
@@ -27,6 +22,8 @@ import com.floragunn.searchguard.authz.config.RoleMapping;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
 
 public class ConfigModel {
     private final SgDynamicConfiguration<Role> rolesConfig;

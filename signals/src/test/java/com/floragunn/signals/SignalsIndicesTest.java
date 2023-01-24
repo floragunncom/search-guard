@@ -14,12 +14,18 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals;
 
+import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.junit.AsyncAssert;
+import com.floragunn.searchsupport.junit.LoggingTestWatcher;
+import com.floragunn.signals.support.NestedValueMap;
+import com.floragunn.signals.watch.checks.Check;
 import java.time.Duration;
 import java.util.Map;
-
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.client.Client;
@@ -31,15 +37,6 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-
-import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
-import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.junit.AsyncAssert;
-import com.floragunn.searchsupport.junit.LoggingTestWatcher;
-import com.floragunn.signals.support.NestedValueMap;
-import com.floragunn.signals.watch.checks.Check;
 
 public class SignalsIndicesTest {
 

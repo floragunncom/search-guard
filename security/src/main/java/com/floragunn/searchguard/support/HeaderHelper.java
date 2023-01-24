@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,17 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.support;
 
+import com.google.common.base.Strings;
 import java.io.Serializable;
 import java.util.Map;
-
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-
-import com.google.common.base.Strings;
 
 public class HeaderHelper {
 
@@ -31,12 +28,11 @@ public class HeaderHelper {
     }
 
     public static boolean isDirectRequest(final ThreadContext context) {
-        
-        return  "direct".equals(context.getTransient(ConfigConstants.SG_CHANNEL_TYPE))
-                  || context.getTransient(ConfigConstants.SG_CHANNEL_TYPE) == null;
+
+        return "direct".equals(context.getTransient(ConfigConstants.SG_CHANNEL_TYPE))
+                || context.getTransient(ConfigConstants.SG_CHANNEL_TYPE) == null;
     }
-    
-    
+
     public static String getSafeFromHeader(final ThreadContext context, final String headerName) {
 
         if (context == null || headerName == null || headerName.isEmpty()) {
@@ -44,7 +40,7 @@ public class HeaderHelper {
         }
 
         String headerValue = null;
-        	
+
         Map<String, String> headers = context.getHeaders();
         if (!headers.containsKey(headerName) || (headerValue = headers.get(headerName)) == null) {
             return null;
@@ -67,7 +63,7 @@ public class HeaderHelper {
 
         return null;
     }
-    
+
     public static boolean isTrustedClusterRequest(final ThreadContext context) {
         return context.getTransient(ConfigConstants.SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST) == Boolean.TRUE;
     }

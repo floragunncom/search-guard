@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,9 +10,11 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.searchguard.auditlog.AuditLog.Operation;
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.user.UserInformation;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -26,7 +27,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.http.client.utils.URIBuilder;
 import org.elasticsearch.ExceptionsHelper;
@@ -44,10 +44,6 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import com.floragunn.searchguard.auditlog.AuditLog.Operation;
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.user.UserInformation;
 
 public final class AuditMessage {
 

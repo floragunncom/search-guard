@@ -14,23 +14,20 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
 
 public class TypedComponentRegistry {
     private static final Logger log = LogManager.getLogger(TypedComponentRegistry.class);

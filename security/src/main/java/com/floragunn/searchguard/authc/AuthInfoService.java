@@ -14,17 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc;
-
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.threadpool.ThreadPool;
 
 public class AuthInfoService {
     private final ThreadPool threadPool;

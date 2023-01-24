@@ -14,11 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.configuration.api;
-
-import org.junit.Assert;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUser;
@@ -31,6 +27,8 @@ import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class MigrateConfigIndexApiIntegrationTest {
     static TestSgConfig.User TEST_USER_A = new TestSgConfig.User("test_user_a").roles(//

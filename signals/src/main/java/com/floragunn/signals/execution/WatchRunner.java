@@ -16,26 +16,6 @@
  */
 package com.floragunn.signals.execution;
 
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.script.JodaCompatibleZonedDateTime;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
-import org.quartz.DisallowConcurrentExecution;
-import org.quartz.Job;
-import org.quartz.JobExecutionContext;
-import org.quartz.JobExecutionException;
-
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.accounts.AccountRegistry;
@@ -61,6 +41,24 @@ import com.floragunn.signals.watch.state.ActionState;
 import com.floragunn.signals.watch.state.NopActionState;
 import com.floragunn.signals.watch.state.WatchState;
 import com.floragunn.signals.watch.state.WatchStateWriter;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.script.JodaCompatibleZonedDateTime;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.quartz.DisallowConcurrentExecution;
+import org.quartz.Job;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
 
 @DisallowConcurrentExecution
 public class WatchRunner implements Job {

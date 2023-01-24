@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,19 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.ssl;
 
+import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
+import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
+import com.floragunn.searchguard.ssl.rest.SearchGuardSSLInfoAction;
+import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
+import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
+import com.floragunn.searchguard.ssl.transport.SearchGuardSSLTransportInterceptor;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchsupport.StaticSettings;
+import io.netty.util.internal.PlatformDependent;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -30,7 +38,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -72,17 +79,6 @@ import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
-import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
-import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
-import com.floragunn.searchguard.ssl.rest.SearchGuardSSLInfoAction;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
-import com.floragunn.searchguard.ssl.transport.SearchGuardSSLTransportInterceptor;
-import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchsupport.StaticSettings;
-
-import io.netty.util.internal.PlatformDependent;
-
 //For ES5 this class has only effect when SSL only plugin is installed
 public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, NetworkPlugin {
 
@@ -96,7 +92,8 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     protected final SearchGuardKeyStore sgks;
     protected PrincipalExtractor principalExtractor;
     protected final Path configPath;
-    private final static SslExceptionHandler NOOP_SSL_EXCEPTION_HANDLER=new SslExceptionHandler(){};
+    private final static SslExceptionHandler NOOP_SSL_EXCEPTION_HANDLER = new SslExceptionHandler() {
+    };
     protected final SharedGroupFactory sharedGroupFactory;
 
     public SearchGuardSSLPlugin(final Settings settings, final Path configPath) {
@@ -141,7 +138,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
                 return null;
             }
         });
-        
+
         this.configPath = configPath;
 
         if (this.configPath != null) {
@@ -169,7 +166,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
                 AccessController.doPrivileged(new PrivilegedAction<Object>() {
 
-    @Override
+                    @Override
                     public Object run() {
                         System.setProperty(SSLConfigConstants.JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION, "true");
                         return null;
@@ -216,7 +213,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         } else {
             this.sgks = new DefaultSearchGuardKeyStore(settings, configPath);
         }
-        
+
         this.sharedGroupFactory = new SharedGroupFactory(settings);
     }
 
@@ -279,7 +276,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         return transports;
 
     }
-    
+
     @Override
     public Collection<Object> createComponents(Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
@@ -404,6 +401,5 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         settingsFilter.add("searchguard.*");
         return settingsFilter;
     }
-    
 
 }

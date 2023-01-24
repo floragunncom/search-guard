@@ -1,41 +1,16 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.ldap2;
-
-import java.io.IOException;
-import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.naming.InvalidNameException;
-import javax.naming.ldap.LdapName;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
@@ -56,6 +31,26 @@ import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.ResultCode;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 import com.unboundid.ldap.sdk.SearchScope;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.SpecialPermission;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.settings.Settings;
 
 public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, Destroyable {
 
@@ -99,20 +94,17 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
 
         Settings.Builder settingsBuilder = Settings.builder();
 
-        settingsBuilder.put(ConfigConstants.LDAP_AUTHCZ_BASE,
-                settings.get(ConfigConstants.LDAP_AUTHZ_ROLEBASE, DEFAULT_ROLEBASE));
-        settingsBuilder.put(ConfigConstants.LDAP_AUTHCZ_SEARCH,
-                settings.get(ConfigConstants.LDAP_AUTHZ_ROLESEARCH, DEFAULT_ROLESEARCH));
+        settingsBuilder.put(ConfigConstants.LDAP_AUTHCZ_BASE, settings.get(ConfigConstants.LDAP_AUTHZ_ROLEBASE, DEFAULT_ROLEBASE));
+        settingsBuilder.put(ConfigConstants.LDAP_AUTHCZ_SEARCH, settings.get(ConfigConstants.LDAP_AUTHZ_ROLESEARCH, DEFAULT_ROLESEARCH));
 
         result.put("convertedOldStyleSettings", settingsBuilder.build());
 
         return Collections.singletonList(result.entrySet().iterator().next());
     }
-    
+
     @Override
-    public void fillRoles(final User user, final AuthCredentials optionalAuthCreds)
-            throws ElasticsearchSecurityException {
-        
+    public void fillRoles(final User user, final AuthCredentials optionalAuthCreds) throws ElasticsearchSecurityException {
+
         final SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
@@ -138,8 +130,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
         }
     }
 
-    private void fillRoles0(final User user, final AuthCredentials optionalAuthCreds)
-            throws ElasticsearchSecurityException {
+    private void fillRoles0(final User user, final AuthCredentials optionalAuthCreds) throws ElasticsearchSecurityException {
 
         if (user == null) {
             return;
@@ -174,10 +165,9 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
             log.trace("dn: {}", dn);
         }
 
-        final List<String> skipUsers = settings.getAsList(ConfigConstants.LDAP_AUTHZ_SKIP_USERS,
-                Collections.emptyList());
-        if (!skipUsers.isEmpty() && (WildcardMatcher.matchAny(skipUsers, originalUserName)
-                || WildcardMatcher.matchAny(skipUsers, authenticatedUser))) {
+        final List<String> skipUsers = settings.getAsList(ConfigConstants.LDAP_AUTHZ_SKIP_USERS, Collections.emptyList());
+        if (!skipUsers.isEmpty()
+                && (WildcardMatcher.matchAny(skipUsers, originalUserName) || WildcardMatcher.matchAny(skipUsers, authenticatedUser))) {
             if (log.isDebugEnabled()) {
                 log.debug("Skipped search roles of user {}/{}", authenticatedUser, originalUserName);
             }
@@ -185,7 +175,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
         }
 
         try (LDAPConnection con = lcm.getConnection()) {
-            
+
             if (entry == null || dn == null) {
 
                 if (isValidDn(authenticatedUser)) {
@@ -278,7 +268,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
             }
 
             String userRoleAttributeValue = null;
-            final Attribute userRoleAttribute = userRoleAttributeName == null?null:entry.getAttribute(userRoleAttributeName);
+            final Attribute userRoleAttribute = userRoleAttributeName == null ? null : entry.getAttribute(userRoleAttributeName);
 
             if (userRoleAttribute != null) {
                 userRoleAttributeValue = Utils.getSingleStringValue(userRoleAttribute);
@@ -289,22 +279,18 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
 
                 for (Map.Entry<String, Settings> roleSearchSettingsEntry : roleBaseSettings) {
                     Settings roleSearchSettings = roleSearchSettingsEntry.getValue();
-                    
+
                     ParametrizedFilter pf = new ParametrizedFilter(roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_ROLESEARCH));
                     pf.setParameter(ZERO_PLACEHOLDER, escapedDn);
                     pf.setParameter(ONE_PLACEHOLDER, originalUserName);
-                    pf.setParameter(TWO_PLACEHOLDER,
-                            userRoleAttributeValue == null ? null : userRoleAttributeValue);
-                    
-                    List<SearchResultEntry> rolesResult = lcm.search(con,
-                            roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_ROLEBASE),
-                            SearchScope.SUB,
-                            pf
-                            );
+                    pf.setParameter(TWO_PLACEHOLDER, userRoleAttributeValue == null ? null : userRoleAttributeValue);
+
+                    List<SearchResultEntry> rolesResult = lcm.search(con, roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_ROLEBASE),
+                            SearchScope.SUB, pf);
 
                     if (log.isTraceEnabled()) {
-                        log.trace("Results for LDAP group search for " + escapedDn + " in base "
-                                + roleSearchSettingsEntry.getKey() + ":\n" + rolesResult);
+                        log.trace("Results for LDAP group search for " + escapedDn + " in base " + roleSearchSettingsEntry.getKey() + ":\n"
+                                + rolesResult);
                     }
 
                     if (rolesResult != null && !rolesResult.isEmpty()) {
@@ -325,8 +311,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
             // nested roles, makes only sense for DN style role names
             if (settings.getAsBoolean(ConfigConstants.LDAP_AUTHZ_RESOLVE_NESTED_ROLES, false)) {
 
-                final List<String> nestedRoleFilter = settings.getAsList(ConfigConstants.LDAP_AUTHZ_NESTEDROLEFILTER,
-                        Collections.emptyList());
+                final List<String> nestedRoleFilter = settings.getAsList(ConfigConstants.LDAP_AUTHZ_NESTEDROLEFILTER, Collections.emptyList());
 
                 if (log.isTraceEnabled()) {
                     log.trace("Evaluate nested roles");
@@ -335,17 +320,15 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
                 final Set<LdapName> nestedReturn = new HashSet<>(ldapRoles);
 
                 for (final LdapName roleLdapName : ldapRoles) {
-                    Set<Map.Entry<String, Settings>> nameRoleSearchBaseKeys = resultRoleSearchBaseKeys
-                            .get(roleLdapName);
+                    Set<Map.Entry<String, Settings>> nameRoleSearchBaseKeys = resultRoleSearchBaseKeys.get(roleLdapName);
 
                     if (nameRoleSearchBaseKeys == null) {
-                        log.error("Could not find roleSearchBaseKeys for " + roleLdapName + "; existing: "
-                                + resultRoleSearchBaseKeys);
+                        log.error("Could not find roleSearchBaseKeys for " + roleLdapName + "; existing: " + resultRoleSearchBaseKeys);
                         continue;
                     }
 
-                    final Set<LdapName> nestedRoles = resolveNestedRoles(roleLdapName, con, userRoleNames, 0,
-                            rolesearchEnabled, nameRoleSearchBaseKeys, nestedRoleFilter);
+                    final Set<LdapName> nestedRoles = resolveNestedRoles(roleLdapName, con, userRoleNames, 0, rolesearchEnabled,
+                            nameRoleSearchBaseKeys, nestedRoleFilter);
 
                     if (log.isTraceEnabled()) {
                         log.trace("{} nested roles for {}", nestedRoles.size(), roleLdapName);
@@ -400,9 +383,8 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
 
     }
 
-    protected Set<LdapName> resolveNestedRoles(final LdapName roleDn, LDAPConnection con,
-            String userRoleName, int depth, final boolean rolesearchEnabled,
-            Set<Map.Entry<String, Settings>> roleSearchBaseSettingsSet, final List<String> roleFilter)
+    protected Set<LdapName> resolveNestedRoles(final LdapName roleDn, LDAPConnection con, String userRoleName, int depth,
+            final boolean rolesearchEnabled, Set<Map.Entry<String, Settings>> roleSearchBaseSettingsSet, final List<String> roleFilter)
             throws ElasticsearchSecurityException, LDAPException {
 
         if (!roleFilter.isEmpty() && WildcardMatcher.matchAny(roleFilter, roleDn.toString())) {
@@ -448,22 +430,19 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
         if (rolesearchEnabled) {
             String escapedDn = roleDn.toString();
 
-            for (Map.Entry<String, Settings> roleSearchBaseSettingsEntry : Utils
-                    .getOrderedBaseSettings(roleSearchBaseSettingsSet)) {
+            for (Map.Entry<String, Settings> roleSearchBaseSettingsEntry : Utils.getOrderedBaseSettings(roleSearchBaseSettingsSet)) {
                 Settings roleSearchSettings = roleSearchBaseSettingsEntry.getValue();
-                
+
                 ParametrizedFilter pf = new ParametrizedFilter(roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_ROLESEARCH));
                 pf.setParameter(ZERO_PLACEHOLDER, escapedDn);
                 pf.setParameter(ONE_PLACEHOLDER, escapedDn);
 
-                List<SearchResultEntry> foundEntries = lcm.search(con,
-                        roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_ROLEBASE),
-                        SearchScope.SUB,
-                        pf);
+                List<SearchResultEntry> foundEntries = lcm.search(con, roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_ROLEBASE),
+                        SearchScope.SUB, pf);
 
                 if (log.isTraceEnabled()) {
-                    log.trace("Results for LDAP group search for " + escapedDn + " in base "
-                            + roleSearchBaseSettingsEntry.getKey() + ":\n" + foundEntries);
+                    log.trace("Results for LDAP group search for " + escapedDn + " in base " + roleSearchBaseSettingsEntry.getKey() + ":\n"
+                            + foundEntries);
                 }
 
                 if (foundEntries != null) {
@@ -482,8 +461,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
 
         int maxDepth = ConfigConstants.LDAP_AUTHZ_MAX_NESTED_DEPTH_DEFAULT;
         try {
-            maxDepth = settings.getAsInt(ConfigConstants.LDAP_AUTHZ_MAX_NESTED_DEPTH,
-                    ConfigConstants.LDAP_AUTHZ_MAX_NESTED_DEPTH_DEFAULT);
+            maxDepth = settings.getAsInt(ConfigConstants.LDAP_AUTHZ_MAX_NESTED_DEPTH, ConfigConstants.LDAP_AUTHZ_MAX_NESTED_DEPTH_DEFAULT);
         } catch (Exception e) {
             log.error(ConfigConstants.LDAP_AUTHZ_MAX_NESTED_DEPTH + " is not parseable: " + e, e);
         }
@@ -493,13 +471,11 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
                 Set<Map.Entry<String, Settings>> nameRoleSearchBaseKeys = resultRoleSearchBaseKeys.get(nm);
 
                 if (nameRoleSearchBaseKeys == null) {
-                    log.error(
-                            "Could not find roleSearchBaseKeys for " + nm + "; existing: " + resultRoleSearchBaseKeys);
+                    log.error("Could not find roleSearchBaseKeys for " + nm + "; existing: " + resultRoleSearchBaseKeys);
                     continue;
                 }
 
-                final Set<LdapName> in = resolveNestedRoles(nm, con, userRoleName, depth, rolesearchEnabled,
-                        nameRoleSearchBaseKeys, roleFilter);
+                final Set<LdapName> in = resolveNestedRoles(nm, con, userRoleName, depth, rolesearchEnabled, nameRoleSearchBaseKeys, roleFilter);
                 result.addAll(in);
             }
         }
@@ -533,21 +509,21 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
             return null;
         }
 
-        if("dn".equalsIgnoreCase(role)) {
+        if ("dn".equalsIgnoreCase(role)) {
             return ldapName.toString();
         }
 
         try {
             final SearchResultEntry roleEntry = lcm.lookup(con, ldapName.toString());
 
-            if(roleEntry != null) {
+            if (roleEntry != null) {
                 final Attribute roleAttribute = roleEntry.getAttribute(role);
-                if(roleAttribute != null) {
+                if (roleAttribute != null) {
                     return Utils.getSingleStringValue(roleAttribute);
                 }
             }
         } catch (LDAPException e) {
-            log.error("Unable to handle role {} because of ",ldapName, e.toString(), e);
+            log.error("Unable to handle role {} because of ", ldapName, e.toString(), e);
         }
 
         return null;
@@ -563,7 +539,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
             }
         }
     }
-    
+
     public static TypedComponent.Info<LegacyAuthorizationBackend> INFO = new TypedComponent.Info<LegacyAuthorizationBackend>() {
 
         @Override
@@ -580,7 +556,6 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
         public Factory<LegacyAuthorizationBackend> getFactory() {
             return LegacyComponentFactory.adapt(LDAPAuthorizationBackend2::new);
         }
-    };    
-    
+    };
 
 }

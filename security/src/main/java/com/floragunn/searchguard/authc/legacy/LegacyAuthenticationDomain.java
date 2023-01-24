@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,17 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.legacy;
-
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
@@ -47,8 +39,12 @@ import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
-
 import inet.ipaddr.IPAddress;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
 
 public class LegacyAuthenticationDomain<AuthenticatorType extends AuthenticationFrontend> implements AuthenticationDomain<AuthenticatorType> {
     private static final Logger log = LogManager.getLogger(LegacyAuthenticationDomain.class);
@@ -82,7 +78,7 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
             this.componentState.addPart(authenticator.getComponentState());
 
         }
-        
+
         this.componentState.updateStateFromParts();
     }
 
@@ -176,16 +172,15 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
         try {
             httpAuthenticator = typedComponentRegistry.create(LegacyHTTPAuthenticator.class, authenticatorType,
                     docNode.getAsNode("http_authenticator", "config"), context);
-            
+
             if (httpAuthenticator == null) {
                 throw new NoSuchComponentException(authenticatorType);
             }
         } catch (ConfigValidationException e) {
             validationErrors.add("http_authenticator.config", e);
         } catch (NoSuchComponentException e) {
-            validationErrors.add(
-                    new InvalidAttributeValue("http_authenticator.type", authenticatorType, e.getAvailableTypesAsInfoString())
-                            .message("Unknown HTTP authenticator").cause(e));
+            validationErrors.add(new InvalidAttributeValue("http_authenticator.type", authenticatorType, e.getAvailableTypesAsInfoString())
+                    .message("Unknown HTTP authenticator").cause(e));
         } catch (Exception e) {
             log.error("Unexpected exception while creating authenticator " + authenticatorType, e);
             validationErrors.add(new ValidationError("http_authenticator", e.getMessage()).cause(e));
@@ -196,8 +191,9 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
             if ("intern".equals(backendType)) {
                 backendType = "internal";
             }
-             
-            authenticationBackend = typedComponentRegistry.create(LegacyAuthenticationBackend.class, backendType, docNode.getAsNode("authentication_backend", "config"), context);
+
+            authenticationBackend = typedComponentRegistry.create(LegacyAuthenticationBackend.class, backendType,
+                    docNode.getAsNode("authentication_backend", "config"), context);
 
             if (authenticationBackend == null) {
                 throw new NoSuchComponentException(backendType);
@@ -220,7 +216,8 @@ public class LegacyAuthenticationDomain<AuthenticatorType extends Authentication
     }
 
     @Override
-    public CompletableFuture<User> authenticate(AuthCredentials authCredentials, AuthenticationDebugLogger debug) throws AuthenticatorUnavailableException, CredentialsException {
+    public CompletableFuture<User> authenticate(AuthCredentials authCredentials, AuthenticationDebugLogger debug)
+            throws AuthenticatorUnavailableException, CredentialsException {
         User user = backend.authenticate(authCredentials);
 
         if (user == null) {

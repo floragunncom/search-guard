@@ -1,36 +1,10 @@
 /*
- * Based on https://github.com/elastic/elasticsearch/blob/5c8b0662df09a5d7a53fd0d98b1d37b1d831ddbc/server/src/main/java/org/elasticsearch/cluster/metadata/IndexNameExpressionResolver.java
- * from Apache 2 licensed Elasticsearch 7.10.2.
- * 
- * Original license header:
- * 
- * Licensed to Elasticsearch under one or more contributor
- * license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright
- * ownership. Elasticsearch licenses this file to you under
- * the Apache License, Version 2.0 (the "License"); you may
- * not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Copyright 0662 floragunn GmbH
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *
- * 
- * 
- * Modifications:
- * 
- * Copyright 2022 floragunn GmbH
- * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -38,8 +12,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
-
 package com.floragunn.searchsupport.queries;
 
 import java.time.Instant;
@@ -47,7 +21,6 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.common.time.DateMathParser;

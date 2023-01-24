@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.support;
 
 import java.util.ArrayList;
@@ -40,7 +39,7 @@ public class WildcardMatcher {
 
         return matchAny(pattern, candidate, false);
     }
-    
+
     public static boolean matchAny(final Collection<String> pattern, final Collection<String> candidate) {
 
         return matchAny(pattern, candidate, false);
@@ -76,7 +75,7 @@ public class WildcardMatcher {
      */
     public static boolean matchAny(final Collection<String> pattern, final String[] candidate, boolean ignoreCase) {
 
-        for (String string: pattern) {
+        for (String string : pattern) {
             if (matchAny(string, candidate, ignoreCase)) {
                 return true;
             }
@@ -84,10 +83,10 @@ public class WildcardMatcher {
 
         return false;
     }
-    
+
     public static boolean matchAny(final Collection<String> pattern, final Collection<String> candidate, boolean ignoreCase) {
 
-        for (String string: pattern) {
+        for (String string : pattern) {
             if (matchAny(string, candidate, ignoreCase)) {
                 return true;
             }
@@ -105,7 +104,6 @@ public class WildcardMatcher {
      */
     public static boolean matchAll(final String[] pattern, final String[] candidate) {
 
-
         for (int i = 0; i < candidate.length; i++) {
             final String string = candidate[i];
             if (!matchAny(pattern, string)) {
@@ -118,7 +116,6 @@ public class WildcardMatcher {
 
     public static boolean matchAll(final String[] pattern, Collection<String> candidate) {
 
-
         for (String string : candidate) {
             if (!matchAny(pattern, string)) {
                 return false;
@@ -127,7 +124,7 @@ public class WildcardMatcher {
 
         return true;
     }
-    
+
     /**
      *
      * @param pattern
@@ -147,12 +144,12 @@ public class WildcardMatcher {
 
         return matchedPatternNum == pattern.length && pattern.length > 0;
     }
-    
+
     public static boolean allPatternsMatched(final Collection<String> pattern, final Collection<String> candidate) {
 
         int matchedPatternNum = 0;
 
-        for (String string:pattern) {
+        for (String string : pattern) {
             if (matchAny(string, candidate)) {
                 matchedPatternNum++;
             }
@@ -164,7 +161,7 @@ public class WildcardMatcher {
     public static boolean matchAny(final String pattern, final String[] candidate) {
         return matchAny(pattern, candidate, false);
     }
-    
+
     public static boolean matchAny(final String pattern, final Collection<String> candidate) {
         return matchAny(pattern, candidate, false);
     }
@@ -191,7 +188,7 @@ public class WildcardMatcher {
 
     public static boolean matchAny(final String pattern, final Collection<String> candidates, boolean ignoreCase) {
 
-        for (String candidate: candidates) {
+        for (String candidate : candidates) {
             if (match(pattern, candidate, ignoreCase)) {
                 return true;
             }
@@ -240,7 +237,7 @@ public class WildcardMatcher {
 
         return matches;
     }
-    
+
     public static List<String> getMatchAny(final Collection<String> patterns, final String[] candidate) {
 
         final List<String> matches = new ArrayList<String>(candidate.length);
@@ -254,12 +251,12 @@ public class WildcardMatcher {
 
         return matches;
     }
-    
+
     public static List<String> getMatchAny(final Collection<String> patterns, Collection<String> candidates) {
 
         final List<String> matches = new ArrayList<String>(candidates.size());
 
-        for (String string: candidates) {
+        for (String string : candidates) {
             if (matchAny(patterns, string)) {
                 matches.add(string);
             }
@@ -272,7 +269,7 @@ public class WildcardMatcher {
 
         final List<String> matches = new ArrayList<String>(candidate.size());
 
-        for (final String string: candidate) {
+        for (final String string : candidate) {
             if (match(pattern, string)) {
                 matches.add(string);
             }
@@ -285,7 +282,7 @@ public class WildcardMatcher {
 
         final List<String> matches = new ArrayList<String>(candidate.size());
 
-        for (final String string: candidate) {
+        for (final String string : candidate) {
             if (matchAny(patterns, string)) {
                 matches.add(string);
             }
@@ -293,7 +290,7 @@ public class WildcardMatcher {
 
         return matches;
     }
-    
+
     public static Optional<String> getFirstMatchingPattern(final Collection<String> pattern, final String candidate) {
 
         for (String p : pattern) {
@@ -304,11 +301,11 @@ public class WildcardMatcher {
 
         return Optional.empty();
     }
-    
+
     public static List<String> getAllMatchingPatterns(final Collection<String> pattern, final String candidate) {
 
         final List<String> matches = new ArrayList<String>(pattern.size());
-        
+
         for (String p : pattern) {
             if (match(p, candidate)) {
                 matches.add(p);
@@ -317,11 +314,11 @@ public class WildcardMatcher {
 
         return matches;
     }
-    
+
     public static List<String> getAllMatchingPatterns(final Collection<String> pattern, final Collection<String> candidates) {
 
         final List<String> matches = new ArrayList<String>(pattern.size());
-        
+
         for (String c : candidates) {
             matches.addAll(getAllMatchingPatterns(pattern, c));
         }
@@ -357,7 +354,7 @@ public class WildcardMatcher {
      */
     public static boolean matchAny(final Collection<String> pattern, final String candidate) {
 
-        for (String string: pattern) {
+        for (String string : pattern) {
             if (match(string, candidate)) {
                 return true;
             }
@@ -376,14 +373,14 @@ public class WildcardMatcher {
             return false;
         }
 
-        if(ignoreCase) {
+        if (ignoreCase) {
             pattern = pattern.toLowerCase();
             candidate = candidate.toLowerCase();
         }
 
         if (pattern.startsWith("/") && pattern.endsWith("/")) {
             // regex
-            return Pattern.matches("^"+pattern.substring(1, pattern.length() - 1)+"$", candidate);
+            return Pattern.matches("^" + pattern.substring(1, pattern.length() - 1) + "$", candidate);
         } else if (pattern.length() == 1 && pattern.charAt(0) == '*') {
             return true;
         } else if (pattern.indexOf('?') == NOT_FOUND && pattern.indexOf('*') == NOT_FOUND) {
@@ -395,8 +392,7 @@ public class WildcardMatcher {
 
     public static boolean containsWildcard(final String pattern) {
         if (pattern != null
-                && (pattern.indexOf("*") > NOT_FOUND || pattern.indexOf("?") > NOT_FOUND || (pattern.startsWith("/") && pattern
-                        .endsWith("/")))) {
+                && (pattern.indexOf("*") > NOT_FOUND || pattern.indexOf("?") > NOT_FOUND || (pattern.startsWith("/") && pattern.endsWith("/")))) {
             return true;
         }
 
@@ -410,45 +406,45 @@ public class WildcardMatcher {
      * @return
      */
     public static boolean wildcardRemoveFromSet(Set<String> set, String stringContainingWc) {
-        if(set == null || set.isEmpty()) {
+        if (set == null || set.isEmpty()) {
             return false;
         }
-        if(!containsWildcard(stringContainingWc) && set.contains(stringContainingWc)) {
+        if (!containsWildcard(stringContainingWc) && set.contains(stringContainingWc)) {
             return set.remove(stringContainingWc);
         } else {
             boolean modified = false;
             Set<String> copy = new HashSet<>(set);
 
-            for(String it: copy) {
-                if(WildcardMatcher.match(stringContainingWc, it)) {
+            for (String it : copy) {
+                if (WildcardMatcher.match(stringContainingWc, it)) {
                     modified = set.remove(it) || modified;
                 }
             }
             return modified;
         }
     }
-    
+
     /**
     *
     * @param set will be modified
     * @param stringContainingWc
     * @return
     */
-   public static boolean wildcardRemoveFromSet(Set<String> set, Set<String> setContainingWc) {
-       if(set == null || set.isEmpty()) {
-           return false;
-       }
-       
-       boolean modified = false;
-       
-       for(String wc: setContainingWc) {
-           if(wildcardRemoveFromSet(set, wc)) {
-               modified = true;
-           }
-       }
-       
-       return modified;
-   }
+    public static boolean wildcardRemoveFromSet(Set<String> set, Set<String> setContainingWc) {
+        if (set == null || set.isEmpty()) {
+            return false;
+        }
+
+        boolean modified = false;
+
+        for (String wc : setContainingWc) {
+            if (wildcardRemoveFromSet(set, wc)) {
+                modified = true;
+            }
+        }
+
+        return modified;
+    }
 
     /**
      *
@@ -457,20 +453,19 @@ public class WildcardMatcher {
      * @return
      */
     public static boolean wildcardRetainInSet(Set<String> set, String[] setContainingWc) {
-        if(set == null || set.isEmpty()) {
+        if (set == null || set.isEmpty()) {
             return false;
         }
         boolean modified = false;
         Set<String> copy = new HashSet<>(set);
 
-        for(String it: copy) {
-            if(!WildcardMatcher.matchAny(setContainingWc, it)) {
+        for (String it : copy) {
+            if (!WildcardMatcher.matchAny(setContainingWc, it)) {
                 modified = set.remove(it) || modified;
             }
         }
         return modified;
     }
-
 
     //All code below is copied (and slightly modified) from Apache Commons IO
 
@@ -490,7 +485,6 @@ public class WildcardMatcher {
      * See the License for the specific language governing permissions and
      * limitations under the License.
      */
-
 
     /**
      * Checks a filename to see if it matches the specified wildcard matcher
@@ -558,7 +552,7 @@ public class WildcardMatcher {
                         }
                         final int repeat = checkIndexOf(candidate, textIdx + 1, wcs[wcsIdx]);
                         if (repeat >= 0) {
-                            backtrack.push(new int[] {wcsIdx, repeat});
+                            backtrack.push(new int[] { wcsIdx, repeat });
                         }
                     } else {
                         // matching from current position
@@ -626,7 +620,7 @@ public class WildcardMatcher {
             list.add(buffer.toString());
         }
 
-        return list.toArray( new String[ list.size() ] );
+        return list.toArray(new String[list.size()]);
     }
 
     /**

@@ -1,21 +1,20 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import java.io.IOException;
-
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -25,26 +24,20 @@ import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+public class FlsFieldsWcTest extends AbstractDlsFlsTest {
 
-
-public class FlsFieldsWcTest extends AbstractDlsFlsTest{
-    
     @Override
     protected void populateData(Client tc) {
 
+        tc.admin().indices().create(new CreateIndexRequest("deals").mapping("_doc", "timestamp", "type=date", "@timestamp", "type=date")).actionGet();
 
-        
-        tc.admin().indices().create(new CreateIndexRequest("deals")
-        .mapping("_doc","timestamp","type=date","@timestamp","type=date")).actionGet();
-        
         try {
             String doc = FileHelper.loadFile("dlsfls_legacy/doc1.json");
 
             for (int i = 0; i < 10; i++) {
                 final String moddoc = doc.replace("<name>", "cust" + i).replace("<employees>", "" + i).replace("<date>", "1970-01-02");
-                tc.index(new IndexRequest("deals").id("0" + i).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(moddoc, XContentType.JSON)).actionGet();
+                tc.index(new IndexRequest("deals").id("0" + i).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(moddoc, XContentType.JSON))
+                        .actionGet();
             }
 
         } catch (IOException e) {
@@ -52,40 +45,43 @@ public class FlsFieldsWcTest extends AbstractDlsFlsTest{
         }
 
     }
-    
-    
+
     @Test
-    public void testFields() throws Exception {        
+    public void testFields() throws Exception {
         setup();
 
         String query = FileHelper.loadFile("dlsfls_legacy/flsquery.json");
-        
-        HttpResponse res;        
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
+
+        HttpResponse res;
+        Assert.assertEquals(HttpStatus.SC_OK,
+                (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("secret"));
         Assert.assertTrue(res.getBody().contains("@timestamp"));
         Assert.assertTrue(res.getBody().contains("\"timestamp"));
-        
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("fls_fields_wc", "password"))).getStatusCode());
+
+        Assert.assertEquals(HttpStatus.SC_OK,
+                (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("fls_fields_wc", "password"))).getStatusCode());
         Assert.assertFalse(res.getBody().contains("customer"));
         Assert.assertFalse(res.getBody().contains("secret"));
         Assert.assertFalse(res.getBody().contains("timestamp"));
         Assert.assertFalse(res.getBody().contains("numfield5"));
     }
-    
+
     @Test
-    public void testFields2() throws Exception {        
+    public void testFields2() throws Exception {
         setup();
 
         String query = FileHelper.loadFile("dlsfls_legacy/flsquery2.json");
-        
-        HttpResponse res;        
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
+
+        HttpResponse res;
+        Assert.assertEquals(HttpStatus.SC_OK,
+                (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("admin", "admin"))).getStatusCode());
         Assert.assertTrue(res.getBody().contains("secret"));
         Assert.assertTrue(res.getBody().contains("@timestamp"));
         Assert.assertTrue(res.getBody().contains("\"timestamp"));
-        
-        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("fls_fields_wc", "password"))).getStatusCode());
+
+        Assert.assertEquals(HttpStatus.SC_OK,
+                (res = rh.executePostRequest("/deals/_search?pretty", query, encodeBasicHeader("fls_fields_wc", "password"))).getStatusCode());
         Assert.assertFalse(res.getBody().contains("customer"));
         Assert.assertFalse(res.getBody().contains("secret"));
         Assert.assertFalse(res.getBody().contains("timestamp"));

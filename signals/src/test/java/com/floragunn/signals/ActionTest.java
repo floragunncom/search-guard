@@ -1,35 +1,27 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.signals;
-
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.commons.io.IOUtils;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
-import org.elasticsearch.xcontent.XContentType;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.ExecutionEnvironment;
@@ -56,8 +48,29 @@ import com.google.common.collect.ImmutableMap;
 import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetup;
-
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import net.jcip.annotations.NotThreadSafe;
+import org.apache.commons.io.IOUtils;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.XContentType;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 @PowerMockIgnore({ "javax.script.*", "javax.crypto.*", "javax.management.*", "sun.security.*", "java.security.*", "javax.net.ssl.*", "javax.net.*",
         "javax.security.*" })
@@ -173,9 +186,9 @@ public class ActionTest {
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals")
@@ -184,7 +197,7 @@ public class ActionTest {
     @BeforeClass
     public static void setupTestData() throws Throwable {
 
-        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
+        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here
         cluster.before();
 
         try (Client client = cluster.getInternalNodeClient()) {
@@ -229,7 +242,8 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsCustomTrustStore() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (Client client = cluster.getInternalNodeClient();
+                MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -261,7 +275,8 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsCustomTrustStoreFailure() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (Client client = cluster.getInternalNodeClient();
+                MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -290,7 +305,8 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsClientAuth() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
+        try (Client client = cluster.getInternalNodeClient();
+                MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -329,7 +345,8 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsClientAuthFailure() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
+        try (Client client = cluster.getInternalNodeClient();
+                MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -549,7 +566,7 @@ public class ActionTest {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
     public void testSlackActionWithBlocks() throws Exception {
 
@@ -568,15 +585,8 @@ public class ActionTest {
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
-            String blocksRawJson = "[\n" +
-                    "\t\t{\n" +
-                    "\t\t\t\"type\": \"section\",\n" +
-                    "\t\t\t\"text\": {\n" +
-                    "\t\t\t\t\"type\": \"mrkdwn\",\n" +
-                    "\t\t\t\t\"text\": \"A message *with some bold text* and {{data.body}}.\"\n" +
-                    "\t\t\t}\n" +
-                    "\t\t}\n" +
-                    "\t]";
+            String blocksRawJson = "[\n" + "\t\t{\n" + "\t\t\t\"type\": \"section\",\n" + "\t\t\t\"text\": {\n" + "\t\t\t\t\"type\": \"mrkdwn\",\n"
+                    + "\t\t\t\t\"text\": \"A message *with some bold text* and {{data.body}}.\"\n" + "\t\t\t}\n" + "\t\t}\n" + "\t]";
 
             List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
 
@@ -597,7 +607,7 @@ public class ActionTest {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
     public void testSlackActionWithBlocksAndQuotesInMustacheTemplate() throws Exception {
 
@@ -617,15 +627,9 @@ public class ActionTest {
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
-            String blocksRawJson = "[\n" +
-                    "\t\t{\n" +
-                    "\t\t\t\"type\": \"section\",\n" +
-                    "\t\t\t\"text\": {\n" +
-                    "\t\t\t\t\"type\": \"mrkdwn\",\n" +
-                    "\t\t\t\t\"text\": \"A message *with some bold text* and {{data.body}} and {{data.someQuote}}.\"\n" +
-                    "\t\t\t}\n" +
-                    "\t\t}\n" +
-                    "\t]";
+            String blocksRawJson = "[\n" + "\t\t{\n" + "\t\t\t\"type\": \"section\",\n" + "\t\t\t\"text\": {\n" + "\t\t\t\t\"type\": \"mrkdwn\",\n"
+                    + "\t\t\t\t\"text\": \"A message *with some bold text* and {{data.body}} and {{data.someQuote}}.\"\n" + "\t\t\t}\n" + "\t\t}\n"
+                    + "\t]";
 
             List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
 
@@ -646,7 +650,7 @@ public class ActionTest {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
     public void testSlackActionWithBlocksAndText() throws Exception {
 
@@ -665,15 +669,8 @@ public class ActionTest {
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
-            String blocksRawJson = "[\n" +
-                    "\t\t{\n" +
-                    "\t\t\t\"type\": \"section\",\n" +
-                    "\t\t\t\"text\": {\n" +
-                    "\t\t\t\t\"type\": \"mrkdwn\",\n" +
-                    "\t\t\t\t\"text\": \"A message *with some bold text* and {{data.body}}.\"\n" +
-                    "\t\t\t}\n" +
-                    "\t\t}\n" +
-                    "\t]";
+            String blocksRawJson = "[\n" + "\t\t{\n" + "\t\t\t\"type\": \"section\",\n" + "\t\t\t\"text\": {\n" + "\t\t\t\t\"type\": \"mrkdwn\",\n"
+                    + "\t\t\t\t\"text\": \"A message *with some bold text* and {{data.body}}.\"\n" + "\t\t\t}\n" + "\t\t}\n" + "\t]";
 
             List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
 
@@ -696,23 +693,23 @@ public class ActionTest {
 
     @Test
     public void testSlackActionWithoutBlockAndText() {
-            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+        AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
 
-            SlackActionConf c = new SlackActionConf();
-            c.setAccount("test_destination");
-            c.setChannel("test_channel");
-            c.setFrom("test_from");
+        SlackActionConf c = new SlackActionConf();
+        c.setAccount("test_destination");
+        c.setChannel("test_channel");
+        c.setFrom("test_from");
 
-            SlackAction slackAction = new SlackAction(c);
+        SlackAction slackAction = new SlackAction(c);
 
-            try {
-                slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
-            } catch (Exception e) {
-                Assert.assertTrue(e.getMessage().contains("'text': Required attribute is missing"));
-            }
+        try {
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+        } catch (Exception e) {
+            Assert.assertTrue(e.getMessage().contains("'text': Required attribute is missing"));
+        }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
     public void testSlackActionWithAttachments() throws Exception {
 
@@ -731,31 +728,18 @@ public class ActionTest {
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
-            String attachmentRawJson = "[\n" +
-                    "      {\n" +
-                    "          \"fallback\": \"Plain-text summary of the attachment.\",\n" +
-                    "          \"color\": \"#2eb886\",\n" +
-                    "          \"pretext\": \"Optional text that appears above the attachment block\",\n" +
-                    "          \"author_name\": \"Bobby Tables\",\n" +
-                    "          \"author_link\": \"http://flickr.com/bobby/\",\n" +
-                    "          \"author_icon\": \"http://flickr.com/icons/bobby.jpg\",\n" +
-                    "          \"title\": \"Slack API Documentation\",\n" +
-                    "          \"title_link\": \"https://api.slack.com/\",\n" +
-                    "          \"text\": \"Optional text that appears within the attachment\",\n" +
-                    "          \"fields\": [\n" +
-                    "              {\n" +
-                    "                  \"title\": \"Priority\",\n" +
-                    "                  \"value\": \"High\",\n" +
-                    "                  \"short\": false\n" +
-                    "              }\n" +
-                    "          ],\n" +
-                    "          \"image_url\": \"http://my-website.com/path/to/image.jpg\",\n" +
-                    "          \"thumb_url\": \"http://example.com/path/to/thumb.png\",\n" +
-                    "          \"footer\": \"Slack API\",\n" +
-                    "          \"footer_icon\": \"https://platform.slack-edge.com/img/default_application_icon.png\",\n" +
-                    "          \"ts\": 123456789\n" +
-                    "      }\n" +
-                    "  ]";
+            String attachmentRawJson = "[\n" + "      {\n" + "          \"fallback\": \"Plain-text summary of the attachment.\",\n"
+                    + "          \"color\": \"#2eb886\",\n" + "          \"pretext\": \"Optional text that appears above the attachment block\",\n"
+                    + "          \"author_name\": \"Bobby Tables\",\n" + "          \"author_link\": \"http://flickr.com/bobby/\",\n"
+                    + "          \"author_icon\": \"http://flickr.com/icons/bobby.jpg\",\n" + "          \"title\": \"Slack API Documentation\",\n"
+                    + "          \"title_link\": \"https://api.slack.com/\",\n"
+                    + "          \"text\": \"Optional text that appears within the attachment\",\n" + "          \"fields\": [\n"
+                    + "              {\n" + "                  \"title\": \"Priority\",\n" + "                  \"value\": \"High\",\n"
+                    + "                  \"short\": false\n" + "              }\n" + "          ],\n"
+                    + "          \"image_url\": \"http://my-website.com/path/to/image.jpg\",\n"
+                    + "          \"thumb_url\": \"http://example.com/path/to/thumb.png\",\n" + "          \"footer\": \"Slack API\",\n"
+                    + "          \"footer_icon\": \"https://platform.slack-edge.com/img/default_application_icon.png\",\n"
+                    + "          \"ts\": 123456789\n" + "      }\n" + "  ]";
 
             List attachments = DefaultObjectMapper.readValue(attachmentRawJson, List.class);
 
@@ -838,7 +822,7 @@ public class ActionTest {
         }
 
     }
-    
+
     @Test
     public void testEmailActionTls() throws Exception {
 
@@ -946,13 +930,13 @@ public class ActionTest {
             ActionExecutionResult result = emailAction.execute(ctx);
 
             Assert.assertTrue(result.getRequest().contains("<p>We searched y shards<p/>"));
-            
+
             if (!greenMail.waitForIncomingEmail(20000, 1)) {
                 Assert.fail("Timeout waiting for mails");
             }
 
             String receivedMail = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
-            
+
             Assert.assertTrue(receivedMail, receivedMail.contains("<p>We searched y shards<p/>"));
             Assert.assertTrue(receivedMail, receivedMail.contains("Content-Type: text/html"));
             Assert.assertTrue(receivedMail, receivedMail.contains("Subject: Test Subject"));
@@ -1012,13 +996,13 @@ public class ActionTest {
             Assert.assertTrue(result.getRequest().contains("Content-Type: multipart/alternative"));
             Assert.assertTrue(result.getRequest().contains("Content-Type: text/plain"));
             Assert.assertTrue(result.getRequest().contains("Content-Type: text/html"));
-            
+
             if (!greenMail.waitForIncomingEmail(20000, 1)) {
                 Assert.fail("Timeout waiting for mails");
             }
 
             String receivedMail = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
-            
+
             Assert.assertTrue(receivedMail, receivedMail.contains("We searched y shards"));
             Assert.assertTrue(receivedMail, receivedMail.contains("<p>We searched y shards<p/>"));
             Assert.assertTrue(receivedMail, receivedMail.contains("Content-Type: text/html"));
@@ -1034,30 +1018,30 @@ public class ActionTest {
 
     @Test
     public void testEmailActionWithMissingHtmlBodyAndMissingBody() throws Exception {
-            EmailAccount emailDestination = new EmailAccount();
-            emailDestination.setHost("localhost");
-            emailDestination.setPort(1234);
-            emailDestination.setDefaultFrom("from@default.sgtest");
-            emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
+        EmailAccount emailDestination = new EmailAccount();
+        emailDestination.setHost("localhost");
+        emailDestination.setPort(1234);
+        emailDestination.setDefaultFrom("from@default.sgtest");
+        emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+        AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+        Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
 
-            EmailAction emailAction = new EmailAction();
-            emailAction.setSubject("Test Subject");
-            emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
-            emailAction.setAccount("test_destination");
+        EmailAction emailAction = new EmailAction();
+        emailAction.setSubject("Test Subject");
+        emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
+        emailAction.setAccount("test_destination");
 
-            Attachment attachment = new EmailAction.Attachment();
-            attachment.setType(Attachment.AttachmentType.RUNTIME);
+        Attachment attachment = new EmailAction.Attachment();
+        attachment.setType(Attachment.AttachmentType.RUNTIME);
 
-            emailAction.setAttachments(ImmutableMap.of("test", attachment));
+        emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
-            try {
-                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
-            } catch (ConfigValidationException e) {
-                Assert.assertTrue(e.getMessage().contains("Both body and html_body are empty"));
-            }
+        try {
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+        } catch (ConfigValidationException e) {
+            Assert.assertTrue(e.getMessage().contains("Both body and html_body are empty"));
+        }
     }
 
     @Test

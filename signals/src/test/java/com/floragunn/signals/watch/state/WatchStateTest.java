@@ -14,15 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.state;
-
-import org.elasticsearch.common.Strings;
-import org.junit.Assert;
-import org.junit.Test;
 
 import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.severity.SeverityLevel;
+import org.elasticsearch.common.Strings;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class WatchStateTest {
 

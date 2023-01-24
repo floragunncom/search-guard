@@ -16,22 +16,20 @@
  */
 package com.floragunn.searchguard.authc.base;
 
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.user.User;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
-
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.documents.Document;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.user.User;
 
 public class AuthcResult implements ToXContentObject, Document<AuthcResult> {
     public static final AuthcResult STOP = new AuthcResult(Status.STOP);
@@ -57,7 +55,7 @@ public class AuthcResult implements ToXContentObject, Document<AuthcResult> {
     public static AuthcResult pass(User user, String redirectUri) {
         return new AuthcResult(user, Status.PASS, redirectUri);
     }
-    
+
     public static AuthcResult pass(User user, String redirectUri, List<DebugInfo> debug) {
         return new AuthcResult(user, Status.PASS, redirectUri, debug);
     }
@@ -89,7 +87,7 @@ public class AuthcResult implements ToXContentObject, Document<AuthcResult> {
         this.redirectUri = redirectUri;
         this.headers = ImmutableMap.empty();
     }
-    
+
     public AuthcResult(User user, Status status, String redirectUri, List<DebugInfo> debug) {
         this.user = user;
         this.status = status;

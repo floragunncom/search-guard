@@ -14,21 +14,8 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.env.Environment;
-import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.watcher.ResourceWatcherService;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
-
-import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
@@ -47,6 +34,16 @@ import com.floragunn.searchguard.license.LicenseRepository;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.env.Environment;
+import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.watcher.ResourceWatcherService;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 public class BaseDependencies {
 
@@ -86,10 +83,10 @@ public class BaseDependencies {
             Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
             StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository, LicenseRepository licenseRepository,
             ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService, DiagnosticContext diagnosticContext, AuditLog auditLog,
-            PrivilegesEvaluator privilegesEvaluator, BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry,
-            SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase, Actions actions,
-            AuthorizationService authorizationService, GuiceDependencies guiceDependencies, AuthInfoService authInfoService,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService,
+            DiagnosticContext diagnosticContext, AuditLog auditLog, PrivilegesEvaluator privilegesEvaluator, BlockedIpRegistry blockedIpRegistry,
+            BlockedUserRegistry blockedUserRegistry, SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase,
+            Actions actions, AuthorizationService authorizationService, GuiceDependencies guiceDependencies, AuthInfoService authInfoService,
             ActionRequestIntrospector actionRequestIntrospector) {
         super();
         this.settings = settings;

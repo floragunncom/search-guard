@@ -14,24 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.checks;
-
-import java.io.IOException;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
-import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
-
-import org.apache.http.Header;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.entity.ContentType;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
@@ -45,6 +28,20 @@ import com.floragunn.signals.watch.common.HttpClientConfig;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.common.HttpUtils;
 import com.floragunn.signals.watch.init.WatchInitializationService;
+import java.io.IOException;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
+import java.security.AccessController;
+import java.security.PrivilegedExceptionAction;
+import org.apache.http.Header;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.entity.ContentType;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class HttpInput extends AbstractInput {
     private static final Logger log = LogManager.getLogger(HttpInput.class);
@@ -77,7 +74,6 @@ public class HttpInput extends AbstractInput {
 
             this.request.checkHttpResponse(httpRequest, response);
 
-            
             Format docType = Format.peekByContentType(getContentType(response));
 
             if (docType == null) {
@@ -148,7 +144,7 @@ public class HttpInput extends AbstractInput {
         String target = vJsonNode.get("target").asString();
         HttpRequestConfig request = vJsonNode.get("request").required().by((n) -> HttpRequestConfig.create(watchInitService, n));
         HttpClientConfig httpClientConfig = null;
-        
+
         try {
             httpClientConfig = HttpClientConfig.create(vJsonNode);
         } catch (ConfigValidationException e) {

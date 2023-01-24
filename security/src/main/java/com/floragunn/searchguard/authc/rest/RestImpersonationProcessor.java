@@ -16,16 +16,6 @@
  */
 package com.floragunn.searchguard.authc.rest;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.rest.RestStatus;
-
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
 import com.floragunn.searchguard.authc.base.AuthcResult;
@@ -34,6 +24,14 @@ import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.rest.RestStatus;
 
 public class RestImpersonationProcessor<AuthenticatorType extends AuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(RestImpersonationProcessor.class);

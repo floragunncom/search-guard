@@ -1,23 +1,16 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls;
-
-import java.util.Set;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
@@ -26,6 +19,9 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class DlsFlsProcessedConfig {
     private static final Logger log = LogManager.getLogger(DlsFlsProcessedConfig.class);
@@ -82,7 +78,7 @@ public class DlsFlsProcessedConfig {
                 if (log.isDebugEnabled()) {
                     log.debug("FLX DLS/FLS implementation is disabled");
                 }
-                
+
                 componentState.setState(State.DISABLED);
             }
 
@@ -93,7 +89,7 @@ public class DlsFlsProcessedConfig {
             return DEFAULT;
         }
     }
-    
+
     public DlsFlsConfig getDlsFlsConfig() {
         return dlsFlsConfig;
     }
@@ -113,7 +109,7 @@ public class DlsFlsProcessedConfig {
     public boolean isEnabled() {
         return enabled;
     }
-    
+
     public MetricsLevel getMetricsLevel() {
         return dlsFlsConfig.getMetricsLevel();
     }

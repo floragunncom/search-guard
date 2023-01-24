@@ -14,15 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.action.invokers;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.documents.DocNode;
@@ -37,6 +29,11 @@ import com.floragunn.signals.watch.checks.Check;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.severity.SeverityLevel;
 import com.floragunn.signals.watch.severity.SeverityMapping;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class AlertAction extends ActionInvoker {
     protected final DurationExpression throttlePeriod;
@@ -62,7 +59,7 @@ public class AlertAction extends ActionInvoker {
     public boolean isAckEnabled() {
         return ackEnabled;
     }
-    
+
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
@@ -99,9 +96,9 @@ public class AlertAction extends ActionInvoker {
         }
 
         if (!ackEnabled) {
-            builder.field("ack_enabled", false);            
+            builder.field("ack_enabled", false);
         }
-        
+
         handler.toXContent(builder, params);
 
         builder.endObject();
@@ -140,7 +137,7 @@ public class AlertAction extends ActionInvoker {
         InlinePainlessScript<SignalsObjectFunctionScript.Factory> foreach = vJsonNode.get("foreach")
                 .byString((s) -> InlinePainlessScript.parse(s, SignalsObjectFunctionScript.CONTEXT, watchInitService));
 
-        foreachLimit = vJsonNode.get("foreach_limit").asInteger();        
+        foreachLimit = vJsonNode.get("foreach_limit").asInteger();
         ackEnabled = vJsonNode.get("ack_enabled").withDefault(true).asBoolean();
 
         vJsonNode.checkForUnusedAttributes();

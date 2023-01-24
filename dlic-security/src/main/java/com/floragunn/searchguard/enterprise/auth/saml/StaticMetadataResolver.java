@@ -1,35 +1,30 @@
 /*
- * Copyright 2021 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.saml;
 
+import com.google.common.base.Charsets;
 import java.io.ByteArrayInputStream;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-
+import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
+import net.shibboleth.utilities.java.support.resolver.ResolverException;
+import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 import org.elasticsearch.SpecialPermission;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.io.UnmarshallingException;
 import org.opensaml.saml.metadata.resolver.filter.FilterException;
 import org.opensaml.saml.metadata.resolver.impl.AbstractBatchMetadataResolver;
-
-import com.google.common.base.Charsets;
-
-import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
-import net.shibboleth.utilities.java.support.resolver.ResolverException;
-import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 
 public class StaticMetadataResolver extends AbstractBatchMetadataResolver {
 
@@ -45,7 +40,7 @@ public class StaticMetadataResolver extends AbstractBatchMetadataResolver {
         }
         setParserPool(basicParserPool);
         setId("static_metadata");
-        
+
         this.metadata = unmarshallMetadata(new ByteArrayInputStream(metadataXml.getBytes(Charsets.UTF_8)));
 
         if (!isValid(metadata)) {

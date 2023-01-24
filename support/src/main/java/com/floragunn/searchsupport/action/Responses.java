@@ -14,11 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.action;
 
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.google.common.base.Charsets;
 import java.io.ByteArrayInputStream;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -28,10 +29,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
-
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.google.common.base.Charsets;
 
 /**
  * @deprecated Use StandardResponse

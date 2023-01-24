@@ -1,16 +1,16 @@
+/*
+  * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.dlic.auth.ldap2;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
 import com.floragunn.dlic.auth.ldap.util.Utils;
@@ -18,6 +18,16 @@ import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 import com.unboundid.ldap.sdk.SearchScope;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.settings.Settings;
 
 public final class LDAPUserSearcher {
     protected static final Logger log = LogManager.getLogger(LDAPUserSearcher.class);
@@ -37,23 +47,18 @@ public final class LDAPUserSearcher {
     }
 
     static List<Map.Entry<String, Settings>> getUserBaseSettings(Settings settings) {
-        Map<String, Settings> userBaseSettingsMap = new HashMap<>(
-                settings.getGroups(ConfigConstants.LDAP_AUTHCZ_USERS));
+        Map<String, Settings> userBaseSettingsMap = new HashMap<>(settings.getGroups(ConfigConstants.LDAP_AUTHCZ_USERS));
 
         if (!userBaseSettingsMap.isEmpty()) {
             if (settings.hasValue(ConfigConstants.LDAP_AUTHC_USERBASE)) {
-                throw new RuntimeException(
-                        "Both old-style and new-style configuration defined for LDAP authentication backend: "
-                                + settings);
+                throw new RuntimeException("Both old-style and new-style configuration defined for LDAP authentication backend: " + settings);
             }
 
             return Utils.getOrderedBaseSettings(userBaseSettingsMap);
         } else {
             Settings.Builder settingsBuilder = Settings.builder();
-            settingsBuilder.put(ConfigConstants.LDAP_AUTHCZ_BASE,
-                    settings.get(ConfigConstants.LDAP_AUTHC_USERBASE, DEFAULT_USERBASE));
-            settingsBuilder.put(ConfigConstants.LDAP_AUTHCZ_SEARCH,
-                    settings.get(ConfigConstants.LDAP_AUTHC_USERSEARCH, DEFAULT_USERSEARCH_PATTERN));
+            settingsBuilder.put(ConfigConstants.LDAP_AUTHCZ_BASE, settings.get(ConfigConstants.LDAP_AUTHC_USERBASE, DEFAULT_USERBASE));
+            settingsBuilder.put(ConfigConstants.LDAP_AUTHCZ_SEARCH, settings.get(ConfigConstants.LDAP_AUTHC_USERSEARCH, DEFAULT_USERSEARCH_PATTERN));
 
             return Collections.singletonList(Pair.of("_legacyConfig", settingsBuilder.build()));
         }
@@ -62,11 +67,10 @@ public final class LDAPUserSearcher {
     SearchResultEntry exists(LDAPConnection con, String user) throws LDAPException {
 
         if (settings.getAsBoolean(ConfigConstants.LDAP_FAKE_LOGIN_ENABLED, false)
-                || settings.getAsBoolean(ConfigConstants.LDAP_SEARCH_ALL_BASES, false)
-                || settings.hasValue(ConfigConstants.LDAP_AUTHC_USERBASE)) {
-            return existsSearchingAllBases(con,user);
+                || settings.getAsBoolean(ConfigConstants.LDAP_SEARCH_ALL_BASES, false) || settings.hasValue(ConfigConstants.LDAP_AUTHC_USERBASE)) {
+            return existsSearchingAllBases(con, user);
         } else {
-            return existsSearchingUntilFirstHit(con,user);
+            return existsSearchingUntilFirstHit(con, user);
         }
 
     }
@@ -76,13 +80,11 @@ public final class LDAPUserSearcher {
 
         for (Map.Entry<String, Settings> entry : userBaseSettings) {
             Settings baseSettings = entry.getValue();
-            
+
             ParametrizedFilter pf = new ParametrizedFilter(baseSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_USERSEARCH_PATTERN));
             pf.setParameter(ZERO_PLACEHOLDER, username);
 
-            List<SearchResultEntry> result = lcm.search(con,
-                    baseSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_USERBASE),
-                    SearchScope.SUB,
+            List<SearchResultEntry> result = lcm.search(con, baseSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_USERBASE), SearchScope.SUB,
                     pf);
 
             if (log.isDebugEnabled()) {
@@ -103,14 +105,12 @@ public final class LDAPUserSearcher {
 
         for (Map.Entry<String, Settings> entry : userBaseSettings) {
             Settings baseSettings = entry.getValue();
-            
+
             ParametrizedFilter pf = new ParametrizedFilter(baseSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_USERSEARCH_PATTERN));
             pf.setParameter(ZERO_PLACEHOLDER, username);
 
-            List<SearchResultEntry> foundEntries = lcm.search(con,
-                    baseSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_USERBASE),
-                    SearchScope.SUB,
-                    pf);
+            List<SearchResultEntry> foundEntries = lcm.search(con, baseSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_USERBASE),
+                    SearchScope.SUB, pf);
 
             if (log.isDebugEnabled()) {
                 log.debug("Results for LDAP search for " + user + " in base " + entry.getKey() + ":\n" + result);

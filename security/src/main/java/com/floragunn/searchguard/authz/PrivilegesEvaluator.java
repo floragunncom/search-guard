@@ -14,44 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
-import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterChangedEvent;
-import org.elasticsearch.cluster.ClusterStateListener;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.tasks.Task;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -87,6 +50,40 @@ import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.google.common.base.Strings;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
+import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterStateListener;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.tasks.Task;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 public class PrivilegesEvaluator implements ComponentStateProvider {
     static final StaticSettings.Attribute<Pattern> ADMIN_ONLY_ACTIONS = //
@@ -303,7 +300,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 }
             }
 
-            // check snapshot/restore requests 
+            // check snapshot/restore requests
             PrivilegesEvaluationResult result = snapshotRestoreEvaluator.evaluate(request, task, action, clusterInfoHolder);
             if (!result.isPending()) {
                 return result;
@@ -319,7 +316,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 }
 
                 if (request instanceof RestoreSnapshotRequest && checkSnapshotRestoreWritePrivileges) {
-                    // Evaluate additional index privileges                
+                    // Evaluate additional index privileges
                     return evaluateIndexPrivileges(user, action0, action.expandPrivileges(request), request, task, requestInfo, mappedRoles,
                             authzConfig, actionAuthorization, specialPrivilegesEvaluationContext, context);
                 }
@@ -664,8 +661,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             return Collections.emptyMap();
         }
 
-        // Note: This does not take authtokens into account yet. However, as this is only an API for Kibana and Kibana does not use authtokens, 
-        // this does not really matter        
+        // Note: This does not take authtokens into account yet. However, as this is only an API for Kibana and Kibana does not use authtokens,
+        // this does not really matter
         ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, caller);
         String requestedTenant = getRequestedTenant(user);
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),

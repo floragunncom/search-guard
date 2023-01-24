@@ -1,10 +1,10 @@
 /*
  * Copyright 2021 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.session.backend;
 
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -27,7 +31,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -48,19 +51,13 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentState.State;
-import com.floragunn.searchsupport.cstate.metrics.Meter;
-import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
-
 /**
  * This class is responsible for tracking the last access to a session and extending the expiration time of that session on that access.
- * 
+ *
  * As a session may be accessed on any node of the cluster, the nodes need to coordinate between each other the information about the
  * current expiration times of the active sessions.
- * 
- * In order to avoid an index write on each access of a session, this class keeps the most recently accessed sessions in heap 
+ *
+ * In order to avoid an index write on each access of a session, this class keeps the most recently accessed sessions in heap
  * (in the ConcurrentHashMap lastAccess). This is regularly batch-wise synced to the session index.
  *
  */
@@ -73,7 +70,7 @@ class SessionActivityTracker {
 
     /**
      * Maps session ids to the expiry time of the session (measured in milliseconds since epoch).
-     * 
+     *
      * This map keeps ONLY sessions where the expiry time deviates from the expiry time stored in the index. When this map is synced to the index, this map is emptied.
      * Afterwards, the information from the index is the only valid information.
      */
@@ -98,7 +95,7 @@ class SessionActivityTracker {
         this.random = new Random(System.currentTimeMillis() + hashCode());
 
         setInactivityTimeout(inactivityTimeout);
-        
+
         this.componentState.addMetrics("flush", flushMetrics);
 
         this.sessionFlushThread = new SessionFlushThread();
@@ -345,10 +342,10 @@ class SessionActivityTracker {
                     }
 
                     Meter searchMeter = meter.basic("index_search");
-                    
+
                     // XXX Kind of a dejavu from another world ;-)
                     ActionListener<SearchResponse> self = this;
-                    
+
                     // Continue scrolling
                     privilegedConfigClient.searchScroll(new SearchScrollRequest(response.getScrollId()), new ActionListener<SearchResponse>() {
 

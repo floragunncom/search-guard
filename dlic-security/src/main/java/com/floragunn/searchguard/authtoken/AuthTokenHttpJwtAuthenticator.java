@@ -1,31 +1,28 @@
 /*
- * Copyright 2020-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken;
-
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
-import org.apache.cxf.rs.security.jose.jwt.JwtException;
-import org.apache.cxf.rs.security.jose.jwt.JwtToken;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
+import org.apache.cxf.rs.security.jose.jwt.JwtException;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class AuthTokenHttpJwtAuthenticator implements HttpAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(AuthTokenHttpJwtAuthenticator.class);

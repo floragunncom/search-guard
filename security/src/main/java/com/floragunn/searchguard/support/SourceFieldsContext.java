@@ -14,12 +14,10 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.support;
 
 import java.io.Serializable;
 import java.util.Arrays;
-
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.search.SearchRequest;
 
@@ -36,15 +34,16 @@ public class SourceFieldsContext implements Serializable {
     private static final long serialVersionUID = 1L;
 
     public static boolean isNeeded(SearchRequest request) {
-        return (request.source() != null && request.source().fetchSource() != null && (request.source().fetchSource().includes() != null || request
-                .source().fetchSource().excludes() != null))
-                || (request.source() != null && request.source().storedFields() != null
-                        && request.source().storedFields().fieldNames() != null && !request.source().storedFields().fieldNames().isEmpty());
+        return (request.source() != null && request.source().fetchSource() != null
+                && (request.source().fetchSource().includes() != null || request.source().fetchSource().excludes() != null))
+                || (request.source() != null && request.source().storedFields() != null && request.source().storedFields().fieldNames() != null
+                        && !request.source().storedFields().fieldNames().isEmpty());
     }
 
     public static boolean isNeeded(GetRequest request) {
-        return (request.fetchSourceContext() != null && (request.fetchSourceContext().includes() != null || request.fetchSourceContext()
-                .excludes() != null)) || (request.storedFields() != null && request.storedFields().length > 0);
+        return (request.fetchSourceContext() != null
+                && (request.fetchSourceContext().includes() != null || request.fetchSourceContext().excludes() != null))
+                || (request.storedFields() != null && request.storedFields().length > 0);
     }
 
     public SourceFieldsContext() {
@@ -88,7 +87,7 @@ public class SourceFieldsContext implements Serializable {
     public boolean hasIncludesOrExcludes() {
         return (includes != null && includes.length > 0) || (excludes != null && excludes.length > 0);
     }
-    
+
     public boolean isFetchSource() {
         return fetchSource;
     }

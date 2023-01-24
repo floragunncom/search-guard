@@ -1,22 +1,16 @@
+/*
+  * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.signals;
-
-import java.net.URI;
-
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
-import org.elasticsearch.xcontent.XContentType;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.accounts.AccountRegistry;
@@ -33,6 +27,22 @@ import com.floragunn.signals.support.InlineMustacheTemplate;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.init.WatchInitializationService;
+import java.net.URI;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.XContentType;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 @PowerMockIgnore({ "javax.script.*", "javax.crypto.*", "javax.management.*", "sun.security.*", "java.security.*", "javax.net.ssl.*", "javax.net.*",
         "javax.security.*" })
@@ -49,8 +59,8 @@ public class ActionTest {
 
     @BeforeClass
     public static void setupTestData() throws Throwable {
-        
-        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
+
+        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here
         cluster.before();
 
         try (Client client = cluster.getInternalNodeClient()) {

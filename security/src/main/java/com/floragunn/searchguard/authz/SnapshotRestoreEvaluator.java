@@ -16,20 +16,18 @@
  */
 package com.floragunn.searchguard.authz;
 
-import java.util.List;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.tasks.Task;
-
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.support.SnapshotRestoreHelper;
+import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.elasticsearch.tasks.Task;
 
 public class SnapshotRestoreEvaluator {
 

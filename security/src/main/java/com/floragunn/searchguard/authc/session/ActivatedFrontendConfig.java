@@ -14,18 +14,16 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.session;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.validation.ConfigValidationException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.validation.ConfigValidationException;
 
 public class ActivatedFrontendConfig {
     private List<AuthMethod> authMethods;
@@ -68,7 +66,8 @@ public class ActivatedFrontendConfig {
             this.captureUrlFragment = false;
         }
 
-        public AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment, String messageTitle, String message) {
+        public AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment,
+                String messageTitle, String message) {
             this.method = method;
             this.label = label;
             this.id = id;
@@ -83,8 +82,8 @@ public class ActivatedFrontendConfig {
             this.details = Collections.emptyMap();
         }
 
-        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment,String messageTitle, String message,
-                String ssoLocation, String ssoContext, Map<String, Object> config) {
+        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment,
+                String messageTitle, String message, String ssoLocation, String ssoContext, Map<String, Object> config) {
             this.method = method;
             this.id = id;
             this.session = session;
@@ -99,8 +98,8 @@ public class ActivatedFrontendConfig {
             this.details = Collections.emptyMap();
         }
 
-        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment, String messageTitle, String message,
-                String ssoLocation, String ssoContext, Map<String, Object> config, Map<String, Object> details) {
+        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment,
+                String messageTitle, String message, String ssoLocation, String ssoContext, Map<String, Object> config, Map<String, Object> details) {
             this.method = method;
             this.id = id;
             this.session = session;
@@ -135,25 +134,30 @@ public class ActivatedFrontendConfig {
         }
 
         public AuthMethod unavailable(String messageTitle, String message, Map<String, Object> details) {
-            return new AuthMethod(method, label, id, session, true, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config, details);
+            return new AuthMethod(method, label, id, session, true, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config,
+                    details);
         }
 
         public AuthMethod ssoLocation(String ssoLocation) {
-            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext,
+                    config);
         }
 
         public AuthMethod ssoContext(String ssoContext) {
-            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext,
+                    config);
         }
 
         public AuthMethod config(Map<String, Object> config) {
-            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext,
+                    config);
         }
 
         public AuthMethod config(String key, Object value) {
             HashMap<String, Object> newConfig = new HashMap<>(this.config);
             newConfig.put(key, value);
-            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, newConfig);
+            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext,
+                    newConfig);
         }
 
         public String getMethod() {
@@ -177,7 +181,8 @@ public class ActivatedFrontendConfig {
         }
 
         public AuthMethod clone() {
-            return new AuthMethod(method, label, id, session, unavailable,captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config, details);
+            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config,
+                    details);
         }
 
         public Map<String, Object> getConfig() {
@@ -204,7 +209,7 @@ public class ActivatedFrontendConfig {
             if (unavailable) {
                 result.put("unavailable", unavailable);
             }
-            
+
             if (captureUrlFragment) {
                 result.put("capture_url_fragment", captureUrlFragment);
             }

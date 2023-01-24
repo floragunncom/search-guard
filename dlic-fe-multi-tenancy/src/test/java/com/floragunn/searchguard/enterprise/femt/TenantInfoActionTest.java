@@ -1,6 +1,5 @@
 /*
- * Copyright 2017-2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2017-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,9 +10,11 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.femt;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
@@ -24,10 +25,6 @@ import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class TenantInfoActionTest {
 
@@ -41,7 +38,7 @@ public class TenantInfoActionTest {
     public void testTenantInfo() throws Exception {
 
         /*
-         
+        
             [admin_1, praxisrw, abcdef_2_2, kltentro, praxisro, kltentrw]
             admin_1==.kibana_-1139640511_admin1
             praxisrw==.kibana_-1386441176_praxisrw
@@ -49,7 +46,7 @@ public class TenantInfoActionTest {
             kltentro==.kibana_-2014056171_kltentro
             praxisro==.kibana_-1386441184_praxisro
             kltentrw==.kibana_-2014056163_kltentrw
-         
+        
          */
 
         try (Client tc = cluster.getInternalNodeClient()) {

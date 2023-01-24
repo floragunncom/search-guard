@@ -14,13 +14,10 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
 
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.floragunn.searchguard.authz.DocumentWhitelist;
 
 public class DocumentWhitelistTest {
     @Test

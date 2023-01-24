@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,27 +10,7 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.lucene;
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.LongSupplier;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.search.ConstantScoreQuery;
-import org.apache.lucene.search.Query;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.core.CheckedFunction;
-import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexService;
-import org.elasticsearch.index.query.SearchExecutionContext;
-import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.index.shard.ShardUtils;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -52,6 +31,23 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongSupplier;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.search.ConstantScoreQuery;
+import org.apache.lucene.search.Query;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.core.CheckedFunction;
+import org.elasticsearch.index.Index;
+import org.elasticsearch.index.IndexService;
+import org.elasticsearch.index.query.SearchExecutionContext;
+import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.index.shard.ShardUtils;
 
 public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryReader, DirectoryReader, IOException> {
     private static final Logger log = LogManager.getLogger(DlsFlsDirectoryReaderWrapper.class);
@@ -91,7 +87,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
         PrivilegesEvaluationContext privilegesEvaluationContext = this.dlsFlsBaseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {
-            log.trace("DlsFlsDirectoryReaderWrapper.apply(): No PrivilegesEvaluationContext");           
+            log.trace("DlsFlsDirectoryReaderWrapper.apply(): No PrivilegesEvaluationContext");
             return reader;
         }
 
@@ -141,8 +137,8 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
                         dlsRestriction, dlsQuery, flsRule, fieldMaskingRule);
             }
 
-            DlsFlsActionContext dlsFlsContext = new DlsFlsActionContext(dlsQuery, flsRule, fieldMaskingRule, indexService, threadContext, licenseInfo, auditlog,
-                    shardId);
+            DlsFlsActionContext dlsFlsContext = new DlsFlsActionContext(dlsQuery, flsRule, fieldMaskingRule, indexService, threadContext, licenseInfo,
+                    auditlog, shardId);
 
             return new DlsFlsDirectoryReader(reader, dlsFlsContext);
         } catch (PrivilegesEvaluationException e) {

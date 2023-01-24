@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,17 +12,24 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.ssl.transport;
 
+import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
+import com.floragunn.searchguard.ssl.SslExceptionHandler;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.ssl.SslHandler;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -38,27 +45,16 @@ import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.transport.TcpChannel;
 import org.elasticsearch.transport.netty4.Netty4Transport;
 
-import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
-import com.floragunn.searchguard.ssl.SslExceptionHandler;
-import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
-import io.netty.channel.ChannelPromise;
-import io.netty.handler.codec.DecoderException;
-import io.netty.handler.ssl.SslHandler;
-
 public class SearchGuardSSLNettyTransport extends Netty4Transport {
 
     private static final Logger logger = LogManager.getLogger(SearchGuardSSLNettyTransport.class);
     private final SearchGuardKeyStore sgks;
     private final SslExceptionHandler errorHandler;
 
-    public SearchGuardSSLNettyTransport(final Settings settings, final Version version, final ThreadPool threadPool, final NetworkService networkService,
-            final PageCacheRecycler pageCacheRecycler, final NamedWriteableRegistry namedWriteableRegistry,
-            final CircuitBreakerService circuitBreakerService, SharedGroupFactory sharedGroupFactory, final SearchGuardKeyStore sgks, final SslExceptionHandler errorHandler) {
+    public SearchGuardSSLNettyTransport(final Settings settings, final Version version, final ThreadPool threadPool,
+            final NetworkService networkService, final PageCacheRecycler pageCacheRecycler, final NamedWriteableRegistry namedWriteableRegistry,
+            final CircuitBreakerService circuitBreakerService, SharedGroupFactory sharedGroupFactory, final SearchGuardKeyStore sgks,
+            final SslExceptionHandler errorHandler) {
         super(settings, version, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, sharedGroupFactory);
 
         this.sgks = sgks;
@@ -84,7 +80,7 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
     protected ChannelHandler getServerChannelInitializer(String name) {
         return new SSLServerChannelInitializer(name);
     }
-    
+
     @Override
     protected ChannelHandler getClientChannelInitializer(DiscoveryNode node) {
         return new SSLClientChannelInitializer(node);
@@ -102,7 +98,7 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
             final SslHandler sslHandler = new SslHandler(sgks.createServerTransportSSLEngine());
             ch.pipeline().addFirst("ssl_server", sslHandler);
         }
-        
+
         @Override
         public final void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
             if (cause instanceof DecoderException && cause != null) {
@@ -122,7 +118,6 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
         private final boolean hostnameVerificationEnabled;
         private final boolean hostnameVerificationResovleHostName;
         private final SslExceptionHandler errorHandler;
-        
 
         private ClientSSLHandler(final SearchGuardKeyStore sgks, final boolean hostnameVerificationEnabled,
                 final boolean hostnameVerificationResovleHostName, final SslExceptionHandler errorHandler) {
@@ -131,7 +126,6 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
             this.hostnameVerificationResovleHostName = hostnameVerificationResovleHostName;
             this.errorHandler = errorHandler;
         }
-        
 
         @Deprecated
         @Override
@@ -147,7 +141,8 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
         }
 
         @Override
-        public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) throws Exception {
+        public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise)
+                throws Exception {
             SSLEngine engine = null;
             try {
                 if (hostnameVerificationEnabled) {
@@ -159,10 +154,11 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
                         hostname = inetSocketAddress.getHostString();
                     }
 
-                    if(log.isDebugEnabled()) {
-                        log.debug("Hostname of peer is {} ({}/{}) with hostnameVerificationResovleHostName: {}", hostname, inetSocketAddress.getHostName(), inetSocketAddress.getHostString(), hostnameVerificationResovleHostName);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Hostname of peer is {} ({}/{}) with hostnameVerificationResovleHostName: {}", hostname,
+                                inetSocketAddress.getHostName(), inetSocketAddress.getHostString(), hostnameVerificationResovleHostName);
                     }
-                    
+
                     engine = sgks.createClientTransportSSLEngine(hostname, inetSocketAddress.getPort());
                 } else {
                     engine = sgks.createClientTransportSSLEngine(null, -1);
@@ -181,19 +177,18 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
         private final boolean hostnameVerificationResovleHostName;
 
         public SSLClientChannelInitializer(DiscoveryNode node) {
-            hostnameVerificationEnabled = settings.getAsBoolean(
-                    SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, true);
-            hostnameVerificationResovleHostName = settings.getAsBoolean(
-                    SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME, true);
+            hostnameVerificationEnabled = settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, true);
+            hostnameVerificationResovleHostName = settings
+                    .getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME, true);
         }
 
         @Override
         protected void initChannel(Channel ch) throws Exception {
             super.initChannel(ch);
-            ch.pipeline().addFirst("client_ssl_handler", new ClientSSLHandler(sgks, hostnameVerificationEnabled,
-                    hostnameVerificationResovleHostName, errorHandler));
+            ch.pipeline().addFirst("client_ssl_handler",
+                    new ClientSSLHandler(sgks, hostnameVerificationEnabled, hostnameVerificationResovleHostName, errorHandler));
         }
-        
+
         @Override
         public final void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
 

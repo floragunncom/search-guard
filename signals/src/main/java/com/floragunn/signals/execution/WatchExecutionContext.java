@@ -14,21 +14,18 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.execution;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import org.elasticsearch.client.Client;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.action.invokers.ActionInvoker;
 import com.floragunn.signals.watch.common.HttpEndpointWhitelist;
 import com.floragunn.signals.watch.common.HttpProxyConfig;
+import java.util.HashMap;
+import java.util.Map;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 public class WatchExecutionContext {
 
@@ -46,7 +43,7 @@ public class WatchExecutionContext {
     private final HttpProxyConfig httpProxyConfig;
     private final String frontendBaseUrl;
     private final ActionInvoker actionInvoker;
-    
+
     public Map<String, Object> getMetadata() {
         return metadata;
     }
@@ -59,7 +56,8 @@ public class WatchExecutionContext {
 
     public WatchExecutionContext(Client client, ScriptService scriptService, NamedXContentRegistry xContentRegistry, AccountRegistry accountRegistry,
             ExecutionEnvironment executionEnvironment, ActionInvocationType actionInvocationType, WatchExecutionContextData contextData,
-            WatchExecutionContextData resolvedContextData, SimulationMode simulationMode, HttpEndpointWhitelist httpEndpointWhitelist, HttpProxyConfig httpProxyConfig, String frontendBaseUrl, ActionInvoker actionInvoker) {
+            WatchExecutionContextData resolvedContextData, SimulationMode simulationMode, HttpEndpointWhitelist httpEndpointWhitelist,
+            HttpProxyConfig httpProxyConfig, String frontendBaseUrl, ActionInvoker actionInvoker) {
         this.client = client;
         this.scriptService = scriptService;
         this.xContentRegistry = xContentRegistry;
@@ -106,10 +104,10 @@ public class WatchExecutionContext {
         if (resolvedContextData != null) {
             result.put("resolved", resolvedContextData.getTemplateScriptParamsAsMap());
         }
-        
+
         if (this.frontendBaseUrl != null && actionInvocationType == ActionInvocationType.ALERT && this.contextData.getWatch() != null) {
             String tenant = this.contextData.getWatch().getTenant();
-            
+
             if ("_main".equals(tenant)) {
                 tenant = "SGS_GLOBAL_TENANT";
             }

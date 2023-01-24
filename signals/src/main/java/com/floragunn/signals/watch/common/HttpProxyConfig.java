@@ -1,10 +1,10 @@
 /*
  * Copyright 2021 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,19 +12,16 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.signals.watch.common;
-
-import java.io.IOException;
-
-import org.apache.http.HttpHost;
-import org.elasticsearch.xcontent.ToXContent;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import java.io.IOException;
+import org.apache.http.HttpHost;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class HttpProxyConfig implements ToXContent {
 
@@ -77,7 +74,7 @@ public class HttpProxyConfig implements ToXContent {
         USE_SPECIFIC_PROXY, USE_DEFAULT_PROXY, USE_NO_PROXY
     }
 
-    public static HttpProxyConfig create(String value) throws ConfigValidationException {        
+    public static HttpProxyConfig create(String value) throws ConfigValidationException {
         if (value == null || "default".equalsIgnoreCase(value)) {
             return USE_DEFAULT;
         } else if ("none".equalsIgnoreCase(value)) {
@@ -86,8 +83,7 @@ public class HttpProxyConfig implements ToXContent {
             try {
                 return new HttpProxyConfig(HttpHost.create(value));
             } catch (IllegalArgumentException e) {
-                throw new ConfigValidationException(
-                        new InvalidAttributeValue(null, value, "URI or default or none").cause(e));
+                throw new ConfigValidationException(new InvalidAttributeValue(null, value, "URI or default or none").cause(e));
             }
         }
     }

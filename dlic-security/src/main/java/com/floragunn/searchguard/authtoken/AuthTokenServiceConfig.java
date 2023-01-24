@@ -1,28 +1,16 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken;
-
-import java.time.temporal.TemporalAmount;
-import java.util.Arrays;
-import java.util.List;
-
-import org.apache.cxf.rs.security.jose.common.JoseUtils;
-import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
-import org.apache.cxf.rs.security.jose.jwk.KeyType;
-import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
@@ -39,6 +27,14 @@ import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPerm
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import java.time.temporal.TemporalAmount;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.cxf.rs.security.jose.common.JoseUtils;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
+import org.apache.cxf.rs.security.jose.jwk.KeyType;
+import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
 
 public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServiceConfig> {
     public static CType<AuthTokenServiceConfig> TYPE = new CType<AuthTokenServiceConfig>("auth_token_service", "Auth Token Service", 10021,

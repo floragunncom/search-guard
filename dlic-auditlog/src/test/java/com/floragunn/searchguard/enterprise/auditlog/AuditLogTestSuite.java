@@ -1,21 +1,16 @@
 /*
- * Copyright 2018 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
 
 import com.floragunn.searchguard.enterprise.auditlog.compliance.ComplianceAuditlogTest;
 import com.floragunn.searchguard.enterprise.auditlog.compliance.RestApiComplianceAuditlogTest;
@@ -33,27 +28,15 @@ import com.floragunn.searchguard.enterprise.auditlog.routing.ThreadPoolSettingsT
 import com.floragunn.searchguard.enterprise.auditlog.sink.SinkProviderTLSTest;
 import com.floragunn.searchguard.enterprise.auditlog.sink.SinkProviderTest;
 import com.floragunn.searchguard.enterprise.auditlog.sink.WebhookAuditLogTest;
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 
-@Suite.SuiteClasses({
-	ComplianceAuditlogTest.class,
-	RestApiComplianceAuditlogTest.class,
-	AuditlogTest.class,
-	DelegateTest.class,
-	DisabledCategoriesTest.class,
-	IgnoreAuditUsersTest.class,
-	TracingTests.class,
-	BasicAuditlogTest.class,
-	SSLAuditlogTest.class,
-	FallbackTest.class,
-	RouterTest.class,
-	RoutingConfigurationTest.class,
-	ThreadPoolSettingsTest.class,
-	SinkProviderTest.class,
-	SinkProviderTLSTest.class,
-	WebhookAuditLogTest.class
-})
+@Suite.SuiteClasses({ ComplianceAuditlogTest.class, RestApiComplianceAuditlogTest.class, AuditlogTest.class, DelegateTest.class,
+        DisabledCategoriesTest.class, IgnoreAuditUsersTest.class, TracingTests.class, BasicAuditlogTest.class, SSLAuditlogTest.class,
+        FallbackTest.class, RouterTest.class, RoutingConfigurationTest.class, ThreadPoolSettingsTest.class, SinkProviderTest.class,
+        SinkProviderTLSTest.class, WebhookAuditLogTest.class })
 public class AuditLogTestSuite {
 
 }

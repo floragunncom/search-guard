@@ -1,18 +1,30 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.BaseDependencies;
+import com.floragunn.searchguard.SearchGuardModule;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsDirectoryReaderWrapper;
+import com.floragunn.searchguard.license.SearchGuardLicense;
+import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -20,7 +32,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
@@ -42,20 +53,6 @@ import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
-
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.BaseDependencies;
-import com.floragunn.searchguard.SearchGuardModule;
-import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConfigMap;
-import com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsDirectoryReaderWrapper;
-import com.floragunn.searchguard.license.SearchGuardLicense;
-import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
 public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(DlsFlsModule.class);

@@ -1,10 +1,10 @@
 /*
  * Copyright 2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,19 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authz;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
@@ -52,6 +42,13 @@ import com.floragunn.searchsupport.cstate.metrics.Measurement;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
@@ -159,7 +156,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             this.componentState.addMetrics("index_action_checks", indexActionChecks, "tenant_action_checks", tenantActionChecks,
                     "statful_index_rebuilds", statefulIndexRebuild);
-            
+
             this.componentState.addMetrics("index_action_types", indexActionTypes);
         }
     }
@@ -185,14 +182,14 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     indexActionTypes_wellKnown.increment();
                 } else {
                     indexActionTypes_nonWellKnown.increment();
-                    
+
                     if (metricsLevel.detailedEnabled()) {
                         indexActionTypes_nonWellKnown.getSubCount(action.name()).increment();
                     }
                 }
             });
         }
-        
+
         try (Meter meter = Meter.basic(metricsLevel, indexActionChecks)) {
             User user = context.getUser();
             ImmutableSet<String> mappedRoles = context.getMappedRoles();
@@ -260,7 +257,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     return resultFromStatefulIndex;
                 }
 
-                // Note: statefulIndex.hasPermission() modifies as a side effect the checkTable. 
+                // Note: statefulIndex.hasPermission() modifies as a side effect the checkTable.
                 // We can carry on using this as an intermediate result and further complete checkTable below.
             }
 
@@ -574,7 +571,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     if (metricsLevel.detailedEnabled()) {
                         m.count(action.name());
                     }
-                    
+
                     for (String role : roles) {
                         Pattern pattern = this.rolesToActionPattern.get(role);
 
@@ -1110,7 +1107,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
 
             if (rolesWithTemplatedExclusions.containsAny(mappedRoles)) {
-                // This class can only work on non-templated index patterns. 
+                // This class can only work on non-templated index patterns.
                 // If there are templated exclusions (which should be a very rare thing), we cannot do evaluation here
                 return null;
             }
@@ -1303,7 +1300,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             if (!dateMathExpressions.isEmpty()) {
                 try (Meter subMeter = meter.basic("render_date_math_expression")) {
-                    List<String> resolvedExpressions = com.floragunn.searchsupport.queries.DateMathExpressionResolver.resolve(this.dateMathExpressions);
+                    List<String> resolvedExpressions = com.floragunn.searchsupport.queries.DateMathExpressionResolver
+                            .resolve(this.dateMathExpressions);
 
                     for (String dateMathExpression : resolvedExpressions) {
                         try {

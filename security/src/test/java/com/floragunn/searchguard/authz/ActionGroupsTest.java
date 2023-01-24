@@ -16,14 +16,6 @@
  */
 package com.floragunn.searchguard.authz;
 
-import java.io.InputStreamReader;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -31,6 +23,12 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class ActionGroupsTest {
 

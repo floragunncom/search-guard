@@ -14,19 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.state;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.time.DateFormatter;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.documents.DocNode;
@@ -34,6 +22,15 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.signals.watch.common.Ack;
 import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.severity.SeverityLevel;
+import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.time.DateFormatter;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class ActionState implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(ActionState.class);

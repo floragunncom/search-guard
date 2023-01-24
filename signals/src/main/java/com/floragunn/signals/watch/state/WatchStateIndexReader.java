@@ -14,15 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.state;
 
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.searchsupport.client.Actions;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -33,9 +33,6 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
-
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.searchsupport.client.Actions;
 
 public class WatchStateIndexReader {
     private static final Logger log = LogManager.getLogger(WatchStateIndexReader.class);

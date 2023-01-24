@@ -1,70 +1,16 @@
 /*
- * Based on Apache 2 licensed https://github.com/pingidentity/ldapsdk/blob/master/src/com/unboundid/ldap/listener/InMemoryDirectoryServer.java
- * 
- * Modifications Copyright 2020-2021 floragunn GmbH
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
+  * Copyright 2020-2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
+ * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  *
- */
-/*
- * Copyright 2011-2020 Ping Identity Corporation
- * All Rights Reserved.
- */
-/*
- * Copyright 2011-2020 Ping Identity Corporation
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-/*
- * Copyright (C) 2011-2020 Ping Identity Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (GPLv2 only)
- * or the terms of the GNU Lesser General Public License (LGPLv2.1 only)
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses>.
  */
 package com.floragunn.searchguard.enterprise.auth.ldap;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.net.SocketFactory;
-import javax.net.ssl.SSLSocket;
 
 import com.unboundid.asn1.ASN1OctetString;
 import com.unboundid.ldap.listener.AccessLogRequestHandler;
@@ -131,12 +77,23 @@ import com.unboundid.util.StaticUtils;
 import com.unboundid.util.ThreadSafety;
 import com.unboundid.util.ThreadSafetyLevel;
 import com.unboundid.util.Validator;
+import java.io.File;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLSocket;
 
 /**
  * A modified InMemoryDirectoryServer.
- * 
+ *
  * The major difference is: If a StartTLS capable listener is configured, this won't accept request issued before a Start TLS has been performed.
- * 
+ *
  * Additionally, this variation no longer implements FullLDAPInterface as this is not necessary for our testing purposes.
  */
 @Mutable()
@@ -1117,7 +1074,7 @@ public final class RestrictedInMemoryDirectoryServer {
     public LDAPResult add(final AddRequest addRequest) throws LDAPException {
         return inMemoryHandler.add(addRequest);
     }
-    
+
     /**
      * {@inheritDoc}
      * <BR><BR>
@@ -1296,7 +1253,6 @@ public final class RestrictedInMemoryDirectoryServer {
         }
     }
 
-
     /**
      * Attempts to delete the specified entry and all entries below it from the
      * server.
@@ -1469,8 +1425,6 @@ public final class RestrictedInMemoryDirectoryServer {
         return extendedResult;
     }
 
- 
-
     /**
      * Retrieves the configured list of password attributes.
      *
@@ -1522,7 +1476,6 @@ public final class RestrictedInMemoryDirectoryServer {
         return inMemoryHandler.getPasswordsInEntry(entry, clearPasswordToMatch);
     }
 
- 
     /**
      * Indicates whether the specified entry exists in the server.
      * <BR><BR>

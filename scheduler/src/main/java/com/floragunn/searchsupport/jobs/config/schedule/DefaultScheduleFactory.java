@@ -1,10 +1,10 @@
 /*
  * Copyright 2019-2021 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,26 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchsupport.jobs.config.schedule;
-
-import java.text.ParseException;
-import java.time.Duration;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TimeZone;
-
-import org.apache.commons.codec.digest.DigestUtils;
-import org.quartz.CronScheduleBuilder;
-import org.quartz.JobKey;
-import org.quartz.SimpleScheduleBuilder;
-import org.quartz.Trigger;
-import org.quartz.TriggerBuilder;
-import org.quartz.TriggerKey;
-import org.quartz.impl.triggers.AbstractTrigger;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
@@ -40,6 +23,20 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.TriggerFactory;
+import java.text.ParseException;
+import java.time.Duration;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TimeZone;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.quartz.CronScheduleBuilder;
+import org.quartz.JobKey;
+import org.quartz.SimpleScheduleBuilder;
+import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
+import org.quartz.impl.triggers.AbstractTrigger;
 
 public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
     public static DefaultScheduleFactory INSTANCE = new DefaultScheduleFactory();

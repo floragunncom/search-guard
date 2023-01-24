@@ -1,19 +1,21 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.sink;
 
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PemKeyReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -23,7 +25,6 @@ import java.security.AccessController;
 import java.security.KeyStore;
 import java.security.PrivilegedAction;
 import java.security.cert.X509Certificate;
-
 import org.apache.http.HttpStatus;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -41,309 +42,304 @@ import org.apache.http.ssl.TrustStrategy;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
-import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.PemKeyReader;
-
 public class WebhookSink extends AuditLogSink {
-	
-	/* HttpClient is thread safe */
-	private final CloseableHttpClient httpClient;
-	
-	String webhookUrl = null;
-	WebhookFormat webhookFormat = null;
-	final boolean verifySSL;
-	final KeyStore effectiveTruststore;
 
-    public WebhookSink(final String name, final Settings settings, final String settingsPrefix, final Path configPath, AuditLogSink fallbackSink) throws Exception {
-	    super(name, settings, settingsPrefix, fallbackSink);
-		
-	    Settings sinkSettings = settings.getAsSettings(settingsPrefix);
-		
-	    this.effectiveTruststore = getEffectiveKeyStore(configPath);
-				
-		final String webhookUrl = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_URL);
-		final String format = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_FORMAT);
-		
-		verifySSL = sinkSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_SSL_VERIFY, true);
-		httpClient = getHttpClient();
-		
-		if(httpClient == null) {
-			log.error("Could not create HttpClient, audit log not available.");
-			return;			
-		}
-		
-		if (Strings.isEmpty(webhookUrl)) {
-			log.error("searchguard.audit.config.webhook.url not provided, webhook audit log will not work");
-			return;
-		} else {
-			try {
-				// Sanity - check URL validity
-				new URL(webhookUrl);
-				this.webhookUrl = webhookUrl;
-			} catch (MalformedURLException ex) {
-				log.error("URL {} is invalid, webhook audit log will not work.", webhookUrl, ex);
-			}
-		}
+    /* HttpClient is thread safe */
+    private final CloseableHttpClient httpClient;
 
-		if (Strings.isEmpty(format)) {
-			log.warn("searchguard.audit.config.webhook.format not provided, falling back to 'text'");
-			webhookFormat = WebhookFormat.TEXT;
-		} else {
-			try {
-				webhookFormat = WebhookFormat.valueOf(format.toUpperCase());
-			} catch (Exception ex) {
-				log.error("Could not find WebhookFormat for type {}, falling back to 'text'", format, ex);
-				webhookFormat = WebhookFormat.TEXT;
-			}
-		}
-	}
+    String webhookUrl = null;
+    WebhookFormat webhookFormat = null;
+    final boolean verifySSL;
+    final KeyStore effectiveTruststore;
 
-	@Override
-	public boolean doStore(AuditMessage msg) {
-		if (Strings.isEmpty(webhookUrl)) {
-			log.debug("Webhook URL is null");
-			return false;
-		}
-		if (msg == null) {
-			log.debug("Message is null");
-			return true;
-		}
+    public WebhookSink(final String name, final Settings settings, final String settingsPrefix, final Path configPath, AuditLogSink fallbackSink)
+            throws Exception {
+        super(name, settings, settingsPrefix, fallbackSink);
 
-		return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+        Settings sinkSettings = settings.getAsSettings(settingsPrefix);
 
-			@Override
-			public Boolean run() {
-				boolean success = false;
-				try {
-					switch (webhookFormat.method) {
-					case POST:
-						success = post(msg);
-						break;
-					case GET:
-						 success =get(msg);
-						break;
-					default:
-						log.error("Http Method '{}' defined in WebhookFormat '{}' not implemented yet", webhookFormat.method.name(),
-								webhookFormat.name());					
-					}
-					// log something in case endpoint is not reachable or did not return 200
-					if (!success) {
-						log.error(msg.toString());
-					}
-					return success;					
-				} catch(Throwable t) {
-					log.error("Uncaught exception while trying to log message.", t);
-					log.error(msg.toString());
-					return false;
-				}
-			}			
-		});		
-	}
+        this.effectiveTruststore = getEffectiveKeyStore(configPath);
 
-    @Override
-    public void close() throws IOException { 
-        if(httpClient != null) {
-        	httpClient.close();
+        final String webhookUrl = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_URL);
+        final String format = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_FORMAT);
+
+        verifySSL = sinkSettings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_SSL_VERIFY, true);
+        httpClient = getHttpClient();
+
+        if (httpClient == null) {
+            log.error("Could not create HttpClient, audit log not available.");
+            return;
+        }
+
+        if (Strings.isEmpty(webhookUrl)) {
+            log.error("searchguard.audit.config.webhook.url not provided, webhook audit log will not work");
+            return;
+        } else {
+            try {
+                // Sanity - check URL validity
+                new URL(webhookUrl);
+                this.webhookUrl = webhookUrl;
+            } catch (MalformedURLException ex) {
+                log.error("URL {} is invalid, webhook audit log will not work.", webhookUrl, ex);
+            }
+        }
+
+        if (Strings.isEmpty(format)) {
+            log.warn("searchguard.audit.config.webhook.format not provided, falling back to 'text'");
+            webhookFormat = WebhookFormat.TEXT;
+        } else {
+            try {
+                webhookFormat = WebhookFormat.valueOf(format.toUpperCase());
+            } catch (Exception ex) {
+                log.error("Could not find WebhookFormat for type {}, falling back to 'text'", format, ex);
+                webhookFormat = WebhookFormat.TEXT;
+            }
         }
     }
 
-	
-	/**
-	 * Transforms an {@link AuditMessage} to JSON. By default, all fields are
-	 * included in the JSON string. This method can be overridden by subclasses
-	 * if a specific JSON format is needed. 
-	 * 
-	 * @param msg the AuditMessage to transform
-	 * @return the JSON string
-	 */
-	protected String formatJson(final AuditMessage msg) {
-		return msg.toJson();
-	}
+    @Override
+    public boolean doStore(AuditMessage msg) {
+        if (Strings.isEmpty(webhookUrl)) {
+            log.debug("Webhook URL is null");
+            return false;
+        }
+        if (msg == null) {
+            log.debug("Message is null");
+            return true;
+        }
 
-	/**
-	 * Transforms an {@link AuditMessage} to plain text. This method can be overridden 
-	 * by subclasses if a specific text format is needed. 
-	 * 
-	 * @param msg the AuditMessage to transform
-	 * @return the text string
-	 */	
-	protected String formatText(AuditMessage msg) {
-		return msg.toText();
-	}
+        return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
 
-	/**
-	 * Transforms an {@link AuditMessage} to Slack format. 
-	 * The default implementation returns
-	 * <p><blockquote><pre>
-	 * {
-	 *   "text": "<AuditMessage#toText>"
-	 * }    
-	 * </pre></blockquote>
-	 * <p> 
-	 * Can be overridden by subclasses if a more specific format is needed.
-	 * 
-	 * @param msg the AuditMessage to transform
-	 * @return the Slack formatted JSON string
-	 */	
-	protected String formatSlack(AuditMessage msg) {
-		return "{\"text\": \"" + msg.toText() + "\"}";
-	}	
-	
-	/**
-	 * Transforms an {@link AuditMessage} to a query parameter String. 
-	 * Used by {@link WebhookFormat#URL_PARAMETER_GET} and
-	 * Used by {@link WebhookFormat#URL_PARAMETER_POST}. Can be overridden by
-	 * subclasses if a specific format is needed.
-	 * 
-	 * @param msg the AuditMessage to transform
-	 * @return the query parameter string
-	 */	
-	protected String formatUrlParameters(AuditMessage msg) {
-		return msg.toUrlParameters();
-	}
-	
-	boolean get(AuditMessage msg) {
-		switch (webhookFormat) {
-		case URL_PARAMETER_GET:
-			return doGet(webhookUrl + formatUrlParameters(msg));	
-		default:
-			log.error("WebhookFormat '{}' not implemented yet", webhookFormat.name());
-			return false;
-		}		
-	}
+            @Override
+            public Boolean run() {
+                boolean success = false;
+                try {
+                    switch (webhookFormat.method) {
+                    case POST:
+                        success = post(msg);
+                        break;
+                    case GET:
+                        success = get(msg);
+                        break;
+                    default:
+                        log.error("Http Method '{}' defined in WebhookFormat '{}' not implemented yet", webhookFormat.method.name(),
+                                webhookFormat.name());
+                    }
+                    // log something in case endpoint is not reachable or did not return 200
+                    if (!success) {
+                        log.error(msg.toString());
+                    }
+                    return success;
+                } catch (Throwable t) {
+                    log.error("Uncaught exception while trying to log message.", t);
+                    log.error(msg.toString());
+                    return false;
+                }
+            }
+        });
+    }
 
-	protected boolean doGet(String url) {
-		HttpGet httpGet = new HttpGet(url);
-		CloseableHttpResponse serverResponse = null;
-		try {
-			serverResponse = httpClient.execute(httpGet);
-			int responseCode = serverResponse.getStatusLine().getStatusCode();
-			if (responseCode != HttpStatus.SC_OK) {
-				log.error("Cannot GET to webhook URL '{}', server returned status {}", webhookUrl, responseCode);
-				return false;
-			}
-			return true;
-		} catch (Throwable e) {
-			log.error("Cannot GET to webhook URL '{}'", webhookUrl, e);
-			return false;
-		} finally {
-			try {
-				if (serverResponse != null) {
-					serverResponse.close();
-				}
-			} catch (IOException e) {
-				log.error("Cannot close server response", e);
-			}			
-		}
-	}
+    @Override
+    public void close() throws IOException {
+        if (httpClient != null) {
+            httpClient.close();
+        }
+    }
 
-	boolean post(AuditMessage msg) {
+    /**
+     * Transforms an {@link AuditMessage} to JSON. By default, all fields are
+     * included in the JSON string. This method can be overridden by subclasses
+     * if a specific JSON format is needed.
+     *
+     * @param msg the AuditMessage to transform
+     * @return the JSON string
+     */
+    protected String formatJson(final AuditMessage msg) {
+        return msg.toJson();
+    }
 
-		String payload;
-		String url = webhookUrl;
-		
-		switch (webhookFormat) {
-		case JSON:
-			payload = formatJson(msg);
-			break;
-		case TEXT:
-			payload = formatText(msg);
-			break;
-		case SLACK:
-			payload = "{\"text\": \"" + msg.toText() + "\"}";
-			break;
-		case URL_PARAMETER_POST:
-			payload = "";
-			url = webhookUrl + formatUrlParameters(msg);
-			break;
-		default:
-			log.error("WebhookFormat '{}' not implemented yet", webhookFormat.name());
-			return false;
-		}
-		
-		return doPost(url, payload);
+    /**
+     * Transforms an {@link AuditMessage} to plain text. This method can be overridden
+     * by subclasses if a specific text format is needed.
+     *
+     * @param msg the AuditMessage to transform
+     * @return the text string
+     */
+    protected String formatText(AuditMessage msg) {
+        return msg.toText();
+    }
 
-	}
-	
-	protected boolean doPost(String url, String payload) {
+    /**
+     * Transforms an {@link AuditMessage} to Slack format.
+     * The default implementation returns
+     * <p><blockquote><pre>
+     * {
+     *   "text": "<AuditMessage#toText>"
+     * }
+     * </pre></blockquote>
+     * <p>
+     * Can be overridden by subclasses if a more specific format is needed.
+     *
+     * @param msg the AuditMessage to transform
+     * @return the Slack formatted JSON string
+     */
+    protected String formatSlack(AuditMessage msg) {
+        return "{\"text\": \"" + msg.toText() + "\"}";
+    }
 
-		HttpPost postRequest = new HttpPost(url);
+    /**
+     * Transforms an {@link AuditMessage} to a query parameter String.
+     * Used by {@link WebhookFormat#URL_PARAMETER_GET} and
+     * Used by {@link WebhookFormat#URL_PARAMETER_POST}. Can be overridden by
+     * subclasses if a specific format is needed.
+     *
+     * @param msg the AuditMessage to transform
+     * @return the query parameter string
+     */
+    protected String formatUrlParameters(AuditMessage msg) {
+        return msg.toUrlParameters();
+    }
 
-		StringEntity input = new StringEntity(payload, StandardCharsets.UTF_8);
-		input.setContentType(webhookFormat.contentType.toString());
-		postRequest.setEntity(input);
+    boolean get(AuditMessage msg) {
+        switch (webhookFormat) {
+        case URL_PARAMETER_GET:
+            return doGet(webhookUrl + formatUrlParameters(msg));
+        default:
+            log.error("WebhookFormat '{}' not implemented yet", webhookFormat.name());
+            return false;
+        }
+    }
 
-		CloseableHttpResponse serverResponse = null;
-		try {
-			serverResponse = httpClient.execute(postRequest);
-			int responseCode = serverResponse.getStatusLine().getStatusCode();
-			if (responseCode != HttpStatus.SC_OK) {
-				log.error("Cannot POST to webhook URL '{}', server returned status {}", webhookUrl, responseCode);
-				return false;
-			}
-			return true;
-		} catch (Throwable e) {
-			log.error("Cannot POST to webhook URL '{}' due to '{}'", webhookUrl, e.getMessage(), e);
-			return false;
-		} finally {
-			try {
-				if (serverResponse != null) {
-					serverResponse.close();
-				}
-			} catch (IOException e) {
-				log.error("Cannot close server response", e);
-			}
-		}
-	}
+    protected boolean doGet(String url) {
+        HttpGet httpGet = new HttpGet(url);
+        CloseableHttpResponse serverResponse = null;
+        try {
+            serverResponse = httpClient.execute(httpGet);
+            int responseCode = serverResponse.getStatusLine().getStatusCode();
+            if (responseCode != HttpStatus.SC_OK) {
+                log.error("Cannot GET to webhook URL '{}', server returned status {}", webhookUrl, responseCode);
+                return false;
+            }
+            return true;
+        } catch (Throwable e) {
+            log.error("Cannot GET to webhook URL '{}'", webhookUrl, e);
+            return false;
+        } finally {
+            try {
+                if (serverResponse != null) {
+                    serverResponse.close();
+                }
+            } catch (IOException e) {
+                log.error("Cannot close server response", e);
+            }
+        }
+    }
 
-	private KeyStore getEffectiveKeyStore(final Path configPath) {
+    boolean post(AuditMessage msg) {
 
-		return AccessController.doPrivileged(new PrivilegedAction<KeyStore>() {
+        String payload;
+        String url = webhookUrl;
 
-			@Override
-			public KeyStore run() {
-				try {
-					Settings sinkSettings = settings.getAsSettings(settingsPrefix);
-					
-					final boolean pem = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
-			                || sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
+        switch (webhookFormat) {
+        case JSON:
+            payload = formatJson(msg);
+            break;
+        case TEXT:
+            payload = formatText(msg);
+            break;
+        case SLACK:
+            payload = "{\"text\": \"" + msg.toText() + "\"}";
+            break;
+        case URL_PARAMETER_POST:
+            payload = "";
+            url = webhookUrl + formatUrlParameters(msg);
+            break;
+        default:
+            log.error("WebhookFormat '{}' not implemented yet", webhookFormat.name());
+            return false;
+        }
 
-					if(pem) {
-					    X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, sinkSettings));
-			            
-			            if(trustCertificates == null) {
-			            	String fullPath = settingsPrefix + "." + ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH;
-			                trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(fullPath, settings, configPath, false));
-			            }
-			            
-			            return PemKeyReader.toTruststore("alw", trustCertificates);
+        return doPost(url, payload);
 
-			    
-					} else {
-					    return PemKeyReader.loadKeyStore(PemKeyReader.resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, settings, configPath, false)
-			                    , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD, SSLConfigConstants.DEFAULT_STORE_PASSWORD)
-			                    , settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE));
-					}				
-				} catch(Exception ex) {
-					log.error("Could not load key material. Make sure your certificates are located relative to the config directory", ex);
-					return null;
-				}
-			}
-		});
-	}	
-	
-	CloseableHttpClient getHttpClient()  {
-	    
+    }
+
+    protected boolean doPost(String url, String payload) {
+
+        HttpPost postRequest = new HttpPost(url);
+
+        StringEntity input = new StringEntity(payload, StandardCharsets.UTF_8);
+        input.setContentType(webhookFormat.contentType.toString());
+        postRequest.setEntity(input);
+
+        CloseableHttpResponse serverResponse = null;
+        try {
+            serverResponse = httpClient.execute(postRequest);
+            int responseCode = serverResponse.getStatusLine().getStatusCode();
+            if (responseCode != HttpStatus.SC_OK) {
+                log.error("Cannot POST to webhook URL '{}', server returned status {}", webhookUrl, responseCode);
+                return false;
+            }
+            return true;
+        } catch (Throwable e) {
+            log.error("Cannot POST to webhook URL '{}' due to '{}'", webhookUrl, e.getMessage(), e);
+            return false;
+        } finally {
+            try {
+                if (serverResponse != null) {
+                    serverResponse.close();
+                }
+            } catch (IOException e) {
+                log.error("Cannot close server response", e);
+            }
+        }
+    }
+
+    private KeyStore getEffectiveKeyStore(final Path configPath) {
+
+        return AccessController.doPrivileged(new PrivilegedAction<KeyStore>() {
+
+            @Override
+            public KeyStore run() {
+                try {
+                    Settings sinkSettings = settings.getAsSettings(settingsPrefix);
+
+                    final boolean pem = sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH, null) != null
+                            || sinkSettings.get(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, null) != null;
+
+                    if (pem) {
+                        X509Certificate[] trustCertificates = PemKeyReader.loadCertificatesFromStream(
+                                PemKeyReader.resolveStream(ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_CONTENT, sinkSettings));
+
+                        if (trustCertificates == null) {
+                            String fullPath = settingsPrefix + "." + ConfigConstants.SEARCHGUARD_AUDIT_WEBHOOK_PEMTRUSTEDCAS_FILEPATH;
+                            trustCertificates = PemKeyReader.loadCertificatesFromFile(PemKeyReader.resolve(fullPath, settings, configPath, false));
+                        }
+
+                        return PemKeyReader.toTruststore("alw", trustCertificates);
+
+                    } else {
+                        return PemKeyReader.loadKeyStore(
+                                PemKeyReader.resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, settings, configPath, false),
+                                settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD,
+                                        SSLConfigConstants.DEFAULT_STORE_PASSWORD),
+                                settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE));
+                    }
+                } catch (Exception ex) {
+                    log.error("Could not load key material. Make sure your certificates are located relative to the config directory", ex);
+                    return null;
+                }
+            }
+        });
+    }
+
+    CloseableHttpClient getHttpClient() {
+
         // TODO: set a timeout until we have a proper way to deal with back pressure
         int timeout = 5;
-        
-        RequestConfig config = RequestConfig.custom()
-          .setConnectTimeout(timeout * 1000)
-          .setConnectionRequestTimeout(timeout * 1000)
-          .setSocketTimeout(timeout * 1000).build();
-        
+
+        RequestConfig config = RequestConfig.custom().setConnectTimeout(timeout * 1000).setConnectionRequestTimeout(timeout * 1000)
+                .setSocketTimeout(timeout * 1000).build();
+
         final TrustStrategy trustAllStrategy = new TrustStrategy() {
             @Override
             public boolean isTrusted(X509Certificate[] chain, String authType) {
@@ -351,73 +347,55 @@ public class WebhookSink extends AuditLogSink {
             }
         };
 
-	    try {
-	        
-	        if(!verifySSL) {
-	            return HttpClients.custom()
-	                    .setSSLSocketFactory(
-	                            new SSLConnectionSocketFactory(
-	                                    new SSLContextBuilder()
-	                                    .loadTrustMaterial(trustAllStrategy)
-	                                    .build(),
-	                                    NoopHostnameVerifier.INSTANCE))
-	                    .setDefaultRequestConfig(config)
-	                    .build();   
-	        }
-	        
-	        if(effectiveTruststore == null) {
-	            return HttpClients.custom()
-                        .setDefaultRequestConfig(config)
-                        .build();  
-	        }
+        try {
 
-		    return HttpClients.custom()
-		            .setSSLSocketFactory(
-		                    new SSLConnectionSocketFactory(
-		                            new SSLContextBuilder()
-		                            .loadTrustMaterial(effectiveTruststore, null)
-		                            .build(),
-		                            new DefaultHostnameVerifier()))
-		            .setDefaultRequestConfig(config)
-		            .build();	
-		    
-		    
-	    } catch(Exception ex) {
-	    	log.error("Could not create HTTPClient due to {}, audit log not available.", ex.getMessage(), ex);
-	    	return null;
-	    }
-	}
-	
-	public static enum WebhookFormat {
-		URL_PARAMETER_GET(HttpMethod.GET, ContentType.TEXT_PLAIN),
-		URL_PARAMETER_POST(HttpMethod.POST, ContentType.TEXT_PLAIN),
-		TEXT(HttpMethod.POST, ContentType.TEXT_PLAIN),
-		JSON(HttpMethod.POST, ContentType.APPLICATION_JSON),
-		SLACK(HttpMethod.POST, ContentType.APPLICATION_JSON);
+            if (!verifySSL) {
+                return HttpClients.custom()
+                        .setSSLSocketFactory(new SSLConnectionSocketFactory(new SSLContextBuilder().loadTrustMaterial(trustAllStrategy).build(),
+                                NoopHostnameVerifier.INSTANCE))
+                        .setDefaultRequestConfig(config).build();
+            }
 
-		private HttpMethod method;
-		private ContentType contentType;
+            if (effectiveTruststore == null) {
+                return HttpClients.custom().setDefaultRequestConfig(config).build();
+            }
 
-		private WebhookFormat(HttpMethod method, ContentType contentType) {
-			this.method = method;
-			this.contentType = contentType;
-		}
+            return HttpClients.custom()
+                    .setSSLSocketFactory(new SSLConnectionSocketFactory(new SSLContextBuilder().loadTrustMaterial(effectiveTruststore, null).build(),
+                            new DefaultHostnameVerifier()))
+                    .setDefaultRequestConfig(config).build();
 
-		HttpMethod getMethod() {
-			return method;
-		}
+        } catch (Exception ex) {
+            log.error("Could not create HTTPClient due to {}, audit log not available.", ex.getMessage(), ex);
+            return null;
+        }
+    }
 
-		ContentType getContentType() {
-			return contentType;
-		}
-		
-		
-	}
+    public static enum WebhookFormat {
+        URL_PARAMETER_GET(HttpMethod.GET, ContentType.TEXT_PLAIN), URL_PARAMETER_POST(HttpMethod.POST, ContentType.TEXT_PLAIN),
+        TEXT(HttpMethod.POST, ContentType.TEXT_PLAIN), JSON(HttpMethod.POST, ContentType.APPLICATION_JSON),
+        SLACK(HttpMethod.POST, ContentType.APPLICATION_JSON);
 
-	private static enum HttpMethod {
-		GET,
-		POST;
-	}
+        private HttpMethod method;
+        private ContentType contentType;
 
+        private WebhookFormat(HttpMethod method, ContentType contentType) {
+            this.method = method;
+            this.contentType = contentType;
+        }
+
+        HttpMethod getMethod() {
+            return method;
+        }
+
+        ContentType getContentType() {
+            return contentType;
+        }
+
+    }
+
+    private static enum HttpMethod {
+        GET, POST;
+    }
 
 }

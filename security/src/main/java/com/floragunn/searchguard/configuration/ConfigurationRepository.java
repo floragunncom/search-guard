@@ -14,9 +14,39 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.configuration;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocUpdateException;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.documents.patch.DocPatch;
+import com.floragunn.codova.documents.patch.PatchableDocument;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.codova.validation.VariableResolvers;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
+import com.floragunn.searchguard.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
+import com.floragunn.searchguard.configuration.variables.ConfigVarService;
+import com.floragunn.searchguard.ssl.util.ExceptionUtils;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.StaticSettings;
+import com.floragunn.searchsupport.StaticSettings.AttributeSet;
+import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.xcontent.XContentParserContext;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -32,7 +62,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -69,38 +98,6 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
-
-import com.floragunn.codova.config.text.Pattern;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocUpdateException;
-import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.documents.Parser;
-import com.floragunn.codova.documents.patch.DocPatch;
-import com.floragunn.codova.documents.patch.PatchableDocument;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.codova.validation.ValidationResult;
-import com.floragunn.codova.validation.VariableResolvers;
-import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.fluent.collections.OrderedImmutableMap;
-import com.floragunn.searchguard.SearchGuardModulesRegistry;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
-import com.floragunn.searchguard.configuration.variables.ConfigVarService;
-import com.floragunn.searchguard.ssl.util.ExceptionUtils;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchsupport.StaticSettings;
-import com.floragunn.searchsupport.StaticSettings.AttributeSet;
-import com.floragunn.searchsupport.action.StandardResponse;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentState.State;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.floragunn.searchsupport.xcontent.XContentParserContext;
 
 public class ConfigurationRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(ConfigurationRepository.class);
@@ -163,8 +160,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Context parserContext;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
-                                   ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
-                                   NamedXContentRegistry xContentRegistry, Environment environment) {
+            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
+            NamedXContentRegistry xContentRegistry, Environment environment) {
         this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
         this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
@@ -178,8 +175,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
         this.variableResolvers = new VariableResolvers()
                 .with("file", (file) -> VariableResolvers.FILE_PRIVILEGED.apply(environment.configFile().resolve(file).toAbsolutePath().toString()))
-                .with("env", VariableResolvers.ENV)
-                .with("var", (key) -> configVarService.get(key));
+                .with("env", VariableResolvers.ENV).with("var", (key) -> configVarService.get(key));
         this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry);
         this.threadPool = threadPool;
 

@@ -1,19 +1,20 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken.api;
 
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.user.User;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
@@ -23,10 +24,6 @@ import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.io.stream.Writeable.Reader;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.transport.TransportService;
-
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.user.User;
 
 abstract class AbstractTransportAuthTokenAction<Request extends ActionRequest, Response extends ActionResponse>
         extends HandledTransportAction<Request, Response> {

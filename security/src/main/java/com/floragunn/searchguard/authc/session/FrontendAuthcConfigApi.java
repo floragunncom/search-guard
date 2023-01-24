@@ -14,10 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.session;
-
-import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.searchguard.BaseDependencies;
@@ -27,6 +24,7 @@ import com.floragunn.searchguard.configuration.api.DocumentLevelConfigApi;
 import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests;
+import org.elasticsearch.common.inject.Inject;
 
 public class FrontendAuthcConfigApi {
 

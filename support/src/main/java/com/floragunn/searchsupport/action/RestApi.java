@@ -14,9 +14,16 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.action;
 
+import com.floragunn.codova.documents.ContentType;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.UnparsedDocument;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableMap;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,7 +37,6 @@ import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
@@ -48,15 +54,6 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestResponseListener;
 import org.elasticsearch.xcontent.ToXContent;
-
-import com.floragunn.codova.documents.ContentType;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.documents.UnparsedDocument;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.fluent.collections.ImmutableMap;
 
 public class RestApi extends BaseRestHandler {
     private static final Logger log = LogManager.getLogger(RestApi.class);

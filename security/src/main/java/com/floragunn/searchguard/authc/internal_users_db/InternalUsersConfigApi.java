@@ -14,14 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.internal_users_db;
-
-import java.util.concurrent.CompletableFuture;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -40,6 +33,10 @@ import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableMap;
+import java.util.concurrent.CompletableFuture;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
 
 public class InternalUsersConfigApi {
 

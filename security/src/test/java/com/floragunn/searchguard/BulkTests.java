@@ -14,9 +14,11 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -27,15 +29,11 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-
 public class BulkTests {
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .user("bulk_test_user", "secret", new Role("bulk_test_user_role").clusterPermissions("*").indexPermissions("*").on("test")).build();

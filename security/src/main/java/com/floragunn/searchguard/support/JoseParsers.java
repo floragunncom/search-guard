@@ -14,17 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.support;
 
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import org.apache.cxf.rs.security.jose.common.JoseUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.cxf.rs.security.jose.jwk.KeyType;
 import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
-
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 
 public class JoseParsers {
     public static JsonWebKey parseJwkSigningKey(String jwkJsonString) throws ConfigValidationException {

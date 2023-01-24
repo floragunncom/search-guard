@@ -14,11 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.session.backend;
-
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.searchguard.BaseDependencies;
@@ -26,6 +22,8 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 import com.google.common.collect.ImmutableList;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
 public class SessionServiceConfigApi extends TypeLevelConfigApi {
 

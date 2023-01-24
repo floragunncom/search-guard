@@ -1,12 +1,20 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.signals.confconv.es;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.elasticsearch.action.search.SearchType;
-import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.core.TimeValue;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -19,6 +27,12 @@ import com.floragunn.signals.watch.checks.AbstractSearchInput;
 import com.floragunn.signals.watch.checks.Check;
 import com.floragunn.signals.watch.checks.SearchInput;
 import com.floragunn.signals.watch.checks.Transform;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.core.TimeValue;
 
 public class TransformConverter {
 
@@ -76,7 +90,7 @@ public class TransformConverter {
         ValidatingDocNode vRequestNode = new ValidatingDocNode(requestNode, requestValidationErrors);
 
         List<String> indices = vRequestNode.get("indices").asListOfStrings();
-        SearchType searchType = vRequestNode.get("search_type").asEnum( SearchType.class);
+        SearchType searchType = vRequestNode.get("search_type").asEnum(SearchType.class);
         String body = bodyNodeToString(vRequestNode.get("body").required().asDocNode(), requestValidationErrors);
         IndicesOptions indicesOptions = null;
         TimeValue timeout = vJsonNode.get("timeout").byString((s) -> TimeValue.parseTimeValue(s, "timeout"));
@@ -140,7 +154,8 @@ public class TransformConverter {
                 validationErrors.add(new ValidationError("id", "Script references are not supported"));
             }
 
-            ConversionResult<String> convertedScript = new PainlessScriptConverter(vJsonNode.get("source").withDefault("").asString()).convertToSignals();
+            ConversionResult<String> convertedScript = new PainlessScriptConverter(vJsonNode.get("source").withDefault("").asString())
+                    .convertToSignals();
 
             result.add(new Transform(null, null, convertedScript.getElement(), vJsonNode.get("lang").asString(), null));
             validationErrors.add(null, convertedScript.getSourceValidationErrors());

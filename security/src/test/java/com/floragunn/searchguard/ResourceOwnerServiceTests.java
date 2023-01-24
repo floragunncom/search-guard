@@ -14,16 +14,18 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
-
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -67,11 +69,6 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 
 public class ResourceOwnerServiceTests {
 

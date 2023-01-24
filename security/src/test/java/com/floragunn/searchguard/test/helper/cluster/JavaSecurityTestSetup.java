@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.FilePermission;
@@ -28,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.bootstrap.BootstrapInfo;
@@ -38,23 +36,23 @@ import org.junit.rules.ExternalResource;
 
 /**
  * Provides a simplified Java Security Manager environment for JUnit tests.
- * 
+ *
  * This is far from perfect, but good enough to notice most missing doPriviledged() blocks, etc.
- * 
+ *
  * In order to run tests without this, set -Dsg.test-java-security.enabled=false
- * 
+ *
  * Helpful VM args for privilege debugging:
- * 
+ *
  * - -Djava.security.debug=access,failure,domain
  * - -Djava.security.debug=access,domain,permission=java.net.RuntimePermission
- * 
- * Note: When using java.security.debug=access,failure, don't be confused by file access control failures caused by Lucene. 
+ *
+ * Note: When using java.security.debug=access,failure, don't be confused by file access control failures caused by Lucene.
  * During startup, Lucene seems to do a very liberal scan of your whole root dir and just ignores dirs it cannot access.
- * 
+ *
  * Note: This does not work with multi threaded unit tests. If you want to have concurrency, use forking instead.
- * 
+ *
  * TODO:
- * 
+ *
  * - This needs a copy of plugin-security.policy in test/resources. We should find a way to avoid this redunancy.
  * - Lots of more polishing. In parts, this is quite messy.
  */
@@ -141,7 +139,7 @@ public class JavaSecurityTestSetup extends ExternalResource {
                 }
 
                 if (filePermission.getName().contains("/search-guard-suite")) {
-                    // In some cases the local cluster seems to start using just the project dir as cwd. Allow this for now, but we should fix the local cluster to use a temp dir 
+                    // In some cases the local cluster seems to start using just the project dir as cwd. Allow this for now, but we should fix the local cluster to use a temp dir
                     return true;
                 }
 

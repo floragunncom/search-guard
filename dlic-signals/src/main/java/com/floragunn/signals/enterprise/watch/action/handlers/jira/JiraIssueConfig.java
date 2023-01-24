@@ -1,11 +1,16 @@
+/*
+  * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.signals.enterprise.watch.action.handlers.jira;
-
-import java.io.IOException;
-import java.util.Collections;
-
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -15,6 +20,11 @@ import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.support.InlineMustacheTemplate;
 import com.floragunn.signals.watch.init.WatchInitializationService;
+import java.io.IOException;
+import java.util.Collections;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class JiraIssueConfig implements ToXContentObject {
     private InlineMustacheTemplate<String> summaryTemplate;

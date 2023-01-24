@@ -14,19 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.license;
-
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.client.node.NodeClient;
-import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -35,6 +23,15 @@ import com.floragunn.searchguard.modules.api.GetComponentStateAction;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.common.inject.Inject;
 
 public class SearchGuardLicenseInfoAction extends Action<EmptyRequest, SearchGuardLicenseInfoAction.Response> {
     public static final SearchGuardLicenseInfoAction INSTANCE = new SearchGuardLicenseInfoAction();

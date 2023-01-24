@@ -14,21 +14,17 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.base;
-
-import java.util.Arrays;
-
-import org.junit.Assert;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.CredentialsException;
-import com.floragunn.searchguard.authc.base.UserMapping;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import java.util.Arrays;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class UserMappingTest {
     @Test

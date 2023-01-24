@@ -1,24 +1,16 @@
 /*
- * Copyright 2022 floragunn GmbH
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
+ * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.femt;
-
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.searchguard.BaseDependencies;
@@ -26,6 +18,8 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 import com.google.common.collect.ImmutableList;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
 public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
 
@@ -33,9 +27,12 @@ public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
             .handlesGet("/_searchguard/config/fe_multi_tenancy").with(GetAction.INSTANCE)//
             .handlesGet("/_searchguard/config/frontend_multi_tenancy").with(GetAction.INSTANCE)//
             .handlesPut("/_searchguard/config/fe_multi_tenancy").with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(body.parseAsMap()))//
-            .handlesPut("/_searchguard/config/frontend_multi_tenancy").with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(body.parseAsMap()))//
-            .handlesPatch("/_searchguard/config/fe_multi_tenancy").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
-            .handlesPatch("/_searchguard/config/frontend_multi_tenancy").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
+            .handlesPut("/_searchguard/config/frontend_multi_tenancy")
+            .with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(body.parseAsMap()))//
+            .handlesPatch("/_searchguard/config/fe_multi_tenancy")
+            .with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
+            .handlesPatch("/_searchguard/config/frontend_multi_tenancy")
+            .with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
             .name("/_searchguard/config/frontend_multi_tenancy");
 
     public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(

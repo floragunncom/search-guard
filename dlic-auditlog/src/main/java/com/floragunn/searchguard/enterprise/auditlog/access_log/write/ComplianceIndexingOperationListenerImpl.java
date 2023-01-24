@@ -1,6 +1,5 @@
 /*
- * Copyright 2018-2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2018-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,9 +10,11 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.access_log.write;
 
+import com.floragunn.searchguard.GuiceDependencies;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.index.IndexService;
@@ -25,10 +26,6 @@ import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexingOperationListener;
 import org.elasticsearch.index.shard.ShardId;
-
-import com.floragunn.searchguard.GuiceDependencies;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
 
 public final class ComplianceIndexingOperationListenerImpl implements IndexingOperationListener {
 
@@ -64,7 +61,7 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
         if (delete.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
             return;
         }
-        
+
         if (isEnabled(shardId)) {
             if (result.getFailure() == null && result.isFound()) {
                 auditlog.logDocumentDeleted(shardId, delete, result);
@@ -77,20 +74,20 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
         if (index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
             return index;
         }
-        
-        if (isEnabled(shardId) && complianceConfig.logDiffsForWrite()) {            
+
+        if (isEnabled(shardId) && complianceConfig.logDiffsForWrite()) {
             IndexShard shard = getIndexShard(shardId);
-    
+
             if (shard == null) {
                 return index;
             }
-    
+
             if (shard.isReadAllowed()) {
                 try {
-    
-                    final GetResult getResult = shard.getService().getForUpdate(index.type(), index.id(),
-                            index.getIfSeqNo(), index.getIfPrimaryTerm());
-    
+
+                    final GetResult getResult = shard.getService().getForUpdate(index.type(), index.id(), index.getIfSeqNo(),
+                            index.getIfPrimaryTerm());
+
                     if (getResult.isExists()) {
                         threadContext.set(new Context(getResult));
                     } else {
@@ -107,14 +104,13 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
                 }
             }
         }
-        
+
         return index;
     }
 
-
     @Override
     public void postIndex(final ShardId shardId, final Index index, final Exception ex) {
-        if(complianceConfig.isEnabled() && complianceConfig.logDiffsForWrite()) {
+        if (complianceConfig.isEnabled() && complianceConfig.logDiffsForWrite()) {
             threadContext.remove();
         }
     }
@@ -146,8 +142,8 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
                 }
 
                 auditlog.logDocumentWritten(shardId, previousContent, index, result);
-                
-            } else { // logDiffsForWrite() == false                
+
+            } else { // logDiffsForWrite() == false
                 if (result.getFailure() != null || index.origin() != org.elasticsearch.index.engine.Engine.Operation.Origin.PRIMARY) {
                     return;
                 }
@@ -156,14 +152,14 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
             }
         }
     }
-    
+
     private boolean isEnabled(ShardId shardId) {
         return complianceConfig.isEnabled() && complianceConfig.writeHistoryEnabledForIndex(shardId.getIndex().getName());
     }
-    
+
     private IndexShard getIndexShard(ShardId shardId) {
         IndexService indexService = this.guiceDependencies.getIndicesService().indexServiceSafe(shardId.getIndex());
-        
+
         return indexService.getShardOrNull(shardId.getId());
     }
 

@@ -14,9 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.json;
 
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
+import com.google.common.base.Charsets;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,15 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
-import com.google.common.base.Charsets;
 
 public class YamlRewriter {
     private static final Logger log = LogManager.getLogger(YamlRewriter.class);

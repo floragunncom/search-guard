@@ -14,12 +14,10 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.certificate;
 
-import org.bouncycastle.cert.X509CertificateHolder;
-
 import java.security.KeyPair;
+import org.bouncycastle.cert.X509CertificateHolder;
 
 public class CertificateWithKeyPair {
 

@@ -1,21 +1,16 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth;
-
-import java.util.Collection;
-import java.util.List;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.BaseDependencies;
@@ -28,6 +23,8 @@ import com.floragunn.searchguard.enterprise.auth.oidc.OidcAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.saml.SamlAuthenticator;
 import com.floragunn.searchguard.enterprise.auth.session.ExternalSearchGuardSessionAuthenticationBackend;
 import com.floragunn.searchguard.support.ConfigConstants;
+import java.util.Collection;
+import java.util.List;
 
 public class EnterpriseAuthFeaturesModule implements SearchGuardModule {
 

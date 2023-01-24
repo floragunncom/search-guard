@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.certificate;
 
+import com.floragunn.searchguard.test.helper.certificate.utils.CertificateAndPrivateKeyWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -27,12 +27,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-
-import com.floragunn.searchguard.test.helper.certificate.utils.CertificateAndPrivateKeyWriter;
 
 public class TestCertificate {
     private static final Provider DEFAULT_SECURITY_PROVIDER = new BouncyCastleProvider();
@@ -114,7 +111,7 @@ public class TestCertificate {
     public File getCertificateFile() {
         return certificateFile;
     }
-    
+
     public String getCertificateString() {
         return certificateString;
     }

@@ -1,22 +1,36 @@
-package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 /*
- * Copyright 2016-2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2023 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
-
+package com.floragunn.dlic.auth.http.jwt.keybyoidc;
+/*
+ * Copyright 2016-2020 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 
 import static com.floragunn.dlic.auth.http.jwt.keybyoidc.CxfTestTools.toJson;
 
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.google.common.collect.ImmutableMap;
 import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -37,7 +51,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
@@ -45,7 +58,6 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
-
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.http.HttpConnectionFactory;
@@ -76,11 +88,6 @@ import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
-
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.google.common.collect.ImmutableMap;
 
 public class MockIpdServer implements Closeable {
     private final static Logger log = LogManager.getLogger(MockIpdServer.class);
@@ -292,7 +299,7 @@ public class MockIpdServer implements Closeable {
             String currentRedirectUri = entityParams.get("redirect_uri");
 
             System.out.println("redirect uri: " + oldRedirectUri + "; " + currentRedirectUri);
-            
+
             if (!oldRedirectUri.equals(currentRedirectUri)) {
                 response.setStatusCode(400);
                 response.setEntity(new StringEntity("Invalid redirect_uri " + currentRedirectUri + "; expected: " + oldRedirectUri));

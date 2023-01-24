@@ -14,11 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.cluster;
 
 import static org.junit.Assert.assertEquals;
 
+import com.floragunn.searchguard.test.NodeSettingsSupplier;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
+import com.floragunn.searchguard.test.helper.network.PortAllocator;
+import com.google.common.net.InetAddresses;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -34,7 +38,6 @@ import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
@@ -68,12 +71,6 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.BindTransportException;
 import org.elasticsearch.transport.TransportInfo;
 import org.elasticsearch.xcontent.XContentType;
-
-import com.floragunn.searchguard.test.NodeSettingsSupplier;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
-import com.floragunn.searchguard.test.helper.network.PortAllocator;
-import com.google.common.net.InetAddresses;
 
 /**
  * This is the SG-agnostic and ES-specific part of LocalCluster
@@ -195,7 +192,7 @@ public class LocalEsCluster {
     public Node clientNode() {
         return findRunningNode(clientNodes, dataNodes, masterNodes);
     }
-    
+
     public Node randomClientNode() {
         return randomRunningNode(clientNodes, dataNodes, masterNodes);
     }
@@ -212,7 +209,7 @@ public class LocalEsCluster {
         return allNodes.stream().filter(node -> node.getNodeName().equals(name)).findAny().orElseThrow(() -> new RuntimeException(
                 "No such node with name: " + name + "; available: " + allNodes.stream().map(Node::getNodeName).collect(Collectors.toList())));
     }
-    
+
     private boolean isNodeFailedWithPortCollision() {
         return allNodes.stream().anyMatch(Node::isPortCollision);
     }
@@ -257,11 +254,11 @@ public class LocalEsCluster {
 
         return null;
     }
-    
+
     @SafeVarargs
     private final Node randomRunningNode(List<Node> nodes, List<Node>... moreNodes) {
         ArrayList<Node> runningNodes = new ArrayList<>();
-        
+
         for (Node node : nodes) {
             if (node.isRunning()) {
                 runningNodes.add(node);
@@ -277,13 +274,13 @@ public class LocalEsCluster {
                 }
             }
         }
-        
+
         if (runningNodes.size() == 0) {
             return null;
         }
-        
+
         int index = this.random.nextInt(runningNodes.size());
-        
+
         return runningNodes.get(index);
     }
 
@@ -595,13 +592,12 @@ public class LocalEsCluster {
 
             nodeRoles.add("remote_cluster_client");
 
-            return Settings.builder().put("node.name", nodeName).putList("node.roles", nodeRoles)
-                    .put("cluster.name", clusterName).put("path.home", nodeHomeDir.toPath()).put("path.data", dataDir.toPath())
-                    .put("path.logs", logsDir.toPath()).putList("cluster.initial_master_nodes", initialMasterHosts)
-                    .put("discovery.initial_state_timeout", "8s").putList("discovery.seed_hosts", seedHosts).put("transport.port", transportPort)
-                    .put("http.port", httpPort).put("cluster.routing.allocation.disk.threshold_enabled", false)
-                    .put("discovery.probe.connect_timeout", "10s").put("discovery.probe.handshake_timeout", "10s").put("http.cors.enabled", true)
-                    .build();
+            return Settings.builder().put("node.name", nodeName).putList("node.roles", nodeRoles).put("cluster.name", clusterName)
+                    .put("path.home", nodeHomeDir.toPath()).put("path.data", dataDir.toPath()).put("path.logs", logsDir.toPath())
+                    .putList("cluster.initial_master_nodes", initialMasterHosts).put("discovery.initial_state_timeout", "8s")
+                    .putList("discovery.seed_hosts", seedHosts).put("transport.port", transportPort).put("http.port", httpPort)
+                    .put("cluster.routing.allocation.disk.threshold_enabled", false).put("discovery.probe.connect_timeout", "10s")
+                    .put("discovery.probe.handshake_timeout", "10s").put("http.cors.enabled", true).build();
         }
 
         @Override
@@ -614,7 +610,7 @@ public class LocalEsCluster {
             return testCertificates;
         }
     }
-    
+
     private static int getUnitTestForkNumber() {
         String forkno = System.getProperty("forkno");
 

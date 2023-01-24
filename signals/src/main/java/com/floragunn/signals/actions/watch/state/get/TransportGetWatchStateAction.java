@@ -1,9 +1,29 @@
-
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.signals.actions.watch.state.get;
 
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.signals.Signals;
+import com.floragunn.signals.SignalsTenant;
+import com.floragunn.signals.SignalsUnavailableException;
+import com.floragunn.signals.watch.state.WatchState;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -19,13 +39,6 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
-
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.signals.Signals;
-import com.floragunn.signals.SignalsTenant;
-import com.floragunn.signals.SignalsUnavailableException;
-import com.floragunn.signals.watch.state.WatchState;
 
 public class TransportGetWatchStateAction extends HandledTransportAction<GetWatchStateRequest, GetWatchStateResponse> {
 
@@ -63,7 +76,7 @@ public class TransportGetWatchStateAction extends HandledTransportAction<GetWatc
                 listener.onResponse(new GetWatchStateResponse(RestStatus.OK, toBytesReferenceMap(watchStates)));
             });
         } catch (SignalsUnavailableException e) {
-            listener.onFailure(e.toElasticsearchException());         
+            listener.onFailure(e.toElasticsearchException());
         } catch (Exception e) {
             listener.onFailure(e);
         }

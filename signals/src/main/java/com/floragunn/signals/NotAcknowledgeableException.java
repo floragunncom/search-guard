@@ -14,13 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals;
 
 public class NotAcknowledgeableException extends Exception {
 
     private static final long serialVersionUID = -8120904001434570070L;
-    
+
     public NotAcknowledgeableException(String watchId, String actionId) {
         super("The action '" + actionId + "' is not acknowledgeable");
     }

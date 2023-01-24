@@ -14,22 +14,20 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.configuration.variables;
-
-import org.apache.http.message.BasicHeader;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.apache.http.message.BasicHeader;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class ConfigVarApiTest {
 

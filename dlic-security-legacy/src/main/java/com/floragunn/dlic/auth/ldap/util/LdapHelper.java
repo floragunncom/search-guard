@@ -1,17 +1,15 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.ldap.util;
 
 import java.security.AccessController;
@@ -19,11 +17,9 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.List;
-
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
-
 import org.elasticsearch.SpecialPermission;
 import org.ldaptive.Connection;
 import org.ldaptive.DerefAliases;
@@ -41,9 +37,9 @@ import org.ldaptive.referral.SearchReferralHandler;
 public class LdapHelper {
 
     private static SearchFilter ALL = new SearchFilter("(objectClass=*)");
-    
-    public static List<LdapEntry> search(final Connection conn, final String unescapedDn, SearchFilter filter,
-            final SearchScope searchScope) throws LdapException {
+
+    public static List<LdapEntry> search(final Connection conn, final String unescapedDn, SearchFilter filter, final SearchScope searchScope)
+            throws LdapException {
 
         final SecurityManager sm = System.getSecurityManager();
 
@@ -53,7 +49,7 @@ public class LdapHelper {
 
         try {
             final String baseDn = escapeDn(unescapedDn);
-            
+
             return AccessController.doPrivileged(new PrivilegedExceptionAction<List<LdapEntry>>() {
                 @Override
                 public List<LdapEntry> run() throws Exception {
@@ -94,22 +90,22 @@ public class LdapHelper {
             return null;
         }
     }
-    
+
     private static String escapeDn(String dn) throws InvalidNameException {
         final LdapName dnName = new LdapName(dn);
         final List<Rdn> escaped = new ArrayList<>(dnName.size());
-        for(Rdn rdn: dnName.getRdns()) {
+        for (Rdn rdn : dnName.getRdns()) {
             escaped.add(new Rdn(rdn.getType(), escapeForwardSlash(rdn.getValue())));
         }
         return new LdapName(escaped).toString();
     }
-    
+
     private static Object escapeForwardSlash(Object input) {
-        if(input != null && input instanceof String) {
-            return ((String)input).replace("/", "\\2f");
+        if (input != null && input instanceof String) {
+            return ((String) input).replace("/", "\\2f");
         } else {
             return input;
         }
-        
+
     }
 }

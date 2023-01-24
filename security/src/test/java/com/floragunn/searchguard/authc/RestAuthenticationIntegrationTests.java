@@ -14,13 +14,24 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Authc;
+import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.AdditionalUserInformation;
+import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
-
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
@@ -37,22 +48,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.TestSgConfig.Authc;
-import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.AdditionalUserInformation;
-import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.ElasticsearchTransport;
-import co.elastic.clients.transport.rest_client.RestClientTransport;
 
 public class RestAuthenticationIntegrationTests {
 

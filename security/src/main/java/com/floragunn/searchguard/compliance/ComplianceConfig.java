@@ -14,17 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.compliance;
-
-import java.util.Collections;
-import java.util.Set;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsException;
-import org.elasticsearch.env.Environment;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -35,6 +25,13 @@ import com.floragunn.searchguard.license.LicenseChangeListener;
 import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
 import com.floragunn.searchguard.support.ConfigConstants;
+import java.util.Collections;
+import java.util.Set;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.settings.SettingsException;
+import org.elasticsearch.env.Environment;
 
 public class ComplianceConfig implements LicenseChangeListener {
 

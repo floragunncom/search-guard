@@ -14,11 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
@@ -29,10 +25,12 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.user.User;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Request-scoped context information for privilege evaluation.
- * 
+ *
  * This class carries metadata about the request and provides caching facilities for data which might need to be evaluated several times per request.
  */
 public class PrivilegesEvaluationContext {
@@ -90,7 +88,7 @@ public class PrivilegesEvaluationContext {
     }
 
     /**
-     * The action that belongs to this request. May be null for evaluations which are independent of specific requests. 
+     * The action that belongs to this request. May be null for evaluations which are independent of specific requests.
      */
     public Action getAction() {
         return action;

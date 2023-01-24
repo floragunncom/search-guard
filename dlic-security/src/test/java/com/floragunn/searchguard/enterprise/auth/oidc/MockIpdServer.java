@@ -1,21 +1,25 @@
 /*
- * Copyright 2016-2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import static com.floragunn.searchguard.enterprise.auth.oidc.CxfTestTools.toJson;
 
+import com.floragunn.codova.config.net.TLSConfig;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.hash.Hashing;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -38,13 +42,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
-
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.http.HttpConnectionFactory;
@@ -76,13 +78,6 @@ import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
-
-import com.floragunn.codova.config.net.TLSConfig;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.hash.Hashing;
 
 public class MockIpdServer implements Closeable {
     private final static Logger log = LogManager.getLogger(MockIpdServer.class);

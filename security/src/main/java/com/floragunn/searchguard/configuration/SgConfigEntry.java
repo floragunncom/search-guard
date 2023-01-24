@@ -14,14 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.configuration;
 
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.RedactableDocument;
 
 public class SgConfigEntry<T> implements Document<T>, RedactableDocument {
-    
+
     private final T object;
     private final SgDynamicConfiguration<T> baseConfig;
 
@@ -29,7 +28,7 @@ public class SgConfigEntry<T> implements Document<T>, RedactableDocument {
         this.object = object;
         this.baseConfig = baseConfig;
     }
-    
+
     @Override
     public Object toRedactedBasicObject() {
         if (object instanceof RedactableDocument) {
@@ -43,7 +42,7 @@ public class SgConfigEntry<T> implements Document<T>, RedactableDocument {
     public Object toBasicObject() {
         return ((Document<?>) object).toBasicObject();
     }
-    
+
     public String getETag() {
         return baseConfig.getETag();
     }

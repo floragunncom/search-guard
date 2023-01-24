@@ -14,16 +14,14 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.certificate.asymmetricscryptography;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class RSAAsymmetricCryptographyAlgorithm implements AsymmetricCryptographyAlgorithm {
 

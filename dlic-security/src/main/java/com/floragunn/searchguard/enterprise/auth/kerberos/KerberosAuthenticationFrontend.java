@@ -1,39 +1,16 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.kerberos;
-
-import java.io.File;
-import java.nio.file.Path;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Base64;
-
-import javax.security.auth.Subject;
-import javax.security.auth.kerberos.KerberosPrincipal;
-import javax.security.auth.login.LoginContext;
-import javax.security.auth.login.LoginException;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.ietf.jgss.GSSContext;
-import org.ietf.jgss.GSSCredential;
-import org.ietf.jgss.GSSException;
-import org.ietf.jgss.GSSManager;
-import org.ietf.jgss.GSSName;
-import org.ietf.jgss.Oid;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -52,6 +29,24 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.PrivilegedCode;
 import com.floragunn.searchsupport.cstate.ComponentState;
+import java.io.File;
+import java.nio.file.Path;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.Base64;
+import javax.security.auth.Subject;
+import javax.security.auth.kerberos.KerberosPrincipal;
+import javax.security.auth.login.LoginContext;
+import javax.security.auth.login.LoginException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.ietf.jgss.GSSContext;
+import org.ietf.jgss.GSSCredential;
+import org.ietf.jgss.GSSException;
+import org.ietf.jgss.GSSManager;
+import org.ietf.jgss.GSSName;
+import org.ietf.jgss.Oid;
 
 public class KerberosAuthenticationFrontend implements HttpAuthenticationFrontend {
 
@@ -71,7 +66,8 @@ public class KerberosAuthenticationFrontend implements HttpAuthenticationFronten
     private final Path acceptorKeyTabFile;
     private final javax.security.auth.login.Configuration keytabConfiguration;
 
-    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", TYPE, KerberosAuthenticationFrontend.class).requiresEnterpriseLicense();
+    private final ComponentState componentState = new ComponentState(0, "authentication_frontend", TYPE, KerberosAuthenticationFrontend.class)
+            .requiresEnterpriseLicense();
 
     public KerberosAuthenticationFrontend(DocNode docNode, ConfigurationRepository.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -135,7 +131,7 @@ public class KerberosAuthenticationFrontend implements HttpAuthenticationFronten
             log.error("Got login exception", e);
             throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
         }
-        
+
         this.componentState.initialized();
     }
 

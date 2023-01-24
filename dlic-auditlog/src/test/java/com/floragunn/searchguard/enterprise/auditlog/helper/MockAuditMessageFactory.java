@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,23 +10,20 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.helper;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
 import java.net.InetSocketAddress;
-
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.transport.TransportAddress;
-
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
 
 public class MockAuditMessageFactory {
 

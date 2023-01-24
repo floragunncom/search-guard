@@ -1,10 +1,10 @@
 /*
  * Copyright 2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,13 +12,33 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authz.actions;
 
 import static com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors.objectAttr;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.whoami.WhoAmIAction;
+import com.floragunn.searchguard.authc.LoginPrivileges;
+import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
+import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
+import com.floragunn.searchguard.authc.session.backend.SessionApi;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.AdditionalPrivileges;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.RequestPropertyModifier;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
+import com.floragunn.searchguard.configuration.api.BulkConfigApi;
+import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
+import com.floragunn.searchguard.modules.api.GetComponentStateAction;
+import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
+import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
-
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
@@ -156,28 +175,6 @@ import org.elasticsearch.persistent.UpdatePersistentTaskStatusAction;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.xcontent.ToXContent;
 
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.SearchGuardModulesRegistry;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.whoami.WhoAmIAction;
-import com.floragunn.searchguard.authc.LoginPrivileges;
-import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
-import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
-import com.floragunn.searchguard.authc.session.backend.SessionApi;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.AdditionalPrivileges;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.RequestPropertyModifier;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
-import com.floragunn.searchguard.configuration.api.BulkConfigApi;
-import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
-import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
-import com.floragunn.searchguard.modules.api.GetComponentStateAction;
-import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
-import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
-
 public class Actions {
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexActions;
@@ -187,13 +184,13 @@ public class Actions {
     private Builder builder = new Builder();
 
     public Actions(SearchGuardModulesRegistry modulesRegistry) {
-        // We define here "well-known" actions. 
+        // We define here "well-known" actions.
         //
         // Having well-known actions allows us to pre-cache a hash table of allowed actions for roles,
         // which can significantly improve performance of privilege checks.
         //
         // Additionally, extended settings are applied for some actions, such as additionally needed privileges.
-        
+
         index(IndexAction.INSTANCE);
         index(GetAction.INSTANCE);
         index(TermVectorsAction.INSTANCE);
@@ -202,7 +199,7 @@ public class Actions {
         index(SearchAction.INSTANCE);
         index(ExplainAction.INSTANCE);
         index(ResolveIndexAction.INSTANCE);
-        
+
         index(UpdateByQueryAction.INSTANCE);
         index(DeleteByQueryAction.INSTANCE);
 
@@ -267,7 +264,7 @@ public class Actions {
 
         cluster("indices:data/read/async_search/delete") //
                 .deletes(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
-        
+
         cluster("indices:searchguard:async_search/_all_owners");
 
         cluster("indices:data/read/sql");

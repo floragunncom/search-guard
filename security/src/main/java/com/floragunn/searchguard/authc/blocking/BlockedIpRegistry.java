@@ -14,9 +14,17 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.blocking;
 
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.google.common.collect.ImmutableList;
+import inet.ipaddr.AddressStringException;
+import inet.ipaddr.IPAddress;
+import inet.ipaddr.IPAddressString;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.HashSet;
@@ -26,21 +34,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.core.Tuple;
-
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConfigMap;
-import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.google.common.collect.ImmutableList;
-
-import inet.ipaddr.AddressStringException;
-import inet.ipaddr.IPAddress;
-import inet.ipaddr.IPAddressString;
 
 public class BlockedIpRegistry {
     protected static final Logger log = LogManager.getLogger(BlockedIpRegistry.class);
@@ -58,11 +54,11 @@ public class BlockedIpRegistry {
                 if (blocks != null) {
                     blockedNetmasks = ImmutableList.of(reloadBlockedNetmasks(blocks));
                     ipClientBlockRegistries = ImmutableList.of(reloadBlockedIpAddresses(blocks));
-                    
+
                     if (log.isDebugEnabled()) {
                         log.debug("Updated confiuration: " + blocks + "\nBlockedNetmasks: " + blockedNetmasks + "; ips: " + ipClientBlockRegistries);
                     }
-                } 
+                }
             }
         });
     }
@@ -97,8 +93,7 @@ public class BlockedIpRegistry {
 
         return false;
     }
-    
-    
+
     private ClientBlockRegistry<IPAddress> reloadBlockedNetmasks(SgDynamicConfiguration<Blocks> blocks) {
         Function<String, Optional<IPAddress>> parsedIp = s -> {
             IPAddressString ipAddressString = new IPAddressString(s);
@@ -157,6 +152,5 @@ public class BlockedIpRegistry {
         }
         return new Tuple<>(allows, disallows);
     }
-
 
 }

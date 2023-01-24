@@ -14,17 +14,14 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
-
-import java.util.Collections;
-
-import org.elasticsearch.cluster.service.ClusterService;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import java.util.Collections;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class SearchGuardCapabilitiesIntTest {
     @ClassRule
@@ -32,11 +29,11 @@ public class SearchGuardCapabilitiesIntTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().build();
-    
+
     @Test
     public void basicTest() {
         ClusterService clusterService = cluster.getInjectable(ClusterService.class);
-        
+
         SearchGuardCapabilities capabilities = new SearchGuardCapabilities(Collections.emptyList(), clusterService, cluster.getInternalNodeClient());
     }
 }

@@ -1,32 +1,16 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken.api;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.time.temporal.TemporalAmount;
-
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.config.temporal.TemporalAmountFormat;
 import com.floragunn.codova.documents.DocReader;
@@ -36,6 +20,18 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges;
+import java.io.IOException;
+import java.time.Duration;
+import java.time.temporal.TemporalAmount;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionRequestValidationException;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentType;
 
 public class CreateAuthTokenRequest extends ActionRequest implements ToXContentObject {
 
@@ -56,7 +52,6 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
 
     }
 
-    
     public CreateAuthTokenRequest(RequestedPrivileges requestedPrivileges) {
         super();
         this.tokenName = "";
@@ -95,7 +90,9 @@ public class CreateAuthTokenRequest extends ActionRequest implements ToXContentO
 
     public static CreateAuthTokenRequest parse(BytesReference document, XContentType contentType) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
-        ValidatingDocNode vJsonNode = new ValidatingDocNode(DocReader.format(contentType == XContentType.YAML ? Format.YAML : Format.JSON).readObject(BytesReference.toBytes(document)), validationErrors);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(
+                DocReader.format(contentType == XContentType.YAML ? Format.YAML : Format.JSON).readObject(BytesReference.toBytes(document)),
+                validationErrors);
         CreateAuthTokenRequest result = new CreateAuthTokenRequest();
 
         result.tokenName = vJsonNode.get("name").asString();

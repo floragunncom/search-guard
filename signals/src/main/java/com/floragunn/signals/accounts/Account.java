@@ -14,21 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.accounts;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeSet;
-
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.xcontent.ToXContentObject;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.documents.DocNode;
@@ -40,6 +26,17 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
 import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeSet;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.xcontent.ToXContentObject;
 
 public abstract class Account implements ToXContentObject {
 

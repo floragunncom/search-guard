@@ -1,6 +1,5 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,17 +10,15 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls;
-
-import org.apache.lucene.util.BytesRef;
-import org.junit.Assert;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsConfig.FieldMasking;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
+import org.apache.lucene.util.BytesRef;
+import org.junit.Assert;
+import org.junit.Test;
 
 public class FieldMaskingRuleTest {
 

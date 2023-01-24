@@ -14,15 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz;
 
+import com.floragunn.searchguard.support.ConfigConstants;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-
-import com.floragunn.searchguard.support.ConfigConstants;
 
 public class DocumentWhitelist {
 
@@ -194,7 +191,7 @@ public class DocumentWhitelist {
             if (index.indexOf('/') != -1 || index.indexOf('|') != -1) {
                 throw new IllegalArgumentException("Invalid index name: " + index);
             }
-            
+
             this.index = index;
             this.id = id;
         }

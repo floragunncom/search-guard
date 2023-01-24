@@ -16,17 +16,6 @@
  */
 package com.floragunn.searchguard.authc.base;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.function.Consumer;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
-
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthFailureListener;
@@ -45,6 +34,15 @@ import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.Consumer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
 
 public abstract class RequestAuthenticationProcessor<AuthenticatorType extends AuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(RequestAuthenticationProcessor.class);

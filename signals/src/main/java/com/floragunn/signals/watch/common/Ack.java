@@ -14,18 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.common;
 
+import com.floragunn.codova.documents.DocNode;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneOffset;
-
 import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.documents.DocNode;
 
 public class Ack implements ToXContentObject {
     private static final DateFormatter DATE_FORMATTER = DateFormatter.forPattern("strict_date_time").withZone(ZoneOffset.UTC);

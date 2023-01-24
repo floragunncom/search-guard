@@ -1,41 +1,16 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
+ *
  * This software is free of charge for non-commercial and academic use.
  * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.femt;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.ClusterSettings;
-import org.elasticsearch.common.settings.IndexScopedSettings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsFilter;
-import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -55,14 +30,36 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.settings.ClusterSettings;
+import org.elasticsearch.common.settings.IndexScopedSettings;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
+import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.threadpool.ThreadPool;
 
 public class FeMultiTenancyModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(FeMultiTenancyModule.class);
 
-    private final ComponentState componentState = new ComponentState(1000, null, "fe_multi_tenancy", FeMultiTenancyModule.class).requiresEnterpriseLicense();
+    private final ComponentState componentState = new ComponentState(1000, null, "fe_multi_tenancy", FeMultiTenancyModule.class)
+            .requiresEnterpriseLicense();
     private volatile boolean enabled;
     private volatile PrivilegesInterceptorImpl interceptorImpl;
     private volatile FeMultiTenancyConfig config;

@@ -1,19 +1,23 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.integration;
 
+import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.NoHttpResponseException;
@@ -31,34 +35,24 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
-import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-
 public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @Test
     public void testSimpleAuthenticated() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true).put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated")
-                .put("searchguard.audit.threadpool.size", 0)
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated").put("searchguard.audit.threadpool.size", 0)
                 .build();
-        
+
         setup(additionalSettings);
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
-        
+
         System.out.println("#### testSimpleAuthenticated");
         HttpResponse response = rh.executeGetRequest("_search", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
@@ -71,22 +65,19 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
+
     @Test
     public void testSSLPlainText() throws Exception {
-    //if this fails permanently look in the logs for an abstract method error or method not found error.
-    //needs proper ssl plugin version
-        
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.ssl.http.enabled",true)
+        //if this fails permanently look in the logs for an abstract method error or method not found error.
+        //needs proper ssl plugin version
+
+        Settings additionalSettings = Settings.builder().put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("auditlog/node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("auditlog/truststore.jks"))
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-        
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
+
         setup(additionalSettings);
         TestAuditlogImpl.clear();
 
@@ -105,24 +96,21 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("not an SSL/TLS record"));
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
+
     @Test
     public void testDefaultsRest() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-        
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
+
         setup(additionalSettings);
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
-               
+
         HttpResponse response = rh.executeGetRequest("_search", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        
+
         Thread.sleep(1500);
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(2, TestAuditlogImpl.messages.size());
@@ -135,48 +123,42 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
+
     @Test
     public void testAuthenticated() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true).put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-        
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
+
         setup(additionalSettings);
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
-   
+
         testMsearch();
         TestAuditlogImpl.clear();
-        
+
         testBulkAuth();
         TestAuditlogImpl.clear();
-        
+
         testBulkNonAuth();
         TestAuditlogImpl.clear();
-        
+
         testUpdateSettings();
         TestAuditlogImpl.clear();
     }
-    
+
     @Test
     public void testNonAuthenticated() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put("searchguard.audit.threadpool.size", -1)
-                .build();
-        
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put("searchguard.audit.threadpool.size", -1).build();
+
         setup(additionalSettings);
         setupStarfleetIndex();
         TestAuditlogImpl.clear();
-        
+
         testJustAuthenticated();
         TestAuditlogImpl.clear();
         testBadHeader();
@@ -191,36 +173,34 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         TestAuditlogImpl.clear();
 
     }
-    
+
     public void testWrongUser() throws Exception {
-      
+
         HttpResponse response = rh.executeGetRequest("", encodeBasicHeader("wronguser", "admin"));
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Thread.sleep(500);
-        Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("wronguser"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains(AuditMessage.UTC_TIMESTAMP));
-        Assert.assertFalse(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("wronguser"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains(AuditMessage.UTC_TIMESTAMP));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-   
 
     public void testUnknownAuthorization() throws Exception {
-       
+
         HttpResponse response = rh.executeGetRequest("", encodeBasicHeader("unknown", "unknown"));
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("FAILED_LOGIN"));
-        Assert.assertFalse(TestAuditlogImpl.sb.toString(),TestAuditlogImpl.sb.toString().contains("Basic dW5rbm93bjp1bmtub3du"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("Basic dW5rbm93bjp1bmtub3du"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains(AuditMessage.UTC_TIMESTAMP));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
 
     public void testUnauthenticated() throws Exception {
-     
+
         System.out.println("#### testUnauthenticated");
         HttpResponse response = rh.executeGetRequest("_search");
         Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, response.getStatusCode());
@@ -232,7 +212,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains(AuditMessage.UTC_TIMESTAMP));
         Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
-        
+
     }
 
     public void testJustAuthenticated() throws Exception {
@@ -241,10 +221,9 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(0, TestAuditlogImpl.messages.size());
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
 
     public void testSgIndexAttempt() throws Exception {
-       
+
         HttpResponse response = rh.executePutRequest("searchguard/config/0", "{}", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("MISSING_PRIVILEGES"));
@@ -255,10 +234,9 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(2, TestAuditlogImpl.messages.size());
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
 
     public void testBadHeader() throws Exception {
-      
+
         HttpResponse response = rh.executeGetRequest("", new BasicHeader("_sg_bad", "bad"), encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
         Assert.assertFalse(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
@@ -267,8 +245,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(TestAuditlogImpl.sb.toString(), 1, TestAuditlogImpl.messages.size());
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
-    
+
     public void testMissingPriv() throws Exception {
 
         HttpResponse response = rh.executeGetRequest("sf/_search", encodeBasicHeader("worf", "worf"));
@@ -282,17 +259,15 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(1, TestAuditlogImpl.messages.size());
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
-	public void testMsearch() throws Exception {
-        
-        String msearch = 
-                "{\"index\":\"sf\", \"ignore_unavailable\": true}"+System.lineSeparator()+
-                "{\"size\":0,\"query\":{\"match_all\":{}}}"+System.lineSeparator()+
-                "{\"index\":\"sf\", \"ignore_unavailable\": true}"+System.lineSeparator()+
-                "{\"size\":0,\"query\":{\"match_all\":{}}}"+System.lineSeparator();           
-            
+
+    public void testMsearch() throws Exception {
+
+        String msearch = "{\"index\":\"sf\", \"ignore_unavailable\": true}" + System.lineSeparator() + "{\"size\":0,\"query\":{\"match_all\":{}}}"
+                + System.lineSeparator() + "{\"index\":\"sf\", \"ignore_unavailable\": true}" + System.lineSeparator()
+                + "{\"size\":0,\"query\":{\"match_all\":{}}}" + System.lineSeparator();
+
         System.out.println("##### msaerch");
-        HttpResponse response = rh.executePostRequest("_msearch?pretty", msearch, encodeBasicHeader("admin", "admin"));        
+        HttpResponse response = rh.executePostRequest("_msearch?pretty", msearch, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(response.getStatusReason(), HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("indices:data/read/msearch"));
@@ -302,53 +277,45 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(TestAuditlogImpl.sb.toString(), 4, TestAuditlogImpl.messages.size());
         Assert.assertFalse(TestAuditlogImpl.sb.toString().toLowerCase().contains("authorization"));
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
-	}
-	
-	
+    }
+
     public void testBulkAuth() throws Exception {
 
         System.out.println("#### testBulkAuth");
-        String bulkBody = 
-                "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
-                "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
-                "{ \"index\" : { \"_index\" : \"worf\", \"_id\" : \"2\" } }"+System.lineSeparator()+
-                "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-                
-                "{ \"update\" : {\"_id\" : \"1\", \"_index\" : \"test\"} }"+System.lineSeparator()+
-                "{ \"doc\" : {\"field\" : \"valuex\"} }"+System.lineSeparator()+
-                "{ \"delete\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
-                "{ \"create\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
-                "{ \"field1\" : \"value3x\" }"+System.lineSeparator();
-                
+        String bulkBody = "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }" + System.lineSeparator() + "{ \"field1\" : \"value1\" }"
+                + System.lineSeparator() + "{ \"index\" : { \"_index\" : \"worf\", \"_id\" : \"2\" } }" + System.lineSeparator()
+                + "{ \"field2\" : \"value2\" }" + System.lineSeparator() +
+
+                "{ \"update\" : {\"_id\" : \"1\", \"_index\" : \"test\"} }" + System.lineSeparator() + "{ \"doc\" : {\"field\" : \"valuex\"} }"
+                + System.lineSeparator() + "{ \"delete\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }" + System.lineSeparator()
+                + "{ \"create\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }" + System.lineSeparator() + "{ \"field1\" : \"value3x\" }"
+                + System.lineSeparator();
 
         HttpResponse response = rh.executePostRequest("_bulk", bulkBody, encodeBasicHeader("admin", "admin"));
         System.out.println(TestAuditlogImpl.sb.toString());
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());  
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         Assert.assertTrue(response.getBody().contains("\"errors\":false"));
-        Assert.assertTrue(response.getBody().contains("\"status\":201"));                   
+        Assert.assertTrue(response.getBody().contains("\"status\":201"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:admin/auto_create"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/write/bulk"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("IndexRequest"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_trace_task_parent_id"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_trace_task_id"));
         //may vary because we log shardrequests which are not predictable here
-        Assert.assertTrue(TestAuditlogImpl.messages.size() >= 17); 
+        Assert.assertTrue(TestAuditlogImpl.messages.size() >= 17);
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
+
     public void testBulkNonAuth() throws Exception {
 
-        String bulkBody = 
-                "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
-                "{ \"field1\" : \"value1\" }" +System.lineSeparator()+
-                "{ \"index\" : { \"_index\" : \"worf\", \"_id\" : \"2\" } }"+System.lineSeparator()+
-                "{ \"field2\" : \"value2\" }"+System.lineSeparator()+
-                
-                "{ \"update\" : {\"_id\" : \"1\", \"_index\" : \"test\"} }"+System.lineSeparator()+
-                "{ \"doc\" : {\"field\" : \"valuex\"} }"+System.lineSeparator()+
-                "{ \"delete\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
-                "{ \"create\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
-                "{ \"field1\" : \"value3x\" }"+System.lineSeparator();
+        String bulkBody = "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }" + System.lineSeparator() + "{ \"field1\" : \"value1\" }"
+                + System.lineSeparator() + "{ \"index\" : { \"_index\" : \"worf\", \"_id\" : \"2\" } }" + System.lineSeparator()
+                + "{ \"field2\" : \"value2\" }" + System.lineSeparator() +
+
+                "{ \"update\" : {\"_id\" : \"1\", \"_index\" : \"test\"} }" + System.lineSeparator() + "{ \"doc\" : {\"field\" : \"valuex\"} }"
+                + System.lineSeparator() + "{ \"delete\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }" + System.lineSeparator()
+                + "{ \"create\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }" + System.lineSeparator() + "{ \"field1\" : \"value3x\" }"
+                + System.lineSeparator();
 
         HttpResponse response = rh.executePostRequest("_bulk", bulkBody, encodeBasicHeader("worf", "worf"));
         System.out.println(response.getBody());
@@ -356,8 +323,8 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         Assert.assertTrue(response.getBody().contains("\"errors\":true"));
-        Assert.assertTrue(response.getBody().contains("\"status\":200")); 
-        Assert.assertTrue(response.getBody().contains("\"status\":403"));   
+        Assert.assertTrue(response.getBody().contains("\"status\":200"));
+        Assert.assertTrue(response.getBody().contains("\"status\":403"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("MISSING_PRIVILEGES"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices:data/write/bulk[s]"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("IndexRequest"));
@@ -365,19 +332,12 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.messages.size() >= 7);
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-	
+
     @Ignore
     public void testUpdateSettings() throws Exception {
-        
-        String json = 
-        "{"+
-            "\"persistent\" : {"+
-                "\"discovery.zen.minimum_master_nodes\" : 1"+
-            "},"+
-            "\"transient\" : {"+
-                "\"discovery.zen.minimum_master_nodes\" : 1"+
-             "}"+
-        "}";
+
+        String json = "{" + "\"persistent\" : {" + "\"discovery.zen.minimum_master_nodes\" : 1" + "}," + "\"transient\" : {"
+                + "\"discovery.zen.minimum_master_nodes\" : 1" + "}" + "}";
 
         HttpResponse response = rh.executePutRequest("_cluster/settings", json, encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
@@ -389,20 +349,16 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.messages.size() > 1);
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
+
     @Test
     public void testIndexPattern() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", "internal_elasticsearch")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_LOG_REQUEST_BODY, false)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_INDICES, false)
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", "internal_elasticsearch")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_LOG_REQUEST_BODY, false).put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_INDICES, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 10) //must be greater 0
-                .put("searchguard.audit.config.index", "'auditlog-'YYYY.MM.dd.ss")
-                .build();
-        
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 10) //must be greater 0
+                .put("searchguard.audit.config.index", "'auditlog-'YYYY.MM.dd.ss").build();
+
         setup(additionalSettings);
         setupStarfleetIndex();
 
@@ -416,41 +372,49 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
         Assert.assertTrue(res.getBody().contains("auditlog-20"));
     }
-    
+
     @Test
     public void testAliases() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true).put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-        
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
+
         setup(additionalSettings);
-        
-        try (Client tc = getNodeClient()) {                    
-            tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();         
-            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
-            tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("starfleet_academy").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("starfleet_library").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
+        try (Client tc = getNodeClient()) {
+            tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
+            tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
+            tc.index(new IndexRequest("starfleet_academy").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
+            tc.index(new IndexRequest("starfleet_library").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
+            tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
             tc.index(new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
- 
+
             tc.index(new IndexRequest("spock").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("kirk").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
 
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
+            tc.admin().indices()
+                    .aliases(new IndicesAliasesRequest()
+                            .addAliasAction(AliasActions.add().indices("starfleet", "starfleet_academy", "starfleet_library").alias("sf")))
+                    .actionGet();
+            tc.admin().indices()
+                    .aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire", "vulcangov").alias("nonsf")))
+                    .actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted")))
+                    .actionGet();
         }
-        
+
         TestAuditlogImpl.clear();
-        
+
         HttpResponse response = rh.executeGetRequest("sf/_search?pretty", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(TestAuditlogImpl.sb.toString());
@@ -461,40 +425,41 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertEquals(2, TestAuditlogImpl.messages.size());
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
+
     @Test
     public void testScroll() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true).put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-        
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
+
         setup(additionalSettings);
-        
-        try (Client tc = getNodeClient()) {                    
-            for(int i=0; i<3; i++)
-            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
+
+        try (Client tc = getNodeClient()) {
+            for (int i = 0; i < 3; i++)
+                tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                        .actionGet();
         }
-        
+
         TestAuditlogImpl.clear();
-        
+
         HttpResponse res;
-        Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executeGetRequest("vulcangov/_search?scroll=1m&pretty=true", encodeBasicHeader("admin", "admin"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK,
+                (res = rh.executeGetRequest("vulcangov/_search?scroll=1m&pretty=true", encodeBasicHeader("admin", "admin"))).getStatusCode());
         int start = res.getBody().indexOf("_scroll_id") + 15;
-        String scrollid = res.getBody().substring(start, res.getBody().indexOf("\"", start+1));
-        Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executePostRequest("/_search/scroll?pretty=true", "{\"scroll_id\" : \""+scrollid+"\"}", encodeBasicHeader("admin", "admin"))).getStatusCode());
+        String scrollid = res.getBody().substring(start, res.getBody().indexOf("\"", start + 1));
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePostRequest("/_search/scroll?pretty=true", "{\"scroll_id\" : \"" + scrollid + "\"}",
+                encodeBasicHeader("admin", "admin"))).getStatusCode());
         Assert.assertEquals(4, TestAuditlogImpl.messages.size());
-        
-        Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executeGetRequest("vulcangov/_search?scroll=1m&pretty=true", encodeBasicHeader("admin", "admin"))).getStatusCode());
+
+        Assert.assertEquals(HttpStatus.SC_OK,
+                (res = rh.executeGetRequest("vulcangov/_search?scroll=1m&pretty=true", encodeBasicHeader("admin", "admin"))).getStatusCode());
         start = res.getBody().indexOf("_scroll_id") + 15;
-        scrollid = res.getBody().substring(start, res.getBody().indexOf("\"", start+1));
+        scrollid = res.getBody().substring(start, res.getBody().indexOf("\"", start + 1));
         TestAuditlogImpl.clear();
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res=rh.executePostRequest("/_search/scroll?pretty=true", "{\"scroll_id\" : \""+scrollid+"\"}", encodeBasicHeader("admin2", "admin"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, (res = rh.executePostRequest("/_search/scroll?pretty=true",
+                "{\"scroll_id\" : \"" + scrollid + "\"}", encodeBasicHeader("admin2", "admin"))).getStatusCode());
         Thread.sleep(1000);
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("InternalScrollSearchRequest"));
@@ -502,29 +467,26 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.messages.size() > 2);
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
-    
+
     @Test
     public void testAliasResolution() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true).put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-        
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
+
         setup(additionalSettings);
-      
-       
-        try (Client tc = getNodeClient()) {                    
-            for(int i=0; i<3; i++)
-            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("thealias").index("vulcangov"))).actionGet();
+
+        try (Client tc = getNodeClient()) {
+            for (int i = 0; i < 3; i++)
+                tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                        .actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("thealias").index("vulcangov")))
+                    .actionGet();
         }
-           
+
         TestAuditlogImpl.clear();
         HttpResponse response = rh.executeGetRequest("thealias/_search?pretty", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
@@ -536,21 +498,17 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
         TestAuditlogImpl.clear();
     }
-    
+
     @Test
     public void testAliasBadHeaders() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true).put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-        
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
+
         setup(additionalSettings);
-           
+
         TestAuditlogImpl.clear();
         HttpResponse response = rh.executeGetRequest("_search?pretty", new BasicHeader("_sg_user", "xxx"), encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
@@ -562,29 +520,25 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
         TestAuditlogImpl.clear();
     }
-    
+
     @Test
     public void testIndexCloseDelete() throws Exception {
 
-        Settings additionalSettings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
+        Settings additionalSettings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true).put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put("searchguard.audit.threadpool.size", 0)
-                .build();
-        
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE").put("searchguard.audit.threadpool.size", 0).build();
+
         setup(additionalSettings);
-        
+
         try (Client tc = getNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("index1")).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("index2")).actionGet();
         }
-        
+
         TestAuditlogImpl.clear();
-        
+
         HttpResponse response = rh.executeDeleteRequest("index1?pretty", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         response = rh.executePostRequest("index2/_close?pretty", "", encodeBasicHeader("admin", "admin"));
@@ -598,26 +552,26 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
 
     @Test
     public void testDeleteByQuery() throws Exception {
-        
-        final Settings settings = Settings.builder()
-                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true)
+
+        final Settings settings = Settings.builder().put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true).put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-                .build();
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE").build();
         setup(settings);
 
-        try (Client tc = getNodeClient()) {                    
-            for(int i=0; i<3; i++)
-            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
+        try (Client tc = getNodeClient()) {
+            for (int i = 0; i < 3; i++)
+                tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                        .actionGet();
         }
-        
+
         TestAuditlogImpl.clear();
-        
+
         HttpResponse res;
-        Assert.assertEquals(HttpStatus.SC_OK, (res=rh.executePostRequest("/vulcango*/_delete_by_query?refresh=true&wait_for_completion=true&pretty=true", "{\"query\" : {\"match_all\" : {}}}", encodeBasicHeader("admin", "admin"))).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK,
+                (res = rh.executePostRequest("/vulcango*/_delete_by_query?refresh=true&wait_for_completion=true&pretty=true",
+                        "{\"query\" : {\"match_all\" : {}}}", encodeBasicHeader("admin", "admin"))).getStatusCode());
         assertContains(res, "*\"deleted\" : 3,*");
         String auditlogContents = TestAuditlogImpl.sb.toString();
         Assert.assertTrue(auditlogContents.contains("indices:data/write/delete/byquery"));

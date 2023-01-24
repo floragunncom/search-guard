@@ -14,14 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.util;
 
+import com.floragunn.signals.watch.result.WatchLog;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
@@ -36,8 +35,6 @@ import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.metrics.TopHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
-
-import com.floragunn.signals.watch.result.WatchLog;
 
 public class WatchLogSearch {
     private static final Logger log = LogManager.getLogger(WatchLogSearch.class);

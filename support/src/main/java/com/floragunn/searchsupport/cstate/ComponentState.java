@@ -1,10 +1,10 @@
 /*
  * Copyright 2021-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,20 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchsupport.cstate;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
+import com.floragunn.searchsupport.cstate.metrics.Measurement;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -34,20 +43,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.jar.Manifest;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.OrderedImmutableMap;
-import com.floragunn.searchsupport.cstate.metrics.Measurement;
-import com.google.common.base.Strings;
 
 public class ComponentState implements Document<ComponentState> {
     private static final Logger log = LogManager.getLogger(ComponentState.class);
@@ -133,7 +130,7 @@ public class ComponentState implements Document<ComponentState> {
         this.changedAt = docNode.hasNonNull("changed_at") ? Instant.parse(docNode.getAsString("changed_at")) : null;
         this.failedAt = docNode.hasNonNull("failed_at") ? Instant.parse(docNode.getAsString("failed_at")) : null;
         this.nextTryAt = docNode.hasNonNull("next_try_at") ? Instant.parse(docNode.getAsString("next_try_at")) : null;
-        this.mandatory = docNode.get("mandatory") instanceof Boolean ? (Boolean) docNode.get("mandatory") : false;        
+        this.mandatory = docNode.get("mandatory") instanceof Boolean ? (Boolean) docNode.get("mandatory") : false;
 
         if (docNode.hasNonNull("build")) {
             DocNode build = docNode.getAsNode("build");
@@ -494,7 +491,7 @@ public class ComponentState implements Document<ComponentState> {
     public void addDetail(Object detail) {
         detailJsonElements.add(detail);
     }
-    
+
     public void setDetailJson(String detailJson) {
         try {
             Object parsedDetailJson = DocReader.json().read(detailJson);
@@ -502,7 +499,7 @@ public class ComponentState implements Document<ComponentState> {
             detailJsonElements.add(parsedDetailJson);
         } catch (DocumentParseException e) {
             log.error("Error while parsing detail JSON\n" + detailJson, e);
-        }        
+        }
     }
 
     @Override
@@ -654,7 +651,7 @@ public class ComponentState implements Document<ComponentState> {
 
         parts.add(part);
     }
-    
+
     public synchronized void clearParts() {
         parts.clear();
     }

@@ -14,16 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.configuration.variables;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.UnparsedDocument;
@@ -37,13 +28,20 @@ import com.floragunn.searchsupport.action.StandardRequests;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.action.StandardRequests.IdRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.inject.Inject;
 
 public class ConfigVarApi {
     public static final RestApi REST_API = new RestApi()//
             .handlesGet("/_searchguard/config/vars").with(GetAllAction.INSTANCE)//
             .handlesGet("/_searchguard/config/vars/{id}").with(GetAction.INSTANCE, (params, body) -> new IdRequest(params.get("id")))
             .handlesPut("/_searchguard/config/vars").with(UpdateAllAction.INSTANCE)//
-            .handlesPut("/_searchguard/config/vars/{id}").with(UpdateAction.INSTANCE, (params, body) -> new UpdateAction.Request(params.get("id"), body))//
+            .handlesPut("/_searchguard/config/vars/{id}")
+            .with(UpdateAction.INSTANCE, (params, body) -> new UpdateAction.Request(params.get("id"), body))//
             .handlesDelete("/_searchguard/config/vars/{id}").with(DeleteAction.INSTANCE, (params, body) -> new IdRequest(params.get("id")))
             .name("/_searchguard/config/vars");
 

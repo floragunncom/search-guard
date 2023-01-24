@@ -14,11 +14,21 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.legacy.test;
 
 import static com.floragunn.searchguard.support.ConfigConstants.SEARCHGUARD_AUTHCZ_ADMIN_DN;
 
+import com.floragunn.searchguard.SearchGuardPlugin;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchguard.support.WildcardMatcher;
+import com.floragunn.searchguard.test.NodeSettingsSupplier;
+import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import java.io.FileNotFoundException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +37,6 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
@@ -48,59 +57,45 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.rules.TestWatcher;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
-import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchguard.support.WildcardMatcher;
-import com.floragunn.searchguard.test.NodeSettingsSupplier;
-import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-
 public abstract class AbstractSGUnitTest {
 
     protected static final AtomicLong num = new AtomicLong();
     protected static boolean withRemoteCluster;
 
-	static {
+    static {
 
-		System.out.println("OS: " + System.getProperty("os.name") + " " + System.getProperty("os.arch") + " "
-				+ System.getProperty("os.version"));
-		System.out.println(
-				"Java Version: " + System.getProperty("java.version") + " " + System.getProperty("java.vendor"));
-		System.out.println("JVM Impl.: " + System.getProperty("java.vm.version") + " "
-				+ System.getProperty("java.vm.vendor") + " " + System.getProperty("java.vm.name"));
+        System.out.println("OS: " + System.getProperty("os.name") + " " + System.getProperty("os.arch") + " " + System.getProperty("os.version"));
+        System.out.println("Java Version: " + System.getProperty("java.version") + " " + System.getProperty("java.vendor"));
+        System.out.println("JVM Impl.: " + System.getProperty("java.vm.version") + " " + System.getProperty("java.vm.vendor") + " "
+                + System.getProperty("java.vm.name"));
 
-		withRemoteCluster = Boolean.parseBoolean(System.getenv("TESTARG_unittests_with_remote_cluster"));
-		System.out.println("With remote cluster: " + withRemoteCluster);
-	}
+        withRemoteCluster = Boolean.parseBoolean(System.getenv("TESTARG_unittests_with_remote_cluster"));
+        System.out.println("With remote cluster: " + withRemoteCluster);
+    }
 
-	protected final Logger log = LogManager.getLogger(this.getClass());
-    public static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name",  "mock").build());
+    protected final Logger log = LogManager.getLogger(this.getClass());
+    public static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name", "mock").build());
 
     //TODO Test Matrix
     //enable//disable enterprise modules
     //1node and 3 node
 
-	@Rule
-	public TestName name = new TestName();
+    @Rule
+    public TestName name = new TestName();
 
-	@Rule
+    @Rule
     public final TemporaryFolder repositoryPath = new TemporaryFolder();
 
-	@Rule
-	public final TestWatcher testWatcher = new SGTestWatcher();
+    @Rule
+    public final TestWatcher testWatcher = new SGTestWatcher();
 
-	public static Header encodeBasicHeader(final String username, final String password) {
-		return new BasicHeader("Authorization", "Basic "+Base64.getEncoder().encodeToString(
-				(username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
-	}
+    public static Header encodeBasicHeader(final String username, final String password) {
+        return new BasicHeader("Authorization",
+                "Basic " + Base64.getEncoder().encodeToString((username + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
+    }
 
-	@Deprecated
-	protected static class TransportClientImpl extends TransportClient {
+    @Deprecated
+    protected static class TransportClientImpl extends TransportClient {
 
         public TransportClientImpl(Settings settings, Collection<Class<? extends Plugin>> plugins) {
             super(settings, plugins);
@@ -115,7 +110,6 @@ public abstract class AbstractSGUnitTest {
     protected static Collection<Class<? extends Plugin>> asCollection(Class<? extends Plugin>... plugins) {
         return Arrays.asList(plugins);
     }
-
 
     @Deprecated
     protected TransportClient getInternalTransportClient(ClusterInfo info, Settings initTransportClientSettings) {
@@ -175,7 +169,7 @@ public abstract class AbstractSGUnitTest {
             throw new RuntimeException(e);
         }
     }
-    
+
     protected void initialize(Client tc, Settings initTransportClientSettings, DynamicSgConfig sgconfig) {
 
         try {

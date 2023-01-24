@@ -1,30 +1,16 @@
 /*
- * Copyright 2020-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.List;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
@@ -39,14 +25,25 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class RequestedPrivileges implements Writeable, ToXContentObject, Serializable {
     static final String RESTRICTION_ROLE = "_requested_privileges";
     static final ImmutableSet<String> RESTRICTION_ROLES = ImmutableSet.of(RESTRICTION_ROLE);
     private static final long serialVersionUID = 5862219250642101795L;
     private static final ImmutableList<String> WILDCARD_LIST = ImmutableList.of("*");
-    private static final ImmutableList<Template<Pattern>> WILDCARD_TEMPLATE_PATTERN_LIST = ImmutableList.of(Template.constant(Pattern.wildcard(), "*"));
-    
+    private static final ImmutableList<Template<Pattern>> WILDCARD_TEMPLATE_PATTERN_LIST = ImmutableList
+            .of(Template.constant(Pattern.wildcard(), "*"));
+
     public static final RequestedPrivileges ALL = new RequestedPrivileges(WILDCARD_LIST, IndexPermissions.ALL, TenantPermissions.ALL);
     private static final Logger log = LogManager.getLogger(AuthTokenService.class);
 
@@ -178,7 +175,6 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         Role role = new Role(null, false, false, false, "requested privileges", clusterPermissions, indexPermissions, tenantPermissions,
                 excludedClusterPermissions, excludeIndexPermissions);
 
-        
         return SgDynamicConfiguration.of(CType.ROLES, RESTRICTION_ROLE, role);
     }
 
@@ -194,7 +190,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
 
     public static class IndexPermissions implements Writeable, ToXContentObject, Serializable {
 
-        public static final ImmutableList<IndexPermissions> ALL = ImmutableList.of(new IndexPermissions(WILDCARD_TEMPLATE_PATTERN_LIST, WILDCARD_LIST));
+        public static final ImmutableList<IndexPermissions> ALL = ImmutableList
+                .of(new IndexPermissions(WILDCARD_TEMPLATE_PATTERN_LIST, WILDCARD_LIST));
 
         private static final long serialVersionUID = -2567351561923741922L;
         private ImmutableList<Template<Pattern>> indexPatterns;
@@ -206,7 +203,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         IndexPermissions(StreamInput in) throws IOException {
-            this.indexPatterns =  ImmutableList.map(in.readStringList(), (s) -> {
+            this.indexPatterns = ImmutableList.map(in.readStringList(), (s) -> {
                 try {
                     return new Template<>(s, Pattern::create);
                 } catch (ConfigValidationException e) {
@@ -257,8 +254,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
             result = prime * result + ((indexPatterns == null) ? 0 : indexPatterns.hashCode());
             return result;
         }
-        
-        public Role.Index toRoleIndex() {            
+
+        public Role.Index toRoleIndex() {
             return new Role.Index(indexPatterns, null, null, null, allowedActions);
         }
 
@@ -290,11 +287,12 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     }
 
     public static class TenantPermissions implements Writeable, ToXContentObject, Serializable {
-        public static final ImmutableList<TenantPermissions> ALL = ImmutableList.of(new TenantPermissions(WILDCARD_TEMPLATE_PATTERN_LIST, WILDCARD_LIST));
+        public static final ImmutableList<TenantPermissions> ALL = ImmutableList
+                .of(new TenantPermissions(WILDCARD_TEMPLATE_PATTERN_LIST, WILDCARD_LIST));
 
         private static final long serialVersionUID = 170036537583928629L;
         private ImmutableList<Template<Pattern>> tenantPatterns;
-        
+
         private ImmutableList<String> allowedActions;
 
         TenantPermissions(ImmutableList<Template<Pattern>> tenantPatterns, ImmutableList<String> allowedActions) {
@@ -398,7 +396,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         ExcludedIndexPermissions(StreamInput in) throws IOException {
-            this.indexPatterns =  ImmutableList.map(in.readStringList(), (s) -> {
+            this.indexPatterns = ImmutableList.map(in.readStringList(), (s) -> {
                 try {
                     return new Template<>(s, Pattern::create);
                 } catch (ConfigValidationException e) {
@@ -471,7 +469,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                 return false;
             return true;
         }
-        
+
         Role.ExcludeIndex toRoleExcludeIndex() {
             return new Role.ExcludeIndex(indexPatterns, actions);
         }
@@ -488,11 +486,21 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
         RequestedPrivileges result = new RequestedPrivileges();
 
-        result.clusterPermissions = vJsonNode.hasNonNull("cluster_permissions") ? ImmutableList.of(vJsonNode.get("cluster_permissions").asListOfStrings()) : null;
-        result.indexPermissions =   vJsonNode.hasNonNull("index_permissions") ? ImmutableList.of(vJsonNode.get("index_permissions").asList(IndexPermissions::parse)) : null;
-        result.tenantPermissions = vJsonNode.hasNonNull("tenant_permissions") ? ImmutableList.of(vJsonNode.get("tenant_permissions").asList(TenantPermissions::parse)) : null;
-        result.excludedClusterPermissions = vJsonNode.hasNonNull("exclude_cluster_permissions") ? ImmutableList.of(vJsonNode.get("exclude_cluster_permissions").asListOfStrings()) : null;
-        result.excludedIndexPermissions =  vJsonNode.hasNonNull("exclude_index_permissions") ? ImmutableList.of(vJsonNode.get("exclude_index_permissions").asList(ExcludedIndexPermissions::parse)) : null;
+        result.clusterPermissions = vJsonNode.hasNonNull("cluster_permissions")
+                ? ImmutableList.of(vJsonNode.get("cluster_permissions").asListOfStrings())
+                : null;
+        result.indexPermissions = vJsonNode.hasNonNull("index_permissions")
+                ? ImmutableList.of(vJsonNode.get("index_permissions").asList(IndexPermissions::parse))
+                : null;
+        result.tenantPermissions = vJsonNode.hasNonNull("tenant_permissions")
+                ? ImmutableList.of(vJsonNode.get("tenant_permissions").asList(TenantPermissions::parse))
+                : null;
+        result.excludedClusterPermissions = vJsonNode.hasNonNull("exclude_cluster_permissions")
+                ? ImmutableList.of(vJsonNode.get("exclude_cluster_permissions").asListOfStrings())
+                : null;
+        result.excludedIndexPermissions = vJsonNode.hasNonNull("exclude_index_permissions")
+                ? ImmutableList.of(vJsonNode.get("exclude_index_permissions").asList(ExcludedIndexPermissions::parse))
+                : null;
         result.roles = vJsonNode.hasNonNull("roles") ? ImmutableList.of(vJsonNode.get("roles").asListOfStrings()) : null;
 
         validationErrors.throwExceptionForPresentErrors();

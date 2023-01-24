@@ -1,19 +1,23 @@
 /*
- * Copyright 2016-2021 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2021 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.saml;
 
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchsupport.PrivilegedCode;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.onelogin.saml2.settings.Saml2Settings;
+import com.onelogin.saml2.settings.SettingsBuilder;
 import java.net.URI;
 import java.time.Duration;
 import java.util.AbstractMap;
@@ -24,7 +28,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
+import net.shibboleth.utilities.java.support.resolver.CriteriaSet;
+import net.shibboleth.utilities.java.support.resolver.ResolverException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
@@ -41,16 +46,6 @@ import org.opensaml.saml.saml2.metadata.SingleSignOnService;
 import org.opensaml.security.credential.UsageType;
 import org.opensaml.xmlsec.signature.X509Certificate;
 import org.opensaml.xmlsec.signature.X509Data;
-
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.floragunn.searchsupport.PrivilegedCode;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.onelogin.saml2.settings.Saml2Settings;
-import com.onelogin.saml2.settings.SettingsBuilder;
-
-import net.shibboleth.utilities.java.support.resolver.CriteriaSet;
-import net.shibboleth.utilities.java.support.resolver.ResolverException;
 
 public class Saml2SettingsProvider {
     protected final static Logger log = LogManager.getLogger(Saml2SettingsProvider.class);
@@ -74,7 +69,8 @@ public class Saml2SettingsProvider {
             Map<String, Object> details = new LinkedHashMap<>();
 
             if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver) {
-                details.put("last_successful_refresh", String.valueOf(((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh()));
+                details.put("last_successful_refresh",
+                        String.valueOf(((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh()));
             }
 
             if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver

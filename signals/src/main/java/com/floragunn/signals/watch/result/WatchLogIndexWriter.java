@@ -1,5 +1,23 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.signals.watch.result;
 
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.signals.settings.SignalsSettings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -13,9 +31,6 @@ import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
-
-import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.signals.settings.SignalsSettings;
 
 /**
  * TODO maybe integrate this with scheduler framework? We won't get logs right now if something
@@ -68,7 +83,7 @@ public class WatchLogIndexWriter implements WatchLogWriter {
 
             if (syncIndexing) {
                 IndexResponse response = client.index(indexRequest).actionGet();
-                
+
                 if (log.isDebugEnabled()) {
                     log.debug("Completed sync writing WatchLog: " + watchLog + "\n" + Strings.toString(response));
                 }

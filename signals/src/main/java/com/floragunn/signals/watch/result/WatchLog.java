@@ -14,9 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.result;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.signals.execution.WatchExecutionContextData;
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.Instant;
@@ -25,7 +29,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
@@ -33,22 +36,15 @@ import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.signals.execution.WatchExecutionContextData;
-
 public class WatchLog implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(WatchLog.class);
 
     private static final DateFormatter DATE_FORMATTER = DateFormatter.forPattern("strict_date_time").withZone(ZoneOffset.UTC);
 
     public enum ToXContentParams {
-        INCLUDE_DATA,
-        INCLUDE_RUNTIME_ATTRIBUTES
+        INCLUDE_DATA, INCLUDE_RUNTIME_ATTRIBUTES
     }
-    
+
     private String id;
 
     private String tenant;
@@ -127,11 +123,11 @@ public class WatchLog implements ToXContentObject {
         builder.startObject();
         builder.field("tenant", tenant);
         builder.field("watch_id", watchId);
-        
+
         if (watchVersion > 0) {
             builder.field("watch_version", watchVersion);
         }
-        
+
         builder.field("status", status);
 
         if (error != null) {
@@ -148,15 +144,15 @@ public class WatchLog implements ToXContentObject {
         if (params.paramAsBoolean(ToXContentParams.INCLUDE_RUNTIME_ATTRIBUTES.name(), false)) {
             builder.field("runtime_attributes", runtimeAttributes);
         }
-        
-        builder.startArray("actions");  
+
+        builder.startArray("actions");
         for (ActionLog actionLog : actions) {
             actionLog.toXContent(builder, params);
         }
         builder.endArray();
 
         if (resolveActions != null && resolveActions.size() > 0) {
-            builder.startArray("resolve_actions");        
+            builder.startArray("resolve_actions");
             for (ActionLog actionLog : resolveActions) {
                 actionLog.toXContent(builder, params);
             }
@@ -192,7 +188,7 @@ public class WatchLog implements ToXContentObject {
         if (jsonNode.hasNonNull("watch_id")) {
             result.watchId = jsonNode.getAsString("watch_id");
         }
-        
+
         if (jsonNode.hasNonNull("watch_version")) {
             try {
                 result.watchVersion = jsonNode.getNumber("watch_version").longValue();
@@ -206,19 +202,19 @@ public class WatchLog implements ToXContentObject {
         }
 
         if (jsonNode.hasNonNull("execution_start")) {
-            // XXX 
+            // XXX
             result.executionStart = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("execution_start"))));
         }
 
         if (jsonNode.hasNonNull("execution_end")) {
-            // XXX 
+            // XXX
             result.executionFinished = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("execution_end"))));
         }
 
         if (jsonNode.hasNonNull("data")) {
             result.data = jsonNode.getAsNode("data").toMap();
         }
-        
+
         if (jsonNode.hasNonNull("runtime_attributes")) {
             result.runtimeAttributes = WatchExecutionContextData.create(jsonNode.getAsNode("runtime_attributes"));
         }
@@ -290,6 +286,5 @@ public class WatchLog implements ToXContentObject {
     public void setWatchVersion(long watchVersion) {
         this.watchVersion = watchVersion;
     }
-
 
 }

@@ -1,10 +1,20 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchguard.configuration;
-
-import java.util.HashSet;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
@@ -12,6 +22,10 @@ import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.support.ConfigConstants;
+import java.util.HashSet;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.settings.Settings;
 
 public class StaticSgConfig {
     private static final Logger log = LogManager.getLogger(StaticSgConfig.class);
@@ -35,11 +49,11 @@ public class StaticSgConfig {
 
     public <T> SgDynamicConfiguration<T> addTo(SgDynamicConfiguration<T> original) {
         SgDynamicConfiguration<T> staticConfig = get(original);
-        
+
         if (staticConfig.getCEntries().isEmpty()) {
             return original;
         }
-        
+
         checkForOverriddenEntries(original, staticConfig);
 
         SgDynamicConfiguration<T> result = original.with(staticConfig.getCEntries());
@@ -47,7 +61,7 @@ public class StaticSgConfig {
         if (log.isDebugEnabled()) {
             log.debug(staticConfig.getCEntries().size() + " static " + original.getCType().toLCString() + " loaded");
         }
-        
+
         return result;
     }
 
@@ -63,11 +77,11 @@ public class StaticSgConfig {
             return SgDynamicConfiguration.empty(original.getCType());
         }
     }
-    
+
     private void checkForOverriddenEntries(SgDynamicConfiguration<?> original, SgDynamicConfiguration<?> staticConfig) {
         HashSet<String> overridenKeys = new HashSet<>(staticConfig.getCEntries().keySet());
         overridenKeys.retainAll(original.getCEntries().keySet());
-        
+
         if (!overridenKeys.isEmpty()) {
             log.warn("The " + original.getCType().toLCString()
                     + " config tries to override static configuration. This is not possible. Affected config keys: " + overridenKeys + "; type: "

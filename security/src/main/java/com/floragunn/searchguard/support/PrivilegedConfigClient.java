@@ -14,9 +14,11 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.support;
 
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
+import com.floragunn.searchsupport.diag.LogContextPreservingActionListener;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
@@ -26,16 +28,12 @@ import org.elasticsearch.client.FilterClient;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 
-import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.searchsupport.diag.DiagnosticContext;
-import com.floragunn.searchsupport.diag.LogContextPreservingActionListener;
-
 public final class PrivilegedConfigClient extends FilterClient {
-    
+
     private PrivilegedConfigClient(Client in) {
         super(in);
     }
-    
+
     public static PrivilegedConfigClient adapt(Client client) {
         if (client instanceof PrivilegedConfigClient) {
             return (PrivilegedConfigClient) client;
@@ -46,9 +44,10 @@ public final class PrivilegedConfigClient extends FilterClient {
 
     @Override
     protected <Request extends ActionRequest, Response extends ActionResponse> void doExecute(ActionType<Response> action, Request request,
-                                                                                              ActionListener<Response> listener) {
+            ActionListener<Response> listener) {
         ThreadContext threadContext = threadPool().getThreadContext();
-        LogContextPreservingActionListener<Response> wrappedListener = LogContextPreservingActionListener.wrapPreservingContext(listener, threadContext);
+        LogContextPreservingActionListener<Response> wrappedListener = LogContextPreservingActionListener.wrapPreservingContext(listener,
+                threadContext);
         String actionStack = DiagnosticContext.getActionStack(threadContext);
         Object user = threadContext.getTransient(ConfigConstants.SG_USER);
         Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
@@ -66,7 +65,7 @@ public final class PrivilegedConfigClient extends FilterClient {
             if (remoteAddress != null) {
                 threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
             }
-            
+
             if (origin != null) {
                 threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
             }
@@ -75,7 +74,7 @@ public final class PrivilegedConfigClient extends FilterClient {
                 threadContext.putHeader(DiagnosticContext.ACTION_STACK_HEADER, actionStack);
                 DiagnosticContext.fixupLoggingContext(threadContext);
             }
-            
+
             super.doExecute(action, request, wrappedListener);
         }
     }

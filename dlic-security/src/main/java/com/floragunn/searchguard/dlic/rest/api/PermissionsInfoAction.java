@@ -1,26 +1,33 @@
 /*
- * Copyright 2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.dlic.rest.api;
 
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authz.AuthorizationService;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
+import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -36,19 +43,8 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authz.AuthorizationService;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-import com.google.common.collect.ImmutableList;
-
 /**
- * Provides the evaluated REST API permissions for the currently logged in user 
+ * Provides the evaluated REST API permissions for the currently logged in user
  */
 public class PermissionsInfoAction extends BaseRestHandler {
 
@@ -105,13 +101,14 @@ public class PermissionsInfoAction extends BaseRestHandler {
                     SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = null;
 
                     if (specialPrivilegesEvaluationContextProviderRegistry != null) {
-                        specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.provide(user, threadPool.getThreadContext());
+                        specialPrivilegesEvaluationContext = specialPrivilegesEvaluationContextProviderRegistry.provide(user,
+                                threadPool.getThreadContext());
                     }
 
                     TransportAddress remoteAddress;
                     Set<String> userRoles;
                     boolean hasApiAccess = true;
-                    
+
                     if (specialPrivilegesEvaluationContext == null) {
                         remoteAddress = (TransportAddress) threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
                         userRoles = authorizationService.getMappedRoles(user, remoteAddress);
@@ -123,10 +120,8 @@ public class PermissionsInfoAction extends BaseRestHandler {
                         hasApiAccess = specialPrivilegesEvaluationContext.isSgConfigRestApiAllowed();
                     }
 
-                    
                     hasApiAccess = hasApiAccess && restApiPrivilegesEvaluator.currentUserHasRestApiAccess(userRoles);
-                    Map<Endpoint, List<Method>> disabledEndpoints = restApiPrivilegesEvaluator.getDisabledEndpointsForCurrentUser(user,
-                            userRoles);
+                    Map<Endpoint, List<Method>> disabledEndpoints = restApiPrivilegesEvaluator.getDisabledEndpointsForCurrentUser(user, userRoles);
 
                     builder.startObject();
                     builder.field("user", user == null ? null : user.toString());

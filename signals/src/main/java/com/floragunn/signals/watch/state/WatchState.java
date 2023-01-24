@@ -14,22 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.state;
-
-import java.io.IOException;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
@@ -42,6 +27,18 @@ import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.action.invokers.AlertAction;
 import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.severity.SeverityLevel;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class WatchState implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(WatchState.class);

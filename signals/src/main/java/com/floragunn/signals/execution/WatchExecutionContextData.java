@@ -14,9 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.execution;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
+import com.floragunn.signals.support.NestedValueMap;
+import com.floragunn.signals.watch.severity.SeverityMapping;
 import java.io.IOException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -24,17 +27,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.script.JodaCompatibleZonedDateTime;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
-import com.floragunn.signals.support.NestedValueMap;
-import com.floragunn.signals.watch.severity.SeverityMapping;
 
 public class WatchExecutionContextData implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(WatchExecutionContextData.class);
@@ -50,7 +47,7 @@ public class WatchExecutionContextData implements ToXContentObject {
         this.data = new NestedValueMap();
         this.triggerInfo = new TriggerInfo();
     }
-    
+
     public WatchExecutionContextData(WatchInfo watch) {
         this.data = new NestedValueMap();
         this.triggerInfo = new TriggerInfo();

@@ -14,15 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.session;
-
-import java.net.URI;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -40,6 +32,12 @@ import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import java.net.URI;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfig>, Destroyable {
 

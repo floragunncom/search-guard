@@ -1,10 +1,10 @@
 /*
  * Copyright 2020-2021 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,25 +12,22 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.signals.watch.common;
 
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidatingDocNode;
 
 public class HttpClientConfig extends WatchElement {
     private final Integer connectionTimeoutSecs;
@@ -68,28 +65,28 @@ public class HttpClientConfig extends WatchElement {
         HttpClientBuilder clientBuilder = HttpClients.custom().setDefaultRequestConfig(config);
 
         clientBuilder.useSystemProperties();
-        
+
         // If no password is set, don't ask other components in the system for credentials
         clientBuilder.setDefaultCredentialsProvider(null);
 
         if (tlsConfig != null) {
             clientBuilder.setSSLSocketFactory(tlsConfig.toSSLConnectionSocketFactory());
         }
-        
+
         HttpHost proxy = null;
-        
+
         if (defaultProxyConfig != null) {
             proxy = defaultProxyConfig.getProxy();
         }
-        
-        if (proxyConfig != null) {            
+
+        if (proxyConfig != null) {
             if (proxyConfig.getType() == HttpProxyConfig.Type.USE_SPECIFIC_PROXY) {
                 proxy = proxyConfig.getProxy();
             } else if (proxyConfig.getType() == HttpProxyConfig.Type.USE_NO_PROXY) {
                 proxy = null;
             }
         }
-    
+
         if (proxy != null) {
             clientBuilder.setProxy(proxy);
         }
@@ -121,7 +118,7 @@ public class HttpClientConfig extends WatchElement {
         if (tlsConfig != null) {
             builder.field("tls", tlsConfig);
         }
-        
+
         if (proxyConfig != null && proxyConfig.getType() != HttpProxyConfig.Type.USE_DEFAULT_PROXY) {
             builder.field("proxy");
             proxyConfig.toXContent(builder, params);
@@ -145,7 +142,7 @@ public class HttpClientConfig extends WatchElement {
         if (jsonObject.hasNonNull("connection_timeout")) {
             connectionTimeout = jsonObject.get("connection_timeout").asInteger();
         }
-        
+
         tlsConfig = jsonObject.get("tls").by(TlsConfig::create);
         proxyConfig = jsonObject.get("proxy").byString(HttpProxyConfig::create);
 
@@ -159,6 +156,5 @@ public class HttpClientConfig extends WatchElement {
     public HttpProxyConfig getProxyConfig() {
         return proxyConfig;
     }
-    
-    
+
 }

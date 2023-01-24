@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,7 +10,6 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.dlic.rest.validation;
 
 import org.elasticsearch.common.bytes.BytesReference;

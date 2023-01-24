@@ -14,9 +14,16 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -24,7 +31,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -59,15 +65,6 @@ import org.elasticsearch.xcontent.XContentBuilder;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 
 public class SearchGuardInterceptorIntegrationTests {
 

@@ -14,27 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.severity;
-
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.logging.log4j.util.Strings;
-import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptContext;
-import org.elasticsearch.script.ScriptException;
-import org.elasticsearch.script.ScriptType;
-import org.elasticsearch.xcontent.ToXContent;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -46,6 +26,23 @@ import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchOperationExecutionException;
 import com.floragunn.signals.script.SignalsScript;
 import com.floragunn.signals.watch.init.WatchInitializationService;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.logging.log4j.util.Strings;
+import org.elasticsearch.script.Script;
+import org.elasticsearch.script.ScriptContext;
+import org.elasticsearch.script.ScriptException;
+import org.elasticsearch.script.ScriptType;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class SeverityMapping implements ToXContentObject {
 

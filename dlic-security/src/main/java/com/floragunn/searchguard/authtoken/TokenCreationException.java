@@ -1,17 +1,15 @@
 /*
- * Copyright 2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken;
 
 import org.elasticsearch.rest.RestStatus;
@@ -19,7 +17,7 @@ import org.elasticsearch.rest.RestStatus;
 public class TokenCreationException extends Exception {
 
     private static final long serialVersionUID = -47600121877964762L;
-    
+
     private RestStatus restStatus;
 
     public TokenCreationException(String message, RestStatus restStatus, Throwable cause) {
@@ -31,8 +29,7 @@ public class TokenCreationException extends Exception {
         super(message);
         this.restStatus = restStatus;
     }
-    
-    
+
     public RestStatus getRestStatus() {
         return restStatus;
     }
@@ -40,7 +37,5 @@ public class TokenCreationException extends Exception {
     public void setRestStatus(RestStatus restStatus) {
         this.restStatus = restStatus;
     }
-
-
 
 }

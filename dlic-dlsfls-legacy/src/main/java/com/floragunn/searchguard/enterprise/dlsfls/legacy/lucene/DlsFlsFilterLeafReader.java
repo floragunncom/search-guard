@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,7 +10,6 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy.lucene;
 
 //This implementation is based on
@@ -19,6 +17,21 @@ package com.floragunn.searchguard.enterprise.dlsfls.legacy.lucene;
 //https://github.com/apache/lucene-solr/blob/branch_6_3/lucene/misc/src/java/org/apache/lucene/index/PKIndexSplitter.java
 //https://github.com/salyh/elasticsearch-security-plugin/blob/4b53974a43b270ae77ebe79d635e2484230c9d01/src/main/java/org/elasticsearch/plugins/security/filter/DlsWriteFilter.java
 
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsFlsComplianceConfig;
+import com.floragunn.searchguard.enterprise.dlsfls.legacy.MaskedField;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
+import com.floragunn.searchguard.support.SgUtils;
+import com.floragunn.searchguard.support.WildcardMatcher;
+import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
+import com.google.common.base.Joiner;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,8 +42,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-
-import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.StoredFieldsReader;
@@ -78,21 +89,6 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
-
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsFlsComplianceConfig;
-import com.floragunn.searchguard.enterprise.dlsfls.legacy.MaskedField;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.HeaderHelper;
-import com.floragunn.searchguard.support.SgUtils;
-import com.floragunn.searchguard.support.WildcardMatcher;
-import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterators;
 
 class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
     private static final Logger log = LogManager.getLogger(DlsFlsFilterLeafReader.class);
@@ -379,7 +375,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         /* TODO
         if(complianceConfig != null && complianceConfig.readHistoryEnabledForIndex(indexService.index().getName())) {
             final ComplianceAwareStoredFieldVisitor cv = new ComplianceAwareStoredFieldVisitor(visitor);
-            
+        
             if(flsEnabled) {
                 in.document(docID, new FlsStoredFieldVisitor(maskFields?new HashingStoredFieldVisitor(cv):cv));
             } else {
@@ -521,13 +517,12 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
                 MapUtils.deepTraverseMap(filteredSource, HASH_CB);
                 final XContentBuilder xBuilder = XContentBuilder.builder(bytesRefTuple.v1().xContent()).map(filteredSource);
 
-                if(delegate instanceof MaskedFieldsConsumer) {
-                    ((MaskedFieldsConsumer)delegate).binaryMaskedField(fieldInfo, BytesReference.toBytes(BytesReference.bytes(xBuilder)),
+                if (delegate instanceof MaskedFieldsConsumer) {
+                    ((MaskedFieldsConsumer) delegate).binaryMaskedField(fieldInfo, BytesReference.toBytes(BytesReference.bytes(xBuilder)),
                             (f) -> maskedFieldsKeySet != null && WildcardMatcher.getFirstMatchingPattern(maskedFieldsKeySet, f).isPresent());
                 } else {
                     delegate.binaryField(fieldInfo, BytesReference.toBytes(BytesReference.bytes(xBuilder)));
                 }
-
 
             } else {
                 delegate.binaryField(fieldInfo, value);
@@ -550,12 +545,11 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             final Optional<String> matchedPattern = WildcardMatcher.getFirstMatchingPattern(maskedFieldsKeySet, fieldInfo.name);
 
             if (matchedPattern.isPresent()) {
-                if(delegate instanceof MaskedFieldsConsumer) {
-                    ((MaskedFieldsConsumer)delegate).stringMaskedField(fieldInfo, maskedFieldsMap.get(matchedPattern.get()).mask(value));
+                if (delegate instanceof MaskedFieldsConsumer) {
+                    ((MaskedFieldsConsumer) delegate).stringMaskedField(fieldInfo, maskedFieldsMap.get(matchedPattern.get()).mask(value));
                 } else {
                     delegate.stringField(fieldInfo, maskedFieldsMap.get(matchedPattern.get()).mask(value));
                 }
-
 
             } else {
                 delegate.stringField(fieldInfo, value);
@@ -1028,7 +1022,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
             if (delegateStatus != SeekStatus.END && isFls((in.term()))) {
                 return delegateStatus;
             } else if (delegateStatus == SeekStatus.END) {
-                //If we hit the end just return END 
+                //If we hit the end just return END
                 return SeekStatus.END;
             } else {
                 //If we are not at the end and the current term (=field name) is not allowed just check if
@@ -1060,7 +1054,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
 
     private final class FilteredTerms extends FilterTerms {
 
-        //According to 
+        //According to
         //https://www.elastic.co/guide/en/elasticsearch/reference/6.8/mapping-field-names-field.html
         //"The _field_names field used to index the names of every field in a document that contains any value other than null"
         //"For fields which have either doc_values or norm enabled the exists query will still be available but will not use the _field_names field."

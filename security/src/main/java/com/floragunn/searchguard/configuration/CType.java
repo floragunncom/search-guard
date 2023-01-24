@@ -14,16 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.configuration;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
@@ -41,13 +32,20 @@ import com.floragunn.searchguard.authz.config.RoleMapping;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.variables.ConfigVar;
 import com.floragunn.searchguard.license.SearchGuardLicenseKey;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Defines the types of configuration that Search Guard can manage.
- * 
- * IMPORTANT: Do not change the ord attribute. It stems from the time when this type was an enum. 
+ *
+ * IMPORTANT: Do not change the ord attribute. It stems from the time when this type was an enum.
  * The attribute is used for ES transport message serialization. Changing it might make rolling updates impossible.
- * 
+ *
  */
 public class CType<T> {
 

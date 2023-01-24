@@ -1,25 +1,25 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
+import com.floragunn.codova.config.net.ProxyConfig;
+import com.floragunn.codova.config.net.TLSConfig;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import java.io.IOException;
 import java.net.URI;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.http.HttpEntity;
@@ -32,10 +32,6 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.elasticsearch.SpecialPermission;
-
-import com.floragunn.codova.config.net.ProxyConfig;
-import com.floragunn.codova.config.net.TLSConfig;
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 
 public class JwksProviderClient {
 

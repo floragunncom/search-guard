@@ -1,6 +1,5 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,24 +10,22 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls;
-
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class DlsWriteIntTest {
     static final TestSgConfig.User ADMIN = new TestSgConfig.User("admin")
             .roles(new Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
-    static final TestSgConfig.User DLS_USER = new TestSgConfig.User("dls_user")
-            .roles(new Role("role").indexPermissions("SGS_MANAGE", "SGS_CRUD").dls(DocNode.of("term.dept.value", "dept_d")).on("dls_*").clusterPermissions("*"));
+    static final TestSgConfig.User DLS_USER = new TestSgConfig.User("dls_user").roles(new Role("role").indexPermissions("SGS_MANAGE", "SGS_CRUD")
+            .dls(DocNode.of("term.dept.value", "dept_d")).on("dls_*").clusterPermissions("*"));
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx").metrics("detailed");

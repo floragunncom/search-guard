@@ -1,6 +1,5 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,19 +10,7 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog;
-
-import java.io.IOException;
-import java.util.Collection;
-import java.util.function.Function;
-
-import org.apache.lucene.index.DirectoryReader;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.core.CheckedFunction;
-import org.elasticsearch.env.Environment;
-import org.elasticsearch.index.IndexService;
-import org.elasticsearch.index.shard.IndexingOperationListener;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.BaseDependencies;
@@ -32,6 +19,15 @@ import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.enterprise.auditlog.access_log.read.ReadLogDirectoryReaderWrapper;
 import com.floragunn.searchguard.enterprise.auditlog.access_log.write.ComplianceIndexingOperationListenerImpl;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditLogImpl;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.function.Function;
+import org.apache.lucene.index.DirectoryReader;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.CheckedFunction;
+import org.elasticsearch.env.Environment;
+import org.elasticsearch.index.IndexService;
+import org.elasticsearch.index.shard.IndexingOperationListener;
 
 public class AuditLogModule implements SearchGuardModule {
 
@@ -76,7 +72,7 @@ public class AuditLogModule implements SearchGuardModule {
 
     /**
      * Logs external configs like elasticsearch.yml, env vars etc.
-     * 
+     *
      * Usually only done once per startup, after the license has become available.
      */
     private void logExternalConfig(Settings settings, Environment environment) {

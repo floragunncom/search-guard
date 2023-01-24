@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authz.config;
 
 import com.floragunn.codova.config.text.Pattern;
@@ -109,8 +108,8 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
 
         String fieldAnonymizationSalt = vNode.get("dynamic.field_anonymization_salt2").asString();
 
-        // Note: We do not convert dynamic.do_not_fail_on_forbidden to ignoreUnauthorizedIndices any more. 
-        // It is now VERY strongly recommended to turn ignoreUnauthorizedIndices on in any case. Turning it off may have cause many 
+        // Note: We do not convert dynamic.do_not_fail_on_forbidden to ignoreUnauthorizedIndices any more.
+        // It is now VERY strongly recommended to turn ignoreUnauthorizedIndices on in any case. Turning it off may have cause many
         // operations fail due to insufficient permissions, and may even break existing systems. As using sg_config with FLX
         // shall be only a transitive state, it is okay to force this setting to users during this time. Users still may switch it off
         // when having migrated to sg_authz.yml
@@ -161,7 +160,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
     }
 
     /**
-     * @deprecated only used for legacy config parsing 
+     * @deprecated only used for legacy config parsing
      */
     private static RoleMapping.ResolutionMode getRolesMappingResolution(StaticSettings settings) {
         try {

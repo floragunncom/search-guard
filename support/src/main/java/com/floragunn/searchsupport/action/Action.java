@@ -14,16 +14,22 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.action;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.UnparsedDocument;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.ImmutableMap;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
-
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -42,15 +48,6 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.UnparsedDocument;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.fluent.collections.ImmutableMap;
 
 public abstract class Action<RequestType extends Action.Request, ResponseType extends Action.Response> extends ActionType<ResponseType> {
 
@@ -105,10 +102,10 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         }
 
         @Override
-        public void writeTo(StreamOutput out) throws IOException {            
+        public void writeTo(StreamOutput out) throws IOException {
             out.writeByte((byte) 0);
             out.writeByte((byte) 0);
-            
+
             Map<String, Object> metaData = getMetaData();
 
             if (metaData != null && !metaData.isEmpty()) {
@@ -116,7 +113,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             } else {
                 out.writeMap((Map<String, Object>) null);
             }
-            
+
             Object basicObject = toBasicObject();
 
             if (basicObject != null) {
@@ -130,16 +127,16 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         public String getIfMatch() {
             return ifMatch;
         }
-        
+
         public Request ifMatch(String matchConcurrencyControlEntityTag) {
             this.ifMatch = matchConcurrencyControlEntityTag;
             return this;
         }
-        
+
         public String getIfNoneMatch() {
             return ifNoneMatch;
         }
-        
+
         public boolean mustNotExist() {
             return "*".equals(ifNoneMatch);
         }
@@ -148,16 +145,15 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             this.ifNoneMatch = ifNoneMatch;
             return this;
         }
-        
+
         protected Map<String, Object> getMetaData() {
             return ImmutableMap.ofNonNull("if-match", ifMatch, "if-none-match", ifNoneMatch);
         }
-        
+
         @Override
         public ActionRequestValidationException validate() {
             return null;
         }
-
 
     }
 
@@ -218,13 +214,12 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             this.concurrencyControlEntityTag = concurrencyControlEntityTag;
             return this;
         }
-        
+
         public Response eTag(String concurrencyControlEntityTag) {
             this.concurrencyControlEntityTag = concurrencyControlEntityTag;
             return this;
         }
-        
-        
+
         @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.value(this.toBasicObject());
@@ -278,7 +273,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         protected Executor getExecutor() {
             return executor;
         }
-        
+
         protected <U> CompletableFuture<U> supplyAsync(Supplier<U> supplier) {
             return CompletableFuture.supplyAsync(supplier, executor);
         }

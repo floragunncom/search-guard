@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -13,21 +12,6 @@
  */
 package com.floragunn.searchguard.enterprise.dlsfls.lucene;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayDeque;
-import java.util.Deque;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.StoredFieldVisitor;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.indices.IndicesModule;
-
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -37,6 +21,19 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
 import com.floragunn.searchsupport.dfm.MaskedFieldsConsumer;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.StoredFieldVisitor;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.indices.IndicesModule;
 
 /**
  * Applies FLS and field masking while reading documents

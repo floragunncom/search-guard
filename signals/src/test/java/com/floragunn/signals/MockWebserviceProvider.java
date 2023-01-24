@@ -14,9 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals;
 
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.google.common.base.Charsets;
+import com.google.common.io.CharStreams;
 import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -31,7 +34,6 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
@@ -39,7 +41,6 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
-
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
@@ -60,11 +61,6 @@ import org.apache.http.io.HttpMessageParserFactory;
 import org.apache.http.io.HttpMessageWriterFactory;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpRequestHandler;
-
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.google.common.base.Charsets;
-import com.google.common.io.CharStreams;
 
 public class MockWebserviceProvider implements Closeable {
 
@@ -149,7 +145,7 @@ public class MockWebserviceProvider implements Closeable {
         this.acceptConnectionsOnlyFromInetAddress = inetAddress;
         return this;
     }
-    
+
     public void start() throws IOException {
         httpServer.start();
     }
@@ -201,10 +197,10 @@ public class MockWebserviceProvider implements Closeable {
             try {
                 Thread.sleep(responseDelayMs);
             } catch (InterruptedException e) {
-               
+
             }
         }
-        
+
         response.setStatusCode(responseStatusCode);
         response.setHeader("Content-Type", responseContentType);
         response.setEntity(new ByteArrayEntity(responseBody));
@@ -215,7 +211,7 @@ public class MockWebserviceProvider implements Closeable {
         } else {
             lastRequestBody = null;
         }
-                
+
         requestCount.incrementAndGet();
     }
 
@@ -245,7 +241,7 @@ public class MockWebserviceProvider implements Closeable {
             throw new RuntimeException(e);
         }
     }
-    
+
     private boolean checkClientAddress(HttpRequest request, HttpResponse response, HttpContext context) throws UnsupportedEncodingException {
         HttpInetConnection connection = (HttpInetConnection) context.getAttribute("http.connection");
 
@@ -264,7 +260,6 @@ public class MockWebserviceProvider implements Closeable {
             return false;
         }
     }
-
 
     static class SSLTestHttpServerConnection extends DefaultBHttpServerConnection {
         public SSLTestHttpServerConnection(final int buffersize, final int fragmentSizeHint, final CharsetDecoder chardecoder,
@@ -292,7 +287,7 @@ public class MockWebserviceProvider implements Closeable {
         return responseBody;
     }
 
-    public void setResponseBody(String  responseBody) {
+    public void setResponseBody(String responseBody) {
         this.responseBody = responseBody.getBytes();
     }
 

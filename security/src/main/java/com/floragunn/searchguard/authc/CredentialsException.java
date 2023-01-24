@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc;
 
 import com.floragunn.searchguard.authc.base.AuthcResult;
@@ -52,10 +51,9 @@ public class CredentialsException extends Exception {
         super(debugInfo.getMessage());
         this.debugInfo = debugInfo;
     }
-    
+
     public AuthcResult.DebugInfo getDebugInfo() {
         return debugInfo;
     }
-    
 
 }

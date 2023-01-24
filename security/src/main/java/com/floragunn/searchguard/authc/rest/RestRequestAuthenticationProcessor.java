@@ -14,19 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.rest;
-
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.function.Consumer;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -44,6 +32,15 @@ import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.cache.Cache;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.function.Consumer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
 
 public class RestRequestAuthenticationProcessor extends RequestAuthenticationProcessor<HttpAuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(RestRequestAuthenticationProcessor.class);
@@ -53,13 +50,13 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
 
     private LinkedHashSet<String> challenges = new LinkedHashSet<>(2);
 
-    public RestRequestAuthenticationProcessor(RestHandler restHandler, RequestMetaData<RestRequest> request, 
-             Collection<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, AdminDNs adminDns,
+    public RestRequestAuthenticationProcessor(RestHandler restHandler, RequestMetaData<RestRequest> request,
+            Collection<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, AdminDNs adminDns,
             PrivilegesEvaluator privilegesEvaluator, Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache,
             AuditLog auditLog, BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners,
             List<String> requiredLoginPrivileges, boolean debug) {
-        super(request, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog,
-                blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, debug);
+        super(request, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog, blockedUserRegistry,
+                ipAuthFailureListeners, requiredLoginPrivileges, debug);
 
         this.restHandler = restHandler;
         this.request = request;

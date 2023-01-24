@@ -14,33 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.index.mapper.DateFieldMapper;
-import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
-import org.elasticsearch.xcontent.ToXContent;
-import org.elasticsearch.xcontent.ToXContentObject;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.json.JsonXContent;
-import org.quartz.Job;
-import org.quartz.JobKey;
-import org.quartz.Trigger;
 
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.documents.DocNode;
@@ -66,6 +40,29 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.index.mapper.DateFieldMapper;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.ToXContentObject;
+import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.json.JsonXContent;
+import org.quartz.Job;
+import org.quartz.JobKey;
+import org.quartz.Trigger;
 
 public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     private final static Logger log = LogManager.getLogger(Watch.class);
@@ -152,14 +149,14 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     public List<AlertAction> getActions() {
         return actions;
     }
-    
+
     public AlertAction getActionByName(String name) throws NoSuchActionException {
         for (AlertAction action : this.actions) {
             if (name.equals(action.getName())) {
                 return action;
             }
         }
-        
+
         throw new NoSuchActionException(getId(), name);
     }
 
@@ -434,7 +431,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         }
 
         result.schedule = vJsonNode.get("trigger").by((triggerNode) -> DefaultScheduleFactory.INSTANCE.create(jobKey, triggerNode));
-        
+
         try {
             if (vJsonNode.get("inputs").asAnything() instanceof List) {
                 result.checks = Check.create(ctx, (List<?>) jsonNode.get("inputs"));
@@ -528,7 +525,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         return result;
     }
-    
+
     public static Map<String, Object> getIndexMappingUpdate() {
         NestedValueMap result = new NestedValueMap();
 

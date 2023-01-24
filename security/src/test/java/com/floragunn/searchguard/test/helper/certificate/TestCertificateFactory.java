@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.certificate;
 
 import com.floragunn.searchguard.test.helper.certificate.asymmetricscryptography.AsymmetricCryptographyAlgorithm;
@@ -23,6 +22,15 @@ import com.floragunn.searchguard.test.helper.certificate.asymmetricscryptography
 import com.floragunn.searchguard.test.helper.certificate.utils.CertificateSerialNumberGenerator;
 import com.floragunn.searchguard.test.helper.certificate.utils.DnGenerator;
 import com.floragunn.searchguard.test.helper.certificate.utils.SubjectAlternativesNameGenerator;
+import java.math.BigInteger;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.Provider;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -35,16 +43,6 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
-
-import java.math.BigInteger;
-import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.Provider;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
 
 public class TestCertificateFactory {
 
@@ -85,18 +83,18 @@ public class TestCertificateFactory {
             KeyPair keyPair = asymmetricCryptographyAlgorithm.generateKeyPair();
             X500Name subjectName = DnGenerator.rootDn.apply(dn);
 
-            ContentSigner contentSigner = new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName()).setProvider(
-                    securityProvider).build(keyPair.getPrivate());
+            ContentSigner contentSigner = new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName())
+                    .setProvider(securityProvider).build(keyPair.getPrivate());
 
             Date validityStartDate = new Date(System.currentTimeMillis());
             Date validityEndDate = getEndDate(validityStartDate, validityDays);
             X509CertificateHolder x509CertificateHolder = new X509v3CertificateBuilder(subjectName, BigInteger.valueOf(1), validityStartDate,
-                    validityEndDate, subjectName, SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded())).addExtension(
-                            Extension.basicConstraints, true, new BasicConstraints(true)) // Mark this as root CA
-                    .addExtension(Extension.authorityKeyIdentifier, false, extUtils.createAuthorityKeyIdentifier(keyPair.getPublic()))
-                    .addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(keyPair.getPublic()))
-                    .addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyCertSign | KeyUsage.cRLSign))
-                    .build(contentSigner);
+                    validityEndDate, subjectName, SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded()))
+                            .addExtension(Extension.basicConstraints, true, new BasicConstraints(true)) // Mark this as root CA
+                            .addExtension(Extension.authorityKeyIdentifier, false, extUtils.createAuthorityKeyIdentifier(keyPair.getPublic()))
+                            .addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(keyPair.getPublic()))
+                            .addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyCertSign | KeyUsage.cRLSign))
+                            .build(contentSigner);
             return new CertificateWithKeyPair(x509CertificateHolder, keyPair);
         } catch (OperatorCreationException | CertIOException e) {
             log.error("Error while generating CA certificate", e);
@@ -106,23 +104,25 @@ public class TestCertificateFactory {
     }
 
     public CertificateWithKeyPair createClientCertificate(String dn, int validityDays, X509CertificateHolder signingCertificate,
-                                                          PrivateKey signingPrivateKey) {
+            PrivateKey signingPrivateKey) {
         try {
             KeyPair keyPair = asymmetricCryptographyAlgorithm.generateKeyPair();
             X500Name subjectName = DnGenerator.clientDn.apply(dn);
 
-            ContentSigner contentSigner = new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName()).setProvider(
-                    securityProvider).build(signingPrivateKey);
+            ContentSigner contentSigner = new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName())
+                    .setProvider(securityProvider).build(signingPrivateKey);
 
             Date validityStartDate = new Date(System.currentTimeMillis());
             Date validityEndDate = getEndDate(validityStartDate, validityDays);
             X509CertificateHolder x509CertificateHolder = new X509v3CertificateBuilder(signingCertificate.getSubject(),
                     CertificateSerialNumberGenerator.generateNextCertificateSerialNumber(), validityStartDate, validityEndDate, subjectName,
-                    SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded())).addExtension(Extension.authorityKeyIdentifier, false,
-                            extUtils.createAuthorityKeyIdentifier(signingCertificate))
-                    .addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(keyPair.getPublic()))
-                    .addExtension(Extension.basicConstraints, true, new BasicConstraints(false)).addExtension(Extension.keyUsage, true,
-                            new KeyUsage(KeyUsage.digitalSignature | KeyUsage.nonRepudiation | KeyUsage.keyEncipherment)).build(contentSigner);
+                    SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded()))
+                            .addExtension(Extension.authorityKeyIdentifier, false, extUtils.createAuthorityKeyIdentifier(signingCertificate))
+                            .addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(keyPair.getPublic()))
+                            .addExtension(Extension.basicConstraints, true, new BasicConstraints(false))
+                            .addExtension(Extension.keyUsage, true,
+                                    new KeyUsage(KeyUsage.digitalSignature | KeyUsage.nonRepudiation | KeyUsage.keyEncipherment))
+                            .build(contentSigner);
             return new CertificateWithKeyPair(x509CertificateHolder, keyPair);
         } catch (OperatorCreationException | CertIOException e) {
             log.error("Error while generating client certificate", e);
@@ -131,28 +131,30 @@ public class TestCertificateFactory {
     }
 
     public CertificateWithKeyPair createNodeCertificate(String dn, int validityDays, String nodeOid, List<String> dnsList, List<String> ipList,
-                                                        X509CertificateHolder signingCertificate, PrivateKey signingPrivateKey) {
+            X509CertificateHolder signingCertificate, PrivateKey signingPrivateKey) {
 
         try {
             KeyPair keyPair = asymmetricCryptographyAlgorithm.generateKeyPair();
             X500Name subjectName = DnGenerator.nodeDn.apply(dn);
 
-            ContentSigner contentSigner = new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName()).setProvider(
-                    securityProvider).build(signingPrivateKey);
+            ContentSigner contentSigner = new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName())
+                    .setProvider(securityProvider).build(signingPrivateKey);
 
             Date validityStartDate = new Date(System.currentTimeMillis());
             Date validityEndDate = getEndDate(validityStartDate, validityDays);
             X509CertificateHolder x509CertificateHolder = new X509v3CertificateBuilder(signingCertificate.getSubject(),
                     CertificateSerialNumberGenerator.generateNextCertificateSerialNumber(), validityStartDate, validityEndDate, subjectName,
-                    SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded())).addExtension(Extension.authorityKeyIdentifier, false,
-                            extUtils.createAuthorityKeyIdentifier(signingCertificate))
-                    .addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(keyPair.getPublic()))
-                    .addExtension(Extension.basicConstraints, true, new BasicConstraints(false)).addExtension(Extension.keyUsage, true,
-                            new KeyUsage(KeyUsage.digitalSignature | KeyUsage.nonRepudiation | KeyUsage.keyEncipherment))
-                    .addExtension(Extension.extendedKeyUsage, true,
-                            new ExtendedKeyUsage(new KeyPurposeId[]{KeyPurposeId.id_kp_serverAuth, KeyPurposeId.id_kp_clientAuth}))
-                    .addExtension(Extension.subjectAlternativeName, false,
-                            SubjectAlternativesNameGenerator.createSubjectAlternativeNameList(nodeOid, dnsList, ipList)).build(contentSigner);
+                    SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded()))
+                            .addExtension(Extension.authorityKeyIdentifier, false, extUtils.createAuthorityKeyIdentifier(signingCertificate))
+                            .addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(keyPair.getPublic()))
+                            .addExtension(Extension.basicConstraints, true, new BasicConstraints(false))
+                            .addExtension(Extension.keyUsage, true,
+                                    new KeyUsage(KeyUsage.digitalSignature | KeyUsage.nonRepudiation | KeyUsage.keyEncipherment))
+                            .addExtension(Extension.extendedKeyUsage, true,
+                                    new ExtendedKeyUsage(new KeyPurposeId[] { KeyPurposeId.id_kp_serverAuth, KeyPurposeId.id_kp_clientAuth }))
+                            .addExtension(Extension.subjectAlternativeName, false,
+                                    SubjectAlternativesNameGenerator.createSubjectAlternativeNameList(nodeOid, dnsList, ipList))
+                            .build(contentSigner);
             return new CertificateWithKeyPair(x509CertificateHolder, keyPair);
         } catch (OperatorCreationException | CertIOException e) {
             log.error("Error while generating node certificate", e);

@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2019 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,19 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.legacy;
 
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
+import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.legacy.test.SingleClusterTest;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
@@ -28,21 +36,11 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
-import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
-import com.floragunn.searchguard.legacy.test.RestHelper;
-import com.floragunn.searchguard.legacy.test.SingleClusterTest;
-import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-
 public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
 
-    @ClassRule 
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     public void testAdditionalAttributes(RestHelper restHelper, BasicHeader basicHeader) throws Exception {
         RestHelper.HttpResponse httpResponse = restHelper.executeGetRequest("_searchguard/authinfo", new BasicHeader("x-proxy-user", "scotty"),
                 new BasicHeader("x-proxy-roles", "starfleet,engineer"), basicHeader);
@@ -63,12 +61,12 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
         httpResponse = restHelper.executeGetRequest("_searchguard/authinfo", new BasicHeader("x-proxy-user", "scotty"),
                 new BasicHeader("x-proxy-roles", "starfleet,engineer"), basicHeader, new BasicHeader("x-proxy-attribute-1", "attributeValue1"),
                 new BasicHeader("x-proxy-attribute-2", "attributeValue2"));
-        Assert.assertTrue("Expected 'attribute-1' and 'attribute-2' to be set for user'" + httpResponse.getBody(), httpResponse.getBody().contains(
-                "attr.proxy2.x-proxy-attribute-1"));
-        Assert.assertTrue("Expected 'attribute-1' and 'attribute-2' to be set for user'" + httpResponse.getBody(), httpResponse.getBody().contains(
-                "attr.proxy2.x-proxy-attribute-2"));
-        Assert.assertTrue("Expected 'attribute-1' and 'attribute-2' to be set for user'" + httpResponse.getBody(), httpResponse.getBody().contains(
-                "attr.proxy2.username"));
+        Assert.assertTrue("Expected 'attribute-1' and 'attribute-2' to be set for user'" + httpResponse.getBody(),
+                httpResponse.getBody().contains("attr.proxy2.x-proxy-attribute-1"));
+        Assert.assertTrue("Expected 'attribute-1' and 'attribute-2' to be set for user'" + httpResponse.getBody(),
+                httpResponse.getBody().contains("attr.proxy2.x-proxy-attribute-2"));
+        Assert.assertTrue("Expected 'attribute-1' and 'attribute-2' to be set for user'" + httpResponse.getBody(),
+                httpResponse.getBody().contains("attr.proxy2.username"));
         Assert.assertTrue("Expected 'attribute-1' and 'attribute-2' to be set for user'" + httpResponse.getBody(),
                 httpResponse.toJsonNode().get("custom_attribute_names").size() == 3);
         Assert.assertEquals(HttpStatus.SC_OK, httpResponse.getStatusCode());
@@ -111,8 +109,9 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
 
         try (Client tc = getPrivilegedInternalNodeClient()) {
 
-            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
-                    XContentType.JSON)).actionGet();
+            tc.index(
+                    new IndexRequest("vulcangov").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                    .actionGet();
 
             ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE,
                     new ConfigUpdateRequest(new String[] { "config", "roles", "rolesmapping", "internalusers", "actiongroups" })).actionGet();

@@ -1,12 +1,37 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.signals.watch.common;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.signals.execution.WatchExecutionContext;
+import com.floragunn.signals.execution.WatchExecutionException;
+import com.floragunn.signals.watch.common.HttpEndpointWhitelist.NotWhitelistedException;
+import com.floragunn.signals.watch.common.auth.Auth;
+import com.floragunn.signals.watch.common.auth.BasicAuth;
+import com.floragunn.signals.watch.init.WatchInitializationService;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Base64;
 import java.util.Map;
-
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
@@ -22,17 +47,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.script.TemplateScript;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidatingDocNode;
-import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.signals.execution.WatchExecutionContext;
-import com.floragunn.signals.execution.WatchExecutionException;
-import com.floragunn.signals.watch.common.HttpEndpointWhitelist.NotWhitelistedException;
-import com.floragunn.signals.watch.common.auth.Auth;
-import com.floragunn.signals.watch.common.auth.BasicAuth;
-import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class HttpRequestConfig extends WatchElement implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(HttpRequestConfig.class);
@@ -270,8 +284,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         return builder;
     }
 
-    public static HttpRequestConfig create(WatchInitializationService watchInitService, DocNode objectNode)
-            throws ConfigValidationException {
+    public static HttpRequestConfig create(WatchInitializationService watchInitService, DocNode objectNode) throws ConfigValidationException {
         HttpRequestConfig result = createWithoutCompilation(objectNode);
 
         result.compileScripts(watchInitService);

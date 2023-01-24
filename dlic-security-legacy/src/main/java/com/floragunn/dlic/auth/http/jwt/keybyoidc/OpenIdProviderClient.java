@@ -1,19 +1,21 @@
 /*
- * Copyright 2016-2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
+import com.floragunn.codova.config.net.ProxyConfig;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfig;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import java.io.IOException;
 import java.net.URI;
 import java.security.AccessController;
@@ -23,7 +25,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.http.HttpEntity;
@@ -51,11 +52,6 @@ import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
-
-import com.floragunn.codova.config.net.ProxyConfig;
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfig;
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(OpenIdProviderClient.class);
@@ -117,13 +113,15 @@ public class OpenIdProviderClient {
                         StatusLine statusLine = response.getStatusLine();
 
                         if (statusLine.getStatusCode() < 200 || statusLine.getStatusCode() >= 300) {
-                            throw new AuthenticatorUnavailableException("IdP error", "Error while getting " + openIdConnectEndpoint + ": " + statusLine);
+                            throw new AuthenticatorUnavailableException("IdP error",
+                                    "Error while getting " + openIdConnectEndpoint + ": " + statusLine);
                         }
 
                         HttpEntity httpEntity = response.getEntity();
 
                         if (httpEntity == null) {
-                            throw new AuthenticatorUnavailableException("IdP error", "Error while getting " + openIdConnectEndpoint + ": Empty response entity");
+                            throw new AuthenticatorUnavailableException("IdP error",
+                                    "Error while getting " + openIdConnectEndpoint + ": Empty response entity");
                         }
 
                         return new OidcProviderConfig(DocReader.json().readObject(httpEntity.getContent()));
@@ -228,14 +226,14 @@ public class OpenIdProviderClient {
                         String responseBody = EntityUtils.toString(response.getEntity());
 
                         if (response.getStatusLine().getStatusCode() >= 300 || response.getStatusLine().getStatusCode() < 200) {
-                            throw new AuthenticatorUnavailableException("IdP error", 
+                            throw new AuthenticatorUnavailableException("IdP error",
                                     "Error response from token endpoint:\n" + response.getStatusLine() + "\n" + responseBody);
                         }
 
                         Map<String, Object> responseJsonBody = DocReader.json().readObject(responseBody);
 
                         return new TokenResponse(responseJsonBody);
-                        
+
                     }
                 } catch (IOException e) {
                     throw new AuthenticatorUnavailableException("Error while calling " + tokenEndpoint, e);

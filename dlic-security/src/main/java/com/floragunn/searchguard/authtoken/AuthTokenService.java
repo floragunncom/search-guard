@@ -1,73 +1,16 @@
 /*
- * Copyright 2020-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2020-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.authtoken;
-
-import java.nio.ByteBuffer;
-import java.time.OffsetDateTime;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
-import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
-import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
-import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
-import org.apache.cxf.rs.security.jose.jwe.JweUtils;
-import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
-import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
-import org.apache.cxf.rs.security.jose.jws.JwsUtils;
-import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
-import org.apache.cxf.rs.security.jose.jwt.JwtException;
-import org.apache.cxf.rs.security.jose.jwt.JwtToken;
-import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.index.IndexNotFoundException;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.ToXContent;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentFactory;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
@@ -107,6 +50,59 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
+import java.nio.ByteBuffer;
+import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
+import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
+import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
+import org.apache.cxf.rs.security.jose.jwe.JweUtils;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
+import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
+import org.apache.cxf.rs.security.jose.jws.JwsUtils;
+import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
+import org.apache.cxf.rs.security.jose.jwt.JwtException;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentFactory;
 
 public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvider {
 
@@ -824,7 +820,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (log.isDebugEnabled()) {
             log.debug("AuthTokenService.provide(" + user.getName() + ") on " + authTokenId);
         }
-        
+
         // We need to drop the thread context incl user information. This is necessary to avoid running in an infinite loop
         // because we do transport action requests further down, which will hit again the SearchGuardFilter, which might branch
         // to here again if it finds a user authenticated by an auth token

@@ -14,13 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals;
 
 public class NoSuchWatchOnThisNodeException extends Exception {
 
     private static final long serialVersionUID = 6265116595899593001L;
-    
+
     public NoSuchWatchOnThisNodeException(String watchId, String nodeId) {
         super("The watch " + watchId + " is not available on " + nodeId);
     }

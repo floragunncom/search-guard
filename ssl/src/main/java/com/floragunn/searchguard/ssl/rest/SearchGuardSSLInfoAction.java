@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,13 +12,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.ssl.rest;
 
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 
+import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
+import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
+import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
+import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.security.cert.CertificateParsingException;
@@ -27,7 +32,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.node.NodeClient;
@@ -40,13 +44,6 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
 public class SearchGuardSSLInfoAction extends BaseRestHandler {
 
     private final Logger log = LogManager.getLogger(this.getClass());
@@ -55,24 +52,24 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
     private final Path configPath;
     private final Settings settings;
 
-    public SearchGuardSSLInfoAction(final Settings settings, final Path configPath, final RestController controller,
-            final SearchGuardKeyStore sgks, final PrincipalExtractor principalExtractor) {
+    public SearchGuardSSLInfoAction(final Settings settings, final Path configPath, final RestController controller, final SearchGuardKeyStore sgks,
+            final PrincipalExtractor principalExtractor) {
         super();
         this.settings = settings;
         this.sgks = sgks;
         this.principalExtractor = principalExtractor;
         this.configPath = configPath;
     }
-    
+
     @Override
     public List<Route> routes() {
         return ImmutableList.of(new Route(GET, "/_searchguard/sslinfo"));
     }
-    
+
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         return new RestChannelConsumer() {
-            
+
             final Boolean showDn = request.paramAsBoolean("show_dn", Boolean.FALSE);
             final Boolean showServerCerts = request.paramAsBoolean("show_server_certs", Boolean.FALSE);
             final Boolean showFullServerCerts = request.paramAsBoolean("show_full_server_certs", Boolean.FALSE);
@@ -83,24 +80,26 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
                 BytesRestResponse response = null;
 
                 try {
-                    
+
                     SSLInfo sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor);
-                    X509Certificate[] certs = sslInfo == null?null:sslInfo.getX509Certs();
-                    X509Certificate[] localCerts = sslInfo == null?null:sslInfo.getLocalCertificates();
+                    X509Certificate[] certs = sslInfo == null ? null : sslInfo.getX509Certs();
+                    X509Certificate[] localCerts = sslInfo == null ? null : sslInfo.getLocalCertificates();
 
                     builder.startObject();
 
-                    builder.field("principal", sslInfo == null?null:sslInfo.getPrincipal());
+                    builder.field("principal", sslInfo == null ? null : sslInfo.getPrincipal());
                     builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
 
-                    if(showDn == Boolean.TRUE) {
-                        builder.field("peer_certificates_list", certs == null?null:Arrays.stream(certs).map(c->c.getSubjectDN().getName()).collect(Collectors.toList()));
-                        builder.field("local_certificates_list", localCerts == null?null:Arrays.stream(localCerts).map(c->c.getSubjectDN().getName()).collect(Collectors.toList()));
+                    if (showDn == Boolean.TRUE) {
+                        builder.field("peer_certificates_list",
+                                certs == null ? null : Arrays.stream(certs).map(c -> c.getSubjectDN().getName()).collect(Collectors.toList()));
+                        builder.field("local_certificates_list", localCerts == null ? null
+                                : Arrays.stream(localCerts).map(c -> c.getSubjectDN().getName()).collect(Collectors.toList()));
                     }
 
-                    builder.field("ssl_protocol", sslInfo == null?null:sslInfo.getProtocol());
-                    builder.field("ssl_cipher", sslInfo == null?null:sslInfo.getCipher());
-                                      
+                    builder.field("ssl_protocol", sslInfo == null ? null : sslInfo.getProtocol());
+                    builder.field("ssl_cipher", sslInfo == null ? null : sslInfo.getCipher());
+
                     builder.field("ssl_openssl_available", false);
                     builder.field("ssl_openssl_version", -1);
                     builder.field("ssl_openssl_version_string", (String) null);
@@ -124,18 +123,18 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
 
                     response = new BytesRestResponse(RestStatus.OK, builder);
                 } catch (final Exception e1) {
-                    log.error("Error handle request "+e1, e1);
+                    log.error("Error handle request " + e1, e1);
                     builder = channel.newBuilder();
                     builder.startObject();
                     builder.field("error", e1.toString());
                     builder.endObject();
                     response = new BytesRestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
                 } finally {
-                    if(builder != null) {
+                    if (builder != null) {
                         builder.close();
                     }
                 }
-                
+
                 channel.sendResponse(response);
             }
         };
@@ -145,32 +144,23 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
         if (certs == null) {
             return null;
         }
-        
-        return Arrays
-        		.stream(certs)
-        		.limit(fullChain?certs.length:1)
-        		.map(cert -> {
-                    final String issuerDn = cert != null && cert.getIssuerX500Principal() != null ? cert.getIssuerX500Principal().getName(): "";
-                    final String subjectDn = cert != null && cert.getSubjectX500Principal() != null ? cert.getSubjectX500Principal().getName(): "";
 
-                    String san = "";
-                    try {
-                        san = cert !=null && cert.getSubjectAlternativeNames() != null ? cert.getSubjectAlternativeNames().toString() : "";
-                    } catch (CertificateParsingException e) {
-                        log.error("Issue parsing SubjectAlternativeName:", e);
-                    }
+        return Arrays.stream(certs).limit(fullChain ? certs.length : 1).map(cert -> {
+            final String issuerDn = cert != null && cert.getIssuerX500Principal() != null ? cert.getIssuerX500Principal().getName() : "";
+            final String subjectDn = cert != null && cert.getSubjectX500Principal() != null ? cert.getSubjectX500Principal().getName() : "";
 
-                    final String notBefore = cert != null && cert.getNotBefore() != null ? cert.getNotBefore().toInstant().toString(): "";
-                    final String notAfter = cert != null && cert.getNotAfter() != null ? cert.getNotAfter().toInstant().toString(): "";
-                    return ImmutableMap.<String, String>builder()
-                            .put("issuer_dn", issuerDn)
-                            .put("subject_dn", subjectDn)
-                            .put("san", san)
-                            .put("not_before", notBefore)
-                            .put("not_after", notAfter)
-                            .build();
-                })
-                .collect(Collectors.toList());
+            String san = "";
+            try {
+                san = cert != null && cert.getSubjectAlternativeNames() != null ? cert.getSubjectAlternativeNames().toString() : "";
+            } catch (CertificateParsingException e) {
+                log.error("Issue parsing SubjectAlternativeName:", e);
+            }
+
+            final String notBefore = cert != null && cert.getNotBefore() != null ? cert.getNotBefore().toInstant().toString() : "";
+            final String notAfter = cert != null && cert.getNotAfter() != null ? cert.getNotAfter().toInstant().toString() : "";
+            return ImmutableMap.<String, String>builder().put("issuer_dn", issuerDn).put("subject_dn", subjectDn).put("san", san)
+                    .put("not_before", notBefore).put("not_after", notAfter).build();
+        }).collect(Collectors.toList());
     }
 
     @Override

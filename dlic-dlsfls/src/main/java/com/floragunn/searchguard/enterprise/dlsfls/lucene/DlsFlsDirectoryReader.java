@@ -1,6 +1,5 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -13,11 +12,15 @@
  */
 package com.floragunn.searchguard.enterprise.dlsfls.lucene;
 
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
+import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.StoredFieldsReader;
@@ -46,12 +49,6 @@ import org.apache.lucene.util.automaton.CompiledAutomaton;
 import org.elasticsearch.common.lucene.index.SequentialStoredFieldsLeafReader;
 import org.elasticsearch.index.mapper.FieldNamesFieldMapper;
 import org.elasticsearch.indices.IndicesModule;
-
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
-import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.google.common.collect.Iterators;
 
 public class DlsFlsDirectoryReader extends FilterDirectoryReader {
     private final DlsFlsActionContext dlsFlsContext;
@@ -463,7 +460,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     return null;
                 }
             }
-            
+
             private boolean applyDlsHere() {
                 if (isSuggest()) {
                     return true;
@@ -608,7 +605,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
             private final class FilteredTerms extends FilterTerms {
 
-                //According to 
+                //According to
                 //https://www.elastic.co/guide/en/elasticsearch/reference/6.8/mapping-field-names-field.html
                 //"The _field_names field used to index the names of every field in a document that contains any value other than null"
                 //"For fields which have either doc_values or norm enabled the exists query will still be available but will not use the _field_names field."
@@ -655,7 +652,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                         if (delegateStatus != SeekStatus.END && isAllowed(in.term())) {
                             return delegateStatus;
                         } else if (delegateStatus == SeekStatus.END) {
-                            //If we hit the end just return END 
+                            //If we hit the end just return END
                             return SeekStatus.END;
                         } else {
                             //If we are not at the end and the current term (=field name) is not allowed just check if

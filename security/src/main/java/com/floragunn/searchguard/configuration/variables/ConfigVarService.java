@@ -1,10 +1,10 @@
 /*
  * Copyright 2021-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,27 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.configuration.variables;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.FailureListener;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.Response;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.searchsupport.client.Actions;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.google.common.io.BaseEncoding;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -30,7 +46,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -60,24 +75,6 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
 
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.codova.validation.errors.MissingAttribute;
-import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
-import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.FailureListener;
-import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.Response;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchsupport.action.StandardResponse;
-import com.floragunn.searchsupport.client.Actions;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.floragunn.searchsupport.cstate.ComponentState.State;
-import com.google.common.io.BaseEncoding;
-
 public class ConfigVarService implements ComponentStateProvider {
     private final static Logger log = LogManager.getLogger(ConfigVarService.class);
 
@@ -105,7 +102,7 @@ public class ConfigVarService implements ComponentStateProvider {
 
     public Object get(String id) {
         Map<String, Object> values = this.values;
-        
+
         if (values == null) {
             throw new ConfigVarServiceNotYetAvailableException("ConfigVarService is not yet initialized");
         }
@@ -495,7 +492,7 @@ public class ConfigVarService implements ComponentStateProvider {
 
             values = existingValues;
             componentState.setInitialized();
-            
+
             notifyChangeListeners();
 
             failureListener.onSuccess();

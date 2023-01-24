@@ -1,19 +1,25 @@
 /*
- * Copyright 2021-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2021-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.filter;
 
+import com.floragunn.searchguard.authz.DocumentWhitelist;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.enterprise.dlsfls.DlsRestriction;
+import com.floragunn.searchguard.queries.QueryBuilderTraverser;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,7 +28,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -55,15 +60,6 @@ import org.elasticsearch.script.mustache.MultiSearchTemplateAction;
 import org.elasticsearch.script.mustache.SearchTemplateAction;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-
-import com.floragunn.searchguard.authz.DocumentWhitelist;
-import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.enterprise.dlsfls.DlsRestriction;
-import com.floragunn.searchguard.queries.QueryBuilderTraverser;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 
 public class DlsFilterLevelActionHandler {
     private static final Logger log = LogManager.getLogger(DlsFilterLevelActionHandler.class);

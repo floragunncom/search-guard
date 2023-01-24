@@ -14,14 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.certificate.asymmetricscryptography;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.security.*;
 import java.security.spec.ECGenParameterSpec;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class ECDSAAsymmetricCryptographyAlgorithm implements AsymmetricCryptographyAlgorithm {
 

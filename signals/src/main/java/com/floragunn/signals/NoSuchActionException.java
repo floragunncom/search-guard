@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals;
 
 public class NoSuchActionException extends Exception {

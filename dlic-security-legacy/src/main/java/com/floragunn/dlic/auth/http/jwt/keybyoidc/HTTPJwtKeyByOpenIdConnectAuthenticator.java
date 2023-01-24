@@ -1,25 +1,32 @@
 /*
- * Copyright 2016-2020 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2020 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
+import com.floragunn.codova.config.net.ProxyConfig;
+import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
+import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
+import com.floragunn.searchguard.TypedComponent;
+import com.floragunn.searchguard.TypedComponent.Factory;
+import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
+import com.floragunn.searchguard.legacy.LegacyComponentFactory;
+import com.floragunn.searchsupport.action.Responses;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.http.HttpResponse;
 import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
@@ -32,17 +39,6 @@ import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
-
-import com.floragunn.codova.config.net.ProxyConfig;
-import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
-import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
-import com.floragunn.searchguard.TypedComponent;
-import com.floragunn.searchguard.TypedComponent.Factory;
-import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
-import com.floragunn.searchguard.legacy.LegacyComponentFactory;
-import com.floragunn.searchsupport.action.Responses;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 
 @Deprecated
 public class HTTPJwtKeyByOpenIdConnectAuthenticator extends AbstractHTTPJwtAuthenticator {

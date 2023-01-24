@@ -1,20 +1,21 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import java.util.function.Function;
-
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
@@ -26,10 +27,6 @@ import org.apache.lucene.search.join.ToChildBlockJoinQuery;
 import org.elasticsearch.index.query.SearchExecutionContext;
 import org.elasticsearch.index.query.TermsQueryBuilder;
 
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.queries.QueryBuilderTraverser;
-
 public class DlsRestriction {
 
     public static final DlsRestriction NONE = new DlsRestriction(ImmutableList.empty());
@@ -39,7 +36,7 @@ public class DlsRestriction {
 
     static {
         //Match all documents but not the nested ones
-        //Nested document types start with __ 
+        //Nested document types start with __
         //https://discuss.elastic.co/t/whats-nested-documents-layout-inside-the-lucene/59944/9
         NON_NESTED_QUERY = new BooleanQuery.Builder().add(new MatchAllDocsQuery(), Occur.FILTER)
                 .add(new PrefixQuery(new Term("_type", "__")), Occur.MUST_NOT).build();

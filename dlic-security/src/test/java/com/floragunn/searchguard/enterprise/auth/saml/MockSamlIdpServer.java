@@ -1,19 +1,19 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.saml;
 
+import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import com.floragunn.searchguard.test.helper.network.PortAllocator;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.FileInputStream;
@@ -45,7 +45,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
@@ -67,7 +66,8 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-
+import net.shibboleth.utilities.java.support.codec.Base64Support;
+import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
 import org.apache.http.Header;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntityEnclosingRequest;
@@ -151,12 +151,6 @@ import org.opensaml.xmlsec.signature.support.Signer;
 import org.opensaml.xmlsec.signature.support.impl.ExplicitKeySignatureTrustEngine;
 import org.w3c.dom.Document;
 
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.network.PortAllocator;
-
-import net.shibboleth.utilities.java.support.codec.Base64Support;
-import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
-
 class MockSamlIdpServer implements Closeable {
 
     final static String ENTITY_ID = "http://test.entity";
@@ -191,11 +185,11 @@ class MockSamlIdpServer implements Closeable {
         this.idpEntityId = idpEntityId;
         this.endpointQueryString = endpointQueryString;
         this.port = PortAllocator.TCP.allocateSingle(MockSamlIdpServer.class.getName(), 2345);
-        this.uri = (ssl ? "https" : "http") + "://localhost:" + port;        
+        this.uri = (ssl ? "https" : "http") + "://localhost:" + port;
     }
 
     public MockSamlIdpServer start() throws IOException {
-        try {        
+        try {
             this.loadSigningKeys("saml/kirk-keystore.jks", "kirk");
 
             ServerBootstrap serverBootstrap = ServerBootstrap.bootstrap().setListenerPort(port)
@@ -249,17 +243,17 @@ class MockSamlIdpServer implements Closeable {
 
             this.httpServer = serverBootstrap.create();
             this.httpServer.start();
-            
+
             return this;
         } catch (BindException e) {
             retry++;
-            
+
             this.port = PortAllocator.TCP.allocateSingle(MockSamlIdpServer.class.getName(), 2345);
-            this.uri = (ssl ? "https" : "http") + "://localhost:" + port;        
-            
+            this.uri = (ssl ? "https" : "http") + "://localhost:" + port;
+
             if (retry > 5) {
                 throw e;
-            } else {            
+            } else {
                 return start();
             }
         }
@@ -275,7 +269,7 @@ class MockSamlIdpServer implements Closeable {
 
     @Override
     public void close() throws IOException {
-       shutdown();
+        shutdown();
     }
 
     public HttpServer getHttpServer() {

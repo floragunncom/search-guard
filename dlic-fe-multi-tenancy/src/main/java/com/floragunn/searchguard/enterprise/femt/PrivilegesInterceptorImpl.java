@@ -1,23 +1,32 @@
 /*
- * Copyright 2017-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2017-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
+ *
  * This software is free of charge for non-commercial and academic use.
  * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.femt;
 
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.ALLOW;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.Tenant;
+import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
+import com.floragunn.searchguard.user.User;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -25,7 +34,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -54,18 +62,6 @@ import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.rest.RestStatus;
-
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.authz.config.Tenant;
-import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchguard.user.User;
 
 public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
@@ -129,8 +125,8 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     }
 
     @Override
-    public InterceptionResult replaceKibanaIndex(
-            PrivilegesEvaluationContext context, ActionRequest request, Action action, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
+    public InterceptionResult replaceKibanaIndex(PrivilegesEvaluationContext context, ActionRequest request, Action action,
+            ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
 
         if (!enabled) {
             return NORMAL;
@@ -138,7 +134,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
         User user = context.getUser();
         ResolvedIndices requestedResolved = context.getRequestInfo().getResolvedIndices();
-        
+
         if (user.getName().equals(kibanaServerUsername)) {
             return NORMAL;
         }
@@ -495,7 +491,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         result.put(user.getName(), true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, roles, null, null, false, null, null);
-        
+
         for (String tenant : this.tenantNames) {
             try {
                 boolean hasReadPermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, tenant).isOk();

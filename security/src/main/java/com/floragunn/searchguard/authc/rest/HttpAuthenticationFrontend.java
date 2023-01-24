@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,9 +12,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.rest;
 
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
@@ -28,7 +27,7 @@ import com.floragunn.searchguard.user.AuthCredentials;
  * <p/>
  * A HTTP authenticator extracts {@link AuthCredentials} from a {@link RestRequest}
  * <p/>
- * 
+ *
  * Implementation classes must provide a public constructor
  * <p/>
  * {@code public MyHTTPAuthenticator(org.elasticsearch.common.settings.Settings settings, java.nio.file.Path configPath)}
@@ -43,10 +42,10 @@ import com.floragunn.searchguard.user.AuthCredentials;
  * </b>
  */
 public interface HttpAuthenticationFrontend extends AuthenticationFrontend {
-    
+
     /**
      * Extract {@link AuthCredentials} from {@link RestRequest}
-     * 
+     *
      * @param request The rest request
      * @param context The current thread context
      * @return The authentication credentials (complete or incomplete) or null when no credentials are found in the request
@@ -57,7 +56,7 @@ public interface HttpAuthenticationFrontend extends AuthenticationFrontend {
      * @throws CredentialsException
      */
     AuthCredentials extractCredentials(RequestMetaData<?> request) throws AuthenticatorUnavailableException, CredentialsException;
-    
+
     default String getChallenge(AuthCredentials credentials) {
         return null;
     }

@@ -14,11 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.indices;
 
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Meter;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import java.util.function.Supplier;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -37,14 +41,6 @@ import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
 import org.elasticsearch.threadpool.Scheduler.Cancellable;
-
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.floragunn.searchsupport.cstate.ComponentState.State;
-import com.floragunn.searchsupport.cstate.metrics.Meter;
-import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
-import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
-
 import org.elasticsearch.threadpool.ThreadPool;
 
 public class IndexCleanupAgent implements ComponentStateProvider {

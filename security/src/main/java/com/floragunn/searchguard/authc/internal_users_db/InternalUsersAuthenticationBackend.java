@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,18 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.internal_users_db;
-
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
-
-import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.TypedComponent;
@@ -34,6 +25,12 @@ import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
+import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 
 public class InternalUsersAuthenticationBackend implements AuthenticationBackend, UserInformationBackend {
 
@@ -100,7 +97,8 @@ public class InternalUsersAuthenticationBackend implements AuthenticationBackend
     }
 
     @Override
-    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials authCredentials, Meter meter) throws AuthenticatorUnavailableException {
+    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials authCredentials, Meter meter)
+            throws AuthenticatorUnavailableException {
 
         InternalUser internalUser = internalUsersDatabase.get(authCredentials.getUsername());
 
@@ -165,7 +163,6 @@ public class InternalUsersAuthenticationBackend implements AuthenticationBackend
 
     }
 
-    
     @Override
     public ImmutableMap<String, String> describeAvailableUserMappingAttributes() {
         return ImmutableMap.of(UserMappingAttributes.USER_ENTRY, "The user entry from the internal users db");

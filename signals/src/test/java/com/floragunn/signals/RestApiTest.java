@@ -14,9 +14,37 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals;
 
+import com.browserup.bup.BrowserUpProxy;
+import com.browserup.bup.BrowserUpProxyServer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
+import com.floragunn.searchsupport.junit.LoggingTestWatcher;
+import com.floragunn.signals.support.JsonBuilder;
+import com.floragunn.signals.util.WatchLogSearch;
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
+import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
+import com.floragunn.signals.watch.action.handlers.email.EmailAction;
+import com.floragunn.signals.watch.action.handlers.email.EmailAction.Attachment;
+import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
+import com.floragunn.signals.watch.action.handlers.slack.SlackActionConf;
+import com.floragunn.signals.watch.common.HttpRequestConfig;
+import com.floragunn.signals.watch.init.WatchInitializationService;
+import com.floragunn.signals.watch.result.ActionLog;
+import com.floragunn.signals.watch.result.Status;
+import com.floragunn.signals.watch.result.WatchLog;
+import com.floragunn.signals.watch.severity.SeverityLevel;
+import com.icegreen.greenmail.util.GreenMail;
+import com.icegreen.greenmail.util.GreenMailUtil;
+import com.icegreen.greenmail.util.ServerSetup;
 import java.net.InetAddress;
 import java.net.URI;
 import java.time.DayOfWeek;
@@ -28,7 +56,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
+import net.jcip.annotations.NotThreadSafe;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -60,38 +88,6 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.quartz.TimeOfDay;
-
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
-import com.floragunn.searchsupport.junit.LoggingTestWatcher;
-import com.floragunn.signals.support.JsonBuilder;
-import com.floragunn.signals.util.WatchLogSearch;
-import com.floragunn.signals.watch.Watch;
-import com.floragunn.signals.watch.WatchBuilder;
-import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
-import com.floragunn.signals.watch.action.handlers.email.EmailAction;
-import com.floragunn.signals.watch.action.handlers.email.EmailAction.Attachment;
-import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
-import com.floragunn.signals.watch.action.handlers.slack.SlackActionConf;
-import com.floragunn.signals.watch.common.HttpRequestConfig;
-import com.floragunn.signals.watch.init.WatchInitializationService;
-import com.floragunn.signals.watch.result.ActionLog;
-import com.floragunn.signals.watch.result.Status;
-import com.floragunn.signals.watch.result.WatchLog;
-import com.floragunn.signals.watch.severity.SeverityLevel;
-import com.icegreen.greenmail.util.GreenMail;
-import com.icegreen.greenmail.util.GreenMailUtil;
-import com.icegreen.greenmail.util.ServerSetup;
-
-import net.jcip.annotations.NotThreadSafe;
 
 @NotThreadSafe
 public class RestApiTest {
@@ -1347,7 +1343,8 @@ public class RestApiTest {
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(testSource).query("{\"match_all\" : {} }").as("testsearch")
                     .checkCondition("data.testsearch.hits.hits.length > 0")//
                     .then().index(testSinkAck).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testaction_ack")//
-                    .and().index(testSinkUnack).refreshPolicy(RefreshPolicy.IMMEDIATE).ackEnabled(false).throttledFor("0").name("testaction_unack").build();
+                    .and().index(testSinkUnack).refreshPolicy(RefreshPolicy.IMMEDIATE).ackEnabled(false).throttledFor("0").name("testaction_unack")
+                    .build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
@@ -1384,7 +1381,6 @@ public class RestApiTest {
 
             Thread.sleep(310);
 
-
             Assert.assertEquals(testSinkAckExecutionCountAfterAck, getCountOfDocuments(client, testSinkAck));
             Assert.assertNotEquals(testSinkUnackExecutionCountAfterAck, getCountOfDocuments(client, testSinkUnack));
         }
@@ -1410,7 +1406,8 @@ public class RestApiTest {
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(testSource).query("{\"match_all\" : {} }").as("testsearch")
                     .checkCondition("data.testsearch.hits.hits.length > 0")//
                     .then().index(testSinkAck).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testaction_ack")//
-                    .and().index(testSinkUnack).refreshPolicy(RefreshPolicy.IMMEDIATE).ackEnabled(false).throttledFor("0").name("testaction_unack").build();
+                    .and().index(testSinkUnack).refreshPolicy(RefreshPolicy.IMMEDIATE).ackEnabled(false).throttledFor("0").name("testaction_unack")
+                    .build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
@@ -1421,12 +1418,11 @@ public class RestApiTest {
             response = restClient.put(watchPath + "/_ack/testaction_unack");
 
             System.out.println(response.getBody());
-            
+
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
             Assert.assertEquals(response.getBody(), "The action 'testaction_unack' is not acknowledgeable", response.getBodyAsDocNode().get("error"));
         }
     }
-
 
     @Test
     public void testAckWatchLink() throws Exception {
@@ -1441,7 +1437,7 @@ public class RestApiTest {
             account.setPort(9999);
             account.setDefaultFrom("test@test");
 
-            HttpResponse response = restClient.putJson("/_signals/account/email/test_ack_watch_link", account.toJson());            
+            HttpResponse response = restClient.putJson("/_signals/account/email/test_ack_watch_link", account.toJson());
             response = restClient.putJson("/_signals/settings/frontend_base_url", DocNode.wrap(frontendBaseUrl).toJsonString());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -1458,17 +1454,19 @@ public class RestApiTest {
 
             String mail = response.getBodyAsDocNode().findSingleNodeByJsonPath("actions[0].request").toString();
             Matcher mailMatcher = Pattern.compile("Watch Link: (\\S+)\nAction Link: (\\S+)", Pattern.MULTILINE).matcher(mail);
-            
+
             if (!mailMatcher.find()) {
                 Assert.fail(response.getBody());
             }
-            
-            Assert.assertEquals(response.getBody(), "http://my.frontend/app/searchguard-signals?sg_tenant=SGS_GLOBAL_TENANT#/watch/test_ack_watch_link/ack/", mailMatcher.group(1));
-            Assert.assertEquals(response.getBody(), "http://my.frontend/app/searchguard-signals?sg_tenant=SGS_GLOBAL_TENANT#/watch/test_ack_watch_link/ack/testaction/", mailMatcher.group(2));
+
+            Assert.assertEquals(response.getBody(),
+                    "http://my.frontend/app/searchguard-signals?sg_tenant=SGS_GLOBAL_TENANT#/watch/test_ack_watch_link/ack/", mailMatcher.group(1));
+            Assert.assertEquals(response.getBody(),
+                    "http://my.frontend/app/searchguard-signals?sg_tenant=SGS_GLOBAL_TENANT#/watch/test_ack_watch_link/ack/testaction/",
+                    mailMatcher.group(2));
         }
     }
 
-    
     @Test
     public void testSearchWatch() throws Exception {
         String tenant = "_main";

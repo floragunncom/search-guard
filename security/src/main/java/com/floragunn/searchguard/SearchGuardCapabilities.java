@@ -14,9 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import com.floragunn.codova.documents.Document;
+import com.floragunn.fluent.collections.CheckTable;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchsupport.action.RestApi;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -25,7 +29,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -57,12 +60,6 @@ import org.elasticsearch.transport.RemoteTransportException;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.documents.Document;
-import com.floragunn.fluent.collections.CheckTable;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchsupport.action.RestApi;
 
 public class SearchGuardCapabilities {
     private static final Logger log = LogManager.getLogger(SearchGuardCapabilities.class);

@@ -1,29 +1,16 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls;
-
-import java.util.concurrent.atomic.AtomicReference;
-
-import org.apache.lucene.search.BooleanClause.Occur;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.ConstantScoreQuery;
-import org.elasticsearch.index.query.ParsedQuery;
-import org.elasticsearch.index.shard.SearchOperationListener;
-import org.elasticsearch.search.internal.SearchContext;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
@@ -34,6 +21,15 @@ import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.search.BooleanClause.Occur;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.ConstantScoreQuery;
+import org.elasticsearch.index.query.ParsedQuery;
+import org.elasticsearch.index.shard.SearchOperationListener;
+import org.elasticsearch.search.internal.SearchContext;
 
 public class DlsFlsSearchOperationListener implements SearchOperationListener, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(DlsFlsSearchOperationListener.class);
@@ -53,13 +49,13 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
     @Override
     public void onPreQueryPhase(SearchContext searchContext) {
         DlsFlsProcessedConfig config = this.config.get();
-        
+
         if (!config.isEnabled()) {
             log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nnot enabled");
             return;
         }
-        
-        if (config.getDlsFlsConfig().getDlsMode() ==  DlsFlsConfig.Mode.FILTER_LEVEL) {
+
+        if (config.getDlsFlsConfig().getDlsMode() == DlsFlsConfig.Mode.FILTER_LEVEL) {
             log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nFilter Level mode active");
             return;
         }
@@ -98,12 +94,12 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
             }
 
             DlsRestriction dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index, meter);
-            
+
             log.trace("DlsRestriction for {}: {}", index, dlsRestriction);
 
             if (!dlsRestriction.isUnrestricted()) {
-                if (config.getDlsFlsConfig().getDlsMode() ==  DlsFlsConfig.Mode.ADAPTIVE && dlsRestriction.containsTermLookupQuery()) {
-                    // Special case for scroll operations: 
+                if (config.getDlsFlsConfig().getDlsMode() == DlsFlsConfig.Mode.ADAPTIVE && dlsRestriction.containsTermLookupQuery()) {
+                    // Special case for scroll operations:
                     // Normally, the check dlsFlsBaseContext.isDlsDoneOnFilterLevel() already aborts early if DLS filter level mode
                     // has been activated. However, this is not the case for scroll operations, as these lose the thread context value
                     // on which dlsFlsBaseContext.isDlsDoneOnFilterLevel() is based on. Thus, we need to check here again the deeper
@@ -111,7 +107,7 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
                     log.trace("DlsRestriction: contains TLQ.");
                     return;
                 }
-                                
+
                 BooleanQuery.Builder queryBuilder = dlsRestriction.toQueryBuilder(searchContext.getSearchExecutionContext(),
                         (q) -> new ConstantScoreQuery(q));
 

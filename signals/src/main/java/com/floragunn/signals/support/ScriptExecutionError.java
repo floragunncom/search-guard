@@ -14,16 +14,13 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.support;
 
+import com.floragunn.codova.validation.errors.ValidationError;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 import org.apache.logging.log4j.util.Strings;
 import org.elasticsearch.script.ScriptException;
-
-import com.floragunn.codova.validation.errors.ValidationError;
 
 public class ScriptExecutionError extends ValidationError {
 
@@ -41,7 +38,7 @@ public class ScriptExecutionError extends ValidationError {
     @Override
     public Map<String, Object> toBasicObject() {
         Map<String, Object> result = new LinkedHashMap<>();
-        
+
         result.put("error", getMessage());
 
         if (context != null) {

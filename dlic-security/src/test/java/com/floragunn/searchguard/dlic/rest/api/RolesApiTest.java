@@ -1,27 +1,16 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.dlic.rest.api;
-
-import java.util.List;
-
-import org.apache.http.Header;
-import org.apache.http.HttpStatus;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.searchguard.DefaultObjectMapper;
@@ -31,6 +20,12 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import java.util.List;
+import org.apache.http.Header;
+import org.apache.http.HttpStatus;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class RolesApiTest {
 
@@ -221,8 +216,8 @@ public class RolesApiTest {
             // now picard is only in sg_role_starfleet, which has write access to
             // all indices. We collapse all document types in SG7 so this permission in the
             // starfleet role grants all permissions:
-            //   public:  
-            //       - 'indices:*'		
+            //   public:
+            //       - 'indices:*'
             checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
 
             // restore captains role
@@ -230,7 +225,7 @@ public class RolesApiTest {
             Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
             checkReadAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
             checkWriteAccess(HttpStatus.SC_OK, "picard", "picard", "sf", "ships_0");
-            
+
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet_captains",
                     FileHelper.loadFile("restapi/roles_complete_invalid.json"));
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
@@ -341,7 +336,7 @@ public class RolesApiTest {
 
             List<String> permissions = null;
 
-            // PATCH 
+            // PATCH
             /*
              * how to patch with new v7 config format?
              * rh.sendHTTPClientCertificate = true;
@@ -349,7 +344,7 @@ public class RolesApiTest {
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             response = adminClient.get("/_searchguard/api/roles/sg_role_starfleet");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            settings = DefaultObjectMapper.readTree(response.getBody());       
+            settings = DefaultObjectMapper.readTree(response.getBody());
             permissions = DefaultObjectMapper.objectMapper.convertValue(settings.get("sg_role_starfleet").get("indices").get("sf").get("ships"), List.class);
             Assert.assertNotNull(permissions);
             Assert.assertEquals(2, permissions.size());
@@ -386,7 +381,7 @@ public class RolesApiTest {
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
             Assert.assertTrue(response.getBody().matches(".*\"invalid_keys\"\\s*:\\s*\\{\\s*\"keys\"\\s*:\\s*\"hidden\"\\s*\\}.*"));
 
-            // PATCH 
+            // PATCH
             response = adminClient.patch("/_searchguard/api/roles",
                     "[{ \"op\": \"add\", \"path\": \"/bulknew1\", \"value\": {   \"index_permissions\" : [ {\"index_patterns\" : [ \"sf\" ],\"allowed_actions\" : [ \"READ\" ]}] }}]");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());

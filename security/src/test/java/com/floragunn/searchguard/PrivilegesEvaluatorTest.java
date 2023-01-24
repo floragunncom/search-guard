@@ -1,3 +1,19 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchguard;
 
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
@@ -8,6 +24,14 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.google.common.collect.ImmutableMap;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -36,15 +60,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.google.common.collect.ImmutableMap;
 
 public class PrivilegesEvaluatorTest {
 
@@ -97,15 +112,15 @@ public class PrivilegesEvaluatorTest {
                             .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
             .user("exclusion_test_user_basic_no_pattern", "secret",
                     new Role("exclusion_test_user_basic_no_pattern_role").clusterPermissions("*").indexPermissions("*").on("exclude_test_*")
-                            .excludeIndexPermissions("*").on("exclude_test_disallow_2"))//            
+                            .excludeIndexPermissions("*").on("exclude_test_disallow_2"))//
             .user("exclusion_test_user_write", "secret",
                     new Role("exclusion_test_user_action_exclusion_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")//
                             .indexPermissions("*").on("write_exclude_test_*")//
-                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_*"))//  
+                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_*"))//
             .user("exclusion_test_user_write_no_pattern", "secret",
                     new Role("exclusion_test_user_write_no_pattern_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")//
                             .indexPermissions("*").on("write_exclude_test_*")//
-                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_2"))//  
+                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_2"))//
             .user("exclusion_test_user_cluster_permission", "secret",
                     new Role("exclusion_test_user_cluster_permission_role").clusterPermissions("*")
                             .excludeClusterPermissions("indices:data/read/msearch").indexPermissions("*").on("exclude_test_*")
@@ -119,21 +134,21 @@ public class PrivilegesEvaluatorTest {
             .remote("my_remote", anotherCluster).ignoreUnauthorizedIndices(false)
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
-                            .on("/alias_resolve_test_index_allow_.*/")) //            
+                            .on("/alias_resolve_test_index_allow_.*/")) //
             .user("exclusion_test_user_basic", "secret",
                     new Role("exclusion_test_user_role").clusterPermissions("*").indexPermissions("*").on("exclude_test_*")
                             .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
             .user("exclusion_test_user_basic_no_pattern", "secret",
                     new Role("exclusion_test_user_basic_no_pattern_role").clusterPermissions("*").indexPermissions("*").on("exclude_test_*")
-                            .excludeIndexPermissions("*").on("exclude_test_disallow_2"))//                   
+                            .excludeIndexPermissions("*").on("exclude_test_disallow_2"))//
             .user("exclusion_test_user_write", "secret",
                     new Role("exclusion_test_user_action_exclusion_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")//
                             .indexPermissions("*").on("write_exclude_test_*")//
-                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_*"))//  
+                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_*"))//
             .user("exclusion_test_user_write_no_pattern", "secret",
                     new Role("exclusion_test_user_write_no_pattern_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")//
                             .indexPermissions("*").on("write_exclude_test_*")//
-                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_2"))//             
+                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_2"))//
             .user("exclusion_test_user_cluster_permission", "secret",
                     new Role("exclusion_test_user_cluster_permission_role").clusterPermissions("*")
                             .excludeClusterPermissions("indices:data/read/msearch").indexPermissions("*").on("exclude_test_*")
@@ -490,8 +505,7 @@ public class PrivilegesEvaluatorTest {
             Assert.fail();
         } catch (ElasticsearchStatusException e) {
             // Expected
-            Assert.assertTrue(e.toString(),
-                    e.getMessage().contains("Insufficient permissions"));
+            Assert.assertTrue(e.toString(), e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
@@ -499,8 +513,7 @@ public class PrivilegesEvaluatorTest {
             Assert.fail();
         } catch (ElasticsearchStatusException e) {
             // Expected
-            Assert.assertTrue(e.toString(),
-                    e.getMessage().contains("Insufficient permissions"));
+            Assert.assertTrue(e.toString(), e.getMessage().contains("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {

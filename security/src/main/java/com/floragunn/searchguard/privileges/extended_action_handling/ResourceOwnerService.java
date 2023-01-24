@@ -14,17 +14,25 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.privileges.extended_action_handling;
 
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
+import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.indices.IndexCleanupAgent;
+import com.google.common.base.Objects;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -46,17 +54,6 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-
-import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
-import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.Resource;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.indices.IndexCleanupAgent;
-import com.google.common.base.Objects;
 
 public class ResourceOwnerService implements ComponentStateProvider, ProtectedConfigIndexService.IndexReadyListener {
 

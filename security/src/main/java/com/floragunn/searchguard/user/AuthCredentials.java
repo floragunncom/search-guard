@@ -14,9 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.user;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -27,15 +30,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
-
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.jayway.jsonpath.JsonPath;
 
 /**
  * AuthCredentials are an abstraction to encapsulate credentials like passwords or generic
@@ -70,14 +67,14 @@ public final class AuthCredentials implements UserInformation {
 
     /**
      * Attributes which will be passed on to further authz mechanism like DLS/FLS.  Passed on to the User object.
-     * See https://docs.search-guard.com/latest/document-level-security#ldap-and-jwt-user-attributes 
+     * See https://docs.search-guard.com/latest/document-level-security#ldap-and-jwt-user-attributes
      */
     private final Map<String, String> attributes;
     private final Map<String, Object> structuredAttributes;
 
     /**
      * Claims or assertions from the authc information. In contrast to attributes, these don't have prefixes and may be complex valued. This is for inter-module communication during the authz phase.
-     *  These attributes won't be automatically made available in the user object. 
+     *  These attributes won't be automatically made available in the user object.
      */
     private final Map<String, Object> claims;
 

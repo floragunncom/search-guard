@@ -1,19 +1,19 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.google.common.base.Strings;
 import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
@@ -23,9 +23,6 @@ import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
-
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.google.common.base.Strings;
 
 public class JwtVerifier {
 
@@ -43,10 +40,10 @@ public class JwtVerifier {
         try {
             JwsJwtCompactConsumer jwtConsumer = new JwsJwtCompactConsumer(encodedJwt);
             JwtToken jwt = jwtConsumer.getJwtToken();
-            
+
             validateIssuer(jwt);
             validateAudienceRestriction(jwt);
-            
+
             JsonWebKey key = keyProvider.getKey(jwt.getJwsHeaders().getKeyId());
             JwsSignatureVerifier signatureVerifier = getInitializedSignatureVerifier(key, jwt);
 
@@ -121,18 +118,18 @@ public class JwtVerifier {
         }
 
     }
-    
+
     private void validateIssuer(JwtToken jwt) {
         if (requiredIssuer == null) {
             return;
         }
-        
+
         JwtClaims claims = jwt.getClaims();
 
         if (claims == null) {
             throw new JwtException("No claims defined");
         }
-        
+
         if (!requiredIssuer.equals(claims.getIssuer())) {
             throw new JwtException("Invalid issuer claim: " + claims.getIssuer());
         }

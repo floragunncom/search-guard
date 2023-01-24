@@ -1,6 +1,5 @@
 /*
- * Copyright 2018 by floragunn GmbH - All rights reserved
- *
+  * Copyright 2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
@@ -11,9 +10,10 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.google.common.base.Splitter;
+import com.google.common.primitives.Bytes;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -21,13 +21,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-
 import org.apache.lucene.util.BytesRef;
 import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.bouncycastle.util.encoders.Hex;
-
-import com.google.common.base.Splitter;
-import com.google.common.primitives.Bytes;
 
 public class MaskedField {
 
@@ -40,7 +36,7 @@ public class MaskedField {
 
     public MaskedField(final String value, final byte[] salt, final byte[] salt2, final byte[] prefix) {
         this.defaultSalt = salt;
-        this.salt2=salt2;
+        this.salt2 = salt2;
         this.prefix = prefix;
         final List<String> tokens = Splitter.on("::").splitToList(Objects.requireNonNull(value));
         final int tokenCount = tokens.size();
@@ -49,11 +45,11 @@ public class MaskedField {
         } else if (tokenCount == 2) {
             name = tokens.get(0);
             algo = tokens.get(1);
-        } else if (tokenCount >= 3 && tokenCount%2==1) {
+        } else if (tokenCount >= 3 && tokenCount % 2 == 1) {
             name = tokens.get(0);
-            regexReplacements = new ArrayList<>((tokenCount-1)/2);
-            for(int i=1; i<tokenCount-1; i=i+2) {
-                regexReplacements.add(new RegexReplacement(tokens.get(i), tokens.get(i+1)));
+            regexReplacements = new ArrayList<>((tokenCount - 1) / 2);
+            for (int i = 1; i < tokenCount - 1; i = i + 2) {
+                regexReplacements.add(new RegexReplacement(tokens.get(i), tokens.get(i + 1)));
             }
         } else {
             throw new IllegalArgumentException("Expected 1 or 2 or >=3 (but then odd count) tokens, got " + tokenCount);
@@ -61,7 +57,7 @@ public class MaskedField {
     }
 
     public final void isValid() throws Exception {
-        mask(new byte[] {1,2,3,4,5});
+        mask(new byte[] { 1, 2, 3, 4, 5 });
     }
 
     public byte[] mask(byte[] value) {
@@ -81,10 +77,10 @@ public class MaskedField {
     }
 
     public BytesRef mask(BytesRef value) {
-        if(value == null) {
+        if (value == null) {
             return null;
         }
-        
+
         if (isDefault()) {
             return blake2bHash(value);
         } else {
@@ -95,8 +91,6 @@ public class MaskedField {
     public String getName() {
         return name;
     }
-
-    
 
     @Override
     public int hashCode() {
@@ -134,13 +128,11 @@ public class MaskedField {
             return false;
         return true;
     }
-    
-    
 
     @Override
     public String toString() {
-        return "MaskedField [name=" + name + ", algo=" + algo + ", regexReplacements=" + regexReplacements
-                + ", defaultSalt=" + Arrays.toString(defaultSalt) + ", isDefault()=" + isDefault() + "]";
+        return "MaskedField [name=" + name + ", algo=" + algo + ", regexReplacements=" + regexReplacements + ", defaultSalt="
+                + Arrays.toString(defaultSalt) + ", isDefault()=" + isDefault() + "]";
     }
 
     private boolean isDefault() {
@@ -151,27 +143,27 @@ public class MaskedField {
         if (algo != null) {
             try {
                 MessageDigest digest = MessageDigest.getInstance(algo);
-                
-                if(prefix != null) {
+
+                if (prefix != null) {
                     return Bytes.concat(prefix, Hex.encode(digest.digest(in)));
                 }
-                
+
                 return Hex.encode(digest.digest(in));
             } catch (NoSuchAlgorithmException e) {
                 throw new IllegalArgumentException(e);
             }
         } else if (regexReplacements != null) {
             String cur = new String(in, StandardCharsets.UTF_8);
-            for(RegexReplacement rr: regexReplacements) {
+            for (RegexReplacement rr : regexReplacements) {
                 cur = cur.replaceAll(rr.getRegex(), rr.getReplacement());
             }
-            
-            if(prefix != null) {
+
+            if (prefix != null) {
                 return Bytes.concat(prefix, cur.getBytes(StandardCharsets.UTF_8));
             }
-            
+
             return cur.getBytes(StandardCharsets.UTF_8);
-            
+
         } else {
             throw new IllegalArgumentException();
         }
@@ -191,11 +183,11 @@ public class MaskedField {
         hash.update(in, 0, in.length);
         final byte[] out = new byte[hash.getDigestSize()];
         hash.doFinal(out, 0);
-        
-        if(prefix != null) {
+
+        if (prefix != null) {
             return Bytes.concat(prefix, Hex.encode(out));
         }
-        
+
         return Hex.encode(out);
     }
 
@@ -214,7 +206,7 @@ public class MaskedField {
 
         public RegexReplacement(String regex, String replacement) {
             super();
-            this.regex = regex.substring(1).substring(0, regex.length()-2);
+            this.regex = regex.substring(1).substring(0, regex.length() - 2);
             this.replacement = replacement;
         }
 

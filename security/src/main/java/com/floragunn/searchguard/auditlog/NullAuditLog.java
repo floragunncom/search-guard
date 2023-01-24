@@ -14,13 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.auditlog;
 
+import com.floragunn.searchguard.user.UserInformation;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
-
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
@@ -34,12 +33,10 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 
-import com.floragunn.searchguard.user.UserInformation;
-
 public class NullAuditLog implements AuditLog {
 
     static final NullAuditLog INSTANCE = new NullAuditLog();
-    
+
     @Override
     public void close() throws IOException {
         //noop, intentionally left empty
@@ -56,7 +53,8 @@ public class NullAuditLog implements AuditLog {
     }
 
     @Override
-    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, String action, Task task) {
+    public void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request,
+            String action, Task task) {
         //noop, intentionally left empty
     }
 
@@ -89,7 +87,7 @@ public class NullAuditLog implements AuditLog {
     public void logSgIndexAttempt(TransportRequest request, String action, Task task) {
         //noop, intentionally left empty
     }
-    
+
     @Override
     public void logImmutableIndexAttempt(TransportRequest request, String action, Task task) {
         //noop, intentionally left empty
@@ -130,25 +128,24 @@ public class NullAuditLog implements AuditLog {
         //noop, intentionally left empty
     }
 
-	@Override
-	public void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task) {
-		//noop, intentionally left empty		
-	}
+    @Override
+    public void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task) {
+        //noop, intentionally left empty
+    }
 
-	@Override
-	public void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress) {
-		//noop, intentionally left empty		
-	}
+    @Override
+    public void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress) {
+        //noop, intentionally left empty
+    }
 
-	@Override
-	public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request,
-			Task task) {
-		//noop, intentionally left empty		
-	}
+    @Override
+    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
+        //noop, intentionally left empty
+    }
 
-	@Override
-	public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
-		//noop, intentionally left empty		
-	}
-    
+    @Override
+    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
+        //noop, intentionally left empty
+    }
+
 }

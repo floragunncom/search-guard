@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,24 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.legacy;
-
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.function.Consumer;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -45,6 +30,18 @@ import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.cache.Cache;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.function.Consumer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
 
 public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticationProcessor<HttpAuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(LegacyRestRequestAuthenticationProcessor.class);
@@ -63,8 +60,8 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
             PrivilegesEvaluator privilegesEvaluator, Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache,
             AuditLog auditLog, BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners,
             List<String> requiredLoginPrivileges, boolean debug) {
-        super(request, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog,
-                blockedUserRegistry, ipAuthFailureListeners, requiredLoginPrivileges, debug);
+        super(request, authenticationDomains, adminDns, privilegesEvaluator, userCache, impersonationCache, auditLog, blockedUserRegistry,
+                ipAuthFailureListeners, requiredLoginPrivileges, debug);
 
         this.restHandler = restHandler;
         this.restRequest = request.getRequest();
@@ -112,10 +109,11 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
             log.trace("no {} credentials found in request", authenticationDomain.getFrontend().getType());
 
             if (isChallengeEnabled(authenticationDomain)) {
-                if (httpAuthenticator instanceof LegacyHTTPAuthenticator && ((LegacyHTTPAuthenticator) httpAuthenticator).reRequestAuthentication(restChannel, ac)) {
+                if (httpAuthenticator instanceof LegacyHTTPAuthenticator
+                        && ((LegacyHTTPAuthenticator) httpAuthenticator).reRequestAuthentication(restChannel, ac)) {
                     return AuthDomainState.STOP;
                 }
-                
+
                 String challenge = httpAuthenticator.getChallenge(ac);
 
                 if (challenge != null) {
@@ -134,7 +132,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
                     ac.clearSecrets();
                     return AuthDomainState.STOP;
                 }
-                
+
                 String challenge = httpAuthenticator.getChallenge(ac);
 
                 if (challenge != null) {

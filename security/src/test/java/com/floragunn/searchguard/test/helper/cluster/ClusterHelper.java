@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.test.helper.cluster;
 
+import com.floragunn.searchguard.test.NodeSettingsSupplier;
+import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,7 +31,6 @@ import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,10 +54,6 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.TransportInfo;
 import org.elasticsearch.xcontent.XContentType;
 
-import com.floragunn.searchguard.test.NodeSettingsSupplier;
-import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
-
 public final class ClusterHelper {
 
     static {
@@ -77,9 +74,9 @@ public final class ClusterHelper {
 
     /**
      * Start n Elasticsearch nodes with the provided settings
-     * 
+     *
      * @return
-     * @throws Exception 
+     * @throws Exception
      */
 
     public final ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration)
@@ -89,7 +86,7 @@ public final class ClusterHelper {
 
     public final synchronized ClusterInfo startCluster(final NodeSettingsSupplier nodeSettingsSupplier, ClusterConfiguration clusterConfiguration,
             List<Class<? extends Plugin>> additionalPlugins, int timeout, Integer nodes) throws Exception {
-        
+
         if (!esNodes.isEmpty()) {
             throw new RuntimeException("There are still " + esNodes.size() + " nodes instantiated, close them first.");
         }
@@ -336,7 +333,7 @@ public final class ClusterHelper {
                     }
                 }
             }
-            
+
             for (NodeInfo nodeInfo : nodes) {
                 clusterInfo.httpAdresses.add(nodeInfo.getInfo(HttpInfo.class).address().publishAddress());
             }
@@ -349,19 +346,19 @@ public final class ClusterHelper {
     // @formatter:off
     private Settings.Builder getMinimumNonSgNodeSettingsBuilder(final int nodenum, final boolean masterNode,
             final boolean dataNode, int nodeCount, SortedSet<Integer> masterTcpPorts, /*SortedSet<Integer> nonMasterTcpPorts,*/ int tcpPort, int httpPort) {
-        
+
         List<String> nodeRoles = new ArrayList<>();
-        
+
         if (dataNode) {
             nodeRoles.add("data");
         }
-        
+
         if (masterNode) {
             nodeRoles.add("master");
         }
-        
+
         nodeRoles.add("remote_cluster_client");
-        
+
         return Settings.builder()
                 .put("node.name", "node_"+clustername+ "_num" + nodenum)
                 .putList("node.roles", nodeRoles)
@@ -387,8 +384,8 @@ public final class ClusterHelper {
         if(masterEligibleNodes <= 0) {
             throw new IllegalArgumentException("no master eligible nodes");
         }
-        
+    
         return (masterEligibleNodes/2) + 1;
-                
+    
     }*/
 }

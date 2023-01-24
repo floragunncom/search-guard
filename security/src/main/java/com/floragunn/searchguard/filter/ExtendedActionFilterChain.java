@@ -14,12 +14,10 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.filter;
 
 import java.util.Iterator;
 import java.util.List;
-
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;

@@ -1,27 +1,24 @@
 /*
- * Copyright 2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.ldap;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import com.floragunn.searchguard.test.helper.cluster.EsClientProvider.UserCredentialsHolder;
 import com.google.common.collect.ImmutableList;
 import com.unboundid.ldap.sdk.Attribute;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class TestLdapDirectory {
     public static final Entry ROOT = new Entry("o=TEST").dc("TEST").objectClass("top", "domain");
@@ -68,7 +65,7 @@ public class TestLdapDirectory {
             return this;
         }
 
-        /** 
+        /**
          * Surename
          */
         public Entry sn(String... sn) {
@@ -84,12 +81,12 @@ public class TestLdapDirectory {
 
         public Entry objectClass(String... objectclass) {
             attributes.add(new Attribute("objectclass", objectclass));
-            
+
             if (Arrays.asList(objectclass).contains("inetOrgPerson")) {
                 // Make the schema happy
                 sn("Test");
             }
-            
+
             return this;
         }
 
@@ -108,7 +105,7 @@ public class TestLdapDirectory {
             attributes.add(new Attribute("displayName", displayName));
             return this;
         }
-        
+
         public Entry uniqueMember(String... uniqueMember) {
             attributes.add(new Attribute("uniquemember", uniqueMember));
             return this;

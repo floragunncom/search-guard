@@ -16,12 +16,11 @@
  */
 package com.floragunn.searchguard.authc.legacy;
 
-import org.elasticsearch.ElasticsearchSecurityException;
-
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserCachingPolicy;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
+import org.elasticsearch.ElasticsearchSecurityException;
 
 public interface LegacyAuthenticationBackend {
 
@@ -29,10 +28,10 @@ public interface LegacyAuthenticationBackend {
      * Validate credentials and return an authenticated user (or throw an ElasticsearchSecurityException)
      * <p/>
      * Results of this method are normally cached so that we not need to query the backend for every authentication attempt.
-     * <p/> 
+     * <p/>
      * @param The credentials to be validated, never null
      * @return the authenticated User, never null
-     * @throws ElasticsearchSecurityException in case an authentication failure 
+     * @throws ElasticsearchSecurityException in case an authentication failure
      * (when credentials are incorrect, the user does not exist or the backend is not reachable)
      */
     User authenticate(AuthCredentials credentials) throws AuthenticatorUnavailableException;
@@ -40,7 +39,7 @@ public interface LegacyAuthenticationBackend {
     boolean exists(User user) throws AuthenticatorUnavailableException;
 
     String getType();
-    
+
     default UserCachingPolicy userCachingPolicy() {
         return UserCachingPolicy.ALWAYS;
     }

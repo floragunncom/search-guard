@@ -14,36 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.security.SecureRandom;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.bytes.BytesReference;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
@@ -65,6 +36,32 @@ import com.floragunn.searchguard.test.helper.cluster.EsClientProvider.UserCreden
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.NestedValueMap;
 import com.floragunn.searchguard.test.helper.cluster.NestedValueMap.Path;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.common.bytes.BytesReference;
 
 public class TestSgConfig {
     private static final Logger log = LogManager.getLogger(TestSgConfig.class);
@@ -156,22 +153,20 @@ public class TestSgConfig {
 
         return this;
     }
-    
+
     public TestSgConfig frontendAuthcDebug(boolean debug) {
         return frontendAuthcDebug("default", debug);
     }
-    
+
     public TestSgConfig frontendAuthcDebug(String configId, boolean debug) {
         if (overrideFrontendConfigSettings == null) {
             overrideFrontendConfigSettings = new NestedValueMap();
         }
 
-
         overrideFrontendConfigSettings.put(new Path(configId, "debug"), debug);
 
         return this;
     }
-
 
     public TestSgConfig user(User user) {
         if (user.roleNames != null) {
@@ -321,7 +316,7 @@ public class TestSgConfig {
         this.authTokenService = authTokenService;
         return this;
     }
-    
+
     public TestSgConfig clone() {
         TestSgConfig result = new TestSgConfig();
 
@@ -374,7 +369,7 @@ public class TestSgConfig {
         if (authTokenService != null) {
             writeConfigToIndex(client, "auth_token_service", authTokenService);
         }
-        
+
         if (variableSuppliers.size() != 0) {
             writeConfigVars(client, variableSuppliers);
         }
@@ -769,7 +764,7 @@ public class TestSgConfig {
             private List<String> acceptIps = null;
             private List<String> acceptOriginatingIps = null;
             private List<String> skipIps = null;
-            private List<String> skipOriginatingIps = null;            
+            private List<String> skipOriginatingIps = null;
             private List<String> acceptUsers = null;
             private List<String> skipUsers = null;
             private List<AdditionalUserInformation> additionalUserInformation = null;
@@ -832,7 +827,7 @@ public class TestSgConfig {
                 }
                 return this;
             }
-            
+
             public Domain skipIps(String... ips) {
                 if (skipIps == null) {
                     skipIps = new ArrayList<>(Arrays.asList(ips));
@@ -850,7 +845,7 @@ public class TestSgConfig {
                 }
                 return this;
             }
-            
+
             public Domain skipUsers(String... users) {
                 skipUsers = Arrays.asList(users);
                 return this;

@@ -14,11 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.rest;
-
-import java.util.List;
-import java.util.regex.Pattern;
 
 import com.floragunn.codova.config.net.CacheConfig;
 import com.floragunn.codova.documents.DocNode;
@@ -39,6 +35,8 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import java.util.List;
+import java.util.regex.Pattern;
 
 public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Destroyable {
 

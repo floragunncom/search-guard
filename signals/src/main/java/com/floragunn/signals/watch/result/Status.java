@@ -14,18 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.result;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.signals.watch.severity.SeverityLevel;
 import java.io.IOException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.signals.watch.severity.SeverityLevel;
 
 public class Status implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(Status.class);

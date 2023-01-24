@@ -1,19 +1,21 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.user.UserInformation;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,7 +24,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteRequest;
@@ -56,11 +57,6 @@ import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 import org.elasticsearch.xcontent.XContentType;
-
-import com.floragunn.codova.config.text.Pattern;
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.user.UserInformation;
 
 public final class RequestResolver {
 
@@ -135,7 +131,7 @@ public final class RequestResolver {
             }
         }
 
-        //attempt to resolve indices/types/id/source 
+        //attempt to resolve indices/types/id/source
         if (request instanceof MultiGetRequest.Item) {
             final MultiGetRequest.Item item = (MultiGetRequest.Item) request;
             final String[] indices = arrayOrEmpty(item.indices());

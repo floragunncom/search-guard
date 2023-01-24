@@ -14,17 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.authc.internal_users_db;
-
-import java.security.SecureRandom;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -39,6 +29,13 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.configuration.Hideable;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 
 public class InternalUser implements PatchableDocument<InternalUser>, RedactableDocument, Hideable {
 

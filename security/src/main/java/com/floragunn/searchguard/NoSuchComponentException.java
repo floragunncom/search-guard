@@ -14,13 +14,11 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import java.util.Collection;
 import java.util.stream.Collectors;
-
-import com.floragunn.fluent.collections.ImmutableList;
 
 public class NoSuchComponentException extends Exception {
 

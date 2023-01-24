@@ -1,17 +1,15 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.dlic.auth.ldap.util;
 
 public final class ConfigConstants {
@@ -25,7 +23,6 @@ public final class ConfigConstants {
     public static final String LDAP_AUTHCZ_BASE = "base";
     public static final String LDAP_AUTHCZ_SEARCH = "search";
 
-    
     public static final String LDAP_AUTHZ_RESOLVE_NESTED_ROLES = "resolve_nested_roles";
     public static final String LDAP_AUTHZ_ROLEBASE = "rolebase";
     public static final String LDAP_AUTHZ_ROLENAME = "rolename";//multi-value
@@ -78,12 +75,12 @@ public final class ConfigConstants {
     public static final String LDAP_CUSTOM_ATTR_WHITELIST = "custom_attr_whitelist";
 
     public static final String LDAP_CONNECTION_STRATEGY = "connection_strategy";
-    
+
     public static final String LDAP_POOL_MIN_SIZE = "pool.min_size";
     public static final String LDAP_POOL_MAX_SIZE = "pool.max_size";
 
     public static final String LDAP_POOL_TYPE = "pool.type";
-    
+
     private ConfigConstants() {
 
     }

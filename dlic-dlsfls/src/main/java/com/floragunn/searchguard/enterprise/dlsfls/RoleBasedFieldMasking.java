@@ -1,36 +1,16 @@
 /*
- * Copyright 2015-2022 floragunn GmbH
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- *     http://www.apache.org/licenses/LICENSE-2.0
+  * Copyright 2015-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
+ * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
  */
-
 package com.floragunn.searchguard.enterprise.dlsfls;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.lucene.util.BytesRef;
-import org.bouncycastle.crypto.digests.Blake2bDigest;
-import org.bouncycastle.util.encoders.Hex;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
@@ -49,6 +29,19 @@ import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.primitives.Bytes;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.lucene.util.BytesRef;
+import org.bouncycastle.crypto.digests.Blake2bDigest;
+import org.bouncycastle.util.encoders.Hex;
 
 public class RoleBasedFieldMasking implements ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedFieldMasking.class);
@@ -404,7 +397,8 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
 
     public static abstract class FieldMaskingRule {
         public static final FieldMaskingRule ALLOW_ALL = new FieldMaskingRule.SingleRole(ImmutableList.empty());
-        public static final FieldMaskingRule MASK_ALL = new FieldMaskingRule.SingleRole(ImmutableList.of(new Field(Role.Index.FieldMaskingExpression.MASK_ALL, DlsFlsConfig.FieldMasking.DEFAULT)));
+        public static final FieldMaskingRule MASK_ALL = new FieldMaskingRule.SingleRole(
+                ImmutableList.of(new Field(Role.Index.FieldMaskingExpression.MASK_ALL, DlsFlsConfig.FieldMasking.DEFAULT)));
 
         public static FieldMaskingRule of(DlsFlsConfig.FieldMasking fieldMaskingConfig, String... rules) throws ConfigValidationException {
             ImmutableList.Builder<Role.Index.FieldMaskingExpression> patterns = new ImmutableList.Builder<>();
@@ -478,7 +472,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
 
             public Field get(String field) {
                 field = stripKeywordSuffix(field);
-                
+
                 Field masking = null;
 
                 for (FieldMaskingRule.SingleRole part : parts) {
@@ -556,7 +550,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
             public String toString() {
                 return expression.toString();
             }
-            
+
             private boolean isDefault() {
                 return expression.getAlgo() == null && expression.getRegexReplacements() == null;
             }
@@ -617,7 +611,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
                 return new String(blake2bHash(in.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8);
             }
         }
-        
+
         static String stripKeywordSuffix(String field) {
             if (field.endsWith(".keyword")) {
                 return field.substring(0, field.length() - ".keyword".length());

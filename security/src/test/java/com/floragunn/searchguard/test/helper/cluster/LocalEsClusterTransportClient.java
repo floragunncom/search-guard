@@ -14,25 +14,22 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.cluster;
 
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
 import com.floragunn.searchguard.SearchGuardPlugin;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
-
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.transport.Netty4Plugin;
-
 import java.io.FileNotFoundException;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
+import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.transport.Netty4Plugin;
 
 /**
  * Old-style transport client for ES. Will be removed for ES 8.

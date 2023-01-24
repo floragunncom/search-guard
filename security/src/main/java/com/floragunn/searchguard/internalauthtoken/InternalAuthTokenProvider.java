@@ -1,30 +1,20 @@
+/*
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchguard.internalauthtoken;
-
-import java.time.Instant;
-import java.time.temporal.TemporalAmount;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Consumer;
-
-import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
-import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
-import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
-import org.apache.cxf.rs.security.jose.jwe.JweUtils;
-import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jwk.KeyType;
-import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
-import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
-import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
-import org.apache.cxf.rs.security.jose.jws.JwsUtils;
-import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtException;
-import org.apache.cxf.rs.security.jose.jwt.JwtToken;
-import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -45,6 +35,30 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
+import java.time.Instant;
+import java.time.temporal.TemporalAmount;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
+import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
+import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
+import org.apache.cxf.rs.security.jose.jwe.JweUtils;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.cxf.rs.security.jose.jwk.KeyType;
+import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
+import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
+import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
+import org.apache.cxf.rs.security.jose.jws.JwsUtils;
+import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtException;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 public class InternalAuthTokenProvider {
 
@@ -64,7 +78,8 @@ public class InternalAuthTokenProvider {
     private JweDecryptionProvider jweDecryptionProvider;
     private volatile SgDynamicConfiguration<Role> roles;
 
-    public InternalAuthTokenProvider(AuthorizationService authorizationService, PrivilegesEvaluator privilegesEvaluator, Actions actions, ConfigurationRepository configurationRepository) {
+    public InternalAuthTokenProvider(AuthorizationService authorizationService, PrivilegesEvaluator privilegesEvaluator, Actions actions,
+            ConfigurationRepository configurationRepository) {
         this.privilegesEvaluator = privilegesEvaluator;
         this.authorizationService = authorizationService;
         this.actions = actions;
@@ -242,7 +257,8 @@ public class InternalAuthTokenProvider {
         private final ActionAuthorization actionAuthorization;
         private final SgDynamicConfiguration<Role> rolesConfig;
 
-        AuthFromInternalAuthToken(User user, ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization, SgDynamicConfiguration<Role> rolesConfig) {
+        AuthFromInternalAuthToken(User user, ImmutableSet<String> mappedRoles, ActionAuthorization actionAuthorization,
+                SgDynamicConfiguration<Role> rolesConfig) {
             this.user = user;
             this.mappedRoles = mappedRoles;
             this.actionAuthorization = actionAuthorization;

@@ -14,9 +14,11 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.result;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.signals.execution.WatchExecutionContextData;
+import com.floragunn.signals.watch.common.Ack;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -25,14 +27,9 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-
 import org.elasticsearch.common.time.DateFormatter;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.signals.execution.WatchExecutionContextData;
-import com.floragunn.signals.watch.common.Ack;
 
 public class ActionLog implements ToXContentObject {
 
@@ -168,12 +165,12 @@ public class ActionLog implements ToXContentObject {
         }
 
         if (jsonNode.hasNonNull("execution_start")) {
-            // XXX 
+            // XXX
             result.executionStart = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("execution_start"))));
         }
 
         if (jsonNode.hasNonNull("execution_end")) {
-            // XXX 
+            // XXX
             result.executionStart = Date.from(Instant.from(DATE_FORMATTER.parse(jsonNode.getAsString("execution_end"))));
         }
 

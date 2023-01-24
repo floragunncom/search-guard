@@ -14,16 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals.watch.action.handlers.email;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -31,6 +22,12 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.Validators;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.signals.accounts.Account;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.xcontent.XContentBuilder;
 
 public class EmailAccount extends Account {
 
@@ -214,11 +211,11 @@ public class EmailAccount extends Account {
     public void setDefaultBcc(String... defaultBcc) {
         this.defaultBcc = Arrays.asList(defaultBcc);
     }
-    
+
     public void setDefaultBcc(List<String> defaultBcc) {
         this.defaultBcc = defaultBcc;
     }
-    
+
     @Override
     public SearchSourceBuilder getReferencingWatchesQuery() {
         return new SearchSourceBuilder().query(QueryBuilders.boolQuery().must(QueryBuilders.termQuery("actions.type", "email"))

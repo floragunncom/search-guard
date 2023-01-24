@@ -1,10 +1,10 @@
 /*
  * Copyright 2021 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,11 +12,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.session.backend;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -25,19 +29,12 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidatingDocNode;
-import com.floragunn.codova.validation.ValidationErrors;
-import com.google.common.collect.ImmutableMap;
 
 public class SessionPrivileges implements ToXContentObject, Writeable, Serializable {
 
@@ -51,7 +48,6 @@ public class SessionPrivileges implements ToXContentObject, Writeable, Serializa
 
     private final List<String> searchGuardRoles;
     private final Map<String, Object> attributes;
-
 
     public SessionPrivileges(Collection<String> backendRoles, Collection<String> searchGuardRoles, Map<String, Object> attributes) {
         this.backendRoles = Collections.unmodifiableList(new ArrayList<>(backendRoles));
@@ -72,7 +68,6 @@ public class SessionPrivileges implements ToXContentObject, Writeable, Serializa
     public List<String> getSearchGuardRoles() {
         return searchGuardRoles;
     }
-
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
@@ -100,11 +95,10 @@ public class SessionPrivileges implements ToXContentObject, Writeable, Serializa
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-
         List<String> backendRoles = vJsonNode.get("roles_be").asList().withEmptyListAsDefault().ofStrings();
         List<String> searchGuardRoles = vJsonNode.get("roles_sg").asList().withEmptyListAsDefault().ofStrings();
         Map<String, Object> attributes = vJsonNode.get("attrs").asMap();
-        
+
         if (attributes == null) {
             attributes = Collections.emptyMap();
         }
@@ -112,14 +106,12 @@ public class SessionPrivileges implements ToXContentObject, Writeable, Serializa
         return new SessionPrivileges(backendRoles, searchGuardRoles, attributes);
     }
 
-
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeStringCollection(this.backendRoles);
         out.writeStringCollection(this.searchGuardRoles);
         out.writeMap(this.attributes);
     }
-
 
     @Override
     public int hashCode() {

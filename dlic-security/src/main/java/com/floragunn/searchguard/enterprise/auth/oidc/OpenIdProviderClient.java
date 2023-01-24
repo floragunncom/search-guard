@@ -1,28 +1,35 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2022 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
+import com.floragunn.codova.config.net.ProxyConfig;
+import com.floragunn.codova.config.net.TLSConfig;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
+import com.floragunn.searchsupport.PrivilegedCode;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import javax.net.ssl.SSLHandshakeException;
-
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -48,18 +55,6 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.floragunn.codova.config.net.ProxyConfig;
-import com.floragunn.codova.config.net.TLSConfig;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidationResult;
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.floragunn.searchsupport.PrivilegedCode;
 
 public class OpenIdProviderClient {
     private final static Logger log = LogManager.getLogger(KeySetRetriever.class);

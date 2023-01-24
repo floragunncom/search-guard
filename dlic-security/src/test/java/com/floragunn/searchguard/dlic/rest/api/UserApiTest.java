@@ -1,30 +1,16 @@
 /*
- * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.dlic.rest.api;
-
-import java.net.URLEncoder;
-import java.util.List;
-
-import org.apache.http.Header;
-import org.apache.http.HttpStatus;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.xcontent.XContentType;
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
@@ -33,6 +19,16 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import java.net.URLEncoder;
+import java.util.List;
+import org.apache.http.Header;
+import org.apache.http.HttpStatus;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.xcontent.XContentType;
+import org.hamcrest.CoreMatchers;
+import org.junit.Assert;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class UserApiTest {
 
@@ -223,7 +219,7 @@ public class UserApiTest {
 
             // now really remove user
             adminClient.delete("/_searchguard/api/internalusers/nagilum");
-            
+
             // Access must be forbidden now
             checkGeneralAccess(HttpStatus.SC_UNAUTHORIZED, "nagilum", "nagilum");
 

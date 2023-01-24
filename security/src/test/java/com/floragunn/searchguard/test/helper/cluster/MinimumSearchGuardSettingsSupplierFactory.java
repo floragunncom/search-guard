@@ -14,18 +14,15 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchguard.test.helper.cluster;
 
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.certificate.CertificateType;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-
-import org.elasticsearch.common.settings.Settings;
-
 import java.io.FileNotFoundException;
 import java.util.Optional;
+import org.elasticsearch.common.settings.Settings;
 
 public class MinimumSearchGuardSettingsSupplierFactory {
 
@@ -53,28 +50,28 @@ public class MinimumSearchGuardSettingsSupplierFactory {
 
             if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_transport) {
                 builder.put("searchguard.ssl.transport.pemcert_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
+                        certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
                         .put("searchguard.ssl.transport.pemkey_filepath",
                                 certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
                 Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
                         .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
             } else if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_rest) {
                 builder.put("searchguard.ssl.http.pemcert_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
+                        certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
                         .put("searchguard.ssl.http.pemkey_filepath",
                                 certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
                 Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
                         .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.http.pemkey_password", privateKeyPassword));
             } else if (certificateWithKeyPairAndPrivateKeyPassword.getCertificateType() == CertificateType.node_transport_rest) {
                 builder.put("searchguard.ssl.transport.pemcert_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
+                        certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
                         .put("searchguard.ssl.transport.pemkey_filepath",
                                 certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
                 Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
                         .ifPresent(privateKeyPassword -> builder.put("searchguard.ssl.transport.pemkey_password", privateKeyPassword));
 
                 builder.put("searchguard.ssl.http.pemcert_filepath",
-                                certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
+                        certificateWithKeyPairAndPrivateKeyPassword.getCertificateFile().getAbsolutePath())
                         .put("searchguard.ssl.http.pemkey_filepath",
                                 certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyFile().getAbsolutePath());
                 Optional.ofNullable(certificateWithKeyPairAndPrivateKeyPassword.getPrivateKeyPassword())
@@ -96,9 +93,7 @@ public class MinimumSearchGuardSettingsSupplierFactory {
 
         } else {
             try {
-                final String prefix = Optional.ofNullable(resourceFolder)
-                        .map(folder -> folder + "/")
-                        .orElse("");
+                final String prefix = Optional.ofNullable(resourceFolder).map(folder -> folder + "/").orElse("");
 
                 Settings.Builder builder = Settings.builder().put("searchguard.ssl.transport.keystore_alias", "node-0")
                         .put("searchguard.ssl.transport.keystore_filepath",

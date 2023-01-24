@@ -1,46 +1,21 @@
 /*
- * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
-
 package com.floragunn.searchguard.dlic.rest.api;
 
 import static org.elasticsearch.rest.RestRequest.Method.DELETE;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.PATCH;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestRequest.Method;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.XContentType;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.documents.DocNode;
@@ -61,6 +36,27 @@ import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextPr
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestController;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestRequest.Method;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.XContentType;
 
 public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
@@ -68,8 +64,9 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
     public PatchableResourceApiAction(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDNs,
             ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
-            AuthorizationService authorizationService, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
-            ThreadPool threadPool, AuditLog auditLog) {
+            AuthorizationService authorizationService,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
+            AuditLog auditLog) {
         super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
     }
@@ -146,9 +143,8 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             return;
         }
 
-        patchedResourceAsDocNode = postProcessApplyPatchResult(channel, request, existingResourceDocNode,
-                patchedResourceAsDocNode, name);
-        
+        patchedResourceAsDocNode = postProcessApplyPatchResult(channel, request, existingResourceDocNode, patchedResourceAsDocNode, name);
+
         if (patchedResourceAsDocNode.getBoolean("hidden") == Boolean.FALSE) {
             patchedResourceAsDocNode = patchedResourceAsDocNode.without("hidden");
         }
@@ -171,10 +167,11 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
         Map<String, Object> updated = new LinkedHashMap<>(existingConfiguration.toDocNode().toMap());
         updated.put(name, patchedResourceAsDocNode.toBasicObject());
-        
-        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(DocNode.wrap(updated), null,
-                existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
-                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();
+
+        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration
+                .fromDocNode(DocNode.wrap(updated), null, existingConfiguration.getCType(), existingConfiguration.getDocVersion(),
+                        existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm(), cl.getParserContext())
+                .get();
 
         saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
@@ -190,9 +187,9 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             DocPatch jsonPatch) throws IOException, ConfigValidationException {
 
         LinkedHashMap<String, Object> patchBase = new LinkedHashMap<>(existingConfiguration.getCEntries().size());
-         
+
         for (String resourceName : existingConfiguration.getCEntries().keySet()) {
-            Document<?> oldResource = (Document<?>) existingConfiguration.getCEntries().get(resourceName);            
+            Document<?> oldResource = (Document<?>) existingConfiguration.getCEntries().get(resourceName);
             patchBase.put(resourceName, oldResource.toDocNode().splitDottedAttributeNamesToTree().toBasicObject());
         }
 
@@ -228,8 +225,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             DocNode oldResource = DocNode.wrap(patchBase.get(resourceName));
             DocNode patchedResource = DocNode.wrap(patchedAsDocNode.get(resourceName));
 
-            patchedResource = postProcessApplyPatchResult(channel, request, oldResource, patchedResource,
-                    resourceName);
+            patchedResource = postProcessApplyPatchResult(channel, request, oldResource, patchedResource, resourceName);
 
             if (oldResource == null || !oldResource.equals(patchedResource)) {
                 if (patchedResource.getBoolean("hidden") == Boolean.FALSE) {
@@ -243,7 +239,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 if (patchedResource.getBoolean("static") == Boolean.FALSE) {
                     patchedResource = patchedResource.without("static");
                 }
-                
+
                 AbstractConfigurationValidator validator = getValidator(request, patchedResource);
 
                 if (!validator.validate()) {
@@ -254,9 +250,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             }
         }
 
-        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(patchedAsDocNode, null,
-                existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
-                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();
+        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration
+                .fromDocNode(patchedAsDocNode, null, existingConfiguration.getCType(), existingConfiguration.getDocVersion(),
+                        existingConfiguration.getSeqNo(), existingConfiguration.getPrimaryTerm(), cl.getParserContext())
+                .get();
 
         saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
@@ -268,8 +265,8 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
     }
 
-    protected DocNode postProcessApplyPatchResult(RestChannel channel, RestRequest request,
-            DocNode existingResourceAsJsonNode, DocNode updatedResourceAsJsonNode, String resourceName) throws ConfigValidationException {
+    protected DocNode postProcessApplyPatchResult(RestChannel channel, RestRequest request, DocNode existingResourceAsJsonNode,
+            DocNode updatedResourceAsJsonNode, String resourceName) throws ConfigValidationException {
         // do nothing by default
         return updatedResourceAsJsonNode;
     }

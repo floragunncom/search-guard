@@ -1,10 +1,10 @@
 /*
  * Copyright 2021-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,66 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
-
 package com.floragunn.searchguard.authc.session.backend;
 
 import static java.util.stream.Collectors.toList;
-
-import java.nio.ByteBuffer;
-import java.time.Duration;
-import java.time.OffsetDateTime;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-
-import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
-import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
-import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
-import org.apache.cxf.rs.security.jose.jwe.JweUtils;
-import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
-import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
-import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
-import org.apache.cxf.rs.security.jose.jws.JwsUtils;
-import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
-import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
-import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
-import org.apache.cxf.rs.security.jose.jwt.JwtException;
-import org.apache.cxf.rs.security.jose.jwt.JwtToken;
-import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.index.IndexNotFoundException;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.xcontent.ToXContent;
-import org.elasticsearch.xcontent.XContentBuilder;
-import org.elasticsearch.xcontent.XContentFactory;
 
 import com.floragunn.codova.config.templates.AttributeSource;
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
@@ -119,15 +64,68 @@ import com.floragunn.searchsupport.indices.IndexCleanupAgent;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.io.BaseEncoding;
-
 import inet.ipaddr.IPAddress;
+import java.nio.ByteBuffer;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
+import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
+import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
+import org.apache.cxf.rs.security.jose.jwe.JweUtils;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
+import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
+import org.apache.cxf.rs.security.jose.jws.JwsUtils;
+import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
+import org.apache.cxf.rs.security.jose.jwt.JwtException;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentFactory;
 
 public class SessionService {
 
     private static final Logger log = LogManager.getLogger(SessionService.class);
 
-    public static final StaticSettings.Attribute<String> INDEX_NAME = StaticSettings.Attribute.define("searchguard.sessions.index.name").withDefault(".searchguard_sessions").asString();
-    public static final StaticSettings.Attribute<TimeValue> CLEANUP_INTERVAL = StaticSettings.Attribute.define("searchguard.sessions.cleanup_interval").withDefault(TimeValue.timeValueHours(1)).asTimeValue();
+    public static final StaticSettings.Attribute<String> INDEX_NAME = StaticSettings.Attribute.define("searchguard.sessions.index.name")
+            .withDefault(".searchguard_sessions").asString();
+    public static final StaticSettings.Attribute<TimeValue> CLEANUP_INTERVAL = StaticSettings.Attribute
+            .define("searchguard.sessions.cleanup_interval").withDefault(TimeValue.timeValueHours(1)).asTimeValue();
 
     public static final String USER_TYPE = "session";
 
@@ -209,9 +207,9 @@ public class SessionService {
             this.indexCleanupAgent = new IndexCleanupAgent(indexName, SessionToken.EXPIRES_AT, settings.get(CLEANUP_INTERVAL), privilegedConfigClient,
                     clusterService, threadPool);
         }
-        
-        componentState.addPart(this.indexCleanupAgent.getComponentState());        
-        
+
+        componentState.addPart(this.indexCleanupAgent.getComponentState());
+
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
 
             @Override

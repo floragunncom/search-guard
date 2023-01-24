@@ -14,46 +14,7 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.signals;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.DocWriteResponse.Result;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.delete.DeleteResponse;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
-import org.elasticsearch.xcontent.XContentType;
-import org.quartz.Job;
-import org.quartz.Scheduler;
-import org.quartz.SchedulerException;
-import org.quartz.impl.matchers.GroupMatcher;
-import org.quartz.spi.JobFactory;
-import org.quartz.spi.TriggerFiredBundle;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
@@ -86,6 +47,42 @@ import com.floragunn.signals.watch.state.WatchState;
 import com.floragunn.signals.watch.state.WatchStateIndexReader;
 import com.floragunn.signals.watch.state.WatchStateIndexWriter;
 import com.floragunn.signals.watch.state.WatchStateManager;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.DocWriteResponse.Result;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.XContentType;
+import org.quartz.Job;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.impl.matchers.GroupMatcher;
+import org.quartz.spi.JobFactory;
+import org.quartz.spi.TriggerFiredBundle;
 
 public class SignalsTenant implements Closeable {
     private static final Logger log = LogManager.getLogger(SignalsTenant.class);
@@ -281,11 +278,11 @@ public class SignalsTenant implements Closeable {
 
         try {
             JobDetailWithBaseConfig jobDetail = (JobDetailWithBaseConfig) this.scheduler.getJobDetail(Watch.createJobKey(watchId));
-            
+
             if (jobDetail == null) {
                 return null;
             }
-            
+
             return jobDetail.getBaseConfig(Watch.class);
         } catch (SchedulerException e) {
             throw new RuntimeException(e);
@@ -341,13 +338,14 @@ public class SignalsTenant implements Closeable {
         watchJson.put("_tenant", watch.getTenant());
         watchJson.put("_meta", watch.getMeta().toMap());
         watchJson.put("_name", watchId);
-        
+
         StaticInput.patchForIndexMappingBugFix(watchJson);
 
         String newWatchJsonString = DocWriter.json().writeAsString(watchJson);
 
-        IndexResponse indexResponse = privilegedConfigClient.prepareIndex().setIndex(getConfigIndexName()).setId(getWatchIdForConfigIndex(watch.getId()))
-                .setSource(newWatchJsonString, XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute().actionGet();
+        IndexResponse indexResponse = privilegedConfigClient.prepareIndex().setIndex(getConfigIndexName())
+                .setId(getWatchIdForConfigIndex(watch.getId())).setSource(newWatchJsonString, XContentType.JSON)
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute().actionGet();
 
         if (log.isDebugEnabled()) {
             log.debug("IndexResponse from addWatch()\n" + Strings.toString(indexResponse));
@@ -379,9 +377,9 @@ public class SignalsTenant implements Closeable {
         if (log.isInfoEnabled()) {
             log.info("ack(" + watchId + ", " + user + ")");
         }
-        
+
         Watch watch = getLocallyRunningWatch(watchId);
-        
+
         if (watch == null) {
             throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
         }
@@ -395,23 +393,24 @@ public class SignalsTenant implements Closeable {
         return result;
     }
 
-    public void ack(String watchId, String actionId, User user) throws NoSuchWatchOnThisNodeException, NoSuchActionException, NotAcknowledgeableException {
+    public void ack(String watchId, String actionId, User user)
+            throws NoSuchWatchOnThisNodeException, NoSuchActionException, NotAcknowledgeableException {
         if (log.isInfoEnabled()) {
             log.info("ack(" + watchId + ", " + actionId + ", " + user + ")");
         }
 
         Watch watch = getLocallyRunningWatch(watchId);
-        
+
         if (watch == null) {
             throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
         }
-        
+
         AlertAction action = watch.getActionByName(actionId);
-        
+
         if (!action.isAckEnabled()) {
             throw new NotAcknowledgeableException(watchId, actionId);
         }
-        
+
         WatchState watchState = watchStateManager.getWatchState(watchId);
 
         watchState.getActionState(actionId).ack(user != null ? user.getName() : null);

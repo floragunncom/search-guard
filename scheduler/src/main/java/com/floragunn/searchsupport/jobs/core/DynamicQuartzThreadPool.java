@@ -1,28 +1,4 @@
 /*
- * Includes code from the following Apache 2 licensed work:
- * 
- *   https://github.com/quartz-scheduler/quartz/blob/master/quartz-core/src/main/java/org/quartz/simpl/SimpleThreadPool.java 
- * 
- * Reproduction of the original copyright notice below:
- *   
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy
- * of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
- * 
- * Otherwise:
- * 
  * Copyright 2021 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.floragunn.searchsupport.jobs.core;
 
 import java.time.Duration;
@@ -51,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.quartz.SchedulerConfigException;
@@ -61,7 +35,7 @@ public class DynamicQuartzThreadPool implements ThreadPool {
     private static final Logger log = LogManager.getLogger(DynamicQuartzThreadPool.class);
 
     private final String threadPoolName;
-    private final  String threadNameSuffix;
+    private final String threadNameSuffix;
     private final int maxThreadCount;
     private final int threadPriority;
     private final Duration threadKeepAlive;
@@ -85,16 +59,17 @@ public class DynamicQuartzThreadPool implements ThreadPool {
      * Create a new <code>SimpleThreadPool</code> with the specified number
      * of <code>Thread</code> s that have the given priority.
      * </p>
-     * 
+     *
      * @param threadCount
      *          the max number of worker <code>Threads</code> in the pool, must
      *          be > 0.
      * @param threadPriority
      *          the thread priority for the worker threads.
-     * 
+     *
      * @see java.lang.Thread
      */
-    public DynamicQuartzThreadPool(ThreadGroup threadGroup, String threadPoolName, String threadNameSuffix, int maxThreadCount, int threadPriority, Duration threadKeepAlive) {
+    public DynamicQuartzThreadPool(ThreadGroup threadGroup, String threadPoolName, String threadNameSuffix, int maxThreadCount, int threadPriority,
+            Duration threadKeepAlive) {
         this.threadGroup = threadGroup;
         this.threadPoolName = threadPoolName;
         this.maxThreadCount = maxThreadCount;
@@ -111,7 +86,7 @@ public class DynamicQuartzThreadPool implements ThreadPool {
      * shut down, the Runnable is executed immediately within a new additional
      * thread.
      * </p>
-     * 
+     *
      * @param runnable
      *          the <code>Runnable</code> to be added.
      */
@@ -295,8 +270,8 @@ public class DynamicQuartzThreadPool implements ThreadPool {
     }
 
     protected WorkerThread createNewWorker(Runnable runnable) {
-        WorkerThread result = new WorkerThread(threadGroup, this.threadPoolName + "/worker_" + threadIdCounter.incrementAndGet() + threadNameSuffix, threadPriority,
-                true, runnable);
+        WorkerThread result = new WorkerThread(threadGroup, this.threadPoolName + "/worker_" + threadIdCounter.incrementAndGet() + threadNameSuffix,
+                threadPriority, true, runnable);
 
         lock.lock();
         try {

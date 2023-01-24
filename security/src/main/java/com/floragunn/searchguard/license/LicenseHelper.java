@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,37 +12,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
- * Copied from https://github.com/bcgit/bc-java/blob/master/pg/src/test/java/org/bouncycastle/openpgp/test/PGPClearSignedSignatureTest.java
- *
- * Copyright (c) 2000-2017 The Legion of the Bouncy Castle Inc. (http://www.bouncycastle.org)
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
- * and associated documentation files (the "Software"), to deal in the Software without restriction, 
- * including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, 
- * and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
- * PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
  *
  */
-
 package com.floragunn.searchguard.license;
 
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.google.common.io.BaseEncoding;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.SignatureException;
-
 import org.bouncycastle.bcpg.ArmoredInputStream;
 import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPObjectFactory;
@@ -54,37 +35,33 @@ import org.bouncycastle.openpgp.operator.KeyFingerPrintCalculator;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
 
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.errors.ValidationError;
-import com.google.common.io.BaseEncoding;
-
 public class LicenseHelper {
 
     /**
      * Validate pgp signature of license
-     * 
+     *
      * @param licenseText base64 encoded pgp signed license
      * @return The plain license in json (if validation is successful)
      * @throws PGPException if validation fails
-     * @throws SignatureException 
-     * @throws IOException 
-     * @throws ConfigValidationException 
+     * @throws SignatureException
+     * @throws IOException
+     * @throws ConfigValidationException
      */
     public static String validateLicense(String licenseText) throws PGPException, SignatureException, IOException, ConfigValidationException {
-        
-    	licenseText = licenseText.trim().replaceAll("\\r|\\n", "");
-        licenseText = licenseText.replace("---- SCHNIPP (Armored PGP signed JSON as base64) ----","");
-        licenseText = licenseText.replace("---- SCHNAPP ----","");
-        
+
+        licenseText = licenseText.trim().replaceAll("\\r|\\n", "");
+        licenseText = licenseText.replace("---- SCHNIPP (Armored PGP signed JSON as base64) ----", "");
+        licenseText = licenseText.replace("---- SCHNAPP ----", "");
+
         try {
             final byte[] armoredPgp;
-            
+
             try {
                 armoredPgp = BaseEncoding.base64().decode(licenseText);
             } catch (IllegalArgumentException e) {
                 throw new ConfigValidationException(new ValidationError(null, "Invalid base64 encoding").cause(e));
             }
-            
+
             final ArmoredInputStream in = new ArmoredInputStream(new ByteArrayInputStream(armoredPgp));
 
             //
@@ -103,8 +80,8 @@ public class LicenseHelper {
 
             final PGPObjectFactory factory = new PGPObjectFactory(in, c);
             final PGPSignatureList sigL = (PGPSignatureList) factory.nextObject();
-            final PGPPublicKeyRingCollection pgpRings = new PGPPublicKeyRingCollection(new ArmoredInputStream(
-                    LicenseHelper.class.getResourceAsStream("/KEYS")), c);
+            final PGPPublicKeyRingCollection pgpRings = new PGPPublicKeyRingCollection(
+                    new ArmoredInputStream(LicenseHelper.class.getResourceAsStream("/KEYS")), c);
 
             if (sigL == null || pgpRings == null || sigL.size() == 0 || pgpRings.size() == 0) {
                 throw new PGPException("Cannot find license signature");
@@ -143,7 +120,7 @@ public class LicenseHelper {
             return bout.toString();
         } catch (PGPException e) {
             throw e;
-        } 
+        }
     }
 
     private static int readInputLine(final ByteArrayOutputStream bOut, final InputStream fIn) throws IOException {
