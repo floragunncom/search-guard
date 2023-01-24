@@ -51,7 +51,12 @@
 		<!-- For mvn license:aggregate-add-third-party -->
 		<license.excludedArtifacts>.*search-guard.*</license.excludedArtifacts>
 		<license.excludedScopes>test,provided</license.excludedScopes>
-	</properties>
+
+        <spotless.maven.plugin.version>2.28.0</spotless.maven.plugin.version>
+        <eclipse.formatter.version>4.21.0</eclipse.formatter.version>
+        <apache.license.header.file>${maven.multiModuleProjectDirectory}/dev/aslv2_license_header.txt</apache.license.header.file>
+        <commercial.license.header.file>${maven.multiModuleProjectDirectory}/dev/commercial_license_header.txt</commercial.license.header.file>
+    </properties>
 
 	<modules>
 		<module>security</module>
@@ -569,6 +574,70 @@
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>license-maven-plugin</artifactId>
             <version>1.13</version>
+          </plugin>
+          <plugin>
+            <groupId>com.diffplug.spotless</groupId>
+            <artifactId>spotless-maven-plugin</artifactId>
+            <version>${spotless.maven.plugin.version}</version>
+            <configuration>
+              <formats>
+                <format>
+                  <includes>
+					  <include>dlic-*/src/**/java/**/*.java</include>
+                  </includes>
+                  <licenseHeader>
+                    <file>${commercial.license.header.file}</file>
+                    <delimiter>package</delimiter>
+                  </licenseHeader>
+                </format>
+                <format>
+                  <includes>
+					  <include>signals/src/**/java/**/*.java</include>
+					  <include>scheduler/src/**/java/**/*.java</include>
+					  <include>security/src/**/java/**/*.java</include>
+					  <include>security-legacy/src/**/java/**/*.java</include>
+					  <include>ssl/src/**/java/**/*.java</include>
+					  <include>support/src/**/java/**/*.java</include>
+                  </includes>
+                  <licenseHeader>
+                    <file>${apache.license.header.file}</file>
+                    <delimiter>package</delimiter>
+                  </licenseHeader>
+                </format>
+              </formats>
+              <pom>
+                <includes>
+                  <include>pom.xml</include>
+                </includes>
+                <sortPom>
+                  <sortDependencies>scope,classifier,groupId,artifactId</sortDependencies>
+                </sortPom>
+              </pom>
+              <java>
+                <toggleOffOn></toggleOffOn>
+                <importOrder></importOrder>
+                <endWithNewline></endWithNewline>
+                <removeUnusedImports></removeUnusedImports>
+                <trimTrailingWhitespace></trimTrailingWhitespace>
+                <indent>
+                  <spaces>true</spaces>
+                  <spacesPerTab>4</spacesPerTab>
+                </indent>
+                <eclipse>
+                  <version>${eclipse.formatter.version}</version>
+                  <file>${maven.multiModuleProjectDirectory}/dev/eclipse-code-format-profile.xml</file>
+                </eclipse>
+              </java>
+            </configuration>
+            <executions>
+              <execution>
+                <?m2e ignore?>
+                <goals>
+                  <goal>apply</goal>
+                </goals>
+                <phase>compile</phase>
+              </execution>
+            </executions>
           </plugin>
 		</plugins>
 		<pluginManagement>
