@@ -113,6 +113,7 @@ public class Base64Helper {
                     clazz.equals(InetSocketAddress.class) ||
                     InetAddress.class.isAssignableFrom(clazz) ||
                     Number.class.isAssignableFrom(clazz) ||
+                    Boolean.class.isAssignableFrom(clazz) ||
                     Collection.class.isAssignableFrom(clazz) ||
                     Map.class.isAssignableFrom(clazz) ||
                     Enum.class.isAssignableFrom(clazz) ||
