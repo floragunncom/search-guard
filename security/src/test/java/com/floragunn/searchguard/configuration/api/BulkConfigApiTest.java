@@ -175,6 +175,36 @@ public class BulkConfigApiTest {
     }
 
     @Test
+    public void putTestValidationError3_staticEntriesShouldBeRejected() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            HttpResponse response = client.get("/_searchguard/config");
+            DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
+
+            Map<String, Object> tenants = new LinkedHashMap<>(responseDoc.getAsNode("tenants").getAsNode("content"));
+
+            tenants.put("my_new_test_tenant", ImmutableMap.of("description", "Test Tenant", "static", true));
+
+            DocNode updateRequestDoc = DocNode.of("tenants.content", tenants);
+
+            HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc.toJsonString());
+
+            Assert.assertEquals(updateResponse.getBody(), 400, updateResponse.getStatusCode());
+
+            DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
+
+            Assert.assertEquals(
+                    updateResponse.getBody(), "'tenants.content.my_new_test_tenant': Invalid value",
+                    updateResponseDoc.getAsNode("error").get("message")
+            );
+            Assert.assertEquals(
+                    updateResponse.getBody(), "Non-static entry",
+                    updateResponseDoc.getAsNode("error").getAsNode("details").getAsListOfNodes("tenants.content.my_new_test_tenant").get(0).get("expected")
+            );
+        }
+    }
+
+    @Test
     public void putTestWithoutAdminCert() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(ADMIN_USER)) {
 
