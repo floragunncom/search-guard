@@ -312,6 +312,15 @@ public class BulkConfigApi {
 
                     Map<String, ?> contentMap = DocUtils.toStringKeyedMap((Map<?, ?>) content);
 
+                    //request cannot contain static entries
+                    for (Map.Entry<String, ?> entry : contentMap.entrySet()) {
+                        DocNode configEntry = DocNode.wrap(entry.getValue());
+                        Object staticField = configEntry.get("static");
+                        if (Boolean.TRUE.equals(staticField)) {
+                            validationErrors.add(new InvalidAttributeValue(configTypeName + ".content." + entry.getKey(), entry.getValue(), "Non-static entry"));
+                        }
+                    }
+
                     if (ctype == CType.CONFIG_VARS) {
                         Map<String, ConfigVar> parsedContentMap = new LinkedHashMap<>(contentMap.size());
 
