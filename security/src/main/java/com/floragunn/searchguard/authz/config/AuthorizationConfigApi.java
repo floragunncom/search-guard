@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.authz.config;
 
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
@@ -36,7 +38,7 @@ public class AuthorizationConfigApi extends TypeLevelConfigApi {
             .handlesPatch("/_searchguard/config/authz").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
             .name("/_searchguard/config/authz");
 
-    public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
+    public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
             new ActionHandler<>(AuthorizationConfigApi.GetAction.INSTANCE, AuthorizationConfigApi.GetAction.Handler.class),
             new ActionHandler<>(AuthorizationConfigApi.PutAction.INSTANCE, AuthorizationConfigApi.PutAction.Handler.class),
             new ActionHandler<>(AuthorizationConfigApi.PatchAction.INSTANCE, AuthorizationConfigApi.PatchAction.Handler.class));
