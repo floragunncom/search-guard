@@ -45,6 +45,8 @@ import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -64,6 +66,7 @@ import org.elasticsearch.env.Environment;
 import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -819,6 +822,20 @@ public class ConfigurationRepository implements ComponentStateProvider {
             return new StandardResponse(200).message(configType.getUiName() + " " + id + " has been deleted");
         } catch (ConfigUnavailableException e) {
             throw new ConfigUpdateException(e);
+        }
+    }
+
+    public <T> StandardResponse delete(CType<T> configType) throws ConfigUpdateException, ConcurrentConfigUpdateException {
+        try {
+            DeleteRequest request = new DeleteRequest(getEffectiveSearchGuardIndexAndCreateIfNecessary(), configType.toLCString());
+            DeleteResponse response = privilegedConfigClient.delete(request).actionGet();
+            if (response.status() == RestStatus.NOT_FOUND) {
+                return new StandardResponse(404).message(configType.toLCString() + " does not exist");
+            }
+            reloadConfiguration(Collections.singleton(configType), "Config deletion");
+            return new StandardResponse(200).message(configType.toLCString() + " has been deleted");
+        } catch (ConfigUpdateException | ConfigUnavailableException e) {
+            return new StandardResponse(e);
         }
     }
 

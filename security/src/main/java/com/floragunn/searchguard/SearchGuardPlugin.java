@@ -144,6 +144,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
+import com.floragunn.searchguard.configuration.api.GenericTypeLevelConfigApi;
 import com.floragunn.searchguard.configuration.api.MigrateConfigIndexApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
@@ -485,6 +486,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
                 handlers.add(new ComponentStateRestAction());
                 handlers.add(BulkConfigApi.REST_API);
+                handlers.add(GenericTypeLevelConfigApi.REST_API);
                 handlers.add(ConfigVarApi.REST_API);
                 handlers.add(InternalUsersConfigApi.REST_API);
                 handlers.add(RestAuthcConfigApi.REST_API);
@@ -498,7 +500,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(GetActivatedFrontendConfigAction.REST_API);
                 handlers.add(MigrateConfigIndexApi.REST_API);
                 handlers.add(new AuthenticatingRestFilter.DebugApi());
-
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
@@ -528,6 +529,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(SearchGuardLicenseInfoAction.INSTANCE, SearchGuardLicenseInfoAction.Handler.class));
             actions.add(new ActionHandler<>(BulkConfigApi.GetAction.INSTANCE, BulkConfigApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(BulkConfigApi.UpdateAction.INSTANCE, BulkConfigApi.UpdateAction.Handler.class));
+            actions.add(new ActionHandler<>(GenericTypeLevelConfigApi.DeleteAction.INSTANCE, GenericTypeLevelConfigApi.DeleteAction.Handler.class));
             actions.add(new ActionHandler<>(ConfigVarRefreshAction.INSTANCE, ConfigVarRefreshAction.TransportAction.class));
             actions.add(new ActionHandler<>(ConfigVarApi.GetAction.INSTANCE, ConfigVarApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(ConfigVarApi.UpdateAction.INSTANCE, ConfigVarApi.UpdateAction.Handler.class));
@@ -551,7 +553,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.INSTANCE, ProtectedConfigIndexService.TriggerConfigIndexCreationAction.TransportAction.class));
 
             actions.add(new ActionHandler<>(MigrateConfigIndexApi.INSTANCE, MigrateConfigIndexApi.Handler.class));
-
         }
 
         actions.addAll(moduleRegistry.getActions());
