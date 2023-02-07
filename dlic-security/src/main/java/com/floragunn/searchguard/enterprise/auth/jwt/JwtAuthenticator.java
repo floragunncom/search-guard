@@ -23,7 +23,14 @@ import java.security.cert.CertificateFactory;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
+import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
+import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
+import com.floragunn.searchguard.user.User;
 import org.apache.cxf.rs.security.jose.jwa.AlgorithmUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
@@ -66,7 +73,9 @@ import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
 
-public class JwtAuthenticator implements HttpAuthenticationFrontend {
+import static org.apache.commons.lang3.StringUtils.isNoneBlank;
+
+public class JwtAuthenticator implements HttpAuthenticationFrontend, ApiAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(JwtAuthenticator.class);
 
     private final KeyProvider staticKeySet;
@@ -182,6 +191,11 @@ public class JwtAuthenticator implements HttpAuthenticationFrontend {
             return null;
         }
 
+        return tokenToCredentials(jwtString);
+    }
+
+    private AuthCredentials tokenToCredentials(String jwtString) throws AuthenticatorUnavailableException, CredentialsException {
+        Objects.requireNonNull(jwtString, "Jwt string is required");
         JwtToken jwt;
 
         try {
@@ -200,8 +214,12 @@ public class JwtAuthenticator implements HttpAuthenticationFrontend {
             log.trace("Claims from JWT: " + claims.asMap());
         }
 
-        return AuthCredentials.forUser(claims.getSubject()).nativeCredentials(jwtString).attribute(Attributes.AUTH_TYPE, "jwt")
-                .userMappingAttribute("jwt", Jose.toBasicObject(claims)).complete().build();
+        return AuthCredentials.forUser(claims.getSubject())//
+            .nativeCredentials(jwtString)//
+            .attribute(Attributes.AUTH_TYPE, "jwt")//
+            .userMappingAttribute("jwt", Jose.toBasicObject(claims))//
+            .complete()//
+            .build();
     }
 
     @Override
@@ -348,4 +366,22 @@ public class JwtAuthenticator implements HttpAuthenticationFrontend {
         }
     };
 
+    @Override
+    public AuthCredentials extractCredentials(Map<String, Object> request)
+        throws CredentialsException, ConfigValidationException, AuthenticatorUnavailableException {
+        Object jwtToken = request.get("jwt") instanceof String ? request.get("jwt") : null;
+        return tokenToCredentials((String) jwtToken);
+    }
+
+    @Override
+    public ActivatedFrontendConfig.AuthMethod activateFrontendConfig(
+        ActivatedFrontendConfig.AuthMethod frontendConfig, GetActivatedFrontendConfigAction.Request request)
+        throws AuthenticatorUnavailableException {
+        return ApiAuthenticationFrontend.super.activateFrontendConfig(frontendConfig, request);
+    }
+
+    @Override
+    public String getLogoutUrl(User user) throws AuthenticatorUnavailableException {
+        return ApiAuthenticationFrontend.super.getLogoutUrl(user);
+    }
 }
