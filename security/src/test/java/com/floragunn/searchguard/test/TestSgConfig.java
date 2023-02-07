@@ -438,7 +438,7 @@ public class TestSgConfig {
                 config = new MergePatch(DocNode.wrap(overrides)).apply(config);
             }
 
-            log.info("Writing " + configType + ":\n" + config.toYamlString());
+            log.info("Writing SearchGuard configuration of type " + configType + " to index:\n" + config.toYamlString());
 
             client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
@@ -777,6 +777,13 @@ public class TestSgConfig {
             private DocNode backendConfig;
             private DocNode frontendConfig;
 
+            private JwtDomain jwt;
+
+            public Domain jwt(JwtDomain jwt) {
+                this.jwt = jwt;
+                return this;
+            }
+
             public Domain(String type) {
                 this.type = type;
             }
@@ -898,6 +905,10 @@ public class TestSgConfig {
 
                 if (userMapping != null) {
                     result.put("user_mapping", userMapping.toBasicObject());
+                }
+
+                if(jwt != null) {
+                    result.put("jwt", jwt.toBasicObject());
                 }
 
                 return result;
@@ -1139,6 +1150,123 @@ public class TestSgConfig {
         public Object toBasicObject() {
             return ImmutableMap.of("default", ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "use_impl", useImpl, "dls",
                     ImmutableMap.ofNonNull("allow_now", dlsAllowNow)));
+        }
+    }
+
+    public static class JwtDomain implements Document<JsonWebKey> {
+        private Signing signing;
+
+        public JwtDomain signing(Signing signing) {
+            this.signing = signing;
+            return this;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            Map<String, Object> result = new LinkedHashMap<>();
+            if(signing != null) {
+                result.put("signing", signing.toBasicObject());
+            }
+            return result;
+        }
+    }
+
+    public static class Signing implements Document<JsonWebKey> {
+        private Jwks jwks;
+
+        public Signing jwks(Jwks jwks) {
+            this.jwks = jwks;
+            return this;
+        }
+
+        @Override
+        public
+        Object toBasicObject() {
+            return ImmutableMap.of("jwks", jwks.toBasicObject());
+        }
+    }
+
+    public static class Jwks implements Document<JsonWebKey> {
+        private List<JsonWebKey> keys = new ArrayList<>();
+
+        public Jwks keys(List<JsonWebKey> keys) {
+            this.keys = keys;
+            return this;
+        }
+
+        public Jwks addKey(JsonWebKey jsonWebKey) {
+            Objects.requireNonNull(jsonWebKey, "Json web key is required");
+            this.keys.add(jsonWebKey);
+            return this;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.of("keys", keys);
+        }
+    }
+
+    public static class JsonWebKey implements Document<JsonWebKey> {
+
+        private String kty;
+        private String kid;
+        private String d;
+        private String use;
+        private String crv;
+        private String x;
+        private String y;
+        private String alg;
+        private String k;
+
+        public JsonWebKey kty(String kty) {
+            this.kty = kty;
+            return this;
+        }
+
+        public JsonWebKey kid(String kid) {
+            this.kid = kid;
+            return this;
+        }
+
+        public JsonWebKey d(String d) {
+            this.d = d;
+            return this;
+        }
+
+        public JsonWebKey use(String use) {
+            this.use = use;
+            return this;
+        }
+
+        public JsonWebKey crv(String crv) {
+            this.crv = crv;
+            return this;
+        }
+
+        public JsonWebKey x(String x) {
+            this.x = x;
+            return this;
+        }
+
+        public JsonWebKey y(String y) {
+            this.y = y;
+            return this;
+        }
+
+        public JsonWebKey alg(String alg) {
+            this.alg = alg;
+            return this;
+        }
+
+        public JsonWebKey k(String k) {
+            this.k = k;
+            return this;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.ofNonNull("kty", kty, "d", d, "use", use, "crv", crv, "x", x)
+                .with(ImmutableMap.ofNonNull("y", y, "alg", alg)).with(ImmutableMap.of("kid", kid, "k", k));
         }
     }
 
