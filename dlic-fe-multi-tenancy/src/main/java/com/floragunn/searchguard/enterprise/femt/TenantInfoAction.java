@@ -20,7 +20,6 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 import java.io.IOException;
 import java.util.List;
 import java.util.SortedMap;
-import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -125,8 +124,7 @@ public class TenantInfoAction extends BaseRestHandler {
             return null;
         }
 
-        Pattern intNumberPattern = Pattern.compile("-?\\d+");
-        if (intNumberPattern.matcher(indexParts[1]).matches()) {
+        if (stringContainsHashCode(indexParts[1])) {
             final String expectedHash = indexParts[1];
             final String sanitizedName = indexParts[2];
 
@@ -139,6 +137,17 @@ public class TenantInfoAction extends BaseRestHandler {
             return "__private__";
         }
         return null;
+    }
+
+    private boolean stringContainsHashCode(String str) {
+        char[] chars = str.toCharArray();
+        int firstIndexWithDigit = chars[0] == '-'? 1 : 0;
+        for (int i = firstIndexWithDigit; i < chars.length; i++) {
+            if (!Character.isDigit(chars[i])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
