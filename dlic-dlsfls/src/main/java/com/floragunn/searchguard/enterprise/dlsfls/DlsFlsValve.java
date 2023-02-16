@@ -196,6 +196,8 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                         }
                     }
                 }
+
+                searchRequest.requestCache(Boolean.FALSE);
             }
 
             if (hasDlsRestrictions) {
