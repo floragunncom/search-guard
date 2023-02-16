@@ -54,6 +54,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
+import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -167,8 +168,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Context parserContext;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
-                                   ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
-                                   NamedXContentRegistry xContentRegistry, Environment environment) {
+            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
+            NamedXContentRegistry xContentRegistry, Environment environment) {
         this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
         this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
@@ -182,8 +183,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
         this.variableResolvers = new VariableResolvers()
                 .with("file", (file) -> VariableResolvers.FILE_PRIVILEGED.apply(environment.configFile().resolve(file).toAbsolutePath().toString()))
-                .with("env", VariableResolvers.ENV)
-                .with("var", (key) -> configVarService.get(key));
+                .with("env", VariableResolvers.ENV).with("var", (key) -> configVarService.get(key));
         this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry);
         this.threadPool = threadPool;
 
@@ -201,18 +201,33 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public void initOnNodeStart() {
         componentState.setState(State.INITIALIZING, "waiting_for_state_recovery");
 
-        this.clusterService.addListener(new ClusterStateListener() {
+        threadPool.generic().execute(() -> {
+            synchronized (ConfigurationRepository.this) {
 
-            @Override
-            public void clusterChanged(ClusterChangedEvent event) {
-                if (!event.state().blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
-                    clusterService.removeListener(this);
-                    componentState.setState(State.INITIALIZING, "cluster_state_recovered");
-                    LOGGER.info("Cluster state has been recovered. Starting config index initialization.");
-                    checkIndicesNow();
+                if (!checkClusterState(clusterService.state())) {
+                    this.clusterService.addListener(new ClusterStateListener() {
+                        @Override
+                        public void clusterChanged(ClusterChangedEvent event) {
+                            if (checkClusterState(event.state())) {
+                                clusterService.removeListener(this);
+                            }
+                        }
+                    });
                 }
+
             }
         });
+    }
+
+    private boolean checkClusterState(ClusterState clusterState) {
+        if (!clusterState.blocks().hasGlobalBlock(GatewayService.STATE_NOT_RECOVERED_BLOCK)) {
+            componentState.setState(State.INITIALIZING, "cluster_state_recovered");
+            LOGGER.info("Cluster state has been recovered. Starting config index initialization.");
+            checkIndicesNow();
+            return true;
+        } else {
+            return false;
+        }
     }
 
     private void checkIndicesNow() {
