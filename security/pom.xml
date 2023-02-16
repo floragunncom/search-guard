@@ -181,7 +181,15 @@
 				<exclusion>
 					<groupId>com.sun.activation</groupId>
 					<artifactId>javax.activation</artifactId>
-				</exclusion>	
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.activation</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>jakarta.activation</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.woodstox</groupId>
 					<artifactId>woodstox-core</artifactId>
