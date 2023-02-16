@@ -218,10 +218,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
         LOGGER.debug("Check if one of the indices " + configuredSearchguardIndexNew + " or " + configuredSearchguardIndexOld + " does exist ...");
 
         try {
-            if (clusterService.state().getMetadata().hasIndex(configuredSearchguardIndexNew)) {
+            if (clusterService.state().getMetadata().hasIndexAbstraction(configuredSearchguardIndexNew)) {
                 LOGGER.info("{} index does exist. Loading configuration.", configuredSearchguardIndexNew);
                 threadPool.generic().submit(() -> loadConfigurationOnStartup(configuredSearchguardIndexNew));
-            } else if (clusterService.state().getMetadata().hasIndex(configuredSearchguardIndexOld)) {
+            } else if (clusterService.state().getMetadata().hasIndexAbstraction(configuredSearchguardIndexOld)) {
                 LOGGER.info("Legacy {} index does exist. Loading configuration.", configuredSearchguardIndexOld);
                 threadPool.generic().submit(() -> loadConfigurationOnStartup(configuredSearchguardIndexOld));
             } else if (settings.get(ALLOW_DEFAULT_INIT_SGINDEX)) {
@@ -295,10 +295,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
             componentState.setState(State.INITIALIZING, "waiting_for_config_index");
             do {
                 Thread.sleep(500);
-            } while (!clusterService.state().getMetadata().hasIndex(this.configuredSearchguardIndexNew)
-                    && !clusterService.state().getMetadata().hasIndex(this.configuredSearchguardIndexOld));
+            } while (!clusterService.state().getMetadata().hasIndexAbstraction(this.configuredSearchguardIndexNew)
+                    && !clusterService.state().getMetadata().hasIndexAbstraction(this.configuredSearchguardIndexOld));
 
-            if (clusterService.state().getMetadata().hasIndex(this.configuredSearchguardIndexNew)) {
+            if (clusterService.state().getMetadata().hasIndexAbstraction(this.configuredSearchguardIndexNew)) {
                 loadConfigurationOnStartup(configuredSearchguardIndexNew);
             } else {
                 loadConfigurationOnStartup(configuredSearchguardIndexOld);
@@ -484,9 +484,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     public String getEffectiveSearchGuardIndex() {
-        if (clusterService.state().getMetadata().hasIndex(configuredSearchguardIndexNew)) {
+        if (clusterService.state().getMetadata().hasIndexAbstraction(configuredSearchguardIndexNew)) {
             return configuredSearchguardIndexNew;
-        } else if (clusterService.state().getMetadata().hasIndex(configuredSearchguardIndexOld)) {
+        } else if (clusterService.state().getMetadata().hasIndexAbstraction(configuredSearchguardIndexOld)) {
             return configuredSearchguardIndexOld;
         } else {
             return null;
