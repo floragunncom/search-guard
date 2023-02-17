@@ -13,7 +13,7 @@ import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
