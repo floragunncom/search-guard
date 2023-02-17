@@ -457,6 +457,10 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     return new FilteredTerms(in.terms(field));
                 }
 
+                if(dlsFlsContext.getFieldMaskingRule().get(field) != null) {
+                    return null;
+                }
+
                 if (isMetaField(field) || dlsFlsContext.getFlsRule().isAllowed(field)) {
                     return in.terms(field);
                 } else {
