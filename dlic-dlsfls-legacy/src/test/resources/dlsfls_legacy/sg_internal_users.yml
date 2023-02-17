@@ -193,3 +193,27 @@ sg_dls_lookup_user2:
   hash: $2a$12$YCBrpxYyFusK609FurY5Ee3BlmuzWw0qHwpwqEyNhM2.XnQY3Bxpe
   search_guard_roles:
   - sg_dls_lookup
+document_title_reader:
+  hash: "$2a$12$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+  reserved: false
+  hidden: false
+  backend_roles: []
+  search_guard_roles:
+    - "document_title_reader_role"
+  attributes: {}
+document_reader:
+  hash: "$2a$12$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+  reserved: false
+  hidden: false
+  backend_roles: []
+  search_guard_roles:
+    - "document_reader_role"
+  attributes: {}
+document_reader_except_author:
+  hash: "$2a$12$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+  reserved: false
+  hidden: false
+  backend_roles: []
+  search_guard_roles:
+    - "document_reader_except_author_role"
+  attributes: {}

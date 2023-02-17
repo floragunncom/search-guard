@@ -2561,3 +2561,34 @@ logs_index_with_dls:
       masked_fields: null
       allowed_actions:
         - "SGS_READ"  
+document_title_reader_role:
+  cluster_permissions:
+    - '*'
+  index_permissions:
+    - index_patterns:
+        - 'documents'
+      allowed_actions:
+        - "READ"
+        - "SEARCH"
+      fls:
+        - "title"
+document_reader_role:
+  cluster_permissions:
+    - '*'
+  index_permissions:
+    - index_patterns:
+        - 'documents'
+      allowed_actions:
+        - "READ"
+        - "SEARCH"
+document_reader_except_author_role:
+  cluster_permissions:
+    - '*'
+  index_permissions:
+    - index_patterns:
+        - 'documents'
+      allowed_actions:
+        - "READ"
+        - "SEARCH"
+      fls:
+        - "~author"
