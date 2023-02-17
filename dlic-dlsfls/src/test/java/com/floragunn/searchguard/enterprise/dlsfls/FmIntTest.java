@@ -162,4 +162,21 @@ public class FmIntTest {
         }
     }
 
+    @Test
+    public void search_masked_terms() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty&q=source_ip:102.101.145.140");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            System.out.println(response.getBody());
+            Assert.assertFalse(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[*]").isEmpty());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(HASHED_IP_USER)) {
+            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty&q=source_ip:102.101.145.140");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            System.out.println(response.getBody());
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[*]").isEmpty());
+        }
+    }
 }
