@@ -9,7 +9,7 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.xcontent.XContentType;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.junit.Test;
 
 import java.util.List;
