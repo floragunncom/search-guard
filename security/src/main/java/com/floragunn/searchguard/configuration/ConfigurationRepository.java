@@ -39,6 +39,8 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
@@ -56,9 +58,12 @@ import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.cluster.metadata.AliasMetadata;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -166,6 +171,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final VariableResolvers variableResolvers;
     private final Context parserContext;
 
+    private final IndexNameExpressionResolver resolver;
+
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
             ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
             NamedXContentRegistry xContentRegistry, Environment environment) {
@@ -195,6 +202,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 }
             }
         });
+
+        resolver = new IndexNameExpressionResolver(threadPool.getThreadContext());
     }
 
     public void initOnNodeStart() {
@@ -233,10 +242,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
         LOGGER.debug("Check if one of the indices " + configuredSearchguardIndexNew + " or " + configuredSearchguardIndexOld + " does exist ...");
 
         try {
-            if (clusterService.state().getMetadata().hasIndexAbstraction(configuredSearchguardIndexNew)) {
+            if (resolver.hasIndexAbstraction(configuredSearchguardIndexNew, clusterService.state())) {
                 LOGGER.info("{} index does exist. Loading configuration.", configuredSearchguardIndexNew);
                 threadPool.generic().submit(() -> loadConfigurationOnStartup(configuredSearchguardIndexNew));
-            } else if (clusterService.state().getMetadata().hasIndexAbstraction(configuredSearchguardIndexOld)) {
+            } else if (resolver.hasIndexAbstraction(configuredSearchguardIndexOld, clusterService.state())) {
                 LOGGER.info("Legacy {} index does exist. Loading configuration.", configuredSearchguardIndexOld);
                 threadPool.generic().submit(() -> loadConfigurationOnStartup(configuredSearchguardIndexOld));
             } else if (settings.get(ALLOW_DEFAULT_INIT_SGINDEX)) {
@@ -310,10 +319,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
             componentState.setState(State.INITIALIZING, "waiting_for_config_index");
             do {
                 Thread.sleep(500);
-            } while (!clusterService.state().getMetadata().hasIndexAbstraction(this.configuredSearchguardIndexNew)
-                    && !clusterService.state().getMetadata().hasIndexAbstraction(this.configuredSearchguardIndexOld));
+            } while (!resolver.hasIndexAbstraction(this.configuredSearchguardIndexNew, clusterService.state())
+                    && !resolver.hasIndexAbstraction(this.configuredSearchguardIndexOld, clusterService.state()));
 
-            if (clusterService.state().getMetadata().hasIndexAbstraction(this.configuredSearchguardIndexNew)) {
+            if (resolver.hasIndexAbstraction(this.configuredSearchguardIndexNew, clusterService.state())) {
                 loadConfigurationOnStartup(configuredSearchguardIndexNew);
             } else {
                 loadConfigurationOnStartup(configuredSearchguardIndexOld);
@@ -381,8 +390,24 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 }
 
                 try {
-                    docCount = client.admin().indices().stats(new IndicesStatsRequest().indices(searchguardIndex).docs(true)).actionGet()
-                            .getIndex(searchguardIndex).getTotal().docs.getCount();
+
+                    final ImmutableOpenMap<String, List<AliasMetadata>> aliasMetadata = client.admin().indices().getAliases(new GetAliasesRequest(searchguardIndex)).actionGet().getAliases();
+
+                    if(aliasMetadata != null && aliasMetadata.size() == 1) {
+
+                        final String indexName = aliasMetadata.keysIt().next();
+
+                        LOGGER.info("Resolved alias '{}' to index '{}' for looking up doc count", searchguardIndex, indexName);
+
+                        docCount = client.admin().indices().stats(new IndicesStatsRequest().indices(indexName).docs(true)).actionGet()
+                                .getIndex(indexName).getTotal().docs.getCount();
+
+                    } else {
+
+                        docCount = client.admin().indices().stats(new IndicesStatsRequest().indices(searchguardIndex).docs(true)).actionGet()
+                                .getIndex(searchguardIndex).getTotal().docs.getCount();
+                    }
+
                     if (docCount < requiredDocCount) {
                         LOGGER.info("Got {} documents, waiting for {} in total, we just try again ...", docCount, requiredDocCount);
                     } else {
@@ -499,9 +524,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     public String getEffectiveSearchGuardIndex() {
-        if (clusterService.state().getMetadata().hasIndexAbstraction(configuredSearchguardIndexNew)) {
+        if (resolver.hasIndexAbstraction(configuredSearchguardIndexNew, clusterService.state())) {
             return configuredSearchguardIndexNew;
-        } else if (clusterService.state().getMetadata().hasIndexAbstraction(configuredSearchguardIndexOld)) {
+        } else if (resolver.hasIndexAbstraction(configuredSearchguardIndexOld, clusterService.state())) {
             return configuredSearchguardIndexOld;
         } else {
             return null;

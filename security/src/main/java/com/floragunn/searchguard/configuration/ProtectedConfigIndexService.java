@@ -55,6 +55,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -218,8 +219,9 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
                 return "completed";
             }
 
-            IndexMetadata indexMetadata;
-            if ((indexMetadata = clusterState.getMetadata().getIndices().get(configIndex.getName())) != null) {
+            IndexAbstraction indexAbstraction;
+            if ((indexAbstraction = clusterState.getMetadata().getIndicesLookup().get(configIndex.getName())) != null) {
+                final IndexMetadata indexMetadata = indexAbstraction.getWriteIndex();
                 if (log.isTraceEnabled()) {
                     log.trace(configIndex + " does already exist.");
                 }
@@ -376,7 +378,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
     }
 
     private int getMappingVersion(ConfigIndexState configIndex, ClusterState clusterState) {
-        IndexMetadata index = clusterState.getMetadata().getIndices().get(configIndex.getName());
+        IndexMetadata index = clusterState.getMetadata().getIndicesLookup().get(configIndex.getName()).getWriteIndex();
         MappingMetadata mapping = index.mapping();
 
         if (mapping == null) {
