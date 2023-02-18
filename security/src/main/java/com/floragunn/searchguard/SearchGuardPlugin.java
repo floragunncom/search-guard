@@ -812,7 +812,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         configVarService = new ConfigVarService(localClient, clusterService, threadPool, protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(configVarService);
         
-        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig, xContentRegistry, environment);
+        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig, xContentRegistry, environment, indexNameExpressionResolver);
         moduleRegistry.addComponentStateProvider(cr);
         
         licenseRepository = new LicenseRepository(settings, localClient, clusterService, cr);
