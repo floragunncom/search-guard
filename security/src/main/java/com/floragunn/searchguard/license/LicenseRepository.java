@@ -115,7 +115,7 @@ public class LicenseRepository implements ComponentStateProvider {
             throw new RuntimeException(e1);
         }
 
-        final IndexMetadata sgIndexMetaData = clusterService.state().getMetadata().index(searchguardIndex);
+        final IndexMetadata sgIndexMetaData = clusterService.state().getMetadata().getIndicesLookup().get(searchguardIndex).getWriteIndex();
         if (sgIndexMetaData == null) {
             LOGGER.error("Unable to retrieve trial license (or create  a new one) because {} index does not exist", searchguardIndex);
             throw new RuntimeException(searchguardIndex + " does not exist");
