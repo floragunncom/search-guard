@@ -32,6 +32,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.Index;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -115,11 +116,13 @@ public class LicenseRepository implements ComponentStateProvider {
             throw new RuntimeException(e1);
         }
 
-        final IndexMetadata sgIndexMetaData = clusterService.state().getMetadata().index(searchguardIndex);
-        if (sgIndexMetaData == null) {
+        final Index sgIndex = clusterService.state().getMetadata().getIndicesLookup().get(searchguardIndex).getWriteIndex();
+        if (sgIndex == null) {
             LOGGER.error("Unable to retrieve trial license (or create  a new one) because {} index does not exist", searchguardIndex);
             throw new RuntimeException(searchguardIndex + " does not exist");
         }
+
+        final IndexMetadata sgIndexMetaData = clusterService.state().getMetadata().index(sgIndex);
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Create or retrieve trial license from {} created with version {} and mapping type: {}", searchguardIndex,
