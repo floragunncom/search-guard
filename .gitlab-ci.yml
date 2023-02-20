@@ -46,6 +46,10 @@ default:
           echo "ES_VERSION: $ES_VERSION"
         fi
 
+        echo "Login in into Docker Hub"
+        echo ""
+        echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io
+
 stages:
   - prepare
   - build
