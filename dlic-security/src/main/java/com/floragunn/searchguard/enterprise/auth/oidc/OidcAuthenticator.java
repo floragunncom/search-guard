@@ -384,7 +384,9 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
     private URI getLoginPostURI(URI frontendBaseURI) {
         try {
-            return new URIBuilder(frontendBaseURI).setPath(frontendBaseURI.getPath() + "auth/openid/login").build();
+            String path = frontendBaseURI.getPath().endsWith("/") ?
+                frontendBaseURI.getPath() + "auth/openid/login" : frontendBaseURI.getPath() + "/auth/openid/login";
+            return new URIBuilder(frontendBaseURI).setPath(path).build();
         } catch (URISyntaxException e) {
             log.error("Got URISyntaxException when constructing loginPostURI. This should not happen. frontendBaseURI: " + frontendBaseURI, e);
             throw new RuntimeException(e);
