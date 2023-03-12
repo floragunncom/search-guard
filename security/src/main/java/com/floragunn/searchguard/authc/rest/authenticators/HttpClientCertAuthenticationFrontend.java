@@ -76,10 +76,18 @@ public class HttpClientCertAuthenticationFrontend implements HttpAuthenticationF
         Map<String, List<Object>> result = new HashMap<>();
 
         for (Rdn rdn : ldapName.getRdns()) {
-            result.computeIfAbsent(rdn.getType(), (k) -> new ArrayList<>(1)).add(rdn.getValue());
+            String directoryStringAttribute = rdn.getType();
+            result.computeIfAbsent(directoryStringAttribute, (k) -> new ArrayList<>(1)).add(rdn.getValue());
+            if(!isLowerCaseString(directoryStringAttribute)) {
+                result.computeIfAbsent(directoryStringAttribute.toLowerCase(), (k) -> new ArrayList<>(1)).add(rdn.getValue());
+            }
         }
 
         return result;
+    }
+
+    private static boolean isLowerCaseString(String string) {
+        return string.toLowerCase().equals(string);
     }
 
     @Override
