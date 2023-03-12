@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
@@ -47,6 +48,8 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 
+import javax.net.ssl.SSLContext;
+
 public interface EsClientProvider {
 
     String getClusterName();
@@ -64,6 +67,11 @@ public interface EsClientProvider {
 
     default SSLContextProvider getAdminClientSslContextProvider() {
         return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), getTestCertificates().getAdminCertificate());
+    }
+
+    default SSLContextProvider getUserClientSslContextProvider(String subjectDistinguishedName) {
+        TestCertificate userCertificate = getTestCertificates().create(subjectDistinguishedName);
+        return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), userCertificate);
     }
 
     default SSLContextProvider getAnyClientSslContextProvider() {
@@ -101,6 +109,11 @@ public interface EsClientProvider {
 
     default GenericRestClient getAdminCertRestClient(List<Header> headers) {
         return new GenericRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true));
+    }
+
+    default GenericRestClient getUserCertRestClient(String subject, Header...headers) {
+        SSLContext sslContext = getUserClientSslContextProvider(subject).getSslContext(true);
+        return new GenericRestClient(getHttpAddress(), Arrays.asList(headers), sslContext);
     }
 
     default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {
