@@ -27,7 +27,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.floragunn.searchguard.client.RestHighLevelClient;
+import javax.net.ssl.SSLContext;
+
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequestInterceptor;
@@ -40,10 +41,11 @@ import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
-import org.elasticsearch.client.internal.Client;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 
 public interface EsClientProvider {
@@ -63,6 +65,11 @@ public interface EsClientProvider {
 
     default SSLContextProvider getAdminClientSslContextProvider() {
         return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), getTestCertificates().getAdminCertificate());
+    }
+
+    default SSLContextProvider getUserClientSslContextProvider(String subjectDistinguishedName) {
+        TestCertificate userCertificate = getTestCertificates().create(subjectDistinguishedName);
+        return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), userCertificate);
     }
 
     default SSLContextProvider getAnyClientSslContextProvider() {
@@ -100,6 +107,11 @@ public interface EsClientProvider {
 
     default GenericRestClient getAdminCertRestClient(List<Header> headers) {
         return new GenericRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true));
+    }
+
+    default GenericRestClient getUserCertRestClient(String subject, Header...headers) {
+        SSLContext sslContext = getUserClientSslContextProvider(subject).getSslContext(true);
+        return new GenericRestClient(getHttpAddress(), Arrays.asList(headers), sslContext);
     }
 
     default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {
