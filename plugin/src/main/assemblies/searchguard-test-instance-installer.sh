@@ -414,10 +414,8 @@ $SB_LC_NAME.requestHeadersWhitelist: [ "Authorization", "sgtenant" ]
 EOM
 
 if [[ "$SB_LC_NAME"  == "elasticsearch"* ]]; then
-  # Search Guard and X-Pack security cannot be active at the same time. Thus, X-Pack security needs to be disabled 
-  echo >>config/kibana.yml xpack.security.enabled: false
   # Suppress Kibana warning about disable X-Pack security
-  echo >>config/kibana.yml security.showInsecureClusterWarning: false
+  echo >>config/kibana.yml xpack.security.showInsecureClusterWarning: false
 fi
 
 cd ..
