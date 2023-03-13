@@ -32,6 +32,38 @@ function show_help() {
     echo "  -c enable cluster mode by binding to all network interfaces (default is to ask if -y is not given)"
 }
 
+function init_search_guard_question() {
+  if [ "$initsg" == 0 ]; then
+    read -r -p "Initialize Search Guard? [y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+          initsg=1
+          ;;
+        *)
+        initsg=0
+        ;;
+    esac
+  fi
+}
+
+function enable_custer_mode_question() {
+  if [ "$cluster_mode" == 0 ]; then
+    echo "Cluster mode requires maybe additional setup of:"
+    echo "  - Virtual memory (vm.max_map_count)"
+    echo "    See https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html"
+    echo ""
+    read -r -p "Enable cluster mode? [y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            cluster_mode=1
+            ;;
+        *)
+            cluster_mode=0
+            ;;
+    esac
+  fi
+}
+
 while getopts "h?yic" opt; do
     case "$opt" in
     h|\?)
@@ -50,43 +82,12 @@ shift $((OPTIND-1))
 
 [ "$1" = "--" ] && shift
 
-if [ "$assumeyes" == 0 ]; then
-	read -r -p "Install demo certificates? [y/N] " response
-	case "$response" in
-	    [yY][eE][sS]|[yY]) 
-	        ;;
-	    *)
-	        exit 0
-	        ;;
-	esac
-fi
-
-if [ "$initsg" == 0 ] && [ "$assumeyes" == 0 ]; then
-	read -r -p "Initialize Search Guard? [y/N] " response
-	case "$response" in
-	    [yY][eE][sS]|[yY]) 
-	        initsg=1
-	        ;;
-	    *)
-	        initsg=0
-	        ;;
-	esac
-fi
-
-if [ "$cluster_mode" == 0 ] && [ "$assumeyes" == 0 ]; then
-    echo "Cluster mode requires maybe additional setup of:"
-    echo "  - Virtual memory (vm.max_map_count)"
-    echo "    See https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html"
-    echo ""
-	read -r -p "Enable cluster mode? [y/N] " response
-	case "$response" in
-	    [yY][eE][sS]|[yY]) 
-	        cluster_mode=1
-	        ;;
-	    *)
-	        cluster_mode=0
-	        ;;
-	esac
+if [ "$assumeyes" == 1 ]; then
+  initsg=1
+  cluster_mode=1
+else
+  init_search_guard_question
+  enable_custer_mode_question
 fi
 
 
