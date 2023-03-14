@@ -53,6 +53,7 @@ determine_kibana_plugin_version_test:
         exit 1
       else
         echo "Found compatible version of kibana plugin: $KIBANA_VERSION"
+        curl -Ss --fail https://maven.search-guard.com//search-guard-flx-release/com/floragunn/search-guard-flx-kibana-plugin/$KIBANA_VERSION
       fi
       mvn $MAVEN_CLI_OPTS -DskipTests -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION -Dsg-kibana-plugin.version=$KIBANA_VERSION clean install || exit 1
   artifacts:
