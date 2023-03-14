@@ -20,6 +20,7 @@
 	<name>Search Guard FLX</name>
 
 	<properties>
+		<sg-kibana-plugin.version>${revision}</sg-kibana-plugin.version>
 		<elasticsearch.version>7.17.7</elasticsearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
         <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
