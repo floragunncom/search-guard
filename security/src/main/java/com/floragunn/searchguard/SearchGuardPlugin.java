@@ -43,6 +43,7 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.floragunn.searchguard.authc.rest.AuthcCacheApi;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -491,6 +492,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(InternalUsersConfigApi.REST_API);
                 handlers.add(RestAuthcConfigApi.REST_API);
                 handlers.add(AuthorizationConfigApi.REST_API);
+                handlers.add(new AuthcCacheApi.RestHandler());
                 handlers.add(FrontendAuthcConfigApi.TypeLevel.REST_API);
                 handlers.add(FrontendAuthcConfigApi.DocumentLevel.REST_API);
                 handlers.add(SearchGuardLicenseKeyApi.REST_API);
@@ -544,6 +546,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(RestAuthcConfigApi.GetAction.INSTANCE, RestAuthcConfigApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(RestAuthcConfigApi.PutAction.INSTANCE, RestAuthcConfigApi.PutAction.Handler.class));
             actions.add(new ActionHandler<>(RestAuthcConfigApi.PatchAction.INSTANCE, RestAuthcConfigApi.PatchAction.Handler.class));
+            actions.add(new ActionHandler<>(AuthcCacheApi.DeleteAction.INSTANCE, AuthcCacheApi.DeleteAction.TransportAction.class));
             actions.addAll(AuthorizationConfigApi.ACTION_HANDLERS);
             actions.addAll(SearchGuardLicenseKeyApi.ACTION_HANDLERS);
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.GetAction.Handler.class));
@@ -902,6 +905,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         
         sgRestHandler = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool,
                 principalExtractor, evaluator, settings, configPath, diagnosticContext);
+        components.add(sgRestHandler);
 
         evaluator.setPrivilegesInterceptor(moduleRegistry.getPrivilegesInterceptor());
 

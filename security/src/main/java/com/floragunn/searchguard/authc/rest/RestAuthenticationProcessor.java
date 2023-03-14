@@ -17,20 +17,6 @@
 
 package com.floragunn.searchguard.authc.rest;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Consumer;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.BytesRestResponse;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.threadpool.ThreadPool;
-
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
@@ -54,8 +40,20 @@ import com.floragunn.searchsupport.cstate.metrics.CacheStats;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.google.common.cache.Cache;
-
 import inet.ipaddr.IPAddress;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.BytesRestResponse;
+import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.threadpool.ThreadPool;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Consumer;
 
 public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
@@ -63,6 +61,8 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
             Consumer<Exception> onFailure);
 
     boolean isDebugEnabled();
+
+    void clearCaches();
 
     public static class Default implements RestAuthenticationProcessor {
 
@@ -88,6 +88,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
         private final TimeAggregation authenticateMetrics = new TimeAggregation.Milliseconds();
 
         private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
+
 
         public Default(RestAuthcConfig config, SearchGuardModulesRegistry modulesRegistry, AdminDNs adminDns, BlockedIpRegistry blockedIpRegistry,
                 BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool, PrivilegesEvaluator privilegesEvaluator) {
@@ -180,6 +181,12 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
         @Override
         public ComponentState getComponentState() {
             return componentState;
+        }
+
+        @Override
+        public void clearCaches() {
+            userCache.invalidateAll();
+            impersonationCache.invalidateAll();
         }
     }
 }

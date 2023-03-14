@@ -139,6 +139,10 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         return new AuthenticatingRestHandler(original);
     }
 
+    public RestAuthenticationProcessor getAuthenticationProcessor() {
+        return authenticationProcessor;
+    }
+
     class AuthenticatingRestHandler implements RestHandler {
         private final RestHandler original;
 
