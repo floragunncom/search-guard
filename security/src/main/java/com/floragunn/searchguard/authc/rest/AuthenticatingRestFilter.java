@@ -137,6 +137,10 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     public HttpServerTransport.Dispatcher wrap(HttpServerTransport.Dispatcher original) {
         return new AuthenticatingRestHandler(original);
     }
+    
+    public RestAuthenticationProcessor getAuthenticationProcessor() {
+        return authenticationProcessor;
+    }
 
     class AuthenticatingRestHandler implements HttpServerTransport.Dispatcher {
         private final HttpServerTransport.Dispatcher original;

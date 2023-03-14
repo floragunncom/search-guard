@@ -25,7 +25,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
@@ -64,6 +63,8 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
     boolean isDebugEnabled();
 
+    void clearCaches();
+
     public static class Default implements RestAuthenticationProcessor {
 
         private static final Logger log = LogManager.getLogger(RestAuthenticationProcessor.class);
@@ -88,6 +89,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
         private final TimeAggregation authenticateMetrics = new TimeAggregation.Milliseconds();
 
         private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
+
 
         public Default(RestAuthcConfig config, SearchGuardModulesRegistry modulesRegistry, AdminDNs adminDns, BlockedIpRegistry blockedIpRegistry,
                 BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool, PrivilegesEvaluator privilegesEvaluator) {
@@ -186,6 +188,12 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
         @Override
         public ComponentState getComponentState() {
             return componentState;
+        }
+
+        @Override
+        public void clearCaches() {
+            userCache.invalidateAll();
+            impersonationCache.invalidateAll();
         }
     }
 }

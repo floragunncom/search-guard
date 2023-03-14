@@ -154,6 +154,12 @@ public class LegacyRestAuthenticationProcessor implements RestAuthenticationProc
     }
 
     @Override
+    public void clearCaches() {
+        userCache.invalidateAll();
+        impersonationCache.invalidateAll();
+    }
+
+    @Override
     public ComponentState getComponentState() {
         return componentState;
     }

@@ -42,8 +42,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import com.floragunn.searchguard.rest.SearchGuardConfigUpdateAction;
-import com.floragunn.searchguard.rest.SearchGuardWhoAmIAction;
+
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -60,7 +59,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
-import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkModule;
@@ -129,6 +127,7 @@ import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersAuthenticationBackend;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersDatabase;
+import com.floragunn.searchguard.authc.rest.AuthcCacheApi;
 import com.floragunn.searchguard.authc.rest.AuthenticatingRestFilter;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfigApi;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfigApi;
@@ -168,8 +167,10 @@ import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwn
 import com.floragunn.searchguard.rest.KibanaInfoAction;
 import com.floragunn.searchguard.rest.PermissionAction;
 import com.floragunn.searchguard.rest.SSLReloadCertAction;
+import com.floragunn.searchguard.rest.SearchGuardConfigUpdateAction;
 import com.floragunn.searchguard.rest.SearchGuardHealthAction;
 import com.floragunn.searchguard.rest.SearchGuardInfoAction;
+import com.floragunn.searchguard.rest.SearchGuardWhoAmIAction;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
@@ -494,6 +495,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(InternalUsersConfigApi.REST_API);
                 handlers.add(RestAuthcConfigApi.REST_API);
                 handlers.add(AuthorizationConfigApi.REST_API);
+                handlers.add(new AuthcCacheApi.RestHandler());
                 handlers.add(FrontendAuthcConfigApi.TypeLevel.REST_API);
                 handlers.add(FrontendAuthcConfigApi.DocumentLevel.REST_API);
                 handlers.add(SearchGuardLicenseKeyApi.REST_API);
@@ -540,6 +542,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(RestAuthcConfigApi.GetAction.INSTANCE, RestAuthcConfigApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(RestAuthcConfigApi.PutAction.INSTANCE, RestAuthcConfigApi.PutAction.Handler.class));
             actions.add(new ActionHandler<>(RestAuthcConfigApi.PatchAction.INSTANCE, RestAuthcConfigApi.PatchAction.Handler.class));
+            actions.add(new ActionHandler<>(AuthcCacheApi.DeleteAction.INSTANCE, AuthcCacheApi.DeleteAction.TransportAction.class));
             actions.addAll(AuthorizationConfigApi.ACTION_HANDLERS);
             actions.addAll(SearchGuardLicenseKeyApi.ACTION_HANDLERS);
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.GetAction.Handler.class));
@@ -899,6 +902,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         
         searchGuardRestFilter = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool,
                 principalExtractor, evaluator, settings, configPath, diagnosticContext);
+        components.add(searchGuardRestFilter);
 
         evaluator.setPrivilegesInterceptor(moduleRegistry.getPrivilegesInterceptor());
 
