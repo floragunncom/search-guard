@@ -486,4 +486,12 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:not*,notf*/_search?pretty", agg, encodeBasicHeader("nagilum","nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
     }
+
+    @Test
+    public void shouldPerformQueryForNotExistingIndex() throws Exception {
+        setupCcs();
+
+        HttpResponse response = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("/*:.monitoring-es/_search", encodeBasicHeader("nagilum","nagilum"));
+        Assert.assertEquals(404, response.getStatusCode());
+    }
 }
