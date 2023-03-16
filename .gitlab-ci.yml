@@ -41,33 +41,6 @@ workflow:
       when: never
     - when: always
 
-determine_kibana_plugin_version_test:
-  stage: build
-  script:
-    - |
-      ES_VERSION=8.6.2
-      SG_VERSION=1.1.1
-      COMPATIBLE_KIBANA_VERSION=$(git ls-remote --tags --sort=-v:refname https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/search-guard/search-guard-kibana-plugin "sg-flx-*-$ES_VERSION" | head --lines=1 | cut --delimiter='/' --fields=3 | sed -n 's/^sg-flx-\(.*\)$/\1/p')
-      if [ -z "$COMPATIBLE_KIBANA_VERSION" ]; then
-        echo "Cannot find a compatible version of kibana plugin (ES $ES_VERSION) based on tags."
-        exit 1
-      else
-        echo "Found a compatible version of kibana plugin: $COMPATIBLE_KIBANA_VERSION based on tags."
-      fi
-      KIBANA_ARTIFACT_URL=https://maven.search-guard.com/search-guard-flx-release/com/floragunn/search-guard-flx-kibana-plugin/$COMPATIBLE_KIBANA_VERSION
-      if curl --fail $KIBANA_ARTIFACT_URL; then
-        echo "Kibana found in artifactory: $KIBANA_ARTIFACT_URL"
-      else
-        echo "Kibana not found in artifactory: $KIBANA_ARTIFACT_URL. Is it already deployed?"
-        exit 1;
-      fi
-      mvn $MAVEN_CLI_OPTS -DskipTests -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION -Dsg-kibana-plugin.version=$COMPATIBLE_KIBANA_VERSION clean install || exit 1
-  artifacts:
-    when: on_success
-    paths:
-      - "*/target"
-    expire_in: 10m
-
 upload_mvn_third_party_deps:
   allow_failure: false
   stage: prepare
@@ -607,6 +580,20 @@ deploy_release:
       ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
       DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+      COMPATIBLE_KIBANA_VERSION=$(git ls-remote --tags --sort=-v:refname https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/search-guard/search-guard-kibana-plugin "sg-flx-*-$ES_VERSION" | head --lines=1 | cut --delimiter='/' --fields=3 | sed -n 's/^sg-flx-\(.*\)$/\1/p')
+      if [ -z "$COMPATIBLE_KIBANA_VERSION" ]; then
+        echo "Cannot find a compatible version of kibana plugin (ES $ES_VERSION) based on tags."
+        exit 1
+      else
+        echo "Found a compatible version of kibana plugin: $COMPATIBLE_KIBANA_VERSION based on tags."
+      fi
+      KIBANA_ARTIFACT_URL=https://maven.search-guard.com/search-guard-flx-release/com/floragunn/search-guard-flx-kibana-plugin/$COMPATIBLE_KIBANA_VERSION
+      if curl --fail $KIBANA_ARTIFACT_URL; then
+        echo "Kibana found in artifactory: $KIBANA_ARTIFACT_URL"
+      else
+        echo "Kibana not found in artifactory: $KIBANA_ARTIFACT_URL. Is it already deployed?"
+        exit 1;
+      fi
 
       # TODO echo "Removing current release from Staging"
       #curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-flx-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
@@ -618,7 +605,7 @@ deploy_release:
       git push --tags || true
       cd ..
       echo "Deploying Release to Production repo."
-      mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
+      mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION -Dsg-kibana-plugin.version=$COMPATIBLE_KIBANA_VERSION || exit 1
   allow_failure: false
 
 deploy_docker_image:
