@@ -48,7 +48,7 @@ determine_kibana_plugin_version_test:
       ES_VERSION=7.17.7
       SG_VERSION=1.0.0
       COMPATIBLE_KIBANA_VERSION=1.1.0-es-8.6.3
-      if curl --fail https://maven.search-guard.com/search-guard-flx-release/com/floragunn/search-guard-flx-kibana-plugin/$COMPATIBLE_KIBANA_VERSION; then
+      if curl -i --fail https://maven.search-guard.com/search-guard-flx-release/com/floragunn/search-guard-flx-kibana-plugin/$COMPATIBLE_KIBANA_VERSION; then
         echo "Kibana found in artifactory"
       else
         echo "Kibana not found in artifactory. Is it already deployed?"
