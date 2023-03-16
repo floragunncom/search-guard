@@ -47,12 +47,18 @@ determine_kibana_plugin_version_test:
     - |
       ES_VERSION=7.17.7
       SG_VERSION=1.0.0
-      COMPATIBLE_KIBANA_VERSION=1.1.0-es-8.6.2
-      KIBANA_ARTIFACTORY_URL=https://maven.search-guard.com/search-guard-flx-release/com/floragunn/search-guard-flx-kibana-plugin/$COMPATIBLE_KIBANA_VERSION
-      if curl --fail $KIBANA_ARTIFACTORY_URL; then
-        echo "Kibana found in artifactory: $KIBANA_ARTIFACTORY_URL"
+      COMPATIBLE_KIBANA_VERSION=$(git ls-remote --tags --sort=-v:refname https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/search-guard/search-guard-kibana-plugin "sg-flx-*-$ES_VERSION" | head --lines=1 | cut --delimiter='/' --fields=3 | sed -n 's/^sg-flx-\(.*\)$/\1/p')
+      if [ -z "$COMPATIBLE_KIBANA_VERSION" ]; then
+        echo "Cannot find a compatible version of kibana plugin (ES v$ES_VERSION) based on tags."
+        exit 1
       else
-        echo "Kibana not found in artifactory: $KIBANA_ARTIFACTORY_URL. Is it already deployed?"
+        echo "Found a compatible version of kibana plugin: $COMPATIBLE_KIBANA_VERSION based on tags."
+      fi
+      KIBANA_ARTIFACT_URL=https://maven.search-guard.com/search-guard-flx-release/com/floragunn/search-guard-flx-kibana-plugin/$COMPATIBLE_KIBANA_VERSION
+      if curl --fail $KIBANA_ARTIFACT_URL; then
+        echo "Kibana found in artifactory: $KIBANA_ARTIFACT_URL"
+      else
+        echo "Kibana not found in artifactory: $KIBANA_ARTIFACT_URL. Is it already deployed?"
         exit 1;
       fi
       mvn $MAVEN_CLI_OPTS -DskipTests -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION -Dsg-kibana-plugin.version=$COMPATIBLE_KIBANA_VERSION clean install || exit 1
