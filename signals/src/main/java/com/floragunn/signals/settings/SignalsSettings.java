@@ -518,7 +518,7 @@ public class SignalsSettings {
                     ".signals_watches_trigger_state").asString();
             public static StaticSettings.Attribute<String> ACCOUNTS =  StaticSettings.Attribute.define("signals.index_names.accounts").withDefault(".signals_accounts").asString();
             public static StaticSettings.Attribute<String> SETTINGS =  StaticSettings.Attribute.define("signals.index_names.settings").withDefault(".signals_settings").asString();
-            public static StaticSettings.Attribute<String> LOG = StaticSettings.Attribute.define("signals.index_names.log").withDefault("<.signals_log_{now/d}>").asString();
+            public static StaticSettings.Attribute<String> LOG = StaticSettings.Attribute.define("signals.index_names.log").withDefault("<signals_log_{now/d}>").asString();
 
             private final StaticSettings settings;
 
