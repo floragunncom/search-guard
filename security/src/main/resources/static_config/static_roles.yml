@@ -220,6 +220,8 @@ SGS_KIBANA_SERVER:
     - "*:.apm-*"
     - ".kibana-event-log-*"
     - "*:.kibana-event-log-*"
+    - ".fleet-agents"
+    - "logs-cloud_security_posture*"
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
