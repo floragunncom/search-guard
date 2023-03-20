@@ -18,6 +18,7 @@
 package com.floragunn.signals.actions.watch.ack;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -110,7 +111,7 @@ public class TransportAckWatchAction
                 }
             } else {
                 if (request.request.isAck()) {
-                    List<String> ackedActions = signalsTenant.ack(request.request.getWatchId(), user);
+                    List<String> ackedActions = new ArrayList<>(signalsTenant.ack(request.request.getWatchId(), user).keySet());
 
                     if (ackedActions.size() == 0) {
                         return new NodeResponse(localNode, AckWatchResponse.Status.ILLEGAL_STATE, "No actions are in an acknowlegable state");

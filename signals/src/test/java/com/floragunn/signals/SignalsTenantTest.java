@@ -2,6 +2,7 @@ package com.floragunn.signals;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -169,7 +170,7 @@ public class SignalsTenantTest {
 
                 Thread.sleep(500);
 
-                List<String> ackedActions = tenant.ack("test_watch", new User("horst"));
+                List<String> ackedActions = new ArrayList<>(tenant.ack("test_watch", new User("horst")).keySet());
                 Assert.assertEquals(Arrays.asList("testsink"), ackedActions);
 
                 ackedTime1 = tenant.getWatchStateManager().getWatchState("test_watch").getActionState("testsink").getAcked();

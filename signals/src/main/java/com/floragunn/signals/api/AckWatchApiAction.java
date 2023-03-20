@@ -69,9 +69,9 @@ public class AckWatchApiAction extends SignalsBaseRestHandler implements TenantA
                             } else if (response.getStatus() == AckWatchResponse.Status.ILLEGAL_STATE) {
                                 errorResponse(channel, RestStatus.PRECONDITION_FAILED, response.getStatusMessage());
                             } else if (response.getStatus() == AckWatchResponse.Status.NO_SUCH_ACTION) {
-                                errorResponse(channel, RestStatus.NOT_FOUND, response.getStatusMessage());                                
+                                errorResponse(channel, RestStatus.NOT_FOUND, response.getStatusMessage());
                             } else if (response.getStatus() == AckWatchResponse.Status.NOT_ACKNOWLEDGEABLE) {
-                                errorResponse(channel, RestStatus.BAD_REQUEST, response.getStatusMessage());                                
+                                errorResponse(channel, RestStatus.BAD_REQUEST, response.getStatusMessage());
                             } else {
                                 errorResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, response.getStatusMessage());
                             }
