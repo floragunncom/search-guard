@@ -19,6 +19,7 @@ package com.floragunn.signals;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.floragunn.signals.watch.common.Ack;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -375,7 +377,7 @@ public class SignalsTenant implements Closeable {
         return indexResponse;
     }
 
-    public List<String> ack(String watchId, User user) throws NoSuchWatchOnThisNodeException {
+    public Map<String, Ack> ack(String watchId, User user) throws NoSuchWatchOnThisNodeException {
         if (log.isInfoEnabled()) {
             log.info("ack(" + watchId + ", " + user + ")");
         }
@@ -388,14 +390,14 @@ public class SignalsTenant implements Closeable {
 
         WatchState watchState = watchStateManager.getWatchState(watchId);
 
-        List<String> result = watchState.ack(user != null ? user.getName() : null, watch);
+        Map<String, Ack> result = watchState.ack(user != null ? user.getName() : null, watch);
 
         watchStateWriter.put(watchId, watchState);
 
         return result;
     }
 
-    public void ack(String watchId, String actionId, User user) throws NoSuchWatchOnThisNodeException, NoSuchActionException, NotAcknowledgeableException {
+    public WatchState ack(String watchId, String actionId, User user) throws NoSuchWatchOnThisNodeException, NoSuchActionException, NotAcknowledgeableException {
         if (log.isInfoEnabled()) {
             log.info("ack(" + watchId + ", " + actionId + ", " + user + ")");
         }
@@ -417,6 +419,7 @@ public class SignalsTenant implements Closeable {
         watchState.getActionState(actionId).ack(user != null ? user.getName() : null);
 
         watchStateWriter.put(watchId, watchState);
+        return watchState;
     }
 
     public List<String> unack(String watchId, User user) throws NoSuchWatchOnThisNodeException {
