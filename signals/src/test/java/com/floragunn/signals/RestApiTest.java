@@ -24,10 +24,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
@@ -96,6 +98,7 @@ import net.jcip.annotations.NotThreadSafe;
 @NotThreadSafe
 public class RestApiTest {
     private static final Logger log = LogManager.getLogger(RestApiTest.class);
+    public static final String USERNAME_UHURA = "uhura";
 
     private static ScriptService scriptService;
     private static BrowserUpProxy httpProxy;
@@ -162,7 +165,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -190,7 +193,7 @@ public class RestApiTest {
         String watchJson = "{ \"trigger\": {\"schedule\": {\"daily\": {\"at\": \"\"} } }, \"checks\":[], \"actions\":[], \"active\":false, \"log_runtime_data\":false }";
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             HttpResponse response = restClient.putJson(watchPath, watchJson);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
@@ -207,7 +210,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             Watch watch = new WatchBuilder(watchId).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
@@ -237,7 +240,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.index(new IndexRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1").source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
 
@@ -284,7 +287,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.index(new IndexRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1").source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
 
@@ -314,7 +317,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.index(new IndexRequest(testSource).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1").source(XContentType.JSON, "a", "x", "b", "y"))
                     .actionGet();
             awaitMinCountOfDocuments(client, testSource, 1);
@@ -393,7 +396,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_dash")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -428,7 +431,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             Watch watch = new WatchBuilder(watchId).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch_with_dash").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
@@ -452,7 +455,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_put_watch").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
@@ -475,7 +478,8 @@ public class RestApiTest {
         String watchId = "put_invalid_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
             String watchJson = "{\"trigger\":{\"schedule\":{\"timezone\":\"Europe/Berlino\",\"cron\":[\"* * argh * * ?\"],\"x\": 2}}," //
                     + "\"checks\":["
                     + "{\"type\":\"searchx\",\"name\":\"testsearch\",\"target\":\"testsearch\",\"request\":{\"indices\":[\"testsource\"],\"body\":{\"query\":{\"match_all\":{}}}}},"
@@ -518,7 +522,8 @@ public class RestApiTest {
         String watchId = "put_invalid_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
             String watchJson = "{\"trigger\":{";
 
             HttpResponse response = restClient.putJson(watchPath, watchJson);
@@ -585,7 +590,7 @@ public class RestApiTest {
 
         try (Client client = cluster.getInternalNodeClient();
                 MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
                 client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_credentials")).actionGet();
 
@@ -629,7 +634,7 @@ public class RestApiTest {
 
         try (Client client = cluster.getInternalNodeClient();
                 MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
                 webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
 
@@ -676,7 +681,7 @@ public class RestApiTest {
 
         try (Client client = cluster.getInternalNodeClient();
                 MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
                 webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
 
@@ -717,7 +722,7 @@ public class RestApiTest {
 
         try (Client client = cluster.getInternalNodeClient();
                 MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
                 HttpResponse response = restClient.putJson("/_signals/settings/http.proxy", "\"http://127.0.0.8:" + httpProxy.getPort() + "\"");
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
@@ -752,7 +757,7 @@ public class RestApiTest {
 
         try (Client client = cluster.getInternalNodeClient();
                 MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             try {
                 client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_credentials")).actionGet();
@@ -818,7 +823,7 @@ public class RestApiTest {
         String watchPathWithWrongTenant = "/_signals/watch/_main/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch_with_tenant")).actionGet();
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -897,7 +902,8 @@ public class RestApiTest {
         String watchId = "delete_watch";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
             client.admin().indices().create(new CreateIndexRequest("testsink_delete_watch")).actionGet();
 
             Watch watch = new WatchBuilder("put_test").atMsInterval(10).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -932,7 +938,8 @@ public class RestApiTest {
     @Test
     public void testExecuteAnonymousWatch() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
 
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
@@ -951,7 +958,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             Watch watch = new WatchBuilder(watchId).cronTrigger("0 0 */1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
@@ -970,7 +977,8 @@ public class RestApiTest {
 
         String testSink = "testsink_anon_watch_with_goto";
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
 
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}, \"x\": \"1\"}").as("teststatic").then().index(testSink).docId("1")
@@ -994,7 +1002,8 @@ public class RestApiTest {
 
         String testSink = "testsink_anon_watch_with_input";
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
 
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}, \"x\": \"1\"}").as("teststatic").then().index(testSink).docId("1")
@@ -1017,7 +1026,8 @@ public class RestApiTest {
     @Test
     public void testExecuteAnonymousWatchWithShowAllRuntimeAttributes() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
 
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").consider("data.testsearch.hits.total.value").greaterOrEqual(1)
@@ -1045,7 +1055,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             Watch watch = new WatchBuilder("deactivate_test").inactive().atMsInterval(100).search("testsource").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").build();
@@ -1088,7 +1098,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             client.admin().indices().create(new CreateIndexRequest("testsink_deactivate_watch")).actionGet();
 
@@ -1134,7 +1144,8 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         String testSink = "testsink_" + watchId;
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
 
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
@@ -1166,7 +1177,7 @@ public class RestApiTest {
             awaitMinCountOfDocuments(client, testSink, lastExecutionCount + 1);
 
         } finally {
-            try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+            try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
                 restClient.put("/_signals/tenant/" + tenant + "/_active");
                 restClient.delete(watchPath);
             }
@@ -1180,7 +1191,8 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         String testSink = "testsink_" + watchId;
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
 
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
@@ -1211,7 +1223,7 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, testSink, lastExecutionCount + 1);
         } finally {
-            try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+            try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
                 restClient.put("/_signals/admin/_active");
                 restClient.delete(watchPath);
             }
@@ -1225,7 +1237,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsource_ack_watch")).actionGet();
             client.admin().indices().create(new CreateIndexRequest("testsink_ack_watch")).actionGet();
 
@@ -1257,7 +1269,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(response.getBody(), "uhura", statusDoc.at("/actions/testaction/acked/by").textValue());
+            Assert.assertEquals(response.getBody(), USERNAME_UHURA, statusDoc.at("/actions/testaction/acked/by").textValue());
 
             Thread.sleep(200);
 
@@ -1303,13 +1315,407 @@ public class RestApiTest {
     }
 
     @Test
+    public void testAckAndGetWatchWithSingleAction() throws Exception {
+        String tenant = "_main";
+        String watchId = "ack_and_get_test_watch_with_single_action";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchedIndex = "source_index_for_watch_" + watchId;
+        String sinkIndex = "sink_index_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
+                .checkCondition("data.testsearch.hits.hits.length > 0").then()
+                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testaction")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
+                "val1", "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, sinkIndex, 1);
+
+            response = restClient.put(watchPath + "/_ack_and_get/testaction");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            JsonNode ackDoc = DefaultObjectMapper.readTree(response.getBody());
+            Assert.assertEquals("testaction", ackDoc.at("/acked/0/action_id").textValue());
+            Assert.assertEquals(USERNAME_UHURA, ackDoc.at("/acked/0/by_user").textValue());
+            Assert.assertNotNull(ackDoc.at("/acked/0/on").textValue());
+        }
+    }
+
+    @Test
+    public void testAckAndGetShouldReturnErrorResponseWhenActionDoesNotExists() throws Exception {
+        String tenant = "_main";
+        String watchId = "ack_and_get_test_watch_with_non_existing_action";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchedIndex = "source_index_for_watch_" + watchId;
+        String sinkIndex = "sink_index_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
+                .checkCondition("data.testsearch.hits.hits.length > 0").then()
+                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testaction")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
+                "val1", "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, sinkIndex, 1);
+
+            response = restClient.put(watchPath + "/_ack_and_get/non_existing_action_id");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+        }
+    }
+
+    @Test
+    public void testAckAndGetForOneActionForWatchWithDoubleAction() throws Exception {
+        String tenant = "_main";
+        String watchId = "ack_and_get_for_one_action_watch_with_double_action_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchedIndex = "source_index_for_watch_" + watchId;
+        String sinkIndex = "sink_index_" + watchId;
+        String additionalSinkIndex = "additional_sink_index_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(additionalSinkIndex)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
+                .checkCondition("data.testsearch.hits.hits.length > 0").then()
+                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactionone")
+                .and().index(additionalSinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactiontwo")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            response = restClient.put(watchPath + "/_ack/testactionone");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_PRECONDITION_FAILED, response.getStatusCode());
+
+            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
+                "val1", "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, sinkIndex, 1);
+            awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
+
+            response = restClient.put(watchPath + "/_ack_and_get/testactionone");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            JsonNode ackDoc = DefaultObjectMapper.readTree(response.getBody());
+            Assert.assertEquals("testactionone", ackDoc.at("/acked/0/action_id").textValue());
+            Assert.assertEquals(USERNAME_UHURA, ackDoc.at("/acked/0/by_user").textValue());
+            Assert.assertNotNull(ackDoc.at("/acked/0/on").textValue());
+
+            assertThatActionIsNotAcked(restClient, watchPath, "testactiontwo");
+        }
+    }
+
+    @Test
+    public void testAckAndGetForInactiveWatchShouldReturnErrorResponse() throws Exception {
+        String tenant = "_main";
+        String watchId = "ack_and_get_for_inactive_watch_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchedIndex = "source_index_for_watch_" + watchId;
+        String sinkIndex = "sink_index_" + watchId;
+        String additionalSinkIndex = "additional_sink_index_" + watchId;
+
+        try (
+            Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(additionalSinkIndex)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }")
+                    .as("testsearch").checkCondition("data.testsearch.hits.hits.length > 0").then()
+                    .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0")
+                    .name("testactionone").and().index(additionalSinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0")
+                    .name("testactiontwo").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            response = restClient.put(watchPath + "/_ack_and_get/testactionone");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_PRECONDITION_FAILED, response.getStatusCode());
+        }
+    }
+
+    private static void assertThatActionIsNotAcked(GenericRestClient restClient, String watchPath, String actionName) throws Exception {
+        HttpResponse response;
+        Thread.sleep(500);
+        response = restClient.get(watchPath + "/_state");
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+        JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
+        Assert.assertFalse(statusDoc.at("/actions/" + actionName).isEmpty());
+        Assert.assertEquals("ACTION_EXECUTED", statusDoc.at("/actions/" + actionName + "/last_status/code").asText());
+        Assert.assertTrue(statusDoc.at("/actions/" + actionName + "/acked").isMissingNode());
+    }
+
+    @Test
+    public void testAckAndGetBothActionForWatchWithTwoAction() throws Exception {
+        String tenant = "_main";
+        String watchId = "ack_and_get_both_action_for_watch_with_two_actions_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchedIndex = "source_index_for_watch_" + watchId;
+        String sinkIndex = "sink_index_" + watchId;
+        String additionalSinkIndex = "additional_sink_index_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(additionalSinkIndex)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
+                .checkCondition("data.testsearch.hits.hits.length > 0").then()
+                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactionone")
+                .and().index(additionalSinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactiontwo")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
+                "val1", "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, sinkIndex, 1);
+            awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
+
+            response = restClient.put(watchPath + "/_ack_and_get");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            JsonNode ackDoc = DefaultObjectMapper.readTree(response.getBody());
+            Assert.assertEquals(2, ackDoc.at("/acked").size());
+            Set<String> actionIds = Stream.of(ackDoc.at("/acked/0/action_id"), ackDoc.at("/acked/1/action_id"))//
+                .map(JsonNode::asText)//
+                .collect(Collectors.toSet());//
+            Assert.assertTrue(actionIds.contains("testactionone"));
+            Assert.assertTrue(actionIds.contains("testactiontwo"));
+        }
+    }
+
+    @Test
+    public void testDeAckAndGetFirstActionForWatchWithTwoAction() throws Exception {
+        String tenant = "_main";
+        String watchId = "deack_and_get_first_action_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchedIndex = "source_index_for_watch_" + watchId;
+        String sinkIndex = "sink_index_" + watchId;
+        String additionalSinkIndex = "additional_sink_index_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(additionalSinkIndex)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
+                .checkCondition("data.testsearch.hits.hits.length > 0").then()
+                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactionone")
+                .and().index(additionalSinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactiontwo")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
+                "val1", "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, sinkIndex, 1);
+            awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
+
+            response = restClient.put(watchPath + "/_ack_and_get");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            response = restClient.delete(watchPath + "/_ack_and_get/testactionone");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            JsonNode unackDoc = DefaultObjectMapper.readTree(response.getBody());
+            Assert.assertEquals(1, unackDoc.at("/unacked_action_ids").size());
+            Assert.assertEquals("testactionone", unackDoc.at("/unacked_action_ids/0").asText());
+            assertThatActionIsNotAcked(restClient, watchPath, "testactionone");
+        }
+    }
+
+    @Test
+    public void testDeAckAndGetSecondActionForWatchWithTwoAction() throws Exception {
+        String tenant = "_main";
+        String watchId = "deack_and_get_second_action_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchedIndex = "source_index_for_watch_" + watchId;
+        String sinkIndex = "sink_index_" + watchId;
+        String additionalSinkIndex = "additional_sink_index_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(additionalSinkIndex)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
+                .checkCondition("data.testsearch.hits.hits.length > 0").then()
+                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactionone")
+                .and().index(additionalSinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactiontwo")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
+                "val1", "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, sinkIndex, 1);
+            awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
+
+            response = restClient.put(watchPath + "/_ack_and_get");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            response = restClient.delete(watchPath + "/_ack_and_get/testactiontwo");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            JsonNode unackDoc = DefaultObjectMapper.readTree(response.getBody());
+            Assert.assertEquals(1, unackDoc.at("/unacked_action_ids").size());
+            Assert.assertEquals("testactiontwo", unackDoc.at("/unacked_action_ids/0").asText());
+            assertThatActionIsNotAcked(restClient, watchPath, "testactiontwo");
+        }
+    }
+
+    @Test
+    public void testDeAckAndGetBothActionForWatchWithTwoAction() throws Exception {
+        String tenant = "_main";
+        String watchId = "deack_and_get_both_action_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchedIndex = "source_index_for_watch_" + watchId;
+        String sinkIndex = "sink_index_" + watchId;
+        String additionalSinkIndex = "additional_sink_index_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(additionalSinkIndex)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
+                .checkCondition("data.testsearch.hits.hits.length > 0").then()
+                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactionone")
+                .and().index(additionalSinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactiontwo")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
+                "val1", "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, sinkIndex, 1);
+            awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
+
+            response = restClient.put(watchPath + "/_ack_and_get");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            response = restClient.delete(watchPath + "/_ack_and_get");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            JsonNode unackDoc = DefaultObjectMapper.readTree(response.getBody());
+            Assert.assertEquals(2, unackDoc.at("/unacked_action_ids").size());
+            Set<String> unakedActionsIds = Stream.of(unackDoc.at("/unacked_action_ids/0"), unackDoc.at("/unacked_action_ids/1"))//
+                .map(JsonNode::asText)//
+                .collect(Collectors.toSet());
+            Assert.assertTrue(unakedActionsIds.contains("testactionone"));
+            Assert.assertTrue(unakedActionsIds.contains("testactiontwo"));
+            assertThatActionIsNotAcked(restClient, watchPath, "testactionone");
+            assertThatActionIsNotAcked(restClient, watchPath, "testactiontwo");
+        }
+    }
+
+    @Test
+    public void testDeAckAndGetForNotExistingActionShouldReturnErrorResponse() throws Exception {
+        String tenant = "_main";
+        String watchId = "deack_and_get_non_existing_action_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String watchedIndex = "source_index_for_watch_" + watchId;
+        String sinkIndex = "sink_index_" + watchId;
+        String additionalSinkIndex = "additional_sink_index_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(additionalSinkIndex)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
+                .checkCondition("data.testsearch.hits.hits.length > 0").then()
+                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactionone")
+                .and().index(additionalSinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactiontwo")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
+                "val1", "key2", "val2")).actionGet();
+
+            awaitMinCountOfDocuments(client, sinkIndex, 1);
+            awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
+
+            response = restClient.put(watchPath + "/_ack_and_get");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(220);
+
+            response = restClient.delete(watchPath + "/_ack_and_get/this_action_does_not_exist");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+        }
+    }
+
+    @Test
     public void testUnAckOfFreshWatch() throws Exception {
         String tenant = "_main";
         String watchId = "unack_of_fresh_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsource_unack_watch")).actionGet();
             client.admin().indices().create(new CreateIndexRequest("testsink_unack_watch")).actionGet();
 
@@ -1339,7 +1745,7 @@ public class RestApiTest {
         String testSinkUnack = "testsink_unack_" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.admin().indices().create(new CreateIndexRequest(testSource)).actionGet();
             client.admin().indices().create(new CreateIndexRequest(testSinkAck)).actionGet();
             client.admin().indices().create(new CreateIndexRequest(testSinkUnack)).actionGet();
@@ -1374,7 +1780,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(response.getBody(), "uhura", statusDoc.at("/actions/testaction_ack/acked/by").textValue());
+            Assert.assertEquals(response.getBody(), USERNAME_UHURA, statusDoc.at("/actions/testaction_ack/acked/by").textValue());
             Assert.assertTrue(response.getBody(), statusDoc.at("/actions/testaction_unack/acked").isMissingNode());
 
             Thread.sleep(200);
@@ -1400,7 +1806,7 @@ public class RestApiTest {
         String testSinkUnack = "testsink_unack_" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.admin().indices().create(new CreateIndexRequest(testSource)).actionGet();
             client.admin().indices().create(new CreateIndexRequest(testSinkAck)).actionGet();
             client.admin().indices().create(new CreateIndexRequest(testSinkUnack)).actionGet();
@@ -1435,7 +1841,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         String frontendBaseUrl = "http://my.frontend";
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             EmailAccount account = new EmailAccount();
             account.setHost("localhost");
             account.setPort(9999);
@@ -1476,7 +1882,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .then().index("testsink_search_watch").name("testsink").build();
@@ -1518,7 +1924,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .then().index("testsink_search_watch").name("testsink").build();
@@ -1554,7 +1960,7 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             Watch watch = new WatchBuilder("put_test").cronTrigger("0 0 1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                     .then().index("testsink_search_watch").name("testsink").build();
@@ -1607,7 +2013,7 @@ public class RestApiTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
 
             try {
                 EmailAccount destination = new EmailAccount();
@@ -1679,7 +2085,7 @@ public class RestApiTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
 
             try {
 
@@ -1769,7 +2175,7 @@ public class RestApiTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
 
             try {
                 EmailAccount destination = new EmailAccount();
@@ -1837,7 +2243,7 @@ public class RestApiTest {
         String watchId = "smtp_test_non_existing_account";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
 
             restClient.delete("/_signals/account/email/default");
 
@@ -1864,7 +2270,7 @@ public class RestApiTest {
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
 
             try {
                 SlackAccount destination = new SlackAccount();
@@ -1903,7 +2309,7 @@ public class RestApiTest {
         String tenant = "_main";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
 
             try {
                 SlackAccount destination = new SlackAccount();
@@ -1951,7 +2357,7 @@ public class RestApiTest {
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
 
             try {
                 SlackAccount destination = new SlackAccount();
@@ -2006,7 +2412,7 @@ public class RestApiTest {
         String tenant = "_main";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
 
             try {
                 SlackAccount destination = new SlackAccount();
@@ -2044,7 +2450,7 @@ public class RestApiTest {
         String tenant = "_main";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
 
             try {
                 SlackAccount destination = new SlackAccount();
@@ -2087,7 +2493,7 @@ public class RestApiTest {
         String tenant = "redshirt_club";
         String watchId = "slack_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura");
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA);
                 GenericRestClient redshirtRestClient = cluster.getRestClient("redshirt3", "redshirt")) {
 
             try {
@@ -2129,7 +2535,7 @@ public class RestApiTest {
         String tenant = "_main";
         String watchId = "test_weekly_schedule";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             try (Client client = cluster.getInternalNodeClient()) {
 
@@ -2154,7 +2560,7 @@ public class RestApiTest {
         String watchId = "test_exponential_throttling";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             try (Client client = cluster.getInternalNodeClient()) {
 
@@ -2178,7 +2584,7 @@ public class RestApiTest {
         String accountPath = "/_signals/account/slack/" + accountId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://xyz.test.com"));
 
@@ -2215,7 +2621,7 @@ public class RestApiTest {
         String testSink = "testsink_" + watchId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -2265,7 +2671,7 @@ public class RestApiTest {
         String accountPath = "/_signals/account/slack/" + accountId;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI("https://xyz.test.com"));
@@ -2309,7 +2715,7 @@ public class RestApiTest {
 
     @Test
     public void testConvEs() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             String input = new JsonBuilder.Object()
                     .attr("trigger",
                             new JsonBuilder.Object().attr("schedule",
@@ -2348,7 +2754,7 @@ public class RestApiTest {
     @Test
     public void testPutAllowedEndpointsSetting() throws Exception {
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             String endpointJson = "[\"x\",\"y\"]";
 
             try {
@@ -2380,7 +2786,7 @@ public class RestApiTest {
         String testSink = "testsink_" + watchId1;
 
         try (Client client = cluster.getInternalNodeClient();
-                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
             Watch watch = new WatchBuilder(watchId1).atMsInterval(100).put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink)

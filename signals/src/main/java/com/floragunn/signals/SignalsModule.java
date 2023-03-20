@@ -6,6 +6,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.floragunn.signals.actions.watch.ack.AckWatchAction;
+import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
+import com.floragunn.signals.api.AckAndGetWatchApiAction;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -55,8 +58,8 @@ import com.floragunn.signals.actions.settings.update.SettingsUpdateAction;
 import com.floragunn.signals.actions.settings.update.TransportSettingsUpdateAction;
 import com.floragunn.signals.actions.tenant.start_stop.StartStopTenantAction;
 import com.floragunn.signals.actions.tenant.start_stop.TransportStartStopTenantAction;
-import com.floragunn.signals.actions.watch.ack.AckWatchAction;
-import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
+import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchAction;
+import com.floragunn.signals.actions.watch.ackandget.TransportAckAndGetWatchAction;
 import com.floragunn.signals.actions.watch.activate_deactivate.TransportDeActivateWatchAction;
 import com.floragunn.signals.actions.watch.delete.DeleteWatchAction;
 import com.floragunn.signals.actions.watch.delete.TransportDeleteWatchAction;
@@ -118,7 +121,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new DeActivateWatchAction(settings, controller), new AckWatchApiAction(settings, controller), new SearchWatchApiAction(),
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
-                    new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings));
+                    new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
+                    new AckAndGetWatchApiAction(settings));
         } else {
             return Collections.emptyList();
         }
@@ -128,7 +132,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         if (enabled) {
 
-            return Arrays.asList(new ActionHandler<>(AckWatchAction.INSTANCE, TransportAckWatchAction.class),
+            return Arrays.asList(new ActionHandler<>(AckAndGetWatchAction.INSTANCE, TransportAckAndGetWatchAction.class),
+                new ActionHandler<>(AckWatchAction.INSTANCE, TransportAckWatchAction.class),
                     new ActionHandler<>(GetWatchAction.INSTANCE, TransportGetWatchAction.class),
                     new ActionHandler<>(PutWatchAction.INSTANCE, TransportPutWatchAction.class),
                     new ActionHandler<>(DeleteWatchAction.INSTANCE, TransportDeleteWatchAction.class),

@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.floragunn.signals.watch.common.Ack;
+import com.google.common.base.Preconditions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
@@ -73,10 +75,19 @@ public class WatchState implements ToXContentObject {
         return this.actions.computeIfAbsent(actionId, (key) -> new ActionState());
     }
 
-    public List<String> ack(String user, Watch watch) {
+    public boolean hasAction(String actionId) {
+        Preconditions.checkArgument(actionId != null, "action id is missing");
+        return this.actions.containsKey(actionId);
+    }
+
+    public boolean isActionMissing(String actionId) {
+        return ! hasAction(actionId);
+    }
+
+    public Map<String, Ack> ack(String user, Watch watch) {
         Map<String, ActionState> allActionStates = new HashMap<>(actions);
 
-        List<String> ackedActions = new ArrayList<>(allActionStates.size());
+        Map<String, Ack> ackedActions = new HashMap<>(allActionStates.size());
 
         for (Map.Entry<String, ActionState> entry : allActionStates.entrySet()) {
             try {
@@ -87,8 +98,10 @@ public class WatchState implements ToXContentObject {
                     continue;
                 }
 
-                if (entry.getValue().ackIfPossible(user)) {
-                    ackedActions.add(entry.getKey());
+                ActionState actionState = entry.getValue();
+                if (actionState.ackIfPossible(user)) {
+                    Ack acked = actionState.getAcked();
+                    ackedActions.put(entry.getKey(), acked);
                 }
             } catch (NoSuchActionException e) {
                 log.error("Error in ack(): Cannot find action " + entry.getKey(), e);
