@@ -29,10 +29,9 @@ public interface Meter extends AutoCloseable {
 
     static Meter basic(MetricsLevel level, TimeAggregation sink) {
         if (level == null) {
-            log.error("null level supplied to Meter. Ignoring.", new Exception());
-            return NO_OP;
+            level = MetricsLevel.BASIC;
+            log.warn("Null Metric Level supplied, defaulting to basic level");
         }
-        
         if (level.basicEnabled()) {
             return new SystemCurrentTimeMillisMeter(level, sink);
         } else {
