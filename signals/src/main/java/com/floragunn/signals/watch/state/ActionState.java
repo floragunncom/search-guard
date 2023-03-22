@@ -108,7 +108,10 @@ public class ActionState implements ToXContentObject {
     }
 
     public synchronized boolean ackIfPossible(String user) {
-        if (this.lastCheckResult == false && this.acked != null) {
+        if (this.lastCheckResult == false) { // if it was breached last time.
+            return false;
+        }
+        if(this.getAcked() != null){ // Acked != null means it was acknowledged before
             return false;
         }
 
