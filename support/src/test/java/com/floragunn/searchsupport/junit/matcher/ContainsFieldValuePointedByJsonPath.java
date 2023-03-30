@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.enterprise.dlsfls;
+package com.floragunn.searchsupport.junit.matcher;
 
 import com.floragunn.codova.documents.DocNode;
 import com.jayway.jsonpath.PathNotFoundException;
@@ -6,8 +6,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
-
-import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
