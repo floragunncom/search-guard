@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.RealtimeRequest;
@@ -42,6 +43,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.sampler.DiversifiedAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.SignificantTermsAggregationBuilder;
@@ -63,6 +65,8 @@ import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+
+import static org.elasticsearch.rest.RestStatus.INTERNAL_SERVER_ERROR;
 
 public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvider {
     private static final String MAP_EXECUTION_HINT = "map";
@@ -109,6 +113,8 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
             if (!config.isEnabled()) {
                 return SyncAuthorizationFilter.Result.OK;
             }
+
+            blockAccessInCaseOfRoleOrMappingsConfigurationErrors();
 
             if (log.isDebugEnabled()) {
                 log.debug("DlsFlsValveImpl.invoke()\nrequest: " + context.getRequest() + "\nresolved: "
@@ -228,6 +234,16 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
             log.error("Error while evaluating DLS/FLS privileges", e);
             componentState.addLastException("filter_request_u", e);
             throw e;
+        }
+    }
+
+    private void blockAccessInCaseOfRoleOrMappingsConfigurationErrors() {
+        DlsFlsProcessedConfig dlsFlsProcessedConfig = config.get();
+        if ((dlsFlsProcessedConfig != null) && dlsFlsProcessedConfig.containsValidationError()) {
+            log.error(dlsFlsProcessedConfig.getValidationErrorDescription());
+            throw new ElasticsearchStatusException(//
+                "Incorrect configuration of SearchGuard roles or roles mapping, please check the log file for more details. ("//
+                    + dlsFlsProcessedConfig.getUniqueValidationErrorToken() + ")", INTERNAL_SERVER_ERROR);
         }
     }
 

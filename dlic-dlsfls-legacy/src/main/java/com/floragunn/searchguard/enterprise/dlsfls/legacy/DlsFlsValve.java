@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.RealtimeRequest;
@@ -48,6 +49,7 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.sampler.DiversifiedAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.SignificantTermsAggregationBuilder;
@@ -70,6 +72,8 @@ import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.User;
+
+import static org.elasticsearch.rest.RestStatus.INTERNAL_SERVER_ERROR;
 
 public class DlsFlsValve implements SyncAuthorizationFilter {
     private static final String MAP_EXECUTION_HINT = "map";
@@ -107,6 +111,8 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
         if (!config.isEnabled()) {
             return SyncAuthorizationFilter.Result.OK;
         }
+
+        blockAccessInCaseOfRoleOrMappingsConfigurationErrors();
 
         User user = context.getUser();
         ImmutableSet<String> mappedRoles = context.getMappedRoles();
@@ -260,6 +266,16 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
                     guiceDependencies.getIndicesService(), resolver, dlsQueryParser, threadContext);
         } else {
             return SyncAuthorizationFilter.Result.OK;
+        }
+    }
+
+    private void blockAccessInCaseOfRoleOrMappingsConfigurationErrors() {
+        DlsFlsProcessedConfig dlsFlsProcessedConfig = config.get();
+        if ((dlsFlsProcessedConfig != null) && dlsFlsProcessedConfig.containsValidationError()) {
+            log.error(dlsFlsProcessedConfig.getValidationErrorDescription());
+            String msg = "Incorrect configuration of SearchGuard roles or roles mapping, please check the log file for more details. ("//
+                + dlsFlsProcessedConfig.getUniqueValidationErrorToken() + ")";
+            throw new ElasticsearchStatusException(msg, INTERNAL_SERVER_ERROR);
         }
     }
 

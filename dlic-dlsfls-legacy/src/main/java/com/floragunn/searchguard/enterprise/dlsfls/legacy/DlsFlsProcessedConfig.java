@@ -14,6 +14,8 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.ValidationError;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -27,19 +29,36 @@ import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsConfig;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import static java.util.stream.Collectors.joining;
+
 public class DlsFlsProcessedConfig {
     private static final Logger log = LogManager.getLogger(DlsFlsProcessedConfig.class);
 
-    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig(DlsFlsConfig.DEFAULT, null);
+    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig(DlsFlsConfig.DEFAULT, null, null, null);
 
     private final DlsFlsConfig dlsFlsConfig;
     private final LegacyRoleBasedDocumentAuthorization documentAuthorization;
     private final boolean enabled;
+    private final boolean validationErrorsPresent;
+    private final String validationErrorDescription;
+    private final String uniqueValidationErrorToken;
 
-    DlsFlsProcessedConfig(DlsFlsConfig dlsFlsConfig, LegacyRoleBasedDocumentAuthorization documentAuthorization) {
+    DlsFlsProcessedConfig(DlsFlsConfig dlsFlsConfig, LegacyRoleBasedDocumentAuthorization documentAuthorization,
+        ValidationErrors rolesValidationErrors, ValidationErrors rolesMappingValidationErrors) {
         this.dlsFlsConfig = dlsFlsConfig;
         this.documentAuthorization = documentAuthorization;
         this.enabled = dlsFlsConfig.getEnabledImpl() != DlsFlsConfig.Impl.FLX;
+        this.validationErrorsPresent = ((rolesValidationErrors != null) && rolesValidationErrors.hasErrors()) ||
+            ((rolesMappingValidationErrors != null) && (rolesMappingValidationErrors.hasErrors()));
+        this.uniqueValidationErrorToken =  UUID.randomUUID().toString();
+        this.validationErrorDescription = describeValidationErrors(this.uniqueValidationErrorToken, rolesValidationErrors, //
+             rolesMappingValidationErrors);
     }
 
     static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, IndexNameExpressionResolver resolver,
@@ -54,17 +73,21 @@ public class DlsFlsProcessedConfig {
             } else {
                 dlsFlsConfig = DlsFlsConfig.DEFAULT;
             }
-
+            ValidationErrors rolesValidationErrors = null;
             if (dlsFlsConfig.getEnabledImpl() != DlsFlsConfig.Impl.FLX) {
                 SgDynamicConfiguration<Role> roleConfig = configMap.get(CType.ROLES);
-
+                rolesValidationErrors = roleConfig.getValidationErrors();
                 documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roleConfig, resolver, clusterService);
                 componentState.setState(State.INITIALIZED);
             } else {
                 componentState.setState(State.DISABLED);
             }
 
-            return new DlsFlsProcessedConfig(dlsFlsConfig, documentAuthorization);
+            ValidationErrors rolesMappingValidationErrors = Optional.ofNullable(configMap.get(CType.ROLESMAPPING))//
+                .map(mappings -> mappings.getValidationErrors())//
+                .orElse(null);
+
+            return new DlsFlsProcessedConfig(dlsFlsConfig, documentAuthorization, rolesValidationErrors, rolesMappingValidationErrors);
         } catch (Exception e) {
             log.error("Error while updating DLS/FLS config", e);
             componentState.setFailed(e);
@@ -84,4 +107,60 @@ public class DlsFlsProcessedConfig {
         return documentAuthorization;
     }
 
+    private static String describeConfigurationErrors(Map<String, Collection<ValidationError>> validationErrors, String configType) {
+        if (validationErrors.isEmpty()) {
+            return "";
+        }
+        StringBuilder stringBuilder = new StringBuilder("The following validation errors found in SearchGuard ")//
+            .append(configType)//
+            .append(" definitions. ");
+        for (Map.Entry<String, Collection<ValidationError>> error : validationErrors.entrySet()) {
+            String errorDescription = error.getValue()//
+                .stream()//
+                .map(ValidationError::toValidationErrorsOverviewString)//
+                .collect(joining(", "));
+            stringBuilder.append("Incorrect value is pointed out by the expression '")//
+                .append(error.getKey())//
+                .append("' and is related to the following error message '")//
+                .append(errorDescription)//
+                .append("'. ");
+        }
+        return stringBuilder.toString();
+    }
+
+    private String describeValidationErrors(String uniqueToken, ValidationErrors rolesErrors, ValidationErrors rolesMappingsErrors) {
+        Map<String, Collection<ValidationError>> rolesValidationErrors = Optional.ofNullable(rolesErrors)
+                .filter(ValidationErrors::hasErrors)
+                .map(ValidationErrors::getErrors)
+                .orElseGet(Collections::emptyMap);
+
+        Map<String, Collection<ValidationError>> mappingsValidationErrors = Optional.ofNullable(rolesMappingsErrors)
+                .filter(ValidationErrors::hasErrors)
+                .map(ValidationErrors::getErrors)
+                .orElseGet(Collections::emptyMap);
+
+        if ((!rolesValidationErrors.isEmpty()) || (!mappingsValidationErrors.isEmpty())) {
+            String rolesErrorDescription = describeConfigurationErrors(rolesValidationErrors, "roles");
+            String mappingsErrorDescription = describeConfigurationErrors(mappingsValidationErrors, "roles mapping");
+            String message = rolesErrorDescription + //
+                mappingsErrorDescription + //
+                "Please correct the configuration to unblock access to the system. (" + uniqueToken + ")";
+            log.error(message);
+            return message;
+        } else {
+            return null;
+        }
+    }
+
+    public boolean containsValidationError() {
+        return validationErrorsPresent;
+    }
+
+    public String getValidationErrorDescription() {
+        return validationErrorDescription;
+    }
+
+    public String getUniqueValidationErrorToken() {
+        return uniqueValidationErrorToken;
+    }
 }

@@ -9,14 +9,14 @@ import org.hamcrest.TypeSafeDiagnosingMatcher;
 
 import static java.util.Objects.requireNonNull;
 
-class ContainsFieldValuePointedByJsonPath extends TypeSafeDiagnosingMatcher<DocNode> {
+class ContainsFieldValuePointedByJsonPathMatcher extends TypeSafeDiagnosingMatcher<DocNode> {
 
-    private static final Logger log = LogManager.getLogger(ContainsFieldValuePointedByJsonPath.class);
+    private static final Logger log = LogManager.getLogger(ContainsFieldValuePointedByJsonPathMatcher.class);
 
     private final String jsonPath;
     private final Object fieldValue;
 
-    public ContainsFieldValuePointedByJsonPath(String jsonPath, Object fieldValue) {
+    public ContainsFieldValuePointedByJsonPathMatcher(String jsonPath, Object fieldValue) {
         this.jsonPath = requireNonNull(jsonPath);
         this.fieldValue = requireNonNull(fieldValue);
     }

@@ -25,6 +25,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,6 +66,8 @@ import com.floragunn.searchguard.test.helper.cluster.EsClientProvider.UserCreden
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.NestedValueMap;
 import com.floragunn.searchguard.test.helper.cluster.NestedValueMap.Path;
+
+import static java.util.Arrays.asList;
 
 public class TestSgConfig {
     private static final Logger log = LogManager.getLogger(TestSgConfig.class);
@@ -220,7 +223,7 @@ public class TestSgConfig {
             String roleNamePrefix = "user_" + name + "__";
 
             overrideUserSettings.put(new NestedValueMap.Path(name, "search_guard_roles"),
-                    Arrays.asList(sgRoles).stream().map((r) -> roleNamePrefix + r.name).collect(Collectors.toList()));
+                    asList(sgRoles).stream().map((r) -> roleNamePrefix + r.name).collect(Collectors.toList()));
             roles(roleNamePrefix, sgRoles);
         }
 
@@ -243,26 +246,7 @@ public class TestSgConfig {
         }
 
         for (Role role : roles) {
-
-            String name = roleNamePrefix + role.name;
-
-            if (role.clusterPermissions.size() > 0) {
-                overrideRoleSettings.put(new NestedValueMap.Path(name, "cluster_permissions"), role.clusterPermissions);
-            }
-
-            if (role.indexPermissions.size() > 0) {
-                overrideRoleSettings.put(new NestedValueMap.Path(name, "index_permissions"),
-                        role.indexPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
-            }
-
-            if (role.excludedClusterPermissions.size() > 0) {
-                overrideRoleSettings.put(new NestedValueMap.Path(name, "exclude_cluster_permissions"), role.excludedClusterPermissions);
-            }
-
-            if (role.excludedIndexPermissions.size() > 0) {
-                overrideRoleSettings.put(new NestedValueMap.Path(name, "exclude_index_permissions"), role.excludedIndexPermissions.stream()
-                        .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "actions", p.actions)).collect(Collectors.toList()));
-            }
+            overrideRoleSettings.putAllFromAnyMap(role.toJsonMap(roleNamePrefix));
         }
 
         return this;
@@ -274,16 +258,7 @@ public class TestSgConfig {
         }
 
         for (RoleMapping roleMapping : roleMappings) {
-
-            String name = roleMapping.name;
-
-            if (roleMapping.backendRoles.size() > 0) {
-                overrideRoleMappingSettings.put(new NestedValueMap.Path(name, "backend_roles"), roleMapping.backendRoles);
-            }
-
-            if (roleMapping.users.size() > 0) {
-                overrideRoleMappingSettings.put(new NestedValueMap.Path(name, "users"), roleMapping.users);
-            }
+            overrideRoleMappingSettings.putAllFromAnyMap(roleMapping.toJsonMap());
         }
 
         return this;
@@ -623,13 +598,14 @@ public class TestSgConfig {
             this.name = name;
         }
 
+
         public Role clusterPermissions(String... clusterPermissions) {
-            this.clusterPermissions.addAll(Arrays.asList(clusterPermissions));
+            this.clusterPermissions.addAll(asList(clusterPermissions));
             return this;
         }
 
         public Role excludeClusterPermissions(String... clusterPermissions) {
-            this.excludedClusterPermissions.addAll(Arrays.asList(clusterPermissions));
+            this.excludedClusterPermissions.addAll(asList(clusterPermissions));
             return this;
         }
 
@@ -644,6 +620,34 @@ public class TestSgConfig {
         public String getName() {
             return name;
         }
+
+        public NestedValueMap toJsonMap() {
+            return toJsonMap("");
+        }
+
+        public NestedValueMap toJsonMap(String roleNamePrefix) {
+            NestedValueMap map = new NestedValueMap();
+            String name = roleNamePrefix + this.name;
+
+            if (this.clusterPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "cluster_permissions"), this.clusterPermissions);
+            }
+
+            if (this.indexPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "index_permissions"),
+                    this.indexPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
+            }
+
+            if (this.excludedClusterPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "exclude_cluster_permissions"), this.excludedClusterPermissions);
+            }
+
+            if (this.excludedIndexPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "exclude_index_permissions"), this.excludedIndexPermissions.stream()
+                    .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "actions", p.actions)).collect(Collectors.toList()));
+            }
+            return map;
+        }
     }
 
     public static class RoleMapping {
@@ -651,20 +655,60 @@ public class TestSgConfig {
         private List<String> backendRoles = new ArrayList<>();
         private List<String> users = new ArrayList<>();
 
+        private List<String> hosts = new ArrayList<>();
+
+        private List<String> ips = new ArrayList<>();
+
         public RoleMapping(String name) {
             this.name = name;
         }
 
         public RoleMapping backendRoles(String... backendRoles) {
-            this.backendRoles.addAll(Arrays.asList(backendRoles));
+            this.backendRoles.addAll(asList(backendRoles));
             return this;
         }
 
         public RoleMapping users(String... users) {
-            this.users.addAll(Arrays.asList(users));
+            this.users.addAll(asList(users));
             return this;
         }
 
+        public RoleMapping hosts(String...hosts) {
+            this.hosts.addAll(asList(hosts));
+            return this;
+        }
+
+        public RoleMapping ips(String...ips) {
+            this.ips.addAll(asList(ips));
+            return this;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public NestedValueMap toJsonMap() {
+            NestedValueMap map = new NestedValueMap();
+
+            String name = this.name;
+
+            if (this.backendRoles.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "backend_roles"), this.backendRoles);
+            }
+
+            if (this.users.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "users"), this.users);
+            }
+
+            if (this.hosts.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "hosts"), this.hosts);
+            }
+
+            if (this.ips.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "ips"), this.ips);
+            }
+            return map;
+        }
     }
 
     public static class IndexPermission {
@@ -676,7 +720,7 @@ public class TestSgConfig {
         private List<String> maskedFields;
 
         IndexPermission(Role role, String... allowedActions) {
-            this.allowedActions = Arrays.asList(allowedActions);
+            this.allowedActions = asList(allowedActions);
             this.role = role;
         }
 
@@ -691,17 +735,17 @@ public class TestSgConfig {
         }
 
         public IndexPermission fls(String... fls) {
-            this.fls = Arrays.asList(fls);
+            this.fls = asList(fls);
             return this;
         }
 
         public IndexPermission maskedFields(String... maskedFields) {
-            this.maskedFields = Arrays.asList(maskedFields);
+            this.maskedFields = asList(maskedFields);
             return this;
         }
 
         public Role on(String... indexPatterns) {
-            this.indexPatterns = Arrays.asList(indexPatterns);
+            this.indexPatterns = asList(indexPatterns);
             this.role.indexPermissions.add(this);
             return this.role;
         }
@@ -735,12 +779,12 @@ public class TestSgConfig {
         private Role role;
 
         ExcludedIndexPermission(Role role, String... actions) {
-            this.actions = Arrays.asList(actions);
+            this.actions = asList(actions);
             this.role = role;
         }
 
         public Role on(String... indexPatterns) {
-            this.indexPatterns = Arrays.asList(indexPatterns);
+            this.indexPatterns = asList(indexPatterns);
             this.role.excludedIndexPermissions.add(this);
             return this.role;
         }
@@ -757,7 +801,7 @@ public class TestSgConfig {
         }
 
         public Authc trustedProxies(String... trustedProxies) {
-            this.trustedProxies = Arrays.asList(trustedProxies);
+            this.trustedProxies = asList(trustedProxies);
             return this;
         }
 
@@ -815,56 +859,56 @@ public class TestSgConfig {
 
             public Domain additionalUserInformation(AdditionalUserInformation... additionalUserInformation) {
                 if (this.additionalUserInformation == null) {
-                    this.additionalUserInformation = new ArrayList<>(Arrays.asList(additionalUserInformation));
+                    this.additionalUserInformation = new ArrayList<>(asList(additionalUserInformation));
                 } else {
-                    this.additionalUserInformation.addAll(Arrays.asList(additionalUserInformation));
+                    this.additionalUserInformation.addAll(asList(additionalUserInformation));
                 }
                 return this;
             }
 
             public Domain acceptIps(String... ips) {
                 if (acceptIps == null) {
-                    acceptIps = new ArrayList<>(Arrays.asList(ips));
+                    acceptIps = new ArrayList<>(asList(ips));
                 } else {
-                    acceptIps.addAll(Arrays.asList(ips));
+                    acceptIps.addAll(asList(ips));
                 }
                 return this;
             }
 
             public Domain acceptOriginatingIps(String... ips) {
                 if (acceptOriginatingIps == null) {
-                    acceptOriginatingIps = new ArrayList<>(Arrays.asList(ips));
+                    acceptOriginatingIps = new ArrayList<>(asList(ips));
                 } else {
-                    acceptOriginatingIps.addAll(Arrays.asList(ips));
+                    acceptOriginatingIps.addAll(asList(ips));
                 }
                 return this;
             }
             
             public Domain skipIps(String... ips) {
                 if (skipIps == null) {
-                    skipIps = new ArrayList<>(Arrays.asList(ips));
+                    skipIps = new ArrayList<>(asList(ips));
                 } else {
-                    skipIps.addAll(Arrays.asList(ips));
+                    skipIps.addAll(asList(ips));
                 }
                 return this;
             }
 
             public Domain skipOriginatingIps(String... ips) {
                 if (skipOriginatingIps == null) {
-                    skipOriginatingIps = new ArrayList<>(Arrays.asList(ips));
+                    skipOriginatingIps = new ArrayList<>(asList(ips));
                 } else {
-                    skipOriginatingIps.addAll(Arrays.asList(ips));
+                    skipOriginatingIps.addAll(asList(ips));
                 }
                 return this;
             }
             
             public Domain skipUsers(String... users) {
-                skipUsers = Arrays.asList(users);
+                skipUsers = asList(users);
                 return this;
             }
 
             public Domain acceptUsers(String... users) {
-                acceptUsers = Arrays.asList(users);
+                acceptUsers = asList(users);
                 return this;
             }
 
@@ -986,7 +1030,7 @@ public class TestSgConfig {
                 }
 
                 public UserMapping rolesStatic(String... roles) {
-                    rolesStatic.addAll(Arrays.asList(roles));
+                    rolesStatic.addAll(asList(roles));
                     return this;
                 }
 
