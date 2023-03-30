@@ -8,7 +8,7 @@ public class DocNodeMatchers {
     private DocNodeMatchers(){}
 
     public static Matcher<DocNode> containsFieldPointedByJsonPath(String jsonPath, String fieldName) {
-        return new ContainsFieldPointedByJsonPath(jsonPath, fieldName);
+        return new ContainsFieldPointedByJsonPathMatcher(jsonPath, fieldName);
     }
 
     public static Matcher<DocNode> docNodeSizeEqualTo(String jsonPath, int expectedSize) {
@@ -16,6 +16,10 @@ public class DocNodeMatchers {
     }
 
     public static Matcher<DocNode> containsValue(String jsonPath, Object value) {
-        return new ContainsFieldValuePointedByJsonPath(jsonPath, value);
+        return new ContainsFieldValuePointedByJsonPathMatcher(jsonPath, value);
+    }
+
+    public static Matcher<DocNode> containSubstring(String jsonPath, String desiredSubstring) {
+        return new FieldContainSubstringMatcher(jsonPath, desiredSubstring);
     }
 }

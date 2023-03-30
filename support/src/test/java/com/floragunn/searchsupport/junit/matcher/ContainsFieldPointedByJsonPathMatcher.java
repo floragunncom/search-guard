@@ -11,14 +11,14 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-class ContainsFieldPointedByJsonPath extends TypeSafeDiagnosingMatcher<DocNode> {
+class ContainsFieldPointedByJsonPathMatcher extends TypeSafeDiagnosingMatcher<DocNode> {
 
-    private static final Logger log = LogManager.getLogger(ContainsFieldPointedByJsonPath.class);
+    private static final Logger log = LogManager.getLogger(ContainsFieldPointedByJsonPathMatcher.class);
 
     private final String jsonPath;
     private final String fieldName;
 
-    public ContainsFieldPointedByJsonPath(String jsonPath, String fieldName) {
+    public ContainsFieldPointedByJsonPathMatcher(String jsonPath, String fieldName) {
         this.jsonPath = requireNonNull(jsonPath);
         this.fieldName = requireNonNull(fieldName);
     }
