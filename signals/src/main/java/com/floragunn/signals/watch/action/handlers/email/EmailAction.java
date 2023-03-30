@@ -37,6 +37,7 @@ import java.util.Optional;
 import javax.mail.Address;
 import javax.mail.MessagingException;
 import javax.mail.Session;
+import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
@@ -158,33 +159,33 @@ public class EmailAction extends ActionHandler {
             EmailPopulatingBuilder emailBuilder = EmailBuilder.startingBlank();
 
             if (fromScript != null) {
-                emailBuilder.from(render(ctx, fromScript));
+                emailBuilder.from(emailToInternetAddress(render(ctx, fromScript)));
             } else if (destination.getDefaultFrom() != null) {
-                emailBuilder.from(destination.getDefaultFrom());
+                emailBuilder.from(emailToInternetAddress(destination.getDefaultFrom()));
             } else {
                 throw new ActionExecutionException(this, "No from address defined in destination " + destination);
             }
 
             if (toScript != null) {
-                emailBuilder.toMultiple(render(ctx, toScript));
+                emailBuilder.toMultipleAddresses(emailsToInternetAddresses(render(ctx, toScript)));
             } else if (destination.getDefaultTo() != null) {
-                emailBuilder.toMultiple(destination.getDefaultTo());
+                emailBuilder.toMultipleAddresses(emailsToInternetAddresses(destination.getDefaultTo()));
             }
 
             if (ccScript != null) {
-                emailBuilder.ccAddresses(render(ctx, ccScript));
+                emailBuilder.ccMultipleAddresses(emailsToInternetAddresses(render(ctx, ccScript)));
             } else if (destination.getDefaultCc() != null) {
-                emailBuilder.ccAddresses(destination.getDefaultCc());
+                emailBuilder.ccMultipleAddresses(emailsToInternetAddresses(destination.getDefaultCc()));
             }
 
             if (bccScript != null) {
-                emailBuilder.bccAddresses(render(ctx, bccScript));
+                emailBuilder.bccMultipleAddresses(emailsToInternetAddresses(render(ctx, bccScript)));
             } else if (destination.getDefaultCc() != null) {
-                emailBuilder.bccAddresses(destination.getDefaultBcc());
+                emailBuilder.bccMultipleAddresses(emailsToInternetAddresses(destination.getDefaultBcc()));
             }
 
             if (replyToScript != null) {
-                emailBuilder.withReplyTo(render(ctx, replyToScript));
+                emailBuilder.withReplyTo(emailToInternetAddress(render(ctx, replyToScript)));
             }
 
             emailBuilder.withSubject(render(ctx, subjectScript));
@@ -589,6 +590,22 @@ public class EmailAction extends ActionHandler {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private InternetAddress emailToInternetAddress(String emailWithDisplayName) throws ActionExecutionException {
+        try {
+            return new InternetAddress(emailWithDisplayName, true);
+        } catch (AddressException e) {
+            throw new ActionExecutionException(this, "Error while parsing email: " + emailWithDisplayName + ", cause: " + e.getMessage(), e);
+        }
+    }
+
+    private List<InternetAddress> emailsToInternetAddresses(List<String> emailWithDisplayName) throws ActionExecutionException {
+        List<InternetAddress> internedAddresses = new ArrayList<>(emailWithDisplayName.size());
+        for (String namedEmail : emailWithDisplayName) {
+            internedAddresses.add(emailToInternetAddress(namedEmail));
+        }
+        return internedAddresses;
     }
 
     private static Address[] toInternetAddressArray(Recipient recipient) {

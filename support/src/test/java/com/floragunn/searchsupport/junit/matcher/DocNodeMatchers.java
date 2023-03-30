@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.enterprise.dlsfls;
+package com.floragunn.searchsupport.junit.matcher;
 
 import com.floragunn.codova.documents.DocNode;
 import org.hamcrest.Matcher;
