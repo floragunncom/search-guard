@@ -1,8 +1,8 @@
 package com.floragunn.searchguard.enterprise.dlsfls;
 
-import static com.floragunn.searchguard.enterprise.dlsfls.DocNodeMatchers.containsFieldPointedByJsonPath;
-import static com.floragunn.searchguard.enterprise.dlsfls.DocNodeMatchers.containsValue;
-import static com.floragunn.searchguard.enterprise.dlsfls.DocNodeMatchers.docNodeSizeEqualTo;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
 import static java.util.Arrays.asList;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.hamcrest.MatcherAssert.assertThat;

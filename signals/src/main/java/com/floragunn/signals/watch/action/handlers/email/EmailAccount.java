@@ -342,10 +342,10 @@ public class EmailAccount extends Account {
             result.enableStartTls = vJsonNode.get("enable_start_tls").withDefault(false).asBoolean();
             result.trustAll = vJsonNode.get("trust_all").withDefault(false).asBoolean();
             result.trustedHosts = vJsonNode.get("trusted_hosts").asListOfStrings();
-            result.defaultFrom = vJsonNode.get("default_from").validatedBy(Validators.EMAIL).expected("An eMail address").asString();
-            result.defaultTo = vJsonNode.get("default_to").asList().validatedBy(Validators.EMAIL).expected("A list of eMail addressed").ofStrings();
-            result.defaultCc = vJsonNode.get("default_cc").asList().validatedBy(Validators.EMAIL).expected("A list of eMail addressed").ofStrings();
-            result.defaultBcc = vJsonNode.get("default_bcc").asList().validatedBy(Validators.EMAIL).expected("A list of eMail addressed").ofStrings();
+            result.defaultFrom = vJsonNode.get("default_from").validatedBy(Validators.EMAIL_WITH_DISPLAY_NAME).expected("An eMail address").asString();
+            result.defaultTo = vJsonNode.get("default_to").asList().validatedBy(Validators.EMAIL_WITH_DISPLAY_NAME).expected("A list of eMail addresses").ofStrings();
+            result.defaultCc = vJsonNode.get("default_cc").asList().validatedBy(Validators.EMAIL_WITH_DISPLAY_NAME).expected("A list of eMail addresses").ofStrings();
+            result.defaultBcc = vJsonNode.get("default_bcc").asList().validatedBy(Validators.EMAIL_WITH_DISPLAY_NAME).expected("A list of eMail addresses").ofStrings();
 
             validationErrors.throwExceptionForPresentErrors();
 

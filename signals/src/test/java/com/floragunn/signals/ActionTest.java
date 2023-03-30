@@ -2,6 +2,7 @@ package com.floragunn.signals;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -1289,5 +1290,119 @@ public class ActionTest {
         } finally {
             greenMail.stop();
         }
+    }
+
+    @Test
+    public void testEmailActionWithEmailAddressesContainingDisplayNames() throws Exception {
+
+        final int smtpPort = SocketUtils.findAvailableTcpPort();
+
+        GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
+        greenMail.start();
+
+        try (Client client = cluster.getInternalNodeClient()) {
+
+            EmailAccount emailAccount = new EmailAccount();
+            emailAccount.setHost("localhost");
+            emailAccount.setPort(smtpPort);
+            emailAccount.setDefaultFrom("from@default.sgtest");
+            emailAccount.setDefaultTo(Collections.singletonList("to@default.sgtest"));
+            emailAccount.setDefaultCc(Arrays.asList("cc1@default.sgtest", "cc2@default.sgtest"));
+            emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
+
+            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("x", "y");
+            runtimeData.put("fromEmailAddress", "from@specific.sgtest");
+            runtimeData.put("fromName", "From Specific");
+            runtimeData.put("toEmailAddress", "to@specific.sgtest");
+            runtimeData.put("toName", "To Specific");
+            runtimeData.put("firstCcEmailAddress", "cc1@specific.sgtest");
+            runtimeData.put("firstCcName", "Cc1 Specific");
+            runtimeData.put("secondCcEmailAddress", "cc2@specific.sgtest");
+            runtimeData.put("secondCcName", "Cc2 Specific");
+            runtimeData.put("bccEmailAddress", "bcc@specific.sgtest");
+            runtimeData.put("bccName", "Bcc Specific");
+
+            EmailAction emailAction = new EmailAction();
+            emailAction.setBody("We searched {{data.x}} shards");
+            emailAction.setSubject("Test Subject");
+            emailAction.setFrom("\"{{data.fromName}}\" <{{data.fromEmailAddress}}>");
+            emailAction.setTo(Collections.singletonList("{{data.toName}} <{{data.toEmailAddress}}>"));
+            emailAction.setCc(Arrays.asList("{{data.firstCcName}} <{{data.firstCcEmailAddress}}>", "<{{data.secondCcEmailAddress}}>"));
+            emailAction.setBcc(Collections.singletonList("{{data.bccEmailAddress}}"));
+            emailAction.setReplyTo("Reply To <replyto@specific.sgtest>");
+            emailAction.setAccount("test_destination");
+
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            ActionExecutionResult result = emailAction.execute(ctx);
+            Assert.assertTrue(result.getRequest(), result.getRequest().contains("Content-Type: text/plain"));
+
+            if (!greenMail.waitForIncomingEmail(20000, 3)) { //3 = (TO + CC + BCC)
+                Assert.fail("Timeout waiting for mails");
+            }
+
+            String receivedMail = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
+
+            Assert.assertTrue(receivedMail, receivedMail.contains("We searched y shards"));
+            Assert.assertTrue(receivedMail, receivedMail.contains("Subject: Test Subject"));
+            Assert.assertTrue(receivedMail, receivedMail.contains("From: From Specific <from@specific.sgtest>"));
+            Assert.assertTrue(receivedMail, receivedMail.contains("To: To Specific <to@specific.sgtest>"));
+            Assert.assertTrue(receivedMail,
+                    receivedMail.contains("Cc: Cc1 Specific <cc1@specific.sgtest>, cc2@specific.sgtest") ||
+                            receivedMail.contains("Cc: cc2@specific.sgtest, Cc1 Specific <cc1@specific.sgtest>")
+            );
+            Assert.assertTrue(receivedMail, receivedMail.contains("Reply-To: Reply To <replyto@specific.sgtest>"));
+
+        } finally {
+            greenMail.stop();
+        }
+
+    }
+
+    @Test
+    public void testEmailActionWithMalformedEmailAddressContainingDisplayName() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient()) {
+
+            EmailAccount emailAccount = new EmailAccount();
+            emailAccount.setHost("localhost");
+            emailAccount.setPort(1234);
+            emailAccount.setDefaultFrom("from@default.sgtest");
+            emailAccount.setDefaultTo(Collections.singletonList("to@default.sgtest"));
+            emailAccount.setDefaultCc(Arrays.asList("cc1@default.sgtest", "cc2@default.sgtest"));
+            emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
+
+            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+
+            NestedValueMap runtimeData = new NestedValueMap();
+
+            EmailAction emailAction = new EmailAction();
+            emailAction.setBody("We searched {{data.x}} shards");
+            emailAction.setSubject("Test Subject");
+            emailAction.setFrom("FromName <from@specific.sgtest");
+            emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
+            emailAction.setAccount("test_destination");
+
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            emailAction.execute(ctx);
+
+            Assert.fail();
+        } catch (ActionExecutionException e) {
+            e.printStackTrace();
+            Assert.assertTrue(e.getMessage().contains("Error while parsing email: FromName <from@specific.sgtest"));
+        }
+
     }
 }
