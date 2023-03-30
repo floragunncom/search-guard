@@ -19,6 +19,7 @@ package com.floragunn.searchguard.test.helper.cluster;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -32,11 +33,13 @@ import java.util.Map;
 import java.util.Random;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
@@ -219,37 +222,104 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     public void updateSgConfig(CType<?> configType, String key, Map<String, Object> value) {
         try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
             log.info("Updating config {}.{}:{}", configType, key, value);
-            ConfigurationRepository configRepository = getInjectable(ConfigurationRepository.class);
-            String searchGuardIndex = configRepository.getEffectiveSearchGuardIndex();
+            String searchGuardIndex = getConfigIndexName();
 
-            GetResponse getResponse = client.get(new GetRequest(searchGuardIndex, configType.toLCString())).actionGet();
-            String jsonDoc = new String(Base64.getDecoder().decode(String.valueOf(getResponse.getSource().get(configType.toLCString()))));
+            String jsonDoc = loadConfig(configType, client, searchGuardIndex);
             NestedValueMap config = NestedValueMap.fromJsonString(jsonDoc);
 
-            config.put(key, value);
+            if(Strings.isNullOrEmpty(key)) {
+                config.putAllFromAnyMap(value);
+            } else {
+                config.put(key, value);
+            }
 
             if (log.isTraceEnabled()) {
                 log.trace("Updated config: " + config);
             }
 
-            IndexResponse response = client
-                    .index(new IndexRequest(searchGuardIndex).id(configType.toLCString()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                            .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
-                    .actionGet();
-
-            if (response.getResult() != DocWriteResponse.Result.UPDATED) {
-                throw new RuntimeException("Updated failed " + response);
-            }
-
-            ConfigUpdateResponse configUpdateResponse = client
-                    .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
-
-            if (configUpdateResponse.hasFailures()) {
-                throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
-            }
+            writeConfigToIndexAndReload(client, configType, searchGuardIndex, config.toJsonString());
 
         } catch (IOException | DocumentParseException | UnexpectedDocumentStructureException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public void updateSgConfig(CType<?> configType, Map<String, Object> value) {
+        updateSgConfig(configType, null, value);
+    }
+
+    /**
+     * Add provided roles to cluster configuration
+     * @param roles roles which will be added to configuration, validation of roles is bypassed
+     */
+    public void updateRolesConfig(Role...roles) {
+        NestedValueMap nestedValueMap = new NestedValueMap();
+        Arrays.stream(roles).map(Role::toJsonMap).forEach(nestedValueMap::putAllFromAnyMap);
+        updateSgConfig(CType.ROLES, nestedValueMap);
+    }
+
+    /**
+     * Add provided roles mapping to cluster configuration
+     * @param mappings role mappings which will be added to configuration, validation of mappings is bypassed
+     */
+    public void updateRolesMappingsConfig(RoleMapping...mappings) {
+        NestedValueMap nestedValueMap = new NestedValueMap();
+        Arrays.stream(mappings).map(RoleMapping::toJsonMap).forEach(nestedValueMap::putAllFromAnyMap);
+        updateSgConfig(CType.ROLESMAPPING, nestedValueMap);
+    }
+
+    private static void writeConfigToIndexAndReload(Client client, CType<?> configType, String searchGuardIndex, String config) {
+        IndexResponse response = client
+                .index(new IndexRequest(searchGuardIndex).id(configType.toLCString()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
+                        .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(stringToUtfByteArray(config)))))
+                .actionGet();
+
+        if (response.getResult() != DocWriteResponse.Result.UPDATED) {
+            throw new RuntimeException("Updated failed " + response);
+        }
+
+        ConfigUpdateResponse configUpdateResponse = client
+                .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
+
+        if (configUpdateResponse.hasFailures()) {
+            throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
+        }
+    }
+
+    private static byte[] stringToUtfByteArray(String config) {
+        try {
+            return config.getBytes("utf-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException("Cannot convert configuration string to byte array", e);
+        }
+    }
+
+    private static String loadConfig(CType<?> configType, Client client, String searchGuardIndex) {
+        GetResponse getResponse = client.get(new GetRequest(searchGuardIndex, configType.toLCString())).actionGet();
+        return new String(Base64.getDecoder().decode(String.valueOf(getResponse.getSource().get(configType.toLCString()))));
+    }
+
+    private String getConfigIndexName() {
+        ConfigurationRepository configRepository = getInjectable(ConfigurationRepository.class);
+        return configRepository.getEffectiveSearchGuardIndex();
+    }
+
+    /**
+     * Backup configuration of type <code>configTypeToRestore</code> before execution of {@link Callable}. Then
+     * {@link Callable} from parameter <code>callable</code> is executed. After execution of {@link Callable} the
+     * configuration is restored from backup created previously
+     * @param configTypeToRestore type of configuration to back up and restore
+     * @param callable action to be executed after configuration backup is created and before the backup is restored.
+     */
+    public <T> T callAndRestoreConfig(CType<?> configTypeToRestore, Callable<T> callable) throws Exception {
+        try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
+            String searchGuardIndex = getConfigIndexName();
+            String configurationBackup = loadConfig(configTypeToRestore, client, searchGuardIndex);
+            try {
+                return callable.call();
+            } finally {
+                writeConfigToIndexAndReload(client, configTypeToRestore, searchGuardIndex, configurationBackup);
+            }
         }
     }
 
