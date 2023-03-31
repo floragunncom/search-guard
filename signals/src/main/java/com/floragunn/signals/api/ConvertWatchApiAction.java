@@ -82,8 +82,8 @@ public class ConvertWatchApiAction extends SignalsBaseRestHandler {
             builder.field("status", message);
             builder.field("signals_watch", watch);
 
-            if (validationErrors.size() > 0) {
-                builder.field("detail", validationErrors);
+            if (validationErrors.size() > 1) {
+                builder.field("detail", validationErrors.toMap());
             }
 
             builder.endObject();

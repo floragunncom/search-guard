@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ValidatingDocNode;
@@ -114,16 +115,28 @@ public class EsWatcherConverter {
 
         Method method = vJsonNode.get("method").withDefault(Method.GET).asEnum(Method.class);
 
-        Map<String, Object> headers = jsonNode.hasNonNull("headers") ? jsonNode.getAsNode("headers").toMap() : null;
+        Map<String, String> headers = !vJsonNode.hasNonNull("headers") ?
+                null :
+                vJsonNode.getAsDocNode("headers").keySet().stream()
+                        .collect(Collectors.toMap(key -> key, key -> {
+                            String headerValue = vJsonNode.get("headers").asValidatingDocNode().get(key).asString();
+                            if (headerValue == null) {
+                                validationErrors.add(new ValidationError("headers." + key, "Value cannot be null"));
+                                return "null";
+                            }
+                            return headerValue;
+                        }));
 
-        ConversionResult<Auth> auth = null;
+        ConversionResult<Auth> convertedAuth = null;
 
         if (vJsonNode.hasNonNull("auth")) {
-            auth = createAuth(vJsonNode.getAsDocNode("auth"));
-            validationErrors.add("auth", auth.getSourceValidationErrors());
+            convertedAuth = createAuth(vJsonNode.getAsDocNode("auth"));
+            validationErrors.add("auth", convertedAuth.getSourceValidationErrors());
         }
 
-        HttpRequestConfig result = new HttpRequestConfig(method, url, path, query, body, headers, auth.getElement(), null);
+        Auth auth = convertedAuth != null? convertedAuth.getElement() : null;
+
+        HttpRequestConfig result = new HttpRequestConfig(method, url, path, query, body, headers, auth, null);
 
         return new ConversionResult<HttpRequestConfig>(result, validationErrors);
     }

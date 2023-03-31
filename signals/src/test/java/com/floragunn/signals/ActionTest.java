@@ -5,8 +5,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.http.Header;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -210,12 +212,14 @@ public class ActionTest {
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
             runtimeData.put("body", "stuff");
+            runtimeData.put("signalsHeader", "Signals");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
                     ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
+            Map<String, String> headers = ImmutableMap.of("signals", "{{data.signalsHeader}}", "anotherHeader", "another header value");
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", headers, null, null);
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
@@ -224,6 +228,12 @@ public class ActionTest {
             webhookAction.execute(ctx);
 
             Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+            Header signalsHeader = webhookProvider.getLastRequestHeader("signals");
+            Assert.assertNotNull("Webhook request should contain header named 'signals'", signalsHeader);
+            Assert.assertEquals(runtimeData.get("signalsHeader"), signalsHeader.getValue());
+            Header anotherHeader = webhookProvider.getLastRequestHeader("anotherHeader");
+            Assert.assertNotNull("Webhook request should contain header named 'anotherHeader'", anotherHeader);
+            Assert.assertEquals(headers.get("anotherHeader"), anotherHeader.getValue());
         }
     }
 
