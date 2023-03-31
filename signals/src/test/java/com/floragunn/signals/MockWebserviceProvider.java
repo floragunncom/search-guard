@@ -30,6 +30,10 @@ import java.nio.charset.CharsetEncoder;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -40,6 +44,7 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.apache.http.Header;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
@@ -76,6 +81,7 @@ public class MockWebserviceProvider implements Closeable {
     private byte[] responseBody = "Mockery".getBytes();
     private String responseContentType = "text/plain";
     private String lastRequestBody;
+    private List<Header> lastRequestHeaders;
     private InetAddress lastRequestClientAddress;
     private final AtomicInteger requestCount = new AtomicInteger();
     private long responseDelayMs = 0;
@@ -215,6 +221,8 @@ public class MockWebserviceProvider implements Closeable {
         } else {
             lastRequestBody = null;
         }
+
+        lastRequestHeaders = Arrays.asList(request.getAllHeaders());
                 
         requestCount.incrementAndGet();
     }
@@ -306,6 +314,21 @@ public class MockWebserviceProvider implements Closeable {
 
     public void setLastRequestBody(String lastRequestBody) {
         this.lastRequestBody = lastRequestBody;
+    }
+
+    public List<Header> getLastRequestHeaders() {
+        return lastRequestHeaders;
+    }
+
+    public void setLastRequestHeaders(List<Header> lastRequestHeaders) {
+        this.lastRequestHeaders = lastRequestHeaders;
+    }
+
+    public Header getLastRequestHeader(String name) {
+        return Optional.ofNullable(lastRequestHeaders).orElse(new ArrayList<>())
+                .stream().filter(header -> header.getName().equals(name))
+                .findFirst()
+                .orElse(null);
     }
 
     public String getResponseContentType() {

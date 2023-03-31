@@ -414,7 +414,7 @@ public class WatchBuilder {
         private final URI uri;
         private Auth auth;
         private String body;
-        private Map<String, Object> headers = new HashMap<>();
+        private Map<String, String> headers = new HashMap<>();
         private HttpProxyConfig proxy;
 
         WebhookActionBuilder(BaseActionBuilder parent, HttpRequestConfig.Method method, String uri) throws URISyntaxException {
