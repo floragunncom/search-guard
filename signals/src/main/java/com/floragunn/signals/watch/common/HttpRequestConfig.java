@@ -5,8 +5,12 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
+import com.floragunn.codova.validation.errors.ValidationError;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
@@ -43,13 +47,14 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
     private String path;
     private String queryParams;
     private String body;
-    private Map<String, Object> headers;
+    private Map<String, String> headers;
     private Auth auth;
     private TemplateScript.Factory pathTemplateScriptFactory;
     private TemplateScript.Factory queryParamsTemplateScriptFactory;
     private TemplateScript.Factory bodyTemplateScriptFactory;
+    private Map<String, TemplateScript.Factory> headerTemplateScriptFactories;
 
-    public HttpRequestConfig(Method method, URI uri, String path, String queryParams, String body, Map<String, Object> headers, Auth auth,
+    public HttpRequestConfig(Method method, URI uri, String path, String queryParams, String body, Map<String, String> headers, Auth auth,
             String accept) {
         super();
         this.method = method;
@@ -86,11 +91,11 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         this.body = body;
     }
 
-    public Map<String, Object> getHeaders() {
+    public Map<String, String> getHeaders() {
         return headers;
     }
 
-    public void setHeaders(Map<String, Object> headers) {
+    public void setHeaders(Map<String, String> headers) {
         this.headers = headers;
     }
 
@@ -100,6 +105,11 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         this.bodyTemplateScriptFactory = watchInitializationService.compileTemplate("body", this.body, validationErrors);
         this.pathTemplateScriptFactory = watchInitializationService.compileTemplate("path", this.path, validationErrors);
         this.queryParamsTemplateScriptFactory = watchInitializationService.compileTemplate("query_params", this.queryParams, validationErrors);
+        this.headerTemplateScriptFactories = Optional.ofNullable(getHeaders())
+                .orElseGet(Collections::emptyMap)
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> watchInitializationService.compileTemplate("headers." + entry.getKey(), entry.getValue(), validationErrors)));
 
         validationErrors.throwExceptionForPresentErrors();
     }
@@ -113,10 +123,9 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
 
         HttpUriRequest result = createHttpRequest(uri, method);
 
-        if (getHeaders() != null) {
-            for (Map.Entry<String, Object> header : getHeaders().entrySet()) {
-                result.setHeader(header.getKey(), String.valueOf(header.getValue()));
-            }
+        Map<String, String> renderedHeaders = getRenderedHeaders(ctx);
+        for (Map.Entry<String, String> header : renderedHeaders.entrySet()) {
+            result.setHeader(header.getKey(), header.getValue());
         }
 
         if (auth instanceof BasicAuth) {
@@ -151,7 +160,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         String accept = this.accept;
 
         if (accept == null && this.headers != null && this.headers.containsKey("Accept")) {
-            accept = String.valueOf(this.headers.get("Accept"));
+            accept = this.headers.get("Accept");
         }
 
         if (accept != null) {
@@ -233,6 +242,14 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         return this.bodyTemplateScriptFactory.newInstance(runtimeData).execute();
     }
 
+    private Map<String, String> getRenderedHeaders(WatchExecutionContext ctx) {
+        Map<String, Object> runtimeData = ctx.getTemplateScriptParamsAsMap();
+
+        return this.headerTemplateScriptFactories.entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().newInstance(runtimeData).execute()));
+    }
+
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
@@ -290,18 +307,29 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         String path = vJsonNode.get("path").asString();
         String queryParams = vJsonNode.get("query_params").asString();
         String accept = vJsonNode.get("accept").asString();
-        Map<String, Object> headers = null;
+        Map<String, String> headers = extractHeadersFromDocNode(vJsonNode, validationErrors);
         Auth auth = vJsonNode.get("auth").by(Auth::create);
-
-        if (vJsonNode.hasNonNull("headers")) {
-            headers = objectNode.getAsNode("headers").toMap();
-        }
 
         vJsonNode.checkForUnusedAttributes();
 
         validationErrors.throwExceptionForPresentErrors();
 
         return new HttpRequestConfig(method, uri, path, queryParams, body, headers, auth, accept);
+    }
+
+    private static Map<String, String> extractHeadersFromDocNode(ValidatingDocNode vJsonNode, ValidationErrors validationErrors) {
+        if (!vJsonNode.hasNonNull("headers")) {
+            return null;
+        }
+        return vJsonNode.getAsDocNode("headers").keySet().stream()
+                .collect(Collectors.toMap(key -> key, key -> {
+                    String headerValue = vJsonNode.get("headers").asValidatingDocNode().get(key).asString();
+                    if (headerValue == null) {
+                        validationErrors.add(new ValidationError("headers." + key, "Value cannot be null"));
+                        return "null";
+                    }
+                    return headerValue;
+                }));
     }
 
     public Auth getAuth() {
