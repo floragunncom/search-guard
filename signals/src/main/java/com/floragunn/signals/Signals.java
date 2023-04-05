@@ -10,6 +10,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.signals.truststore.service.TruststoreCrudService;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
+import com.floragunn.signals.truststore.service.persistence.TruststoreData;
+import com.floragunn.signals.truststore.service.persistence.TruststoreRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -68,6 +73,9 @@ public class Signals extends AbstractLifecycleComponent {
     private String nodeId;
     private Map<String, Exception> tenantInitErrors = new ConcurrentHashMap<>();
     private DiagnosticContext diagnosticContext;
+    private ThreadPool threadPool;
+
+    private TrustManagerRegistry trustManagerRegistry;
 
     public Signals(Settings settings, ComponentState componentState) {
         this.componentState = componentState;
@@ -91,6 +99,7 @@ public class Signals extends AbstractLifecycleComponent {
 
             this.client = client;
             this.clusterService = clusterService;
+            this.threadPool = threadPool;
             this.nodeEnvironment = nodeEnvironment;
             this.xContentRegistry = xContentRegistry;
             this.scriptService = scriptService;
@@ -105,7 +114,10 @@ public class Signals extends AbstractLifecycleComponent {
             }
 
             this.accountRegistry = new AccountRegistry(signalsSettings);
-
+            PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
+            TruststoreRepository repository = new TruststoreRepository(privilegedConfigClient);
+            TruststoreCrudService truststoreCrudService = new TruststoreCrudService(repository);
+            this.trustManagerRegistry = new TrustManagerRegistry(truststoreCrudService);
             return Collections.singletonList(this);
 
         } catch (Exception e) {
@@ -151,10 +163,12 @@ public class Signals extends AbstractLifecycleComponent {
         IndexNames indexNames = signalsSettings.getStaticSettings().getIndexNames();
 
         String[] allIndexes = new String[] { indexNames.getWatches(), indexNames.getWatchesState(), indexNames.getWatchesTriggerState(),
-                indexNames.getAccounts(), indexNames.getSettings() };
+                indexNames.getAccounts(), indexNames.getSettings(), IndexNames.TRUSTSTORES };
 
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping(), 2)
                 .mappingUpdate(0, Watch.getIndexMappingUpdate()).dependsOnIndices(allIndexes).onIndexReady(this::init)));
+        ConfigIndex configIndex = new ConfigIndex(IndexNames.TRUSTSTORES).mapping(TruststoreData.MAPPINGS);
+        componentState.addPart(protectedConfigIndexService.createIndex(configIndex));
         componentState.addPart(
                 protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState())));
@@ -193,7 +207,8 @@ public class Signals extends AbstractLifecycleComponent {
         try {
 
             SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                    internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState, diagnosticContext);
+                    internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState, diagnosticContext, threadPool,
+                    trustManagerRegistry);
 
             tenants.put(name, signalsTenant);
 
@@ -229,6 +244,7 @@ public class Signals extends AbstractLifecycleComponent {
 
             componentState.setState(State.INITIALIZING, "reading_accounts");
             accountRegistry.init(client);
+            loadAllTruststores();
 
             componentState.setState(State.INITIALIZING, "initializing_keys");
             if (signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() != null) {
@@ -288,6 +304,14 @@ public class Signals extends AbstractLifecycleComponent {
         }
     }
 
+    private void loadAllTruststores() throws SignalsInitializationException {
+        try {
+            trustManagerRegistry.reloadAll();
+        } catch (Exception e) {
+            throw new SignalsInitializationException("Cannot load all trust stores.", e);
+        }
+    }
+
     private void createSignalsLogIndex() {
         String signalsLogIndex = signalsSettings.getDynamicSettings().getWatchLogIndex();
 
@@ -295,12 +319,12 @@ public class Signals extends AbstractLifecycleComponent {
             log.debug("Not checking signals_log index because local node is not master");
             return;
         }
-        
+
         if (clusterService.state().getMetadata().componentTemplates().containsKey("signals_log_template")) {
             log.debug("Template signals_log_template does already exist.");
             return;
         }
-                
+
         if (signalsLogIndex.startsWith("<") && signalsLogIndex.endsWith(">")) {
             signalsLogIndex = signalsLogIndex.substring(1, signalsLogIndex.length() - 1).replaceAll("\\{.*\\}", "*");
         }
@@ -309,12 +333,12 @@ public class Signals extends AbstractLifecycleComponent {
             log.debug("signals log index does not start with ., so we do not need to create a template");
             return;
         }
-        
+
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
-        
+
         PutComposableIndexTemplateAction.Request putRequest = new PutComposableIndexTemplateAction.Request("signals_log_template");
         putRequest.indexTemplate(new ComposableIndexTemplate(ImmutableList.of(signalsLogIndex), new Template(Settings.builder().put("index.hidden", true).build(), null, null), null, null, null, null));
-        
+
         client.execute(PutComposableIndexTemplateAction.INSTANCE, putRequest, new ActionListener<AcknowledgedResponse>() {
 
             @Override
@@ -325,9 +349,9 @@ public class Signals extends AbstractLifecycleComponent {
             @Override
             public void onFailure(Exception e) {
                 componentState.addLastException("create_signals_log_template", e);
-                log.error("Error while creating signals_log_template", e);                
+                log.error("Error while creating signals_log_template", e);
             }
-            
+
         });
     }
 
@@ -402,6 +426,10 @@ public class Signals extends AbstractLifecycleComponent {
 
     public AccountRegistry getAccountRegistry() {
         return accountRegistry;
+    }
+
+    public TrustManagerRegistry getTruststoreRegistry() {
+        return trustManagerRegistry;
     }
 
     public SignalsSettings getSignalsSettings() {

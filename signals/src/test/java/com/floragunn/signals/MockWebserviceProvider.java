@@ -29,9 +29,12 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,6 +47,10 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.certificate.utils.CertificateAndPrivateKeyWriter;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.Header;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntityEnclosingRequest;
@@ -70,6 +77,9 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.google.common.base.Charsets;
 import com.google.common.io.CharStreams;
+import org.bouncycastle.cert.X509CertificateHolder;
+
+import static com.floragunn.signals.truststore.rest.TruststoreLoader.storeTruststoreInPemFormat;
 
 public class MockWebserviceProvider implements Closeable {
 
@@ -86,6 +96,7 @@ public class MockWebserviceProvider implements Closeable {
     private final AtomicInteger requestCount = new AtomicInteger();
     private long responseDelayMs = 0;
     private InetAddress acceptConnectionsOnlyFromInetAddress;
+    private KeyStore trustStore;
 
     MockWebserviceProvider(String path) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort());
@@ -177,6 +188,17 @@ public class MockWebserviceProvider implements Closeable {
         return port;
     }
 
+    public String trustedCertificatePem(String alias) {
+        try {
+            Certificate certificate = trustStore.getCertificate(alias);
+            byte[] derCertificateBytes = certificate.getEncoded();
+            X509CertificateHolder holder = new X509CertificateHolder(derCertificateBytes);
+            return CertificateAndPrivateKeyWriter.writeCertificate(holder);
+        } catch (KeyStoreException | CertificateEncodingException | IOException e) {
+            throw new RuntimeException("Cannot write certificate as pem", e);
+        }
+    }
+
     private static String buildUri(String pathPattern, boolean ssl, int port) {
         StringBuilder result = new StringBuilder(ssl ? "https" : "http");
         result.append("://localhost:").append(port);
@@ -234,7 +256,7 @@ public class MockWebserviceProvider implements Closeable {
 
         try {
             final TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-            final KeyStore trustStore = KeyStore.getInstance("JKS");
+            this.trustStore = KeyStore.getInstance("JKS");
             InputStream trustStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("tls/truststore.jks").toFile());
             trustStore.load(trustStream, "secret".toCharArray());
             tmf.init(trustStore);
@@ -353,5 +375,13 @@ public class MockWebserviceProvider implements Closeable {
 
     public InetAddress getLastRequestClientAddress() {
         return lastRequestClientAddress;
+    }
+
+    public void uploadMockServerCertificateAsTruststore(LocalCluster cluster, TestSgConfig.User user, String truststoreId)
+        throws Exception {
+        String pemCertificate = this.trustedCertificatePem("root-ca");
+        try(GenericRestClient genericRestClient = cluster.getRestClient(user)) {
+            storeTruststoreInPemFormat(genericRestClient, truststoreId, "name", pemCertificate);
+        }
     }
 }

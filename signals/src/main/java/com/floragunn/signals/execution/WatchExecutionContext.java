@@ -19,7 +19,9 @@ package com.floragunn.signals.execution;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
@@ -46,20 +48,23 @@ public class WatchExecutionContext {
     private final HttpProxyConfig httpProxyConfig;
     private final String frontendBaseUrl;
     private final ActionInvoker actionInvoker;
-    
+    private final TrustManagerRegistry trustManagerRegistry;
+
     public Map<String, Object> getMetadata() {
         return metadata;
     }
 
     public WatchExecutionContext(Client client, ScriptService scriptService, NamedXContentRegistry xContentRegistry, AccountRegistry accountRegistry,
-            ExecutionEnvironment executionEnvironment, ActionInvocationType actionInvocationType, WatchExecutionContextData contextData) {
+            ExecutionEnvironment executionEnvironment, ActionInvocationType actionInvocationType, WatchExecutionContextData contextData,
+            TrustManagerRegistry trustManagerRegistry) {
         this(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType, contextData, null,
-                SimulationMode.FOR_REAL, null, null, null, null);
+                SimulationMode.FOR_REAL, null, null, null, null, trustManagerRegistry);
     }
 
     public WatchExecutionContext(Client client, ScriptService scriptService, NamedXContentRegistry xContentRegistry, AccountRegistry accountRegistry,
             ExecutionEnvironment executionEnvironment, ActionInvocationType actionInvocationType, WatchExecutionContextData contextData,
-            WatchExecutionContextData resolvedContextData, SimulationMode simulationMode, HttpEndpointWhitelist httpEndpointWhitelist, HttpProxyConfig httpProxyConfig, String frontendBaseUrl, ActionInvoker actionInvoker) {
+            WatchExecutionContextData resolvedContextData, SimulationMode simulationMode, HttpEndpointWhitelist httpEndpointWhitelist,
+        HttpProxyConfig httpProxyConfig, String frontendBaseUrl, ActionInvoker actionInvoker, TrustManagerRegistry trustManagerRegistry) {
         this.client = client;
         this.scriptService = scriptService;
         this.xContentRegistry = xContentRegistry;
@@ -74,6 +79,7 @@ public class WatchExecutionContext {
         this.httpProxyConfig = httpProxyConfig;
         this.frontendBaseUrl = frontendBaseUrl;
         this.actionInvoker = actionInvoker;
+        this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry, "Trust manager registry is required");
     }
 
     public Client getClient() {
@@ -94,6 +100,10 @@ public class WatchExecutionContext {
 
     public AccountRegistry getAccountRegistry() {
         return accountRegistry;
+    }
+
+    public TrustManagerRegistry getTrustManagerRegistry() {
+        return trustManagerRegistry;
     }
 
     public WatchExecutionContextData getContextData() {
@@ -128,18 +138,20 @@ public class WatchExecutionContext {
 
     public WatchExecutionContext with(WatchExecutionContextData contextData, ActionInvoker actionInvoker) {
         return new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType,
-                contextData, resolvedContextData, simulationMode, httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker);
+                contextData, resolvedContextData, simulationMode, httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker,
+                trustManagerRegistry);
     }
 
     public WatchExecutionContext with(ActionInvocationType actionInvocationType) {
         return new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType,
-                contextData, resolvedContextData, simulationMode, httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker);
+                contextData, resolvedContextData, simulationMode, httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker,
+                trustManagerRegistry);
     }
 
     public WatchExecutionContext clone() {
         return new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType,
                 contextData != null ? contextData.clone() : null, resolvedContextData != null ? resolvedContextData.clone() : null, simulationMode,
-                httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker);
+                httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker, trustManagerRegistry);
     }
 
     public WatchExecutionContextData getResolvedContextData() {

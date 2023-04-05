@@ -19,7 +19,6 @@ package com.floragunn.signals;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,7 +27,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.watch.common.Ack;
+import com.floragunn.signals.watch.common.ValidationLevel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -48,6 +49,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
 import org.quartz.Job;
@@ -89,15 +91,18 @@ import com.floragunn.signals.watch.state.WatchStateIndexReader;
 import com.floragunn.signals.watch.state.WatchStateIndexWriter;
 import com.floragunn.signals.watch.state.WatchStateManager;
 
+import static com.floragunn.signals.watch.common.ValidationLevel.LENIENT;
+
 public class SignalsTenant implements Closeable {
     private static final Logger log = LogManager.getLogger(SignalsTenant.class);
 
     public static SignalsTenant create(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment,
             ScriptService scriptService, NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider,
-            SignalsSettings settings, AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext)
+            SignalsSettings settings, AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext,
+            ThreadPool threadPool, TrustManagerRegistry trustManagerRegistry)
             throws SchedulerException {
         SignalsTenant instance = new SignalsTenant(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                internalAuthTokenProvider, settings, accountRegistry, tenantState, diagnosticContext);
+                internalAuthTokenProvider, settings, accountRegistry, tenantState, diagnosticContext, threadPool, trustManagerRegistry);
 
         instance.init();
 
@@ -125,12 +130,14 @@ public class SignalsTenant implements Closeable {
     private final ComponentState tenantState;
     private SignalsSettings.Tenant tenantSettings;
     private final DiagnosticContext diagnosticContext;
-
     private Scheduler scheduler;
+
+    private final TrustManagerRegistry trustManagerRegistry;
 
     public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
-            AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext) {
+            AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext, ThreadPool threadPool,
+        TrustManagerRegistry trustManagerRegistry) {
         this.name = name;
         this.settings = settings;
         this.scopedName = "signals/" + name;
@@ -154,15 +161,16 @@ public class SignalsTenant implements Closeable {
         this.nodeName = clusterService.getNodeName();
         this.tenantState = tenantState;
         this.diagnosticContext = diagnosticContext;
-
+        this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry, "Trust manager registry is required");
         settings.addChangeListener(this.settingsChangeListener);
     }
 
     public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
-            AccountRegistry accountRegistry, DiagnosticContext diagnosticContext) {
+            AccountRegistry accountRegistry, DiagnosticContext diagnosticContext, ThreadPool threadPool,
+            TrustManagerRegistry trustManagerRegistry) {
         this(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry, internalAuthTokenProvider, settings, accountRegistry,
-                new ComponentState(0, null, "tenant"), diagnosticContext);
+                new ComponentState(0, null, "tenant"), diagnosticContext, threadPool, trustManagerRegistry);
     }
 
     public void init() throws SchedulerException {
@@ -177,13 +185,15 @@ public class SignalsTenant implements Closeable {
         log.info("Initializing alerting tenant " + name + "\nnodeFilter: " + nodeFilter);
         tenantState.setState(ComponentState.State.INITIALIZING);
 
+        WatchInitializationService initContext = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry,
+            LENIENT);
         this.scheduler = new SchedulerBuilder<Watch>()//
                 .client(privilegedConfigClient)//
                 .name(scopedName)//
                 .configIndex(configIndexName, getActiveConfigQuery(name))//
                 .stateIndex(settings.getStaticSettings().getIndexNames().getWatchesTriggerState())//
                 .stateIndexIdPrefix(watchIdPrefix)//
-                .jobConfigFactory(new Watch.JobConfigFactory(name, watchIdPrefix, new WatchInitializationService(accountRegistry, scriptService)))//
+                .jobConfigFactory(new Watch.JobConfigFactory(name, watchIdPrefix, initContext))//
                 .distributed(clusterService, nodeEnvironment)//
                 .jobFactory(jobFactory)//
                 .nodeFilter(nodeFilter)//
@@ -315,17 +325,18 @@ public class SignalsTenant implements Closeable {
         return getWatchIdForConfigIndex(watch.getId());
     }
 
-    public IndexResponse addWatch(Watch watch, User user) throws IOException {
+    public IndexResponse addWatch(Watch watch, User user, ValidationLevel lifeCycleStage) throws IOException {
 
         try {
-            return addWatch(watch.getId(), Strings.toString(watch), user);
+            return addWatch(watch.getId(), Strings.toString(watch), user, lifeCycleStage);
         } catch (ConfigValidationException e) {
             // This should not happen
             throw new RuntimeException(e);
         }
     }
 
-    public IndexResponse addWatch(String watchId, String watchJsonString, User user) throws ConfigValidationException, IOException {
+    public IndexResponse addWatch(String watchId, String watchJsonString, User user, ValidationLevel validationLevel)
+        throws ConfigValidationException, IOException {
 
         if (log.isInfoEnabled()) {
             log.info("addWatch(" + watchId + ") on " + this);
@@ -333,7 +344,9 @@ public class SignalsTenant implements Closeable {
 
         Map<String, Object> watchJson = new LinkedHashMap<>(DocReader.json().readObject(watchJsonString));
 
-        Watch watch = Watch.parse(new WatchInitializationService(accountRegistry, scriptService), getName(), watchId, DocNode.wrap(watchJson), -1);
+        WatchInitializationService initializationService = new WatchInitializationService(accountRegistry, scriptService,//
+            trustManagerRegistry, validationLevel);
+        Watch watch = Watch.parse(initializationService, getName(), watchId, DocNode.wrap(watchJson), -1);
 
         watch.setTenant(name);
         watch.getMeta().setLastEditByUser(user.getName());
@@ -520,7 +533,8 @@ public class SignalsTenant implements Closeable {
                     ToXParams.of(WatchLog.ToXContentParams.INCLUDE_DATA, watch.isLogRuntimeData()));
 
             return new WatchRunner(watch, client, accountRegistry, scriptService, watchLogWriter, watchStateWriter, diagnosticContext, watchState,
-                    ExecutionEnvironment.SCHEDULED, SimulationMode.FOR_REAL, xContentRegistry, settings, nodeName, null, null);
+                    ExecutionEnvironment.SCHEDULED, SimulationMode.FOR_REAL, xContentRegistry, settings, nodeName, null, null,
+                    trustManagerRegistry);
         }
 
         private Watch getConfig(TriggerFiredBundle bundle) {

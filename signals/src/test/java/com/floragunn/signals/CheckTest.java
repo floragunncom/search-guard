@@ -1,7 +1,9 @@
 package com.floragunn.signals;
 
 import java.net.InetAddress;
+import java.net.Socket;
 import java.net.URI;
+import java.security.cert.X509Certificate;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -9,7 +11,10 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
+import com.floragunn.signals.watch.common.TlsConfig;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,6 +34,7 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -62,10 +68,19 @@ import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.result.WatchLog;
 
 import net.jcip.annotations.NotThreadSafe;
+import org.mockito.Mockito;
+
+import javax.net.ssl.X509ExtendedTrustManager;
+
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 
 @NotThreadSafe
 public class CheckTest {
     private static final Logger log = LogManager.getLogger(CheckTest.class);
+    public static final String TRUSTSTORE_ID = "my-truststore-id-001";
 
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
@@ -86,6 +101,15 @@ public class CheckTest {
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).remote("my_remote", anotherCluster)
             .enableModule(SignalsModule.class).build();
+    
+    private TrustManagerRegistry trustManagerRegistry;
+    private X509ExtendedTrustManager trustManager;
+
+    @Before
+    public void createMocks() {
+        this.trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
+        this.trustManager = Mockito.mock(X509ExtendedTrustManager.class);
+    }
 
     @BeforeClass
     public static void setupTestData() {
@@ -126,12 +150,13 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"x\"} }}");
-            searchInput.compileScripts(new WatchInitializationService(null, scriptService));
+            searchInput.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             boolean result = searchInput.execute(ctx);
 
@@ -151,12 +176,14 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"{{data.match}}\"} }}");
-            searchInput.compileScripts(new WatchInitializationService(null, scriptService));
+            searchInput.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("match"), "xx");
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             boolean result = searchInput.execute(ctx);
 
@@ -178,13 +205,15 @@ public class CheckTest {
 
             SearchInput searchInput = new SearchInput("test", "test", "testsource",
                     "{\"query\": {\"range\" : {\"date\": {\"gte\": \"{{trigger.scheduled_time}}||-1M\", \"lt\": \"{{trigger.scheduled_time}}\", \"format\": \"strict_date_time\"} } }}");
-            searchInput.compileScripts(new WatchInitializationService(null, scriptService));
+            searchInput.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("match"), "xx");
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
                     ActionInvocationType.ALERT,
-                    new WatchExecutionContextData(runtimeData, null, new TriggerInfo(new Date(), new Date(), new Date(), new Date()), null));
+                    new WatchExecutionContextData(runtimeData, null, new TriggerInfo(new Date(), new Date(), new Date(), new Date()), null),
+                    trustManagerRegistry);
 
             boolean result = searchInput.execute(ctx);
 
@@ -254,7 +283,9 @@ public class CheckTest {
 
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-                watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(),
+                WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, STRICT);
+                watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(),
                         -1);
 
                 WatchLog watchLog = awaitWatchLog(client, tenant, watchId);
@@ -276,13 +307,14 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             boolean result = httpInput.execute(ctx);
 
@@ -296,6 +328,37 @@ public class CheckTest {
     }
 
     @Test
+    public void httpInputShouldSupportTrustStoreTest() throws Exception {
+        try (Client client = cluster.getInternalNodeClient();
+            MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/tls_service", true, false)) {
+            //trustManager never throws exception that is each certificate is considered trusted
+            Mockito.when(trustManagerRegistry.findTrustManager(TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
+
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
+                null, null, null, null, null);
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry,
+                STRICT));
+
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+            tlsConfig.setTruststoreId(TRUSTSTORE_ID);
+            tlsConfig.init();
+            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, tlsConfig, null));
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            boolean result = httpInput.execute(ctx);
+
+            Assert.assertTrue(result);
+
+            //check if trust manager was invoked to validate certificates
+            verify(trustManager).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
+        }
+    }
+
+    @Test
     public void httpInputTestContentTypeHasCharset() throws Exception {
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
 
@@ -304,13 +367,14 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             boolean result = httpInput.execute(ctx);
 
@@ -334,13 +398,14 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             boolean result = httpInput.execute(ctx);
 
@@ -360,13 +425,14 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             try {
                 httpInput.execute(ctx);
@@ -400,13 +466,14 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, "application/x-yaml");
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             httpInput.execute(ctx);
 
@@ -424,13 +491,14 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(1, 1, null, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             httpInput.execute(ctx);
 
@@ -446,12 +514,13 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             Condition scriptCondition = new Condition(null, "data.x.hits.total > 5", "painless", Collections.emptyMap());
-            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService));
+            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             boolean result = scriptCondition.execute(ctx);
 
@@ -465,12 +534,13 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             Condition scriptCondition = new Condition(null, "data.x.hits.total > 510", "painless", Collections.emptyMap());
-            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService));
+            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             boolean result = scriptCondition.execute(ctx);
 
@@ -484,14 +554,15 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             Condition scriptCondition = new Condition(null, "data.x.hits.hits.length > data.constants.threshold", "painless", Collections.emptyMap());
-            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService));
+            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
             runtimeData.put(new NestedValueMap.Path("constants", "threshold"), 5);
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             scriptCondition.execute(ctx);
 
@@ -505,12 +576,14 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             Calc calc = new Calc(null, "data.x.y = 5", "painless", Collections.emptyMap());
-            calc.compileScripts(new WatchInitializationService(null, scriptService));
+            calc.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             boolean result = calc.execute(ctx);
 
