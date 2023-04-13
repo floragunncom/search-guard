@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,15 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.floragunn.searchguard.authc.base;
-
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -31,15 +26,8 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.TypedComponentRegistry;
-import com.floragunn.searchguard.authc.AuthenticationBackend;
+import com.floragunn.searchguard.authc.*;
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
-import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
-import com.floragunn.searchguard.authc.AuthenticationDomain;
-import com.floragunn.searchguard.authc.AuthenticationFrontend;
-import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.authc.CredentialsException;
-import com.floragunn.searchguard.authc.RequestMetaData;
-import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -51,8 +39,14 @@ import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.google.common.hash.Hashing;
 
-public class StandardAuthenticationDomain<AuthenticatorType extends AuthenticationFrontend> implements AuthenticationDomain<AuthenticatorType>,
-        Comparable<StandardAuthenticationDomain<AuthenticatorType>>, Document<StandardAuthenticationDomain<AuthenticatorType>>, Destroyable {
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+public class StandardAuthenticationDomain<AuthenticatorType extends AuthenticationFrontend>
+        implements AuthenticationDomain<AuthenticatorType>, Comparable<StandardAuthenticationDomain<AuthenticatorType>>,
+        Document<StandardAuthenticationDomain<AuthenticatorType>>, Destroyable {
 
     private final DocNode source;
     private final String type;
@@ -205,8 +199,9 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
             } catch (ConfigValidationException e) {
                 validationErrors.add(authenticatorSubType, e);
             } catch (NoSuchComponentException e) {
-                validationErrors.add(new InvalidAttributeValue("type", type, e.getAvailableTypesAsInfoString())
-                        .message("Unknown authentication frontend").cause(e));
+                validationErrors.add(
+                        new InvalidAttributeValue("type", type, e.getAvailableTypesAsInfoString()).message("Unknown authentication frontend")
+                                .cause(e));
             }
 
             if (backendType != null) {
@@ -216,8 +211,9 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
                 } catch (ConfigValidationException e) {
                     validationErrors.add(backendType, e);
                 } catch (NoSuchComponentException e) {
-                    validationErrors.add(new InvalidAttributeValue("type", type, e.getAvailableTypesAsInfoString())
-                            .message("Unknown authentication backend").cause(e));
+                    validationErrors.add(
+                            new InvalidAttributeValue("type", type, e.getAvailableTypesAsInfoString()).message("Unknown authentication backend")
+                                    .cause(e));
                 }
             }
         }
@@ -422,7 +418,13 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
             }
         }
 
-        return CompletableFuture.completedFuture(userMapping.map(authCredentials));
+        User authenticatedUser;
+        if (userMapping != null) {
+            authenticatedUser = userMapping.map(authCredentials);
+        } else {
+            authenticatedUser = UserMapper.DIRECT.map(authCredentials);
+        }
+        return CompletableFuture.completedFuture(authenticatedUser);
     }
 
     @Override
