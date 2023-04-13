@@ -16,23 +16,23 @@ package com.floragunn.searchguard.enterprise.auth.saml;
 
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
-import org.joda.time.DateTime;
 import org.opensaml.core.criterion.EntityIdCriterion;
-import org.opensaml.saml.metadata.resolver.ExtendedRefreshableMetadataResolver;
-import org.opensaml.saml.metadata.resolver.MetadataResolver;
 import org.opensaml.saml.metadata.resolver.RefreshableMetadataResolver;
+import org.opensaml.saml.metadata.resolver.MetadataResolver;
 import org.opensaml.saml.saml2.metadata.EntityDescriptor;
 import org.opensaml.saml.saml2.metadata.IDPSSODescriptor;
 import org.opensaml.saml.saml2.metadata.KeyDescriptor;
@@ -73,12 +73,12 @@ public class Saml2SettingsProvider {
             HashMap<String, Object> configProperties = new HashMap<>();
             Map<String, Object> details = new LinkedHashMap<>();
 
-            if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver) {
-                details.put("last_successful_refresh", String.valueOf(((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh()));
+            if (this.metadataResolver instanceof RefreshableMetadataResolver) {
+                details.put("last_successful_refresh", String.valueOf(((RefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh()));
             }
 
-            if (this.metadataResolver instanceof ExtendedRefreshableMetadataResolver
-                    && ((ExtendedRefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh() == null) {
+            if (this.metadataResolver instanceof RefreshableMetadataResolver
+                    && ((RefreshableMetadataResolver) this.metadataResolver).getLastSuccessfulRefresh() == null) {
                 // SAML resolver has not yet been initialized
                 ResolverException lastRefreshException = null;
 
@@ -138,7 +138,7 @@ public class Saml2SettingsProvider {
 
     public Saml2Settings getCached(URI frontendBaseUrl) throws AuthenticatorUnavailableException {
         Entry entry = settingsCache.getIfPresent(frontendBaseUrl);
-        DateTime tempLastUpdate = null;
+        Instant tempLastUpdate = null;
 
         if (entry != null && isUpdateRequired(entry)) {
             entry = null;
@@ -165,7 +165,7 @@ public class Saml2SettingsProvider {
             return true;
         }
 
-        if (refreshableMetadataResolver.getLastUpdate().isAfter(entry.metadataUpdateTime)) {
+        if (refreshableMetadataResolver.getLastUpdate().isAfter(entry.getMetadataUpdateTime())) {
             return true;
         } else {
             return false;
@@ -346,9 +346,9 @@ public class Saml2SettingsProvider {
     static class Entry {
         private final Saml2Settings saml2Settings;
 
-        private final DateTime metadataUpdateTime;
+        private final Instant metadataUpdateTime;
 
-        public Entry(Saml2Settings saml2Settings, DateTime metadataUpdateTime) {
+        public Entry(Saml2Settings saml2Settings, Instant metadataUpdateTime) {
             this.saml2Settings = saml2Settings;
             this.metadataUpdateTime = metadataUpdateTime;
         }
@@ -357,8 +357,11 @@ public class Saml2SettingsProvider {
             return saml2Settings;
         }
 
-        public DateTime getMetadataUpdateTime() {
-            return metadataUpdateTime;
+        public Instant getMetadataUpdateTime() {
+            //condition related to migration from JodaTime to java.time API in OpenSAML library.
+            //java.time.Instant.isAfter does not handle null whereas JodaTime is able to work correctly if null is passed to isAfter.
+            //In such case JodaTime uses now time instead of null
+            return metadataUpdateTime != null ? metadataUpdateTime : Instant.now();
         }
 
     }

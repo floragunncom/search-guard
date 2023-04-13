@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!-- Copyright 2015-2023 floragunn
+	GmbH Licensed under the Apache License, Version 2.0 (the "License"); you
+	may not use this file except in compliance with the License. You may obtain
+	a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 Unless
+	required by applicable law or agreed to in writing, software distributed
+	under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
+	OR CONDITIONS OF ANY KIND, either express or implied. See the License for
+	the specific language governing permissions and limitations under the License. -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.floragunn</groupId>
+        <artifactId>search-guard-flx-parent</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <groupId>com.floragunn.org.opensaml</groupId>
+    <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+    <packaging>jar</packaging>
+    <name>Search Guard FLX: Patched OpenSAML xmlsec impl</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.opensaml</groupId>
+            <artifactId>opensaml-xmlsec-impl</artifactId>
+            <version>${opensaml.version}</version>
+            <!-- Since dependency reduced pom is not used, this must be an optional dependency -->
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>2.17.1</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.4.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <minimizeJar>false</minimizeJar>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>org.opensaml:opensaml-xmlsec-impl</artifact>
+                                    <excludes>
+                                        <!-- Implementation of these classes from the current module should be used -->
+                                        <exclude>org/opensaml/xmlsec/signature/impl/X509CertificateImpl*</exclude>
+                                        <exclude>org/opensaml/xmlsec/signature/impl/X509CRLImpl*</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <artifactSet>
+                                <includes>
+                                    <include>org.opensaml:opensaml-xmlsec-impl</include>
+                                </includes>
+                            </artifactSet>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

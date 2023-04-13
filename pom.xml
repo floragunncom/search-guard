@@ -43,6 +43,7 @@
 		<http.commons.version>4.5.13</http.commons.version>
 		<quartz.version>2.3.2</quartz.version>
 		<simplemail.version>5.2.1</simplemail.version>
+		<opensaml.version>4.0.1</opensaml.version>
 
 		<!-- Test only -->
 		<mockito.version>2.23.0</mockito.version>
@@ -54,6 +55,7 @@
 	</properties>
 
 	<modules>
+		<module>xmlsec</module>
 		<module>security</module>
 		<module>security-legacy</module>		
 		<module>scheduler</module>
@@ -343,6 +345,12 @@
 			<dependency>
 				<groupId>com.floragunn</groupId>
 				<artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>com.floragunn.org.opensaml</groupId>
+				<artifactId>opensaml-xmlsec-impl-patched</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 

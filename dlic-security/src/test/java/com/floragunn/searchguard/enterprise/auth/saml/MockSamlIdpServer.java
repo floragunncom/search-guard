@@ -37,12 +37,16 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -68,6 +72,7 @@ import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import net.shibboleth.utilities.java.support.codec.EncodingException;
 import org.apache.http.Header;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntityEnclosingRequest;
@@ -359,7 +364,7 @@ class MockSamlIdpServer implements Closeable {
             decoder.initialize();
             decoder.decode();
 
-            MessageContext<SAMLObject> messageContext = decoder.getMessageContext();
+            MessageContext messageContext = decoder.getMessageContext();
 
             if (!(messageContext.getMessage() instanceof AuthnRequest)) {
                 throw new RuntimeException("Expected AuthnRequest; received: " + messageContext.getMessage());
@@ -393,7 +398,7 @@ class MockSamlIdpServer implements Closeable {
             decoder.initialize();
             decoder.decode();
 
-            MessageContext<SAMLObject> messageContext = decoder.getMessageContext();
+            MessageContext messageContext = decoder.getMessageContext();
 
             if (!(messageContext.getMessage() instanceof LogoutRequest)) {
                 throw new RuntimeException("Expected LogoutRequest; received: " + messageContext.getMessage());
@@ -438,19 +443,19 @@ class MockSamlIdpServer implements Closeable {
 
             response.setVersion(SAMLVersion.VERSION_20);
             response.setStatus(createStatus(StatusCode.SUCCESS));
-            response.setIssueInstant(new DateTime());
+            response.setIssueInstant(Instant.now());
 
             Assertion assertion = createSamlElement(Assertion.class);
             response.getAssertions().add(assertion);
 
             assertion.setID(nextId());
-            assertion.setIssueInstant(new DateTime());
+            assertion.setIssueInstant(Instant.now());
             assertion.setIssuer(createIssuer());
 
             AuthnStatement authnStatement = createSamlElement(AuthnStatement.class);
             assertion.getAuthnStatements().add(authnStatement);
 
-            authnStatement.setAuthnInstant(new DateTime());
+            authnStatement.setAuthnInstant(Instant.now());
             authnStatement.setSessionIndex(nextId());
             authnStatement.setAuthnContext(createAuthnCotext());
 
@@ -470,8 +475,8 @@ class MockSamlIdpServer implements Closeable {
             Conditions conditions = createSamlElement(Conditions.class);
             assertion.setConditions(conditions);
 
-            conditions.setNotBefore(new DateTime());
-            conditions.setNotOnOrAfter(new DateTime().plusMinutes(1));
+            conditions.setNotBefore(Instant.now());
+            conditions.setNotOnOrAfter(Instant.now().plus(1, ChronoUnit.MINUTES));
 
             if (authenticateUserRoles != null) {
                 AttributeStatement attributeStatement = createSamlElement(AttributeStatement.class);
@@ -505,7 +510,7 @@ class MockSamlIdpServer implements Closeable {
 
             return Base64Support.encode(marshalledXml.getBytes("UTF-8"), Base64Support.UNCHUNKED);
 
-        } catch (MarshallingException | SignatureException | UnsupportedEncodingException e) {
+        } catch (MarshallingException | SignatureException | UnsupportedEncodingException | EncodingException e) {
             throw new RuntimeException(e);
         }
     }
@@ -566,7 +571,8 @@ class MockSamlIdpServer implements Closeable {
         result.setSubjectConfirmationData(subjectConfirmationData);
 
         subjectConfirmationData.setInResponseTo(inResponseTo);
-        subjectConfirmationData.setNotOnOrAfter(notOnOrAfter);
+        Instant instant = Optional.ofNullable(notOnOrAfter).map(DateTime::toDate).map(Date::toInstant).orElse(null);
+        subjectConfirmationData.setNotOnOrAfter(instant);
         subjectConfirmationData.setRecipient(recipient);
 
         return result;

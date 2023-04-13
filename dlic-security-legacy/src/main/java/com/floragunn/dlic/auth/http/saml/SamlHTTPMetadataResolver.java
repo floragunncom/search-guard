@@ -18,6 +18,8 @@ import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -42,8 +44,8 @@ public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
         setId(HTTPSamlAuthenticator.class.getName() + "_" + (++componentIdCounter));
         setRequireValidMetadata(true);
         setFailFastInitialization(false);
-        setMinRefreshDelay(esSettings.getAsLong("idp.min_refresh_delay", 60L * 1000L));
-        setMaxRefreshDelay(esSettings.getAsLong("idp.max_refresh_delay", 14400000L));
+        setMinRefreshDelay(Duration.of(esSettings.getAsLong("idp.min_refresh_delay", 60L * 1000L), ChronoUnit.MILLIS));
+        setMaxRefreshDelay(Duration.of(esSettings.getAsLong("idp.max_refresh_delay", 14400000L), ChronoUnit.MILLIS));
         setRefreshDelayFactor(esSettings.getAsFloat("idp.refresh_delay_factor", 0.75f));
         BasicParserPool basicParserPool = new BasicParserPool();
         basicParserPool.initialize();

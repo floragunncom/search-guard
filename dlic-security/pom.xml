@@ -254,11 +254,11 @@
 		<dependency>
 			<groupId>org.opensaml</groupId>
 			<artifactId>opensaml-saml-impl</artifactId>
-			<version>3.4.6</version>
+			<version>${opensaml.version}</version>
 			<exclusions>
 				<exclusion>
-					<groupId>joda-time</groupId>
-					<artifactId>joda-time</artifactId>
+					<groupId>org.springframework</groupId>
+					<artifactId>spring-jcl</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>commons-collections</groupId>
@@ -267,8 +267,16 @@
 				<exclusion>
 					<groupId>org.apache.httpcomponents</groupId>
 					<artifactId>httpclient</artifactId>
-				</exclusion>	
+				</exclusion>
+				<exclusion>
+					<groupId>org.opensaml</groupId>
+					<artifactId>opensaml-xmlsec-impl</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.floragunn.org.opensaml</groupId>
+			<artifactId>opensaml-xmlsec-impl-patched</artifactId>
 		</dependency>
 
 		<dependency>
