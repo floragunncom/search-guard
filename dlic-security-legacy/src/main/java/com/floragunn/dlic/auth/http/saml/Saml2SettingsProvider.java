@@ -16,6 +16,7 @@ package com.floragunn.dlic.auth.http.saml;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.HashMap;
@@ -55,7 +56,7 @@ public class Saml2SettingsProvider {
     private MetadataResolver metadataResolver;
     private String idpEntityId;
     private Saml2Settings cachedSaml2Settings;
-    private DateTime metadataUpdateTime;
+    private Instant metadataUpdateTime;
 
     Saml2SettingsProvider(Settings esSettings, MetadataResolver metadataResolver) {
         this.esSettings = esSettings;
@@ -108,7 +109,7 @@ public class Saml2SettingsProvider {
     }
 
     Saml2Settings getCached() throws SamlConfigException, AuthenticatorUnavailableException {
-        DateTime tempLastUpdate = null;
+        Instant tempLastUpdate = null;
 
         if (this.metadataResolver instanceof RefreshableMetadataResolver && this.isUpdateRequired()) {
             this.cachedSaml2Settings = null;

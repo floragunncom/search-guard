@@ -37,6 +37,8 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -90,7 +92,6 @@ import org.apache.http.io.HttpMessageWriterFactory;
 import org.apache.http.message.BasicHttpRequest;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.protocol.HttpRequestHandler;
-import org.joda.time.DateTime;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.XMLObjectBuilderFactory;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
@@ -100,7 +101,6 @@ import org.opensaml.core.xml.schema.XSAny;
 import org.opensaml.messaging.context.MessageContext;
 import org.opensaml.messaging.decoder.MessageDecodingException;
 import org.opensaml.messaging.handler.MessageHandlerException;
-import org.opensaml.saml.common.SAMLObject;
 import org.opensaml.saml.common.SAMLVersion;
 import org.opensaml.saml.common.messaging.context.SAMLPeerEntityContext;
 import org.opensaml.saml.common.messaging.context.SAMLProtocolContext;
@@ -155,6 +155,7 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.PortAllocator;
 
 import net.shibboleth.utilities.java.support.codec.Base64Support;
+import net.shibboleth.utilities.java.support.codec.EncodingException;
 import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
 
 class MockSamlIdpServer implements Closeable {
@@ -359,7 +360,7 @@ class MockSamlIdpServer implements Closeable {
             decoder.initialize();
             decoder.decode();
 
-            MessageContext<SAMLObject> messageContext = decoder.getMessageContext();
+            MessageContext messageContext = decoder.getMessageContext();
 
             if (!(messageContext.getMessage() instanceof AuthnRequest)) {
                 throw new RuntimeException("Expected AuthnRequest; received: " + messageContext.getMessage());
@@ -381,7 +382,6 @@ class MockSamlIdpServer implements Closeable {
         handleSloGetRequestBase(new BasicHttpRequest("GET", samlRequestURI));
     }
 
-    @SuppressWarnings("unchecked")
     public void handleSloGetRequestBase(HttpRequest request) {
         try {
 
@@ -393,7 +393,7 @@ class MockSamlIdpServer implements Closeable {
             decoder.initialize();
             decoder.decode();
 
-            MessageContext<SAMLObject> messageContext = decoder.getMessageContext();
+            MessageContext messageContext = decoder.getMessageContext();
 
             if (!(messageContext.getMessage() instanceof LogoutRequest)) {
                 throw new RuntimeException("Expected LogoutRequest; received: " + messageContext.getMessage());
@@ -438,19 +438,19 @@ class MockSamlIdpServer implements Closeable {
 
             response.setVersion(SAMLVersion.VERSION_20);
             response.setStatus(createStatus(StatusCode.SUCCESS));
-            response.setIssueInstant(new DateTime());
+            response.setIssueInstant(Instant.now());
 
             Assertion assertion = createSamlElement(Assertion.class);
             response.getAssertions().add(assertion);
 
             assertion.setID(nextId());
-            assertion.setIssueInstant(new DateTime());
+            assertion.setIssueInstant(Instant.now());
             assertion.setIssuer(createIssuer());
 
             AuthnStatement authnStatement = createSamlElement(AuthnStatement.class);
             assertion.getAuthnStatements().add(authnStatement);
 
-            authnStatement.setAuthnInstant(new DateTime());
+            authnStatement.setAuthnInstant(Instant.now());
             authnStatement.setSessionIndex(nextId());
             authnStatement.setAuthnContext(createAuthnCotext());
 
@@ -461,17 +461,17 @@ class MockSamlIdpServer implements Closeable {
 
             if (authnRequest != null) {
                 subject.getSubjectConfirmations().add(createSubjectConfirmation("urn:oasis:names:tc:SAML:2.0:cm:bearer",
-                        new DateTime().plusMinutes(1), authnRequest.getID(), authnRequest.getAssertionConsumerServiceURL()));
+                        Instant.now().plusSeconds(60), authnRequest.getID(), authnRequest.getAssertionConsumerServiceURL()));
             } else {
                 subject.getSubjectConfirmations().add(createSubjectConfirmation("urn:oasis:names:tc:SAML:2.0:cm:bearer",
-                        new DateTime().plusMinutes(1), null, defaultAssertionConsumerService));
+                        Instant.now().plusSeconds(60), null, defaultAssertionConsumerService));
             }
 
             Conditions conditions = createSamlElement(Conditions.class);
             assertion.setConditions(conditions);
 
-            conditions.setNotBefore(new DateTime());
-            conditions.setNotOnOrAfter(new DateTime().plusMinutes(1));
+            conditions.setNotBefore(Instant.now());
+            conditions.setNotOnOrAfter(Instant.now().plus(1, ChronoUnit.MINUTES));
 
             if (authenticateUserRoles != null) {
                 AttributeStatement attributeStatement = createSamlElement(AttributeStatement.class);
@@ -505,7 +505,7 @@ class MockSamlIdpServer implements Closeable {
 
             return Base64Support.encode(marshalledXml.getBytes("UTF-8"), Base64Support.UNCHUNKED);
 
-        } catch (MarshallingException | SignatureException | UnsupportedEncodingException e) {
+        } catch (MarshallingException | SignatureException | UnsupportedEncodingException | EncodingException e) {
             throw new RuntimeException(e);
         }
     }
@@ -558,7 +558,7 @@ class MockSamlIdpServer implements Closeable {
         return nameID;
     }
 
-    private SubjectConfirmation createSubjectConfirmation(String method, DateTime notOnOrAfter, String inResponseTo, String recipient) {
+    private SubjectConfirmation createSubjectConfirmation(String method, Instant notOnOrAfter, String inResponseTo, String recipient) {
         SubjectConfirmation result = createSamlElement(SubjectConfirmation.class);
         result.setMethod(method);
 

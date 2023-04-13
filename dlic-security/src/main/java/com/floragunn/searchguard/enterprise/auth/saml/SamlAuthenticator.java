@@ -22,6 +22,8 @@ import java.security.AccessController;
 import java.security.PrivateKey;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -119,8 +121,10 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             try {
                 SamlHTTPMetadataResolver metadataResolver = new SamlHTTPMetadataResolver(idpMetadataUrl, tlsConfig);
 
-                metadataResolver.setMinRefreshDelay(vNode.get("idp.min_refresh_delay").withDefault(60L * 1000L).asLong());
-                metadataResolver.setMaxRefreshDelay(vNode.get("idp.max_refresh_delay").withDefault(14400000L).asLong());
+                long refreshDelayMillis = vNode.get("idp.min_refresh_delay").withDefault(60L * 1000L).asLong();
+                metadataResolver.setMinRefreshDelay(millisToDuration(refreshDelayMillis));
+                long maxRefreshDurationMillis = vNode.get("idp.max_refresh_delay").withDefault(14400000L).asLong();
+                metadataResolver.setMaxRefreshDelay(millisToDuration(maxRefreshDurationMillis));
                 metadataResolver.setRefreshDelayFactor(vNode.get("idp.refresh_delay_factor").withDefault(0.75f).asFloat());
 
                 metadataResolver.initializePrivileged();
@@ -163,6 +167,10 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
                     "Exception while initializing Saml2SettingsProvider. Possibly, the IdP is unreachable right now. This is recoverable by a meta data refresh.",
                     e);
         }
+    }
+
+    private static Duration millisToDuration(long refreshDelayMillis) {
+        return Duration.of(refreshDelayMillis, ChronoUnit.MILLIS);
     }
 
     @Override
