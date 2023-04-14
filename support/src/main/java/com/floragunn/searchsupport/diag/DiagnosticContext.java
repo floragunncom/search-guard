@@ -19,6 +19,7 @@ package com.floragunn.searchsupport.diag;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -96,7 +97,7 @@ public final class DiagnosticContext {
 
         String currentActionStack = getActionStack();
 
-        StoredContext ctx = threadContext.newStoredContext(DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY);
+        StoredContext ctx = threadContext.newStoredContext(DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY, Collections.emptyList());
 
         try {
 
@@ -195,7 +196,7 @@ public final class DiagnosticContext {
             LogContextPreservingActionListener<Response> wrappedListener = LogContextPreservingActionListener.wrapPreservingContext(listener,
                     threadContext);
 
-            try (StoredContext ctx = threadContext.newStoredContext(DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY)) {
+            try (StoredContext ctx = threadContext.newStoredContext(DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY, Collections.emptyList())) {
                 traceActionStack(actionStack, action);
 
                 chain.proceed(task, action, request, wrappedListener);

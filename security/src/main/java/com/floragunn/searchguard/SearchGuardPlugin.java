@@ -41,8 +41,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import com.floragunn.searchguard.rest.SearchGuardConfigUpdateAction;
-import com.floragunn.searchguard.rest.SearchGuardWhoAmIAction;
+
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -58,7 +57,7 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
+import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkModule;
@@ -110,7 +109,6 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.SearchGuardModule.QueryCacheWeightProvider;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -166,8 +164,10 @@ import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwn
 import com.floragunn.searchguard.rest.KibanaInfoAction;
 import com.floragunn.searchguard.rest.PermissionAction;
 import com.floragunn.searchguard.rest.SSLReloadCertAction;
+import com.floragunn.searchguard.rest.SearchGuardConfigUpdateAction;
 import com.floragunn.searchguard.rest.SearchGuardHealthAction;
 import com.floragunn.searchguard.rest.SearchGuardInfoAction;
+import com.floragunn.searchguard.rest.SearchGuardWhoAmIAction;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
@@ -726,7 +726,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         if (transportSSLEnabled) {
             transports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyTransport",
-                    () -> new SearchGuardSSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler,
+                    () -> new SearchGuardSSLNettyTransport(settings, Version.CURRENT.transportVersion, threadPool, networkService, pageCacheRecycler,
                             namedWriteableRegistry, circuitBreakerService, sharedGroupFactory, sgks, evaluateSslExceptionHandler()));
         }
         return transports;
@@ -769,11 +769,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
             IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier
-            , Tracer tracer, AllocationDeciders allocationDeciders) {
+            , Tracer tracer, AllocationService allocationService) {
 
         if (sslOnly) {
             return super.createComponents(localClient, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry,
-                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier, tracer, allocationDeciders);
+                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier, tracer, allocationService);
         }
 
         this.threadPool = threadPool;

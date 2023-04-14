@@ -95,14 +95,14 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
                 }
 
                 @Override
-                public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
+                public void document(int docID, StoredFieldVisitor visitor) throws IOException {
                     if (context.getAuditLogConfig().isEnabled()
                             && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
                         ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
-                        delegate.visitDocument(docID, complianceAwareStoredFieldVisitor);
+                        delegate.document(docID, complianceAwareStoredFieldVisitor);
                         complianceAwareStoredFieldVisitor.finished();
                     } else {
-                        delegate.visitDocument(docID, visitor);
+                        delegate.document(docID, visitor);
                     }
                 }
 

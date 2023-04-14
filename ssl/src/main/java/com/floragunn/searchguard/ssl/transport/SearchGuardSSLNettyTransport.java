@@ -26,6 +26,7 @@ import javax.net.ssl.SSLException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.TransportVersion;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
@@ -34,6 +35,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.ConnectionProfile;
 import org.elasticsearch.transport.TcpChannel;
 import org.elasticsearch.transport.netty4.Netty4Transport;
 
@@ -56,7 +58,7 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
     private final SearchGuardKeyStore sgks;
     private final SslExceptionHandler errorHandler;
 
-    public SearchGuardSSLNettyTransport(final Settings settings, final Version version, final ThreadPool threadPool, final NetworkService networkService,
+    public SearchGuardSSLNettyTransport(final Settings settings, final TransportVersion version, final ThreadPool threadPool, final NetworkService networkService,
                                         final PageCacheRecycler pageCacheRecycler, final NamedWriteableRegistry namedWriteableRegistry,
                                         final CircuitBreakerService circuitBreakerService, SharedGroupFactory sharedGroupFactory, final SearchGuardKeyStore sgks, final SslExceptionHandler errorHandler) {
         super(settings, version, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, sharedGroupFactory);
@@ -86,7 +88,7 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
     }
     
     @Override
-    protected ChannelHandler getClientChannelInitializer(DiscoveryNode node) {
+    protected ChannelHandler getClientChannelInitializer(DiscoveryNode node, ConnectionProfile connectionProfile) {
         return new SSLClientChannelInitializer(node);
     }
 
