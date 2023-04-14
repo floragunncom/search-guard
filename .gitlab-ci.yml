@@ -11,6 +11,8 @@ variables:
   rules:
     - if: $UPLOAD_MVN_THIRD_PARTY_DEPS_ONLY
       when: never
+    - if: '$DOCKER_ONLY'
+      when: never
 
 image: maven:3.6-jdk-${SG_JAVA_BUILD_VERSION}
 
@@ -71,8 +73,6 @@ build:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
@@ -96,8 +96,6 @@ build_for_tag_version:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
   tags:
@@ -131,8 +129,6 @@ test_security:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test-large
@@ -157,8 +153,6 @@ test_security_legacy:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test-large
@@ -183,8 +177,6 @@ test_ssl:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test
@@ -209,8 +201,6 @@ test_signals:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test-large
@@ -234,8 +224,6 @@ test_scheduler:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test
@@ -259,8 +247,6 @@ test_support:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test
@@ -284,8 +270,6 @@ test_dlic_security:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test-large
@@ -309,8 +293,6 @@ test_dlic_security_legacy:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test-large
@@ -334,8 +316,6 @@ test_dlic_dlsfls:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test
@@ -359,8 +339,6 @@ test_dlic_dlsfls_legacy:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test
@@ -384,8 +362,6 @@ test_dlic_femt:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test
@@ -409,8 +385,6 @@ test_dlic_auditlog:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test-large
@@ -434,8 +408,6 @@ test_dlic_signals:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - when: always
   tags:
     - test-large
@@ -465,8 +437,6 @@ deploy_snapshot:
       artifacts: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
@@ -524,8 +494,6 @@ deploy_staging:
   interruptible: true
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
   before_script:
@@ -587,8 +555,6 @@ deploy_release:
   stage: release
   rules:
     - !reference [.default_rules, rules]
-    - if: '$DOCKER_ONLY'
-      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
   before_script:
@@ -626,8 +592,6 @@ deploy_docker_image:
     - !reference [.default_rules, rules]
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
-    - if: '$DOCKER_ONLY'
-      when: always
   tags:
     - build
   script:
