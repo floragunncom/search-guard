@@ -233,6 +233,7 @@ test_scheduler:
   stage: test
   interruptible: true
   rules:
+    - !reference [.default_rules, rules]
     - if: '$DOCKER_ONLY'
       when: never
     - when: always
@@ -357,6 +358,7 @@ test_dlic_dlsfls_legacy:
   stage: test
   interruptible: true
   rules:
+    - !reference [.default_rules, rules]
     - if: '$DOCKER_ONLY'
       when: never
     - when: always
