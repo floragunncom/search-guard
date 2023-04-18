@@ -21,7 +21,7 @@ tar -xzf "$DIR/elasticsearch-${VERSION}-${ARCH}.tar.gz" --directory "$DIR/"
 
 PATH_PREFIX="$DIR/elasticsearch-${VERSION}/modules"
 
-modules=(lang-painless)
+modules=(lang-painless x-pack-data-streams)
 
 for module in "${modules[@]}"
 do
