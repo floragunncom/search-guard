@@ -418,6 +418,19 @@
     			<version>${elasticsearch.version}</version>
 	    	</dependency>
 
+			 <dependency>
+    	  		<groupId>org.elasticsearch.painless</groupId>
+      			<artifactId>x-pack-data-streams</artifactId>
+    			<version>${elasticsearch.version}</version>
+	    	</dependency>
+
+			<dependency>
+				<groupId>org.elasticsearch.plugin</groupId>
+				<artifactId>x-pack-core</artifactId>
+				<version>${elasticsearch.version}</version>
+			</dependency>
+
+
 			<dependency>
 				<groupId>org.powermock</groupId>
 				<artifactId>powermock-module-junit4</artifactId>
