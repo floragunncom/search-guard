@@ -147,18 +147,22 @@ public interface EsClientProvider {
     }
 
     default RestHighLevelClient getRestHighLevelClient(Header... headers) {
-        return new RestHighLevelClient(getLowLevelRestClientBuilder(headers));
+        return new RestHighLevelClient(getLowLevelRestClientBuilder(getAnyClientSslContextProvider().getSslContext(false), headers));
     }
 
-    default RestClientBuilder getLowLevelRestClientBuilder(Header... headers) {
+    default RestClientBuilder getLowLevelRestClientBuilder(SSLContext sslContext, Header... headers) {
         InetSocketAddress httpAddress = getHttpAddress();
         return RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
                 .setDefaultHeaders(headers).setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
-                        new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
+                        new SSLIOSessionStrategy(sslContext, null, null, NoopHostnameVerifier.INSTANCE)));
     }
     
     default RestClient getLowLevelRestClient(Header... headers) {
-        return getLowLevelRestClientBuilder(headers).build();
+        return getLowLevelRestClientBuilder(getAnyClientSslContextProvider().getSslContext(false), headers).build();
+    }
+
+    default RestClient getAdminCertLowLevelRestClient() {
+        return getLowLevelRestClientBuilder(getAdminClientSslContextProvider().getSslContext(true)).build();
     }
     
     @Deprecated
