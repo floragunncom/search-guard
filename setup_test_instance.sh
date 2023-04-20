@@ -7,6 +7,10 @@ DOWNLOAD_CACHE="$MAIN_DIR/download-cache"
 INSTALL_DIR="$MAIN_DIR/es"
 REPO_DIR=$(pwd)
 
+if [ -d $REPO_DIR/plugin/target/releases/ ]; then
+  rm $REPO_DIR/plugin/target/releases/*
+fi
+
 mvn install -Dmaven.test.skip.exec=true -Pquick
 
 SG_SNAPSHOT=$(echo $REPO_DIR/plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip)
