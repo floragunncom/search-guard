@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
+import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptException;
@@ -129,7 +130,7 @@ public class Calc extends Check {
             CalcScript newInstance(Map<String, Object> params, WatchExecutionContext watcherContext);
         }
 
-        public static ScriptContext<Factory> CONTEXT = new ScriptContext<>("signals_calc", Factory.class);
+        public static ScriptContext<Factory> CONTEXT = SignalsScriptContextFactory.scriptContextFor("signals_calc", Factory.class);
 
     }
 }

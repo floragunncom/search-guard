@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.script.Script;
@@ -41,7 +42,7 @@ public class WatchInitializationService {
     }
 
     public TemplateScript.Factory compileTemplate(String attribute, String scriptSource, ValidationErrors validationErrors) {
-        return compile(attribute, scriptSource, Script.DEFAULT_TEMPLATE_LANG, TemplateScript.CONTEXT, validationErrors);
+        return compile(attribute, scriptSource, Script.DEFAULT_TEMPLATE_LANG, SignalsScriptContextFactory.TEMPLATE_CONTEXT, validationErrors);
     }
 
     public List<TemplateScript.Factory> compileTemplates(String attribute, String[] scriptSourceArray, ValidationErrors validationErrors) {
