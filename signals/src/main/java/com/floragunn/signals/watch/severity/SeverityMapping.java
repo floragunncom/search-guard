@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.apache.logging.log4j.util.Strings;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptContext;
@@ -381,8 +382,7 @@ public class SeverityMapping implements ToXContentObject {
             SeverityValueScript newInstance(Map<String, Object> params, WatchExecutionContext watcherContext);
         }
 
-        public static ScriptContext<Factory> CONTEXT = new ScriptContext<>("signals_severity_value", Factory.class);
-
+        public static ScriptContext<Factory> CONTEXT = SignalsScriptContextFactory.scriptContextFor("signals_severity_value", Factory.class);
     }
 
     public static class EvaluationResult implements ToXContentObject {

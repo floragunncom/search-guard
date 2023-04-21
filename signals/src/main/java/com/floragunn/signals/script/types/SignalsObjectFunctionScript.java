@@ -2,6 +2,7 @@ package com.floragunn.signals.script.types;
 
 import java.util.Map;
 
+import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.elasticsearch.script.ScriptContext;
 
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -17,9 +18,9 @@ public abstract class SignalsObjectFunctionScript extends SignalsScript {
 
     public abstract Object execute();
 
-    public static interface Factory {
+    public interface Factory {
         SignalsObjectFunctionScript newInstance(Map<String, Object> params, WatchExecutionContext watcherContext);
     }
 
-    public static ScriptContext<Factory> CONTEXT = new ScriptContext<>("signals_object_function", Factory.class);
+    public static ScriptContext<Factory> CONTEXT = SignalsScriptContextFactory.scriptContextFor("signals_object_function", Factory.class);
 }

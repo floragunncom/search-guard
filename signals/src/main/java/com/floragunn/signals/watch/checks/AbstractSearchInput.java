@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.search.SearchRequest;
@@ -69,7 +70,7 @@ public abstract class AbstractSearchInput extends AbstractInput {
     public void compileScripts(WatchInitializationService watchInitService) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
 
-        this.templateScriptFactory = watchInitService.compile("request.body", createTemplateScript(), TemplateScript.CONTEXT, validationErrors);
+        this.templateScriptFactory = watchInitService.compile("request.body", createTemplateScript(), SignalsScriptContextFactory.TEMPLATE_CONTEXT, validationErrors);
 
         validationErrors.throwExceptionForPresentErrors();
     }

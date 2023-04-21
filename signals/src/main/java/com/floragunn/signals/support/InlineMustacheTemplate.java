@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.function.Function;
 
+import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.script.Script;
@@ -57,7 +58,7 @@ public class InlineMustacheTemplate<ResultType> implements ToXContent {
         Script script = new Script(ScriptType.INLINE, Script.DEFAULT_TEMPLATE_LANG, source, Collections.emptyMap());
 
         try {
-            this.factory = scriptService.compile(script, TemplateScript.CONTEXT);
+            this.factory = scriptService.compile(script, SignalsScriptContextFactory.TEMPLATE_CONTEXT);
         } catch (ScriptException e) {
             if (log.isDebugEnabled()) {
                 log.debug("Error while compiling script " + script, e);

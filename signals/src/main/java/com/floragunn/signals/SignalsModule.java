@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
+import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -166,7 +167,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     public List<ScriptContext<?>> getContexts() {
         if (enabled) {
             return Arrays.asList(Condition.ConditionScript.CONTEXT, Transform.TransformScript.CONTEXT, Calc.CalcScript.CONTEXT,
-                    SeverityMapping.SeverityValueScript.CONTEXT, SignalsObjectFunctionScript.CONTEXT);
+                    SeverityMapping.SeverityValueScript.CONTEXT, SignalsObjectFunctionScript.CONTEXT, SignalsScriptContextFactory.TEMPLATE_CONTEXT);
         } else {
             return Collections.emptyList();
         }
