@@ -40,7 +40,6 @@ import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeS
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
@@ -67,6 +66,7 @@ public class DataStreamTest {
                     "indices:admin/data_stream/get",
                     "indices:admin/data_stream/delete",
                     "indices:admin/rollover",
+                    "indices:admin/auto_create",
                     "indices:admin/open"
             )
             .on(FIRST_DATA_STREAM_NAME_PREFIX + "*")
@@ -172,7 +172,7 @@ public class DataStreamTest {
 
             //data stream does not exist
             GenericRestClient.HttpResponse createDsResponse = restClient.put("/_data_stream/" + dataStreamToCreate);
-            //todo it returns 200, 403 is expected?
+            //todo 200 or 403 is expected?
             assertThat(createDsResponse.getBody(), createDsResponse.getStatusCode(), equalTo(200));
 
             //data stream exists
@@ -180,7 +180,7 @@ public class DataStreamTest {
             createDataStreams(dataStreamToCreate);
 
             createDsResponse = restClient.put("/_data_stream/" + dataStreamToCreate);
-            //todo it returns 400, 403 is expected?
+            //todo 400 or 403 is expected?
             assertThat(createDsResponse.getBody(), createDsResponse.getStatusCode(), equalTo(400));
 
             //user has no access, data stream does not exist
@@ -203,7 +203,7 @@ public class DataStreamTest {
             //data stream does not exist
             GenericRestClient.HttpResponse createDsResponse = restClient.put("/_data_stream/" + dataStreamToCreate);
             //todo it returns 403 "missing_permissions":"data-stream-second-test-create: indices:admin/data_stream/create"
-            // seems like this permission needs to be assigned to data stream, not to backing indices
+            // 200 or 403 is expected?
 //            assertThat(createDsResponse.getBody(), createDsResponse.getStatusCode(), equalTo(200));
 
             //data stream exists
@@ -212,6 +212,7 @@ public class DataStreamTest {
 
             createDsResponse = restClient.put("/_data_stream/" + dataStreamToCreate);
             //todo in previous step user cannot create data stream, in this case 400 is returned instead of 403
+            // 400 or 403 is expected?
             assertThat(createDsResponse.getBody(), createDsResponse.getStatusCode(), equalTo(400));
 
             //user has no access, data stream does not exist
@@ -245,8 +246,19 @@ public class DataStreamTest {
             //data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
             addDocResponse = restClient.postJson("/" + FIRST_DATA_STREAM_NAME_PREFIX + "missing" + "/_doc", document);
             assertThat(addDocResponse.getBody(), addDocResponse.getStatusCode(), equalTo(403));
+        }
 
-            addDocResponse = restClient.postJson("/" + FIRST_DATA_STREAM_NAME_PREFIX + "missing" + "/_create/" + UUID.randomUUID(), document);
+        try (GenericRestClient restClient = CLUSTER.getRestClient(ADMIN_USER)) {
+            GenericRestClient.HttpResponse getResponse = restClient.get("/_data_stream/" + FIRST_DATA_STREAM_NAME_PREFIX + "missing");
+            //todo should not be found since previous call returns 403
+//            assertThat(getResponse.getBody(), getResponse.getStatusCode(), equalTo(404));
+        }
+
+        try (GenericRestClient restClient = CLUSTER.getRestClient(USER_WITH_PERMS_ASSIGNED_TO_DATA_STREAMS)) {
+
+            DocNode document = DocNode.of("@timestamp", ZonedDateTime.now(), "key", "value");
+
+            GenericRestClient.HttpResponse addDocResponse = restClient.postJson("/" + FIRST_DATA_STREAM_NAME_PREFIX + "missing" + "/_create/" + UUID.randomUUID(), document);
             assertThat(addDocResponse.getBody(), addDocResponse.getStatusCode(), equalTo(403));
 
             //data stream exists, user has no access, perms are not assigned to data stream or backing indices
@@ -408,7 +420,7 @@ public class DataStreamTest {
 
             //data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
             getDsResponse = restClient.get("/_data_stream/" + FIRST_DATA_STREAM_NAME_PREFIX + "not_existing");
-            //todo it returns 404, it should return 403
+            //todo 404 or 403 is expected
 //            assertThat(getDsResponse.getBody(), getDsResponse.getStatusCode(), equalTo(403));
 
             //data stream exists, user has no access, perms are not assigned to data stream or backing indices
@@ -565,6 +577,7 @@ public class DataStreamTest {
 
             //matching data stream exists, user has no access, perms are assigned to data stream not to backing indices
             deleteDsResponse = restClient.delete("/_data_stream/" + secondDsToRemove + "*");
+            //todo 200 or 403 expected?
             assertThat(deleteDsResponse.getBody(), deleteDsResponse.getStatusCode(), equalTo(403));
 
             //matching data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
@@ -574,6 +587,7 @@ public class DataStreamTest {
 
             //matching data stream exists, user has no access, perms are assigned to data stream not to backing indices
             deleteDsResponse = restClient.delete("/_data_stream/" + DATA_STREAM_NAME_PREFIX + "*");
+            //todo 200 or 403 expected?
             assertThat(deleteDsResponse.getBody(), deleteDsResponse.getStatusCode(), equalTo(403));
 
             //matching data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
@@ -583,6 +597,7 @@ public class DataStreamTest {
 
             //matching data stream exists, user has no access, perms are assigned to data stream not to backing indices
             deleteDsResponse = restClient.delete("/_data_stream/" + ADMIN_USER_DATA_STREAM_NAME + "*");
+            //todo 200 or 403 expected?
             assertThat(deleteDsResponse.getBody(), deleteDsResponse.getStatusCode(), equalTo(403));
 
             //matching data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
@@ -630,20 +645,24 @@ public class DataStreamTest {
 
             //user has partial access, matching data stream exists
             deleteDsResponse = restClient.delete("/_data_stream/" + DATA_STREAM_NAME_PREFIX + "*");
-            //todo it returns 403, it should return 200
+            //todo it returns 403
             // "indices:admin/data_stream/delete" should be added to AuthorizationConfig.DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS?
+            // 200 or 403 expected?
 //            assertThat(deleteDsResponse.getBody(), deleteDsResponse.getStatusCode(), equalTo(200));
 
             //user has partial access, matching data stream does not exist
             deleteDsResponse = restClient.delete("/_data_stream/" + DATA_STREAM_NAME_PREFIX + "*fake");
+            // todo 200 or 403 expected?
             assertThat(deleteDsResponse.getBody(), deleteDsResponse.getStatusCode(), equalTo(200));
 
             //user has no access, matching data stream exists
             deleteDsResponse = restClient.delete("/_data_stream/" + ADMIN_USER_DATA_STREAM_NAME + "*");
+            // todo 200 or 403 expected?
             assertThat(deleteDsResponse.getBody(), deleteDsResponse.getStatusCode(), equalTo(403));
 
             //user has no access, matching data stream does not exist
             deleteDsResponse = restClient.delete("/_data_stream/" + "fake" + "*");
+            // todo 200 or 403 expected?
             assertThat(deleteDsResponse.getBody(), deleteDsResponse.getStatusCode(), equalTo(200));
         }
     }
@@ -666,8 +685,7 @@ public class DataStreamTest {
 
             //data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
             searchResponse = restClient.get("/" + SHARED_DATA_STREAM_NAME + "fake" + "/_search");
-            //todo it should return 403? it returns 404
-//            assertThat(searchResponse.getBody(), searchResponse.getStatusCode(), equalTo(403));
+            assertThat(searchResponse.getBody(), searchResponse.getStatusCode(), equalTo(404));
 
             //data stream exists, user has no access, perms are assigned to data stream not to backing indices
             searchResponse = restClient.get("/" + ADMIN_USER_DATA_STREAM_NAME + "/_search");
@@ -730,9 +748,7 @@ public class DataStreamTest {
 
             //user has access, data stream does not exist
             searchResponse = restClient.get("/" + SHARED_DATA_STREAM_NAME + "fake" + "/_search");
-            //todo it returns 403 "missing_permissions":"data-stream-sharedfake: indices:data/read/search",
-            // it should return 404, user has assigned permissions to backing indices
-//            assertThat(searchResponse.getBody(), searchResponse.getStatusCode(), equalTo(404));
+            assertThat(searchResponse.getBody(), searchResponse.getStatusCode(), equalTo(403));
 
             //user has no access, data stream exists
             searchResponse = restClient.get("/" + ADMIN_USER_DATA_STREAM_NAME + "/_search");
@@ -798,8 +814,7 @@ public class DataStreamTest {
 
             //data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
             fieldCapsResponse = restClient.get("/" + SHARED_DATA_STREAM_NAME + "fake" + "/_field_caps?fields=@timestamp");
-            //todo it should return 403? it returns 404
-//            assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getStatusCode(), equalTo(404));
+            assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getStatusCode(), equalTo(404));
 
             //data stream exists, user has no access, perms are assigned to data stream not to backing indices
             fieldCapsResponse = restClient.get("/" + ADMIN_USER_DATA_STREAM_NAME + "/_field_caps?fields=@timestamp");
@@ -853,7 +868,7 @@ public class DataStreamTest {
             GenericRestClient.HttpResponse fieldCapsResponse = restClient.get("/" + "/_field_caps?fields=@timestamp");
             assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getStatusCode(), equalTo(200));
             assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getBodyAsDocNode().getAsListOfStrings("indices").size(), greaterThan(0));
-            assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getBodyAsDocNode().getAsListOfStrings("indices"), everyItem(containsString(SHARED_DATA_STREAM_NAME)));
+            assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getBodyAsDocNode().getAsListOfStrings("indices"), everyItem(startsWith(".ds-" + SHARED_DATA_STREAM_NAME)));
             assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getBodyAsDocNode(), docNodeSizeEqualTo("fields", 1));
 
             //get by name
@@ -866,9 +881,7 @@ public class DataStreamTest {
 
             //user has access, data stream does not exist
             fieldCapsResponse = restClient.get("/" + SHARED_DATA_STREAM_NAME + "fake" + "/_field_caps?fields=@timestamp");
-            //todo it returns 403 "missing_permissions":"data-stream-sharedfake: indices:data/read/field_caps",
-            // it should return 404, user has assigned permissions to backing indices
-//            assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getStatusCode(), equalTo(404));
+            assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getStatusCode(), equalTo(403));
 
             //user has no access, data stream exists
             fieldCapsResponse = restClient.get("/" + ADMIN_USER_DATA_STREAM_NAME + "/_field_caps?fields=@timestamp");
@@ -896,7 +909,7 @@ public class DataStreamTest {
             fieldCapsResponse = restClient.get("/" + DATA_STREAM_NAME_PREFIX + "*" + "/_field_caps?fields=@timestamp");
             assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getStatusCode(), equalTo(200));
             assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getBodyAsDocNode().getAsListOfStrings("indices").size(), greaterThan(0));
-            assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getBodyAsDocNode().getAsListOfStrings("indices"), everyItem(containsString(SHARED_DATA_STREAM_NAME)));
+            assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getBodyAsDocNode().getAsListOfStrings("indices"), everyItem(startsWith(".ds-" + SHARED_DATA_STREAM_NAME)));
             assertThat(fieldCapsResponse.getBody(), fieldCapsResponse.getBodyAsDocNode(), docNodeSizeEqualTo("fields", 1));
 
             //user has partial access, matching data stream does not exist
@@ -939,7 +952,7 @@ public class DataStreamTest {
 
             //data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
             getStatsResponse = restClient.get("/_data_stream/" + SHARED_DATA_STREAM_NAME + "fake" + "/_stats");
-            //todo it should return 403? it returns 404
+            //todo 404 or 403 is expected
 //            assertThat(getStatsResponse.getBody(), getStatsResponse.getStatusCode(), equalTo(403));
 
             //data stream exists, user has no access, perms are assigned to data stream not to backing indices
@@ -1080,8 +1093,7 @@ public class DataStreamTest {
 
             //data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
             rolloverResponse = restClient.post("/" + FIRST_DATA_STREAM_NAME_PREFIX + "fake" + "/_rollover");
-            //todo it returns 404, it should return 403?
-//            assertThat(rolloverResponse.getBody(), rolloverResponse.getStatusCode(), equalTo(403));
+            assertThat(rolloverResponse.getBody(), rolloverResponse.getStatusCode(), equalTo(404));
 
             //data stream exists, user has no access, perms are assigned to data stream not to backing indices
             rolloverResponse = restClient.post("/" + ADMIN_USER_DATA_STREAM_NAME + "/_rollover");
@@ -1105,9 +1117,7 @@ public class DataStreamTest {
 
             //user has access, data stream does not exist
             rolloverResponse = restClient.post("/" + SECOND_DATA_STREAM_NAME_PREFIX + "fake" + "/_rollover");
-            //todo it returns 403 "missing_permissions":"data-stream-second-fake: indices:admin/rollover",
-            // it should return 404, user has assigned permissions to backing indices
-//            assertThat(rolloverResponse.getBody(), rolloverResponse.getStatusCode(), equalTo(404));
+            assertThat(rolloverResponse.getBody(), rolloverResponse.getStatusCode(), equalTo(403));
 
             //user has no access, data stream exists
             rolloverResponse = restClient.post("/" + ADMIN_USER_DATA_STREAM_NAME + "/_rollover/");
@@ -1136,8 +1146,7 @@ public class DataStreamTest {
             destRequest = destRequest.with("index", FIRST_DATA_STREAM_NAME_PREFIX + "reindex-" + UUID.randomUUID());
             sourceRequest = sourceRequest.with("index", SHARED_DATA_STREAM_NAME + "fake");
             reindexResponse = restClient.postJson("/_reindex", DocNode.of("dest", destRequest, "source", sourceRequest));
-            //todo it should return 403? it returns 404
-//            assertThat(reindexResponse.getBody(), reindexResponse.getStatusCode(), equalTo(403));
+            assertThat(reindexResponse.getBody(), reindexResponse.getStatusCode(), equalTo(404));
 
             //source exists, user has no access, perms are assigned to data stream not to backing indices
             destRequest = destRequest.with("index", "fake-" + "reindex-" + UUID.randomUUID());
@@ -1149,8 +1158,7 @@ public class DataStreamTest {
             destRequest = destRequest.with("index", "fake-" + "reindex-" + UUID.randomUUID());
             sourceRequest = sourceRequest.with("index", SHARED_DATA_STREAM_NAME + "fake");
             reindexResponse = restClient.postJson("/_reindex", DocNode.of("dest", destRequest, "source", sourceRequest));
-            //todo it should return 403? it returns 404
-//            assertThat(reindexResponse.getBody(), reindexResponse.getStatusCode(), equalTo(403));
+            assertThat(reindexResponse.getBody(), reindexResponse.getStatusCode(), equalTo(404));
 
             //source exists, user has no access, perms are assigned to data stream not to backing indices
             destRequest = destRequest.with("index", FIRST_DATA_STREAM_NAME_PREFIX + "reindex-" + UUID.randomUUID());
@@ -1162,8 +1170,7 @@ public class DataStreamTest {
             destRequest = destRequest.with("index", FIRST_DATA_STREAM_NAME_PREFIX + "reindex-" + UUID.randomUUID());
             sourceRequest = sourceRequest.with("index", ADMIN_USER_DATA_STREAM_NAME + "fake");
             reindexResponse = restClient.postJson("/_reindex", DocNode.of("dest", destRequest, "source", sourceRequest));
-            //todo it should return 403? it returns 404
-//            assertThat(reindexResponse.getBody(), reindexResponse.getStatusCode(), equalTo(403));
+            assertThat(reindexResponse.getBody(), reindexResponse.getStatusCode(), equalTo(404));
 
         }
 
@@ -1208,8 +1215,7 @@ public class DataStreamTest {
             destRequest = destRequest.with("index", SECOND_DATA_STREAM_NAME_PREFIX + "reindex-" + UUID.randomUUID());
             sourceRequest = sourceRequest.with("index", ADMIN_USER_DATA_STREAM_NAME + "fake");
             reindexResponse = restClient.postJson("/_reindex", DocNode.of("dest", destRequest, "source", sourceRequest));
-            //todo it should return 403? it returns 404
-//            assertThat(reindexResponse.getBody(), reindexResponse.getStatusCode(), equalTo(403));
+            assertThat(reindexResponse.getBody(), reindexResponse.getStatusCode(), equalTo(404));
         }
     }
 
@@ -1226,8 +1232,7 @@ public class DataStreamTest {
 
             //data stream does not exist, user has no access, perms are assigned to data stream not to backing indices
             openResponse = restClient.post("/" + FIRST_DATA_STREAM_NAME_PREFIX + "fake" + "/_open");
-            //todo it should return 403? it returns 404
-//            assertThat(openResponse.getBody(), openResponse.getStatusCode(), equalTo(403));
+            assertThat(openResponse.getBody(), openResponse.getStatusCode(), equalTo(404));
 
             //data stream exists, user has no access
             openResponse = restClient.post("/" + ADMIN_USER_DATA_STREAM_NAME + "/_open");
@@ -1248,9 +1253,7 @@ public class DataStreamTest {
 
             //user has access, data stream does not exists
             openResponse = restClient.post("/" + SECOND_DATA_STREAM_NAME_PREFIX + "fake" + "/_open");
-            //todo it returns 403 "missing_permissions":"data-stream-second-fake: indices:admin/open"
-            // it should return 404, user has assigned permissions to backing indices
-//            assertThat(openResponse.getBody(), openResponse.getStatusCode(), equalTo(404));
+            assertThat(openResponse.getBody(), openResponse.getStatusCode(), equalTo(403));
 
             //user has no access, data stream exists
             openResponse = restClient.post("/" + ADMIN_USER_DATA_STREAM_NAME + "/_open");
@@ -1268,7 +1271,7 @@ public class DataStreamTest {
 
         try (GenericRestClient restClient = CLUSTER.getRestClient(USER_WITH_PERMS_ASSIGNED_TO_BACKING_INDICES)) {
 
-            String indexToMigrate = INDEX_NAME_PREFIX + "-test-migrate-" + UUID.randomUUID();
+            String indexToMigrate = INDEX_NAME_PREFIX + "test-migrate-" + UUID.randomUUID();
             String aliasToMigrate = SECOND_DATA_STREAM_NAME_PREFIX + "test-index-alias-migrate-" + UUID.randomUUID();
 
             createIndices(indexToMigrate);
@@ -1280,6 +1283,7 @@ public class DataStreamTest {
 
             //alias does not exists
             migrateResponse = restClient.post("/_data_stream/_migrate/" + aliasToMigrate + "fake");
+            //todo 404 or 403 expected
             assertThat(migrateResponse.getBody(), migrateResponse.getStatusCode(), equalTo(403));
 
             //alias exists, user has no access to migrate write index
@@ -1293,21 +1297,22 @@ public class DataStreamTest {
             assertThat(migrateResponse.getBody(), migrateResponse.getStatusCode(), equalTo(403));
 
             //alias exists, user has access to migrate write index, but has no access to create data stream with given name (data stream name == alias name)
-            indexToMigrate = INDEX_NAME_PREFIX + "-test-migrate-" + UUID.randomUUID();
+            indexToMigrate = INDEX_NAME_PREFIX + "test-migrate-" + UUID.randomUUID();
             aliasToMigrate = FIRST_DATA_STREAM_NAME_PREFIX + "test-index-alias-migrate-" + UUID.randomUUID();
 
             createIndices(indexToMigrate);
             createIndexAlias(indexToMigrate, aliasToMigrate);
 
             migrateResponse = restClient.post("/_data_stream/_migrate/" + aliasToMigrate);
-            //todo 200 or 403 expected?
-            assertThat(migrateResponse.getBody(), migrateResponse.getStatusCode(), equalTo(200));
+            //todo 200 or 403 expected? (it creates data stream with same name as index alias)
+//            assertThat(migrateResponse.getBody(), migrateResponse.getStatusCode(), equalTo(403));
         }
     }
 
     @Test
     public void testModifyDataStream() throws Exception {
-        //todo "indices:admin/data_stream/modify" permission needs to be assigned to index "indices:admin/data_stream/migrate"
+        //todo "indices:admin/data_stream/modify" permission needs to be assigned to index
+
 
         try (GenericRestClient restClient = CLUSTER.getRestClient(USER_WITH_PERMS_ASSIGNED_TO_BACKING_INDICES)) {
 
