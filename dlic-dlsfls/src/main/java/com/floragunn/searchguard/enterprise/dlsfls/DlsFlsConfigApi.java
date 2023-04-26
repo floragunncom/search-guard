@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
@@ -35,7 +37,7 @@ public class DlsFlsConfigApi extends TypeLevelConfigApi {
             .handlesPatch("/_searchguard/config/authz_dlsfls")
             .with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body))).name("/_searchguard/config/authz_dlsfls");
 
-    public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
+    public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
             new ActionHandler<>(DlsFlsConfigApi.GetAction.INSTANCE, DlsFlsConfigApi.GetAction.Handler.class),
             new ActionHandler<>(DlsFlsConfigApi.PutAction.INSTANCE, DlsFlsConfigApi.PutAction.Handler.class),
             new ActionHandler<>(DlsFlsConfigApi.PatchAction.INSTANCE, DlsFlsConfigApi.PatchAction.Handler.class));
