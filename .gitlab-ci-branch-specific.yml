@@ -1,4 +1,4 @@
 variables:
-  # IT_BRANCH: "session-auth"
+  IT_BRANCH: "7.17.x-403-error"
   SG_KI_PLUGIN: "b-master-SNAPSHOT"
   # KI_VERSION: "7.16.3" 
