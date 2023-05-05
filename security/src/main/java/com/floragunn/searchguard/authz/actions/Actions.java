@@ -232,7 +232,6 @@ public class Actions {
         index(GetIndexAction.INSTANCE);
         index(OpenIndexAction.INSTANCE);
         index(CloseIndexAction.INSTANCE);
-        //TODO: check ES 8 index(IndicesExistsAction.INSTANCE);
         index(AddIndexBlockAction.INSTANCE);
         index(GetMappingsAction.INSTANCE);
         index(GetFieldMappingsAction.INSTANCE);
@@ -321,13 +320,9 @@ public class Actions {
         index(TransportShardRefreshAction.NAME);
         index(FlushAction.INSTANCE);
         index(ForceMergeAction.INSTANCE);
-        //TODO: check ES 8 index(UpgradeAction.INSTANCE);
-        //TODO: check ES 8 index(UpgradeStatusAction.INSTANCE);
-        //TODO: check ES 8 index(UpgradeSettingsAction.INSTANCE);
         index(ClearIndicesCacheAction.INSTANCE);
 
         index(GetAliasesAction.INSTANCE);
-        //TODO: check ES 8 index(AliasesExistAction.INSTANCE);
         index(GetSettingsAction.INSTANCE);
 
         index(FieldCapabilitiesAction.INSTANCE);
