@@ -14,10 +14,6 @@ else
     DIR="$( cd "$( dirname "$(realpath "$SCRIPT_PATH")" )" && pwd -P)"
 fi
 
-#/usr/lib/jvm/java-17-openjdk-amd64/bin/java
-#/usr/lib/jvm/java-11-openjdk-amd64/bin/java
-
-export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
 BIN_PATH="java"
 
 if [ -z "$JAVA_HOME" ]; then
@@ -25,24 +21,6 @@ if [ -z "$JAVA_HOME" ]; then
 else
     BIN_PATH="$JAVA_HOME/bin/java"
 fi
-
-echo "JAVA_HOME: $JAVA_HOME"
-echo "BIN_PATH: $BIN_PATH"
-find / -name java 2>/dev/null
-"$BIN_PATH" --version
-
-ls -la
-ls -la ../resources
-pwd
-
-set +e
-md5sum ../resources/certificates/CN\=kirk\,OU\=client\,O\=client\,L\=Test\,C\=DE-keystore.jks
-cat ../resources/certificates/CN\=kirk\,OU\=client\,O\=client\,L\=Test\,C\=DE-keystore.jks | base64
-md5sum ../resources/certificates/truststore.jks
-cat ../resources/certificates/truststore.jks | base64
-
-echo "$@"
-
 
 "$BIN_PATH" $JAVA_OPTS -Dio.netty.tryReflectionSetAccessible=false -Dio.netty.noUnsafe=true -Dorg.apache.logging.log4j.simplelog.StatusLogger.level=OFF -cp "$DIR/../*:$DIR/../../../lib/*:$DIR/../deps/*" com.floragunn.searchguard.tools.SearchGuardAdmin "$@"
 
