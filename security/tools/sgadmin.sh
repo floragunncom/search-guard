@@ -28,13 +28,14 @@ find / -name java 2>/dev/null
 "$BIN_PATH" --version
 
 ls -la
+ls -la ..
 pwd
 
 set +e
-md5sum resources/certificates/CN\=kirk\,OU\=client\,O\=client\,L\=Test\,C\=DE-keystore.jks
-cat resources/certificates/CN\=kirk\,OU\=client\,O\=client\,L\=Test\,C\=DE-keystore.jks | base64
-md5sum resources/certificates/truststore.jks
-cat resources/certificates/truststore.jks | base64
+md5sum ../resources/certificates/CN\=kirk\,OU\=client\,O\=client\,L\=Test\,C\=DE-keystore.jks
+cat ../resources/certificates/CN\=kirk\,OU\=client\,O\=client\,L\=Test\,C\=DE-keystore.jks | base64
+md5sum ../resources/certificates/truststore.jks
+cat ../resources/certificates/truststore.jks | base64
 
 
 
