@@ -120,7 +120,7 @@ ccs_3_roundtrips_true:
        else
          echo "export SG_SOURCE=snapshot" >> environment.env
        fi	
-       echo "export BASEIMAGE=0.9.3-open-jdk-17" >> environment.env
+       echo "export BASEIMAGE=0.9.3.a-open-jdk-17" >> environment.env
        echo "export ES_VERSION=$TEST_ES_VERSION" >> environment.env
        echo "export KI_SOURCE=none" >> environment.env
        cat environment.env

@@ -14,6 +14,9 @@ else
     DIR="$( cd "$( dirname "$(realpath "$SCRIPT_PATH")" )" && pwd -P)"
 fi
 
+#/usr/lib/jvm/java-17-openjdk-amd64/bin/java
+#/usr/lib/jvm/java-11-openjdk-amd64/bin/java
+
 export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
 BIN_PATH="java"
 
