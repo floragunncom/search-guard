@@ -346,7 +346,10 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                 setCurrentTransportSSLCerts(transportKeystoreCert);
                 setCurrentTransportTrustedCerts(trustedTransportCertificates);
 
+                System.out.println("PASS "+keystoreFilePath);
+
             } catch (final Exception e) {
+                e.printStackTrace();
                 logExplanation(e);
                 throw new ElasticsearchSecurityException(
                         "Error while initializing transport SSL layer: " + e.toString(), e);

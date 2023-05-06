@@ -22,5 +22,10 @@ else
     BIN_PATH="$JAVA_HOME/bin/java"
 fi
 
+echo "JAVA_HOME: $JAVA_HOME"
+echo "BIN_PATH: $BIN_PATH"
+find / -name java 2>/dev/null
+"$BIN_PATH" --version
+
 "$BIN_PATH" $JAVA_OPTS -Dio.netty.tryReflectionSetAccessible=false -Dio.netty.noUnsafe=true -Dorg.apache.logging.log4j.simplelog.StatusLogger.level=OFF -cp "$DIR/../*:$DIR/../../../lib/*:$DIR/../deps/*" com.floragunn.searchguard.tools.SearchGuardAdmin "$@"
 
