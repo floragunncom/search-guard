@@ -27,5 +27,17 @@ echo "BIN_PATH: $BIN_PATH"
 find / -name java 2>/dev/null
 "$BIN_PATH" --version
 
+ls -la
+pwd
+
+set +e
+md5sum resources/certificates/CN\=kirk\,OU\=client\,O\=client\,L\=Test\,C\=DE-keystore.jks
+cat resources/certificates/CN\=kirk\,OU\=client\,O\=client\,L\=Test\,C\=DE-keystore.jks | base64
+md5sum resources/certificates/truststore.jks
+cat resources/certificates/truststore.jks | base64
+
+
+
+
 "$BIN_PATH" $JAVA_OPTS -Dio.netty.tryReflectionSetAccessible=false -Dio.netty.noUnsafe=true -Dorg.apache.logging.log4j.simplelog.StatusLogger.level=OFF -cp "$DIR/../*:$DIR/../../../lib/*:$DIR/../deps/*" com.floragunn.searchguard.tools.SearchGuardAdmin "$@"
 
