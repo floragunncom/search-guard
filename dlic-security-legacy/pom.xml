@@ -244,7 +244,7 @@
 		<dependency>
 			<groupId>com.onelogin</groupId>
 			<artifactId>java-saml</artifactId>
-			<version>2.6.0</version>
+			<version>2.9.0</version>
 
 			<exclusions>
 				<exclusion>
@@ -258,9 +258,20 @@
 				<exclusion>
 					<groupId>jakarta.activation</groupId>
 					<artifactId>jakarta.activation-api</artifactId>
-				</exclusion>								
-			</exclusions>
+				</exclusion>
+				<exclusion>
+				    <!-- Exclusion because the dependent version has vulnerable dependencies. Replaced by explicit dependency just below.  -->
+					<groupId>org.apache.santuario</groupId>
+					<artifactId>xmlsec</artifactId>
+				</exclusion>												
+			</exclusions>	
 		</dependency>
+		<dependency>
+			<!-- Replacement dependency for com.onelogin:java-saml (see above) -->
+    		<groupId>org.apache.santuario</groupId>
+    		<artifactId>xmlsec</artifactId>
+    		<version>2.3.3</version>
+		</dependency>				
 		<dependency>
 			<groupId>org.opensaml</groupId>
 			<artifactId>opensaml-saml-impl</artifactId>
