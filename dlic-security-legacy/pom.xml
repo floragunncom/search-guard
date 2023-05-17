@@ -204,18 +204,6 @@
 					<artifactId>jakarta.xml.bind-api</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.activation</groupId>
-					<artifactId>activation</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.activation</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>jakarta.activation</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>com.fasterxml.woodstox</groupId>
 					<artifactId>woodstox-core</artifactId>
 				</exclusion>												
@@ -254,10 +242,6 @@
 				<exclusion>
 					<groupId>joda-time</groupId>
 					<artifactId>joda-time</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>jakarta.activation</groupId>
-					<artifactId>jakarta.activation-api</artifactId>
 				</exclusion>
 				<exclusion>
 				    <!-- Exclusion because the dependent version has vulnerable dependencies. Replaced by explicit dependency just below.  -->
