@@ -51,6 +51,10 @@ public class AckAndGetWatchApiAction extends SignalsBaseRestHandler implements T
 
         final String watchId = request.param("id");
         final String actionId = request.param("actionId");
+        
+        //we need to consume the tenant param here because
+        //if not ES 8 throws an exception
+        request.param("tenant");        
 
         return channel -> {
 
