@@ -19,6 +19,10 @@ package com.floragunn.searchguard.license;
 
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bouncycastle.openpgp.PGPException;
+
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.Document;
@@ -30,6 +34,7 @@ import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.ValidationError;
 
 public final class SearchGuardLicenseKey implements Document<SearchGuardLicenseKey> {
+    private static final Logger log = LogManager.getLogger(SearchGuardLicenseKey.class);
 
     private final SearchGuardLicense license;
     private final DocNode source;
@@ -60,7 +65,15 @@ public final class SearchGuardLicenseKey implements Document<SearchGuardLicenseK
             jsonString = LicenseHelper.validateLicense(licenseString);
         } catch (ConfigValidationException e) {
             return new ValidationResult<SearchGuardLicenseKey>(e.getValidationErrors());
+        } catch (PGPException e) {
+            log.warn("Error while parsing license string", e);
+            if ("exception constructing public key".equals(e.getMessage()) && e.getCause() != null) {
+                return new ValidationResult<SearchGuardLicenseKey>(new ValidationError(null, e.getCause().getMessage()).cause(e));
+            } else {
+                return new ValidationResult<SearchGuardLicenseKey>(new ValidationError(null, e.getMessage()).cause(e));
+            }
         } catch (Exception e) {
+            log.warn("Error while parsing license string", e);
             return new ValidationResult<SearchGuardLicenseKey>(new ValidationError(null, e.getMessage()).cause(e));
         }
 
