@@ -40,7 +40,7 @@
 		<commons.cli.version>1.4</commons.cli.version>
 		<jackson.version>2.14.2</jackson.version>
 	    <cxf.version>3.4.10</cxf.version>
-		<http.commons.version>4.5.13</http.commons.version>
+		<http.commons.version>4.5.14</http.commons.version>
 		<quartz.version>2.3.2</quartz.version>
 		<simplemail.version>5.2.1</simplemail.version>
 		<opensaml.version>4.0.1</opensaml.version>
