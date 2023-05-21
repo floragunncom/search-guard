@@ -34,7 +34,7 @@
 		<maven.compiler.release>8</maven.compiler.release>
 
 		<netty-native.version>2.0.25.Final</netty-native.version>
-		<bc.version>1.70</bc.version>
+		<bc.version>1.73</bc.version>
 		<log4j.version>2.17.1</log4j.version>
 		<guava.version>30.0-jre</guava.version>
 		<commons.cli.version>1.4</commons.cli.version>
@@ -284,18 +284,18 @@
 			</dependency>
 			<dependency>
 				<groupId>org.bouncycastle</groupId>
-				<artifactId>bcprov-jdk15on</artifactId>
+				<artifactId>bcprov-jdk18on</artifactId>
 				<version>${bc.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bouncycastle</groupId>
-				<artifactId>bcpg-jdk15on</artifactId>
+				<artifactId>bcpg-jdk18on</artifactId>
 				<version>${bc.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.bouncycastle</groupId>
-				<artifactId>bcpkix-jdk15on</artifactId>
+				<artifactId>bcpkix-jdk18on</artifactId>
 				<version>${bc.version}</version>
 			</dependency>
 
