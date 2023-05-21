@@ -43,7 +43,7 @@
 		<http.commons.version>4.5.13</http.commons.version>
 		<quartz.version>2.3.2</quartz.version>
 		<simplemail.version>5.2.1</simplemail.version>
-		<opensaml.version>4.0.1</opensaml.version>
+		<opensaml.version>4.3.0</opensaml.version>
 
 		<!-- Test only -->
 		<mockito.version>2.23.0</mockito.version>
@@ -126,6 +126,16 @@
 				<enabled>false</enabled>
 			</snapshots>
 		</repository>
+		<repository>
+			<id>shibboleth</id>
+			<url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>		
 		<repository>
 			<id>sonatype-nexus-snapshots</id>
 			<name>Sonatype Nexus Snapshots</name>
