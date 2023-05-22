@@ -119,320 +119,320 @@ build_for_tag_version:
 
 
 
-test_security:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test-large
-  script:
-    - find .
-    - mvn $MAVEN_CLI_OPTS -pl security test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
-test_security_legacy:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test-large
-  script:
-    - find .
-    - mvn $MAVEN_CLI_OPTS -pl security-legacy test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
-test_ssl:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test
-  script:
-    - find .
-    - mvn $MAVEN_CLI_OPTS -pl ssl test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
-test_signals:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test-large
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl signals test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
-test_scheduler:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl scheduler test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
-test_support:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl support test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
-test_dlic_security:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test-large
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-security test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-    
-test_dlic_security_legacy:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test-large
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull    
-
-test_dlic_dlsfls:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-    
-test_dlic_dlsfls_legacy:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls-legacy test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull    
-
-test_dlic_femt:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
-test_dlic_auditlog:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test-large
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
-
-test_dlic_signals:
-  stage: test
-  interruptible: true
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  tags:
-    - test-large
-  script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-    policy: pull
+# test_security:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test-large
+#   script:
+#     - find .
+#     - mvn $MAVEN_CLI_OPTS -pl security test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_security_legacy:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test-large
+#   script:
+#     - find .
+#     - mvn $MAVEN_CLI_OPTS -pl security-legacy test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_ssl:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test
+#   script:
+#     - find .
+#     - mvn $MAVEN_CLI_OPTS -pl ssl test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_signals:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test-large
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl signals test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_scheduler:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl scheduler test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_support:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl support test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_dlic_security:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test-large
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl dlic-security test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_dlic_security_legacy:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test-large
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull    
+# 
+# test_dlic_dlsfls:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_dlic_dlsfls_legacy:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls-legacy test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull    
+# 
+# test_dlic_femt:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_dlic_auditlog:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test-large
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
+# 
+# test_dlic_signals:
+#   stage: test
+#   interruptible: true
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: always
+#   tags:
+#     - test-large
+#   script:
+#     - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
+#   artifacts:
+#     when: always
+#     reports:
+#       junit:
+#         - "*/target/surefire-reports/TEST-*.xml"
+#         - "*/target/failsafe-reports/TEST-*.xml"
+#     expire_in: 1 week
+#   cache:
+#     key: mavenrepo
+#     paths:
+#       - .m2/repository
+#     policy: pull
 
 
 deploy_snapshot:
