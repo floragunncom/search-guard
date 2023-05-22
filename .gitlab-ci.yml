@@ -554,12 +554,12 @@ deploy_staging:
 include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-int-tests.yml'
-  # - local: 'ci/backend-int-tests-features.yml'
-  # # - local: 'ci/frontend-int-tests.yml'
-  # # - local: 'ci/frontend-int-tests-features.yml'
-  # # - local: 'ci/frontend-int-tests-external-features.yml'
-  # # - local: 'ci/frontend-int-tests-compat1.yml'
-  # # - local: 'ci/frontend-int-tests-compat2.yml'
+  - local: 'ci/backend-int-tests-features.yml'
+  # - local: 'ci/frontend-int-tests.yml'
+  # - local: 'ci/frontend-int-tests-features.yml'
+  # - local: 'ci/frontend-int-tests-external-features.yml'
+  # - local: 'ci/frontend-int-tests-compat1.yml'
+  # - local: 'ci/frontend-int-tests-compat2.yml'
 
 deploy_release:
   stage: release

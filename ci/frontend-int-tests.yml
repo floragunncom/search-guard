@@ -123,7 +123,7 @@ fe_kerberos:
 # -------------------------------------------------------------------------
 
 .fe_integration_test:
-  stage: "Frontend Int Tests Core"
+    stage: "Frontend Int Tests Core"
   rules:
     - if: '$DOCKER_ONLY'
       when: never
