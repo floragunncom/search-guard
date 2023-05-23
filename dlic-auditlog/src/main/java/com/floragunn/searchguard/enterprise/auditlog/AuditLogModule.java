@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.function.Function;
 
+import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.lucene.index.DirectoryReader;
 import org.elasticsearch.common.CheckedFunction;
 import org.elasticsearch.common.settings.Settings;
@@ -42,31 +43,35 @@ public class AuditLogModule implements SearchGuardModule {
 
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
-        this.auditLogConfig = new AuditLogConfig(baseDependencies.getEnvironment(), baseDependencies.getConfigurationRepository());
-        this.auditLog = new AuditLogImpl(baseDependencies.getSettings(), baseDependencies.getEnvironment().configFile(),
-                baseDependencies.getLocalClient(), baseDependencies.getThreadPool(), baseDependencies.getIndexNameExpressionResolver(),
-                baseDependencies.getClusterService(), baseDependencies.getConfigurationRepository());
-        this.auditLog.setComplianceConfig(auditLogConfig);
+        //only when audit logging is enabled
+        if (baseDependencies.getSettings().get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT) != null) {
+            this.auditLogConfig = new AuditLogConfig(baseDependencies.getEnvironment(), baseDependencies.getConfigurationRepository());
+            this.auditLog = new AuditLogImpl(baseDependencies.getSettings(), baseDependencies.getEnvironment().configFile(),
+                    baseDependencies.getLocalClient(), baseDependencies.getThreadPool(), baseDependencies.getIndexNameExpressionResolver(),
+                    baseDependencies.getClusterService(), baseDependencies.getConfigurationRepository());
+            this.auditLog.setComplianceConfig(auditLogConfig);
 
-        baseDependencies.getLicenseRepository().subscribeOnLicenseChange((searchGuardLicense) -> {
-            AuditLogModule.this.auditLogConfig.onChange(searchGuardLicense);
-            logExternalConfig(baseDependencies.getSettings(), baseDependencies.getEnvironment());
-        });
+            baseDependencies.getLicenseRepository().subscribeOnLicenseChange((searchGuardLicense) -> {
+                AuditLogModule.this.auditLogConfig.onChange(searchGuardLicense);
+                logExternalConfig(baseDependencies.getSettings(), baseDependencies.getEnvironment());
+            });
 
-        this.indexingOperationListener = new ComplianceIndexingOperationListenerImpl(this.auditLogConfig, auditLog,
-                baseDependencies.getGuiceDependencies());
+            this.indexingOperationListener = new ComplianceIndexingOperationListenerImpl(this.auditLogConfig, auditLog,
+                    baseDependencies.getGuiceDependencies());
+        }
 
         return ImmutableList.empty();
     }
 
     @Override
     public ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> getDirectoryReaderWrappersForAllOperations() {
-        return ImmutableList.of((indexService) -> new ReadLogDirectoryReaderWrapper(indexService, auditLog, auditLogConfig));
+        return auditLogConfig != null? ImmutableList.of((indexService) -> new ReadLogDirectoryReaderWrapper(indexService, auditLog, auditLogConfig)) :
+                ImmutableList.empty();
     }
 
     @Override
     public ImmutableList<IndexingOperationListener> getIndexOperationListeners() {
-        return ImmutableList.of(indexingOperationListener);
+        return indexingOperationListener != null? ImmutableList.of(indexingOperationListener) : ImmutableList.empty();
     }
 
     @Override
