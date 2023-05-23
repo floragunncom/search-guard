@@ -72,7 +72,6 @@ import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import net.shibboleth.utilities.java.support.codec.EncodingException;
 import org.apache.http.Header;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntityEnclosingRequest;
@@ -105,7 +104,6 @@ import org.opensaml.core.xml.schema.XSAny;
 import org.opensaml.messaging.context.MessageContext;
 import org.opensaml.messaging.decoder.MessageDecodingException;
 import org.opensaml.messaging.handler.MessageHandlerException;
-import org.opensaml.saml.common.SAMLObject;
 import org.opensaml.saml.common.SAMLVersion;
 import org.opensaml.saml.common.messaging.context.SAMLPeerEntityContext;
 import org.opensaml.saml.common.messaging.context.SAMLProtocolContext;
@@ -160,6 +158,7 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.PortAllocator;
 
 import net.shibboleth.utilities.java.support.codec.Base64Support;
+import net.shibboleth.utilities.java.support.codec.EncodingException;
 import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
 
 class MockSamlIdpServer implements Closeable {
@@ -419,7 +418,7 @@ class MockSamlIdpServer implements Closeable {
 
             validationParams.setSignatureTrustEngine(buildSignatureTrustEngine(this.spSignatureCertificate));
             securityParametersContext.setSignatureValidationParameters(validationParams);
-            signatureSecurityHandler.setHttpServletRequest(httpServletRequest);
+            signatureSecurityHandler.setHttpServletRequestSupplier(() -> httpServletRequest);
             signatureSecurityHandler.initialize();
             signatureSecurityHandler.invoke(messageContext);
 
