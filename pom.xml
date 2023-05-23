@@ -892,6 +892,17 @@
       <id>third-party</id>
       <url>https://maven.search-guard.com:443/third-party</url>
     </repository>
+
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>shibboleth</id>
+      <url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
+    </repository>
   </repositories>
 
   <build>

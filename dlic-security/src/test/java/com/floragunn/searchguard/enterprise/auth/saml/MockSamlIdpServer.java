@@ -414,7 +414,7 @@ class MockSamlIdpServer implements Closeable {
 
             validationParams.setSignatureTrustEngine(buildSignatureTrustEngine(this.spSignatureCertificate));
             securityParametersContext.setSignatureValidationParameters(validationParams);
-            signatureSecurityHandler.setHttpServletRequest(httpServletRequest);
+            signatureSecurityHandler.setHttpServletRequestSupplier(() -> httpServletRequest);
             signatureSecurityHandler.initialize();
             signatureSecurityHandler.invoke(messageContext);
 

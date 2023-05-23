@@ -25,7 +25,7 @@
     <dependency>
       <groupId>org.opensaml</groupId>
       <artifactId>opensaml-xmlsec-impl</artifactId>
-      <version>4.0.1</version>
+      <version>4.3.0</version>
       <!-- Since dependency reduced pom is not used, this must be an optional dependency -->
       <optional>true</optional>
     </dependency>
