@@ -61,7 +61,7 @@
     <bc.version>1.70</bc.version>
     <guava.version>31.1-jre</guava.version>
     <cxf.version>3.4.10</cxf.version>
-    <http.commons.version>4.5.13</http.commons.version>
+    <http.commons.version>4.5.14</http.commons.version>
     <http.commons.httpcore.version>4.4.16</http.commons.httpcore.version>
     <http.commons.httpasyncclient.version>4.1.5</http.commons.httpasyncclient.version>
     <quartz.version>2.3.2</quartz.version>
