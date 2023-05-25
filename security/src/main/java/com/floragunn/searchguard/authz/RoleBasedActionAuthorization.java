@@ -18,7 +18,6 @@
 package com.floragunn.searchguard.authz;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -159,7 +158,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             this.componentState.addMetrics("index_action_checks", indexActionChecks, "tenant_action_checks", tenantActionChecks,
                     "statful_index_rebuilds", statefulIndexRebuild);
-            
+
             this.componentState.addMetrics("index_action_types", indexActionTypes);
         }
     }
@@ -185,14 +184,14 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     indexActionTypes_wellKnown.increment();
                 } else {
                     indexActionTypes_nonWellKnown.increment();
-                    
+
                     if (metricsLevel.detailedEnabled()) {
                         indexActionTypes_nonWellKnown.getSubCount(action.name()).increment();
                     }
                 }
             });
         }
-        
+
         try (Meter meter = Meter.basic(metricsLevel, indexActionChecks)) {
             User user = context.getUser();
             ImmutableSet<String> mappedRoles = context.getMappedRoles();
@@ -574,7 +573,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     if (metricsLevel.detailedEnabled()) {
                         m.count(action.name());
                     }
-                    
+
                     for (String role : roles) {
                         Pattern pattern = this.rolesToActionPattern.get(role);
 
@@ -722,30 +721,27 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         ImmutableSet<String> permissions = actionGroups.resolve(indexPermissions.getAllowedActions());
 
                         for (String permission : permissions) {
-                            for (Template<Pattern> indexPattern : indexPermissions.getIndexPatterns()) {
+                            if (Pattern.isConstant(permission)) {
+                                rolesToActionToIndexPattern.get(roleName).get(actions.get(permission)).add(indexPermissions.getIndexPatterns());
 
-                                if (Pattern.isConstant(permission)) {
-                                    rolesToActionToIndexPattern.get(roleName).get(actions.get(permission)).add(indexPattern);
-
-                                    if (indexPattern.isConstant() && indexPattern.getConstantValue().isWildcard()) {
-                                        actionToRolesWithWildcardIndexPrivileges.get(actions.get(permission)).add(roleName);
-                                    }
-                                } else {
-                                    Pattern actionPattern = Pattern.create(permission);
-
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
-                                            .matching((a) -> actionPattern.matches(a.name()));
-
-                                    for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                        rolesToActionToIndexPattern.get(roleName).get(action).add(indexPattern);
-
-                                        if (indexPattern.isConstant() && indexPattern.getConstantValue().isWildcard()) {
-                                            actionToRolesWithWildcardIndexPrivileges.get(action).add(roleName);
-                                        }
-                                    }
-
-                                    rolesToActionPatternsToIndexPattern.get(roleName).get(actionPattern).add(indexPattern);
+                                if (indexPermissions.getIndexPatterns().getPattern().isWildcard()) {
+                                    actionToRolesWithWildcardIndexPrivileges.get(actions.get(permission)).add(roleName);
                                 }
+                            } else {
+                                Pattern actionPattern = Pattern.create(permission);
+
+                                ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                        .matching((a) -> actionPattern.matches(a.name()));
+
+                                for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
+                                    rolesToActionToIndexPattern.get(roleName).get(action).add(indexPermissions.getIndexPatterns());
+
+                                    if (indexPermissions.getIndexPatterns().getPattern().isWildcard()) {
+                                        actionToRolesWithWildcardIndexPrivileges.get(action).add(roleName);
+                                    }
+                                }
+
+                                rolesToActionPatternsToIndexPattern.get(roleName).get(actionPattern).add(indexPermissions.getIndexPatterns());
                             }
                         }
                     }
@@ -813,23 +809,22 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         ImmutableSet<String> permissions = actionGroups.resolve(indexPermissions.getActions());
 
                         for (String permission : permissions) {
-                            for (Template<Pattern> indexPattern : indexPermissions.getIndexPatterns()) {
 
-                                if (Pattern.isConstant(permission)) {
-                                    rolesToActionToIndexPattern.get(roleName).get(actions.get(permission)).add(indexPattern);
-                                } else {
-                                    Pattern actionPattern = Pattern.create(permission);
+                            if (Pattern.isConstant(permission)) {
+                                rolesToActionToIndexPattern.get(roleName).get(actions.get(permission)).add(indexPermissions.getIndexPatterns());
+                            } else {
+                                Pattern actionPattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
-                                            .matching((a) -> actionPattern.matches(a.name()));
+                                ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                        .matching((a) -> actionPattern.matches(a.name()));
 
-                                    for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                        rolesToActionToIndexPattern.get(roleName).get(action).add(indexPattern);
-                                    }
-
-                                    rolesToActionPatternsToIndexPattern.get(roleName).get(actionPattern).add(indexPattern);
+                                for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
+                                    rolesToActionToIndexPattern.get(roleName).get(action).add(indexPermissions.getIndexPatterns());
                                 }
+
+                                rolesToActionPatternsToIndexPattern.get(roleName).get(actionPattern).add(indexPermissions.getIndexPatterns());
                             }
+
                         }
 
                     }
@@ -990,79 +985,78 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     for (Role.ExcludeIndex excludedIndexPermissions : role.getExcludeIndexPermissions()) {
                         ImmutableSet<String> permissions = actionGroups.resolve(excludedIndexPermissions.getActions());
 
-                        if (excludedIndexPermissions.getIndexPatterns().forAnyApplies((p) -> p.isConstant() && p.getConstantValue().isWildcard())) {
+                        if (excludedIndexPermissions.getIndexPatterns().getPattern().isWildcard()) {
                             // This is handled in the static IndexPermissions object.
                             continue;
                         }
 
+                        if (!excludedIndexPermissions.getIndexPatterns().getPatternTemplates().isEmpty()
+                                || !excludedIndexPermissions.getIndexPatterns().getDateMathExpressions().isEmpty()) {
+                            // This class can only work on non-templated index patterns. 
+                            // If there are templated exclusions (which should be a very rare thing), we cannot do evaluation here
+                            // We record the role name to indicate that this class cannot evaluate these roles
+                            rolesWithTemplatedExclusions.add(roleName);
+                            continue;
+                        }
+
                         for (String permission : permissions) {
-                            for (Template<Pattern> indexPatternTemplate : excludedIndexPermissions.getIndexPatterns()) {
-                                if (!indexPatternTemplate.isConstant()) {
-                                    rolesWithTemplatedExclusions.add(roleName);
-                                    continue;
-                                }
+                            Pattern indexPattern = excludedIndexPermissions.getIndexPatterns().getPattern();
 
-                                Pattern indexPattern = indexPatternTemplate.getConstantValue();
+                            if (Pattern.isConstant(permission)) {
+                                Action action = actions.get(permission);
 
-                                if (Pattern.isConstant(permission)) {
-                                    Action action = actions.get(permission);
-
-                                    if (action instanceof WellKnownAction) {
-                                        for (String index : indexPattern.iterateMatching(indexNames)) {
-                                            excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
-                                        }
-                                    }
-                                } else {
-                                    Pattern pattern = Pattern.create(permission);
-
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
-                                            .matching((a) -> pattern.matches(a.name()));
-
+                                if (action instanceof WellKnownAction) {
                                     for (String index : indexPattern.iterateMatching(indexNames)) {
-                                        for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                            excludedActionToIndexToRoles.get(action).get(index).add(roleName);
-                                        }
+                                        excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
+                                    }
+                                }
+                            } else {
+                                Pattern pattern = Pattern.create(permission);
+
+                                ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                        .matching((a) -> pattern.matches(a.name()));
+
+                                for (String index : indexPattern.iterateMatching(indexNames)) {
+                                    for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
+                                        excludedActionToIndexToRoles.get(action).get(index).add(roleName);
                                     }
                                 }
                             }
                         }
-
                     }
 
                     for (Role.Index indexPermissions : role.getIndexPermissions()) {
                         ImmutableSet<String> permissions = actionGroups.resolve(indexPermissions.getAllowedActions());
+                        Pattern indexPattern = indexPermissions.getIndexPatterns().getPattern();
 
-                        if (indexPermissions.getIndexPatterns().forAnyApplies((p) -> p.isConstant() && p.getConstantValue().isWildcard())) {
-                            // This is handled in the static IndexPermissions object.
+                        if (indexPattern.isWildcard()) {
+                            // Wildcard index patterns are handled in the static IndexPermissions object.
+                            continue;
+                        }
+
+                        if (indexPattern.isBlank()) {
+                            // The pattern is likely blank because there are only templated patterns. Index patterns with templates are not handled here, but in the static IndexPermissions object
                             continue;
                         }
 
                         for (String permission : permissions) {
-                            for (Template<Pattern> indexPatternTemplate : indexPermissions.getIndexPatterns()) {
-                                if (!indexPatternTemplate.isConstant()) {
-                                    continue;
-                                }
+                            if (Pattern.isConstant(permission)) {
+                                Action action = actions.get(permission);
 
-                                Pattern indexPattern = indexPatternTemplate.getConstantValue();
-
-                                if (Pattern.isConstant(permission)) {
-                                    Action action = actions.get(permission);
-
-                                    if (action instanceof WellKnownAction) {
-                                        for (String index : indexPattern.iterateMatching(indexNames)) {
-                                            actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
-                                        }
-                                    }
-                                } else {
-                                    Pattern pattern = Pattern.create(permission);
-
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
-                                            .matching((a) -> pattern.matches(a.name()));
-
+                                if (action instanceof WellKnownAction) {
                                     for (String index : indexPattern.iterateMatching(indexNames)) {
-                                        for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                            actionToIndexToRoles.get(action).get(index).add(roleName);
-                                        }
+                                        actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
+                                    }
+                                }
+                            } else {
+                                Pattern pattern = Pattern.create(permission);
+
+                                ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                        .matching((a) -> pattern.matches(a.name()));
+
+                                for (String index : indexPattern.iterateMatching(indexNames)) {
+                                    for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
+                                        actionToIndexToRoles.get(action).get(index).add(roleName);
                                     }
                                 }
                             }
@@ -1273,10 +1267,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     static class IndexPattern {
 
         private final Pattern pattern;
-        private final ImmutableList<Template<Pattern>> patternTemplates;
-        private final ImmutableList<String> dateMathExpressions;
+        private final ImmutableList<Role.IndexPatterns.IndexPatternTemplate> patternTemplates;
+        private final ImmutableList<Role.IndexPatterns.DateMathExpression> dateMathExpressions;
 
-        IndexPattern(Pattern pattern, ImmutableList<Template<Pattern>> patternTemplates, ImmutableList<String> dateMathExpressions) {
+        IndexPattern(Pattern pattern, ImmutableList<Role.IndexPatterns.IndexPatternTemplate> patternTemplates,
+                ImmutableList<Role.IndexPatterns.DateMathExpression> dateMathExpressions) {
             this.pattern = pattern;
             this.patternTemplates = patternTemplates;
             this.dateMathExpressions = dateMathExpressions;
@@ -1288,11 +1283,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
 
             if (!patternTemplates.isEmpty()) {
-                for (Template<Pattern> patternTemplate : this.patternTemplates) {
+                for (Role.IndexPatterns.IndexPatternTemplate patternTemplate : this.patternTemplates) {
                     try (Meter subMeter = meter.basic("render_index_pattern_template")) {
-                        Pattern pattern = context.getRenderedPattern(patternTemplate);
+                        Pattern pattern = context.getRenderedPattern(patternTemplate.getTemplate());
 
-                        if (pattern.matches(index)) {
+                        if (pattern.matches(index) && !patternTemplate.getExclusions().matches(index)) {
                             return true;
                         }
                     } catch (ExpressionEvaluationException e) {
@@ -1301,28 +1296,31 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
             }
 
-            if (!dateMathExpressions.isEmpty()) {
+            if (!dateMathExpressions.isEmpty()) {                
+                // Note: The use of date math expressions in privileges is deprecated as it conceptually does not fit well. 
+                // We need to conceive a replacement
                 try (Meter subMeter = meter.basic("render_date_math_expression")) {
-                    List<String> resolvedExpressions = com.floragunn.searchsupport.queries.DateMathExpressionResolver.resolve(this.dateMathExpressions);
-
-                    for (String resolvedExpression : resolvedExpressions) {
+                    for (Role.IndexPatterns.DateMathExpression dateMathExpression : this.dateMathExpressions) {
                         try {
+                            String resolvedExpression = com.floragunn.searchsupport.queries.DateMathExpressionResolver
+                                    .resolveExpression(dateMathExpression.getDateMathExpression());
+                            
                             if (!Template.containsPlaceholders(resolvedExpression)) {
                                 Pattern pattern = Pattern.create(resolvedExpression);
 
-                                if (pattern.matches(index)) {
+                                if (pattern.matches(index) && !dateMathExpression.getExclusions().matches(index)) {
                                     return true;
                                 }
                             } else {
                                 Template<Pattern> patternTemplate = new Template<>(resolvedExpression, Pattern::create);
                                 Pattern pattern = patternTemplate.render(user);
 
-                                if (pattern.matches(index)) {
+                                if (pattern.matches(index) && !dateMathExpression.getExclusions().matches(index)) {
                                     return true;
                                 }
                             }
-                        } catch (ConfigValidationException | ExpressionEvaluationException e) {
-                            throw new PrivilegesEvaluationException("Error while evaluating date math expression: " + resolvedExpression, e);
+                        } catch (Exception e) {
+                            throw new PrivilegesEvaluationException("Error while evaluating date math expression: " + dateMathExpression, e);
                         }
                     }
                 }
@@ -1346,17 +1344,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         static class Builder {
             private List<Pattern> constantPatterns = new ArrayList<>();
-            private List<Template<Pattern>> patternTemplates = new ArrayList<>();
-            private Set<String> dateMathExpressions = new HashSet<>();
+            private List<Role.IndexPatterns.IndexPatternTemplate> patternTemplates = new ArrayList<>();
+            private List<Role.IndexPatterns.DateMathExpression> dateMathExpressions = new ArrayList<>();
 
-            void add(Template<Pattern> patternTemplate) {
-                if (patternTemplate.getSource().startsWith("<") && patternTemplate.getSource().endsWith(">")) {
-                    dateMathExpressions.add(patternTemplate.getSource());
-                } else if (patternTemplate.isConstant()) {
-                    constantPatterns.add(patternTemplate.getConstantValue());
-                } else {
-                    patternTemplates.add(patternTemplate);
-                }
+            void add(Role.IndexPatterns indexPattern) {
+                this.constantPatterns.add(indexPattern.getPattern());
+                this.patternTemplates.addAll(indexPattern.getPatternTemplates());
+                this.dateMathExpressions.addAll(indexPattern.getDateMathExpressions());
             }
 
             IndexPattern build() {

@@ -45,8 +45,6 @@ package com.floragunn.searchsupport.queries;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.common.time.DateFormatter;
@@ -63,15 +61,7 @@ public class DateMathExpressionResolver {
     private static final char ESCAPE_CHAR = '\\';
     private static final char TIME_ZONE_BOUND = '|';
 
-    public static List<String> resolve(List<String> expressions) {
-        List<String> result = new ArrayList<>(expressions.size());
-        for (String expression : expressions) {
-            result.add(resolveExpression(expression));
-        }
-        return result;
-    }
-
-    static String resolveExpression(String expression) {
+    public static String resolveExpression(String expression) {
         if (expression.startsWith(EXPRESSION_LEFT_BOUND) == false || expression.endsWith(EXPRESSION_RIGHT_BOUND) == false) {
             return expression;
         }

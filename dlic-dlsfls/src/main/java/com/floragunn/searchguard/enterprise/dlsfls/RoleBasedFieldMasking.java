@@ -33,7 +33,6 @@ import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.bouncycastle.util.encoders.Hex;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
-import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
@@ -110,15 +109,16 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
                     }
                 }
 
-                ImmutableMap<Template<Pattern>, FieldMaskingRule.SingleRole> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
+                ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, FieldMaskingRule.SingleRole> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
                         .get(role);
 
                 if (indexPatternTemplateToQuery != null) {
-                    for (Map.Entry<Template<Pattern>, FieldMaskingRule.SingleRole> entry : indexPatternTemplateToQuery.entrySet()) {
+                    for (Map.Entry<Role.IndexPatterns.IndexPatternTemplate, FieldMaskingRule.SingleRole> entry : indexPatternTemplateToQuery
+                            .entrySet()) {
                         try {
-                            Pattern pattern = context.getRenderedPattern(entry.getKey());
+                            Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
-                            if (pattern.matches(index)) {
+                            if (pattern.matches(index) && !entry.getKey().getExclusions().matches(index)) {
                                 rules.add(entry.getValue());
                             }
                         } catch (ExpressionEvaluationException e) {
@@ -221,15 +221,15 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
                 }
             }
 
-            ImmutableMap<Template<Pattern>, FieldMaskingRule.SingleRole> indexPatternTemplateToRule = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
+            ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, FieldMaskingRule.SingleRole> indexPatternTemplateToRule = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
                     .get(role);
 
             if (indexPatternTemplateToRule != null) {
-                for (Map.Entry<Template<Pattern>, FieldMaskingRule.SingleRole> entry : indexPatternTemplateToRule.entrySet()) {
+                for (Map.Entry<Role.IndexPatterns.IndexPatternTemplate, FieldMaskingRule.SingleRole> entry : indexPatternTemplateToRule.entrySet()) {
                     try {
-                        Pattern pattern = context.getRenderedPattern(entry.getKey());
+                        Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
-                        if (pattern.matches(index)) {
+                        if (pattern.matches(index) && !entry.getKey().getExclusions().matches(index)) {
                             return true;
                         }
                     } catch (ExpressionEvaluationException e) {
@@ -247,7 +247,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
 
         private final ImmutableSet<String> rolesWithIndexWildcardWithoutRule;
         private final ImmutableMap<String, FieldMaskingRule.SingleRole> roleWithIndexWildcardToRule;
-        private final ImmutableMap<String, ImmutableMap<Template<Pattern>, FieldMaskingRule.SingleRole>> rolesToIndexPatternTemplateToRule;
+        private final ImmutableMap<String, ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, FieldMaskingRule.SingleRole>> rolesToIndexPatternTemplateToRule;
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
 
         StaticIndexRules(SgDynamicConfiguration<Role> roles, DlsFlsConfig.FieldMasking fieldMaskingConfig) {
@@ -255,7 +255,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
 
             ImmutableSet.Builder<String> rolesWithIndexWildcardWithoutRule = new ImmutableSet.Builder<>();
             ImmutableMap.Builder<String, FieldMaskingRule.SingleRole> roleWithIndexWildcardToRule = new ImmutableMap.Builder<String, FieldMaskingRule.SingleRole>();
-            ImmutableMap.Builder<String, ImmutableMap.Builder<Template<Pattern>, FieldMaskingRule.SingleRole>> rolesToIndexPatternTemplateToRule = new ImmutableMap.Builder<String, ImmutableMap.Builder<Template<Pattern>, FieldMaskingRule.SingleRole>>()
+            ImmutableMap.Builder<String, ImmutableMap.Builder<Role.IndexPatterns.IndexPatternTemplate, FieldMaskingRule.SingleRole>> rolesToIndexPatternTemplateToRule = new ImmutableMap.Builder<String, ImmutableMap.Builder<Role.IndexPatterns.IndexPatternTemplate, FieldMaskingRule.SingleRole>>()
                     .defaultValue((k) -> new ImmutableMap.Builder<>());
 
             ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
@@ -267,7 +267,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
                     Role role = entry.getValue();
 
                     for (Role.Index indexPermissions : role.getIndexPermissions()) {
-                        if (indexPermissions.getIndexPatterns().forAnyApplies((p) -> p.isConstant() && p.getConstantValue().isWildcard())) {
+                        if (indexPermissions.getIndexPatterns().getPattern().isWildcard()) {
                             ImmutableList<Role.Index.FieldMaskingExpression> fmExpression = indexPermissions.getMaskedFields();
 
                             if (fmExpression == null || fmExpression.isEmpty()) {
@@ -280,11 +280,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
                             continue;
                         }
 
-                        for (Template<Pattern> indexPatternTemplate : indexPermissions.getIndexPatterns()) {
-                            if (indexPatternTemplate.isConstant()) {
-                                continue;
-                            }
-
+                        for (Role.IndexPatterns.IndexPatternTemplate indexPatternTemplate : indexPermissions.getIndexPatterns().getPatternTemplates()) {
                             ImmutableList<Role.Index.FieldMaskingExpression> fmExpression = indexPermissions.getMaskedFields();
 
                             if (fmExpression == null || fmExpression.isEmpty()) {
@@ -349,31 +345,29 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
                     Role role = entry.getValue();
 
                     for (Role.Index indexPermissions : role.getIndexPermissions()) {
-                        if (indexPermissions.getIndexPatterns().forAnyApplies((p) -> p.isConstant() && p.getConstantValue().isWildcard())) {
+                        Pattern indexPattern = indexPermissions.getIndexPatterns().getPattern();
+                        
+                        if (indexPattern.isWildcard()) {
                             // This is handled in the static IndexPermissions object.
                             continue;
                         }
 
-                        for (Template<Pattern> indexPatternTemplate : indexPermissions.getIndexPatterns()) {
-                            if (!indexPatternTemplate.isConstant()) {
-                                continue;
+                        if (indexPattern.isBlank()) {
+                            continue;
+                        }
+
+                        ImmutableList<Role.Index.FieldMaskingExpression> fmExpressions = indexPermissions.getMaskedFields();
+
+                        if (fmExpressions != null && !fmExpressions.isEmpty()) {
+                            FieldMaskingRule.SingleRole fmRule = new FieldMaskingRule.SingleRole(role, indexPermissions, fieldMaskingConfig);
+
+                            for (String index : indexPattern.iterateMatching(indices)) {
+                                indexToRoleToRule.get(index).put(roleName, fmRule);
                             }
-
-                            Pattern indexPattern = indexPatternTemplate.getConstantValue();
-                            ImmutableList<Role.Index.FieldMaskingExpression> fmExpressions = indexPermissions.getMaskedFields();
-
-                            if (fmExpressions != null && !fmExpressions.isEmpty()) {
-                                FieldMaskingRule.SingleRole fmRule = new FieldMaskingRule.SingleRole(role, indexPermissions, fieldMaskingConfig);
-
-                                for (String index : indexPattern.iterateMatching(indices)) {
-                                    indexToRoleToRule.get(index).put(roleName, fmRule);
-                                }
-                            } else {
-                                for (String index : indexPattern.iterateMatching(indices)) {
-                                    indexToRoleWithoutRule.get(index).add(roleName);
-                                }
+                        } else {
+                            for (String index : indexPattern.iterateMatching(indices)) {
+                                indexToRoleWithoutRule.get(index).add(roleName);
                             }
-
                         }
                     }
                 } catch (Exception e) {
