@@ -43,6 +43,7 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.google.common.collect.Sets;
 
+@Deprecated
 public class LegacyRoleBasedDocumentAuthorization implements ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(LegacyRoleBasedDocumentAuthorization.class);
 
@@ -87,7 +88,7 @@ public class LegacyRoleBasedDocumentAuthorization implements ComponentStateProvi
 
             for (Role.Index index : role.getIndexPermissions()) {
 
-                for (Template<Pattern> indexPattern : index.getIndexPatterns()) {
+                for (Template<Pattern> indexPattern : index.getLegacyIndexPatterns()) {
 
                     String[] concreteIndices;
 

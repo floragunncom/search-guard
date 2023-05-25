@@ -83,11 +83,11 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
             if (!statefulIndexQueries.indices.containsAll(indices)) {
                 // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
                 // For non-existing indices, it is safe to assume that no documents can be accessed.
-                
+
                 if (log.isDebugEnabled()) {
                     log.debug("Indices {} do not exist. Assuming full document restriction.", indices);
                 }
-                
+
                 return true;
             }
 
@@ -117,15 +117,15 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
                         }
                     }
 
-                    ImmutableMap<Template<Pattern>, DlsQuery> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToQuery
+                    ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, DlsQuery> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToQuery
                             .get(role);
 
                     if (indexPatternTemplateToQuery != null) {
-                        for (Map.Entry<Template<Pattern>, DlsQuery> entry : indexPatternTemplateToQuery.entrySet()) {
+                        for (Map.Entry<Role.IndexPatterns.IndexPatternTemplate, DlsQuery> entry : indexPatternTemplateToQuery.entrySet()) {
                             try {
-                                Pattern pattern = context.getRenderedPattern(entry.getKey());
+                                Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
-                                if (pattern.matches(index)) {
+                                if (pattern.matches(index) && !entry.getKey().getExclusions().matches(index)) {
                                     return true;
                                 }
                             } catch (ExpressionEvaluationException e) {
@@ -203,7 +203,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
         if (!statefulIndexQueries.indices.contains(index)) {
             // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
             // For non-existing indices, it is safe to assume that no documents can be accessed.
-            
+
             if (log.isDebugEnabled()) {
                 log.debug("Index {} does not exist. Assuming full document restriction.", index);
             }
@@ -238,15 +238,15 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
                 }
             }
 
-            ImmutableMap<Template<Pattern>, DlsQuery> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToQuery
+            ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, DlsQuery> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToQuery
                     .get(role);
 
             if (indexPatternTemplateToQuery != null) {
-                for (Map.Entry<Template<Pattern>, DlsQuery> entry : indexPatternTemplateToQuery.entrySet()) {
+                for (Map.Entry<Role.IndexPatterns.IndexPatternTemplate, DlsQuery> entry : indexPatternTemplateToQuery.entrySet()) {
                     try {
-                        Pattern pattern = context.getRenderedPattern(entry.getKey());
+                        Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
-                        if (pattern.matches(index)) {
+                        if (pattern.matches(index) && !entry.getKey().getExclusions().matches(index)) {
                             queries.add(entry.getValue());
                         }
                     } catch (ExpressionEvaluationException e) {
@@ -279,7 +279,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
 
         private final ImmutableSet<String> rolesWithIndexWildcardWithoutQuery;
         private final ImmutableMap<String, DlsQuery> roleWithIndexWildcardToQuery;
-        private final ImmutableMap<String, ImmutableMap<Template<Pattern>, DlsQuery>> rolesToIndexPatternTemplateToQuery;
+        private final ImmutableMap<String, ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, DlsQuery>> rolesToIndexPatternTemplateToQuery;
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
 
         StaticIndexQueries(SgDynamicConfiguration<Role> roles) {
@@ -287,7 +287,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
 
             ImmutableSet.Builder<String> rolesWithIndexWildcardWithoutQuery = new ImmutableSet.Builder<>();
             ImmutableMap.Builder<String, DlsQuery> roleWithIndexWildcardToQuery = new ImmutableMap.Builder<String, DlsQuery>();
-            ImmutableMap.Builder<String, ImmutableMap.Builder<Template<Pattern>, DlsQuery>> rolesToIndexPatternTemplateToQuery = new ImmutableMap.Builder<String, ImmutableMap.Builder<Template<Pattern>, DlsQuery>>()
+            ImmutableMap.Builder<String, ImmutableMap.Builder<Role.IndexPatterns.IndexPatternTemplate, DlsQuery>> rolesToIndexPatternTemplateToQuery = new ImmutableMap.Builder<String, ImmutableMap.Builder<Role.IndexPatterns.IndexPatternTemplate, DlsQuery>>()
                     .defaultValue((k) -> new ImmutableMap.Builder<>());
 
             ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
@@ -299,7 +299,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
                     Role role = entry.getValue();
 
                     for (Role.Index indexPermissions : role.getIndexPermissions()) {
-                        if (indexPermissions.getIndexPatterns().forAnyApplies((p) -> p.isConstant() && p.getConstantValue().isWildcard())) {
+                        if (indexPermissions.getIndexPatterns().getPattern().isWildcard()) {
                             Template<Query> dlsQueryTemplate = indexPermissions.getDls();
 
                             if (dlsQueryTemplate == null) {
@@ -312,11 +312,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
                             continue;
                         }
 
-                        for (Template<Pattern> indexPatternTemplate : indexPermissions.getIndexPatterns()) {
-                            if (indexPatternTemplate.isConstant()) {
-                                continue;
-                            }
-
+                        for (Role.IndexPatterns.IndexPatternTemplate indexPatternTemplate : indexPermissions.getIndexPatterns().getPatternTemplates()) {                           
                             Template<Query> dlsQueryTemplate = indexPermissions.getDls();
 
                             if (dlsQueryTemplate == null) {
@@ -327,6 +323,8 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
 
                             rolesToIndexPatternTemplateToQuery.get(roleName).put(indexPatternTemplate, dlsConfig);
                         }
+                        
+                        // Note: Date math expressions are not supported any more in this implementation
                     }
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
@@ -382,32 +380,31 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
                     Role role = entry.getValue();
 
                     for (Role.Index indexPermissions : role.getIndexPermissions()) {
-                        if (indexPermissions.getIndexPatterns().forAnyApplies((p) -> p.isConstant() && p.getConstantValue().isWildcard())) {
+                        if (indexPermissions.getIndexPatterns().getPattern().isWildcard()) {
                             // This is handled in the static IndexPermissions object.
                             continue;
                         }
 
-                        for (Template<Pattern> indexPatternTemplate : indexPermissions.getIndexPatterns()) {
-                            if (!indexPatternTemplate.isConstant()) {
-                                continue;
-                            }
-
-                            Pattern indexPattern = indexPatternTemplate.getConstantValue();
-                            Template<Query> dlsQueryTemplate = indexPermissions.getDls();
-
-                            if (dlsQueryTemplate != null) {
-                                DlsQuery dlsConfig = new DlsQuery(dlsQueryTemplate);
-
-                                for (String index : indexPattern.iterateMatching(indices)) {
-                                    indexToRoleToQuery.get(index).put(roleName, dlsConfig);
-                                }
-                            } else {
-                                for (String index : indexPattern.iterateMatching(indices)) {
-                                    indexToRoleWithoutQuery.get(index).add(roleName);
-                                }
-                            }
-
+                        if (indexPermissions.getIndexPatterns().getPattern().isBlank()) {
+                            // The pattern is likely blank because there are only templated patterns. Index patterns with templates are not handled here, but in the static IndexPermissions object
+                            continue;
                         }
+
+                        Pattern indexPattern = indexPermissions.getIndexPatterns().getPattern();
+                        Template<Query> dlsQueryTemplate = indexPermissions.getDls();
+
+                        if (dlsQueryTemplate != null) {
+                            DlsQuery dlsConfig = new DlsQuery(dlsQueryTemplate);
+
+                            for (String index : indexPattern.iterateMatching(indices)) {
+                                indexToRoleToQuery.get(index).put(roleName, dlsConfig);
+                            }
+                        } else {
+                            for (String index : indexPattern.iterateMatching(indices)) {
+                                indexToRoleWithoutQuery.get(index).add(roleName);
+                            }
+                        }
+
                     }
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);

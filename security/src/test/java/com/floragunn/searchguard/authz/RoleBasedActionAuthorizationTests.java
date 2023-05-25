@@ -563,7 +563,65 @@ public class RoleBasedActionAuthorizationTests {
                 ResolvedIndices.empty().localIndices("index_a1", "index_a2"));
         Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
     }
+    
+    @Test
+    public void indexAction_actionPattern_indexPatternWithNegation() throws Exception {
+        Action indexAction = actions.get("indices:data/write/index");
+        Action otherAction = actions.get("indices:data/write/delete");
 
+        Assert.assertTrue(indexAction.toString(), indexAction instanceof WellKnownAction);
+
+        SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from(//
+                "test_role:\n" + //
+                        "  index_permissions:\n" + //
+                        "  - index_patterns: ['index_abc*', '-index_abcd']\n" + //
+                        "    allowed_actions: ['indices:data/write/index*']"),
+                CType.ROLES, null).get();
+
+        ImmutableSet<String> tenants = ImmutableSet.empty();
+
+        RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
+
+        User user = User.forUser("test").build();
+        ResolvedIndices indices = ResolvedIndices.empty().localIndices("index_abc", "index_abcd");
+
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indices);
+        Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+        Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_abc")));
+
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indices);
+        Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+    }
+    
+    @Test
+    public void indexAction_actionPattern_indexPatternWithNegationAndTemplate() throws Exception {
+        Action indexAction = actions.get("indices:data/write/index");
+        Action otherAction = actions.get("indices:data/write/delete");
+
+        Assert.assertTrue(indexAction.toString(), indexAction instanceof WellKnownAction);
+
+        SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from(//
+                "test_role:\n" + //
+                        "  index_permissions:\n" + //
+                        "  - index_patterns: ['index_${user.attrs.a}*', '-index_abcd']\n" + //
+                        "    allowed_actions: ['indices:data/write/index*']"),
+                CType.ROLES, null).get();
+
+        ImmutableSet<String> tenants = ImmutableSet.empty();
+
+        RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
+
+        User user = User.forUser("test").attribute("a", "abc").build();
+        ResolvedIndices indices = ResolvedIndices.empty().localIndices("index_abc", "index_abcd", "index_foo");
+
+        PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indices);
+        Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+        Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_abc")));
+
+        result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(otherAction), indices);
+        Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+    }
+    
     private static PrivilegesEvaluationContext ctx(User user, String... roles) {
         return new PrivilegesEvaluationContext(user, ImmutableSet.ofArray(roles), null, roles, true, null, null);
     }

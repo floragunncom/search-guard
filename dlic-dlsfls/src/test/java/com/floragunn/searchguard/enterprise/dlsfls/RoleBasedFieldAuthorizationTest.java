@@ -57,6 +57,57 @@ public class RoleBasedFieldAuthorizationTest {
     }
 
     @Test
+    public void getFlsRule_negation() throws Exception {
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role",
+                Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns",
+                        DocNode.array("index_abc*", "-index_abcd"), "fls", DocNode.array("allowed_a", "allowed_b")))), null).get());
+
+        RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
+                MetricsLevel.NONE);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of("role"), null, subject, false, null, null);
+
+        FlsRule flsRule = subject.getFlsRule(context, "index_abc", Meter.NO_OP);
+
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_a"));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_b"));
+        Assert.assertFalse(flsRule.toString(), flsRule.isAllowed("allowed_c"));
+
+        flsRule = subject.getFlsRule(context, "index_abcd", Meter.NO_OP);
+
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_a"));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_b"));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_c"));
+    }
+    
+    @Test
+    public void getFlsRule_templateAndNegation() throws Exception {
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role",
+                Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns",
+                        DocNode.array("index_${user.attrs.a}*", "-index_abcd"), "fls", DocNode.array("allowed_a", "allowed_b")))), null).get());
+
+        RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
+                MetricsLevel.NONE);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").attribute("a", "abc").build(),
+                ImmutableSet.of("role"), null, subject, false, null, null);
+
+        FlsRule flsRule = subject.getFlsRule(context, "index_abc", Meter.NO_OP);
+
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_a"));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_b"));
+        Assert.assertFalse(flsRule.toString(), flsRule.isAllowed("allowed_c"));
+
+        flsRule = subject.getFlsRule(context, "index_abcd", Meter.NO_OP);
+
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_a"));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_b"));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed("allowed_c"));
+    }
+
+    
+    @Test
     public void getFlsRule_wildcardRule() throws Exception {
         SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
                 .of(CType.ROLES, "role_with_wildcard_fls",
@@ -180,6 +231,43 @@ public class RoleBasedFieldAuthorizationTest {
         Assert.assertTrue(subject.toString(), subject.hasFlsRestrictions(context, "index_value_of_a", Meter.NO_OP));
         Assert.assertFalse(subject.toString(), subject.hasFlsRestrictions(context, "another_index", Meter.NO_OP));
     }
+
+    @Test
+    public void hasFlsRestriction_templateAndNegation() throws Exception {
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, "role", Role
+                        .parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns",
+                                DocNode.array("index_${user.attrs.a}*", "-index_abcd"), "fls", DocNode.array("allowed_a", "allowed_b")))), null)
+                        .get());
+
+        RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
+                MetricsLevel.NONE);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
+                new User.Builder().name("test_user").attribute("a", "abc").build(), ImmutableSet.of("role"), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasFlsRestrictions(context, "index_abc", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFlsRestrictions(context, "index_abcd", Meter.NO_OP));
+    }
+    
+    @Test
+    public void hasFlsRestriction_negation() throws Exception {
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, "role", Role
+                        .parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns",
+                                DocNode.array("index_abc*", "-index_abcd"), "fls", DocNode.array("allowed_a", "allowed_b")))), null)
+                        .get());
+
+        RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
+                MetricsLevel.NONE);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
+                new User.Builder().name("test_user").build(), ImmutableSet.of("role"), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasFlsRestrictions(context, "index_abc", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFlsRestrictions(context, "index_abcd", Meter.NO_OP));
+    }
+
 
     @Test
     public void hasFlsRestriction_wildcardRule() throws Exception {

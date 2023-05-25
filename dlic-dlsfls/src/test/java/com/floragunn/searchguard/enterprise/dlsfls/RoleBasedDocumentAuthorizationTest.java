@@ -127,6 +127,46 @@ public class RoleBasedDocumentAuthorizationTest {
         Assert.assertEquals(dlsRestriction.toString(), 0, dlsRestriction.getQueries().size());
 
     }
+    
+    @Test
+    public void getDlsRestriction_indexPatternWithNegation() throws Exception {
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role",
+                Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns",
+                        DocNode.array("index_abc*", "-index_abcd"), "dls", DocNode.of("term.dept.value", "dept_d").toJsonString()))),
+                        context).get());
+
+        RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
+                MetricsLevel.NONE);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
+                new User.Builder().name("test_user").build(), ImmutableSet.of("role"), null, subject, false, null, null);
+
+        DlsRestriction dlsRestriction = subject.getDlsRestriction(context, "index_abc", Meter.NO_OP);
+        Assert.assertTrue(dlsRestriction.toString(), dlsRestriction.getQueries().size() == 1);
+
+        dlsRestriction = subject.getDlsRestriction(context, "index_abcd", Meter.NO_OP);
+        Assert.assertTrue(dlsRestriction.toString(), dlsRestriction.getQueries().size() == 0);
+    }
+    
+    @Test
+    public void getDlsRestriction_indexPatternWithNegationAndTemplate() throws Exception {
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role",
+                Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns",
+                        DocNode.array("index_${user.attrs.a}*", "-index_abcd"), "dls", DocNode.of("term.dept.value", "dept_d").toJsonString()))),
+                        context).get());
+
+        RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
+                MetricsLevel.NONE);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
+                new User.Builder().name("test_user").attribute("a", "abc").build(), ImmutableSet.of("role"), null, subject, false, null, null);
+
+        DlsRestriction dlsRestriction = subject.getDlsRestriction(context, "index_abc", Meter.NO_OP);
+        Assert.assertTrue(dlsRestriction.toString(), dlsRestriction.getQueries().size() == 1);
+
+        dlsRestriction = subject.getDlsRestriction(context, "index_abcd", Meter.NO_OP);
+        Assert.assertTrue(dlsRestriction.toString(), dlsRestriction.getQueries().size() == 0);
+    }
 
     @Test
     public void hasDlsRestriction_template() throws Exception {
@@ -143,6 +183,41 @@ public class RoleBasedDocumentAuthorizationTest {
 
         Assert.assertTrue(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("index_value_of_a"), Meter.NO_OP));
         Assert.assertFalse(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("another_index"), Meter.NO_OP));
+    }
+    
+    @Test
+    public void hasDlsRestriction_negation() throws Exception {
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, "role",
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns",
+                                DocNode.array("index_abc*", "-index_abcd"), "dls", DocNode.of("term.dept.value", "dept_d").toJsonString()))), context)
+                                .get());
+
+        RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
+                MetricsLevel.NONE);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(), ImmutableSet.of("role"),
+                null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("index_abc"), Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("index_abcd"), Meter.NO_OP));
+    }
+    
+    @Test
+    public void hasDlsRestriction_negationAndTemplate() throws Exception {
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role",
+                Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns",
+                        DocNode.array("index_${user.attrs.a}*", "-index_abcd"), "dls", DocNode.of("term.dept.value", "dept_d").toJsonString()))),
+                        context).get());
+
+        RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
+                MetricsLevel.NONE);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").attribute("a", "abc").build(),
+                ImmutableSet.of("role"), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("index_abc"), Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("index_abcd"), Meter.NO_OP));
     }
 
     @Test
