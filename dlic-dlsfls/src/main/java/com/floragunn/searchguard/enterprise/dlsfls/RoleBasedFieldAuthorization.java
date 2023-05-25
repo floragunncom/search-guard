@@ -28,7 +28,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
-import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
@@ -108,15 +107,15 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                     }
                 }
 
-                ImmutableMap<Template<Pattern>, FlsRule> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
+                ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, FlsRule> indexPatternTemplateToQuery = this.staticIndexQueries.rolesToIndexPatternTemplateToRule
                         .get(role);
 
                 if (indexPatternTemplateToQuery != null) {
-                    for (Map.Entry<Template<Pattern>, FlsRule> entry : indexPatternTemplateToQuery.entrySet()) {
+                    for (Map.Entry<Role.IndexPatterns.IndexPatternTemplate, FlsRule> entry : indexPatternTemplateToQuery.entrySet()) {
                         try {
-                            Pattern pattern = context.getRenderedPattern(entry.getKey());
+                            Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
-                            if (pattern.matches(index)) {
+                            if (pattern.matches(index) && !entry.getKey().getExclusions().matches(index)) {
                                 rules.add(entry.getValue());
                             }
                         } catch (ExpressionEvaluationException e) {
@@ -232,14 +231,14 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                 }
             }
 
-            ImmutableMap<Template<Pattern>, FlsRule> indexPatternTemplateToRule = this.staticIndexQueries.rolesToIndexPatternTemplateToRule.get(role);
+            ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, FlsRule> indexPatternTemplateToRule = this.staticIndexQueries.rolesToIndexPatternTemplateToRule.get(role);
 
             if (indexPatternTemplateToRule != null) {
-                for (Map.Entry<Template<Pattern>, FlsRule> entry : indexPatternTemplateToRule.entrySet()) {
+                for (Map.Entry<Role.IndexPatterns.IndexPatternTemplate, FlsRule> entry : indexPatternTemplateToRule.entrySet()) {
                     try {
-                        Pattern pattern = context.getRenderedPattern(entry.getKey());
+                        Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
-                        if (pattern.matches(index)) {
+                        if (pattern.matches(index) && !entry.getKey().getExclusions().matches(index)) {
                             return true;
                         }
                     } catch (ExpressionEvaluationException e) {
@@ -257,7 +256,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
 
         private final ImmutableSet<String> rolesWithIndexWildcardWithoutRule;
         private final ImmutableMap<String, FlsRule> roleWithIndexWildcardToRule;
-        private final ImmutableMap<String, ImmutableMap<Template<Pattern>, FlsRule>> rolesToIndexPatternTemplateToRule;
+        private final ImmutableMap<String, ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, FlsRule>> rolesToIndexPatternTemplateToRule;
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
 
         StaticIndexRules(SgDynamicConfiguration<Role> roles) {
@@ -265,7 +264,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
 
             ImmutableSet.Builder<String> rolesWithIndexWildcardWithoutRule = new ImmutableSet.Builder<>();
             ImmutableMap.Builder<String, FlsRule> roleWithIndexWildcardToRule = new ImmutableMap.Builder<String, FlsRule>();
-            ImmutableMap.Builder<String, ImmutableMap.Builder<Template<Pattern>, FlsRule>> rolesToIndexPatternTemplateToRule = new ImmutableMap.Builder<String, ImmutableMap.Builder<Template<Pattern>, FlsRule>>()
+            ImmutableMap.Builder<String, ImmutableMap.Builder<Role.IndexPatterns.IndexPatternTemplate, FlsRule>> rolesToIndexPatternTemplateToRule = new ImmutableMap.Builder<String, ImmutableMap.Builder<Role.IndexPatterns.IndexPatternTemplate, FlsRule>>()
                     .defaultValue((k) -> new ImmutableMap.Builder<>());
 
             ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
@@ -277,7 +276,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                     Role role = entry.getValue();
 
                     for (Role.Index indexPermissions : role.getIndexPermissions()) {
-                        if (indexPermissions.getIndexPatterns().forAnyApplies((p) -> p.isConstant() && p.getConstantValue().isWildcard())) {
+                        if (indexPermissions.getIndexPatterns().getPattern().isWildcard()) {
                             ImmutableList<Role.Index.FlsPattern> flsPatterns = indexPermissions.getFls();
 
                             if (flsPatterns == null || flsPatterns.isEmpty()) {
@@ -290,11 +289,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                             continue;
                         }
 
-                        for (Template<Pattern> indexPatternTemplate : indexPermissions.getIndexPatterns()) {
-                            if (indexPatternTemplate.isConstant()) {
-                                continue;
-                            }
-
+                        for (Role.IndexPatterns.IndexPatternTemplate indexPatternTemplate : indexPermissions.getIndexPatterns().getPatternTemplates()) {
                             ImmutableList<Role.Index.FlsPattern> flsPatterns = indexPermissions.getFls();
 
                             if (flsPatterns == null || flsPatterns.isEmpty()) {
@@ -359,32 +354,31 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                     Role role = entry.getValue();
 
                     for (Role.Index indexPermissions : role.getIndexPermissions()) {
-                        if (indexPermissions.getIndexPatterns().forAnyApplies((p) -> p.isConstant() && p.getConstantValue().isWildcard())) {
+                        Pattern indexPattern = indexPermissions.getIndexPatterns().getPattern();
+
+                        if (indexPattern.isWildcard()) {
                             // This is handled in the static IndexPermissions object.
                             continue;
                         }
-
-                        for (Template<Pattern> indexPatternTemplate : indexPermissions.getIndexPatterns()) {
-                            if (!indexPatternTemplate.isConstant()) {
-                                continue;
-                            }
-
-                            Pattern indexPattern = indexPatternTemplate.getConstantValue();
-                            ImmutableList<Role.Index.FlsPattern> flsPatterns = indexPermissions.getFls();
-
-                            if (flsPatterns != null && !flsPatterns.isEmpty()) {
-                                FlsRule flsRule = new FlsRule.SingleRole(role, indexPermissions);
-
-                                for (String index : indexPattern.iterateMatching(indices)) {
-                                    indexToRoleToRule.get(index).put(roleName, flsRule);
-                                }
-                            } else {
-                                for (String index : indexPattern.iterateMatching(indices)) {
-                                    indexToRoleWithoutRule.get(index).add(roleName);
-                                }
-                            }
-
+                        
+                        if (indexPattern.isBlank()) {
+                            // The pattern is likely blank because there are only templated patterns. Index patterns with templates are not handled here, but in the static IndexPermissions object
+                            continue;
                         }
+
+                        ImmutableList<Role.Index.FlsPattern> flsPatterns = indexPermissions.getFls();
+
+                        if (flsPatterns != null && !flsPatterns.isEmpty()) {
+                            FlsRule flsRule = new FlsRule.SingleRole(role, indexPermissions);
+
+                            for (String index : indexPattern.iterateMatching(indices)) {
+                                indexToRoleToRule.get(index).put(roleName, flsRule);
+                            }
+                        } else {
+                            for (String index : indexPattern.iterateMatching(indices)) {
+                                indexToRoleWithoutRule.get(index).add(roleName);
+                            }
+                        }                        
                     }
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);

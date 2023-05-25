@@ -69,7 +69,7 @@
     <commons.codec.version>1.15</commons.codec.version>
     <jjwt.version>0.11.5</jjwt.version>
     <json.flattener.version>0.8.1</json.flattener.version>
-    <codova.version>1.1.3</codova.version>
+    <codova.version>1.2.0</codova.version>
     <fluent.collections.version>1.0.1</fluent.collections.version>
     <ipaddress.version>5.3.4</ipaddress.version>
 
