@@ -224,12 +224,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.github.wnameless</groupId>
-			<artifactId>json-flattener</artifactId>
-			<version>0.5.0</version>
-		</dependency>
-
-		<dependency>
 			<groupId>com.onelogin</groupId>
 			<artifactId>java-saml</artifactId>
 			<version>2.9.0</version>

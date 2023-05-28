@@ -28,11 +28,10 @@ import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.mapper.Uid;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SourceFieldsContext;
-import com.github.wnameless.json.flattener.JsonFlattener;
 
 public final class FieldReadCallback {
 
@@ -76,17 +75,19 @@ public final class FieldReadCallback {
 
             if (fieldInfo.name.equals("_source")) {
 
+                Map<String, Object> source = DocReader.json().readObject(fieldValue);
+                
                 if (filterFunction != null) {
-                    final Map<String, Object> filteredSource = filterFunction.apply(DocReader.json().readObject(fieldValue));
-                    fieldValue = DocWriter.json().writeAsBytes(filteredSource);
+                    source = filterFunction.apply(source);
                 }
 
-                Map<String, Object> filteredSource = new JsonFlattener(new String(fieldValue, StandardCharsets.UTF_8)).flattenAsMap();
-                for (String k : filteredSource.keySet()) {
-                    if (!recordField(k, (f) -> masked.apply(f) && filteredSource.get(k) instanceof String)) {
+                DocNode flattenedSource = DocNode.wrap(source).flatten();
+                
+                for (String k : flattenedSource.keySet()) {
+                    if (!recordField(k, (f) -> masked.apply(f) && flattenedSource.get(k) instanceof String)) {
                         continue;
                     }
-                    fieldRead0(k, filteredSource.get(k));
+                    fieldRead0(k, flattenedSource.get(k));
                 }
             } else if (fieldInfo.name.equals("_id")) {
                 fieldRead0(fieldInfo.name, Uid.decodeId(fieldValue));
