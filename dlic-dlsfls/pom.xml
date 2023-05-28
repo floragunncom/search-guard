@@ -45,13 +45,6 @@
 			<artifactId>codova</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>com.github.wnameless</groupId>
-			<artifactId>json-flattener</artifactId>
-			<version>0.5.0</version>
-		</dependency>
-
-
 		<!-- provided scoped deps -->
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
