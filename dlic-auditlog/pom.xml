@@ -17,11 +17,6 @@
   <name>Search Guard FLX: Audit Logging (Enterprise)</name>
 
   <dependencies>
-    <dependency>
-      <groupId>com.github.wnameless.json</groupId>
-      <artifactId>json-flattener</artifactId>
-      <scope>compile</scope>
-    </dependency>
 
     <dependency>
       <groupId>joda-time</groupId>
@@ -105,4 +100,5 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
 </project>
