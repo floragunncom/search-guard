@@ -29,7 +29,6 @@ import java.util.Map;
 
 import javax.xml.xpath.XPathExpressionException;
 
-import com.floragunn.codova.documents.Parser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
@@ -38,9 +37,9 @@ import org.opensaml.core.config.InitializationException;
 import org.opensaml.core.config.InitializationService;
 import org.opensaml.core.xml.io.UnmarshallingException;
 import org.opensaml.saml.metadata.resolver.MetadataResolver;
-import org.opensaml.saml.metadata.resolver.filter.FilterException;
 
 import com.floragunn.codova.config.net.TLSConfig;
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -119,7 +118,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
         if (idpMetadataUrl != null) {
             try {
-                SamlHTTPMetadataResolver metadataResolver = new SamlHTTPMetadataResolver(idpMetadataUrl, tlsConfig);
+                SamlHTTPMetadataResolver metadataResolver = PrivilegedCode.execute(() -> new SamlHTTPMetadataResolver(idpMetadataUrl, tlsConfig), ResolverException.class);
 
                 long refreshDelayMillis = vNode.get("idp.min_refresh_delay").withDefault(60L * 1000L).asLong();
                 metadataResolver.setMinRefreshDelay(millisToDuration(refreshDelayMillis));
@@ -136,18 +135,14 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
             }
         } else if (idpMetadataXml != null) {
             try {
-                StaticMetadataResolver metadataResolver = new StaticMetadataResolver(idpMetadataXml.trim());
+                StaticMetadataResolver metadataResolver = PrivilegedCode.execute(() -> new StaticMetadataResolver(idpMetadataXml.trim()), ConfigValidationException.class);
 
                 metadataResolver.initializePrivileged();
 
                 this.metadataResolver = metadataResolver;
-            } catch (ResolverException | FilterException e) {
+            } catch (ConfigValidationException e) {
                 log.warn("Error while initializing " + this, e);
-                validationErrors.add(new com.floragunn.codova.validation.errors.ValidationError("idp.metadata_xml", e.getMessage()).cause(e));
-            } catch (UnmarshallingException e) {
-                log.warn("Error while initializing " + this, e);
-                validationErrors
-                        .add(new com.floragunn.codova.validation.errors.ValidationError("idp.metadata_xml", "Not a valid XML structure").cause(e));
+                validationErrors.add("idp.metadata_xml", e);
             } catch (ComponentInitializationException e) {
                 log.warn("Error while initializing " + this, e);
                 validationErrors.add(new com.floragunn.codova.validation.errors.ValidationError("idp.metadata_xml", e.getMessage()).cause(e));
