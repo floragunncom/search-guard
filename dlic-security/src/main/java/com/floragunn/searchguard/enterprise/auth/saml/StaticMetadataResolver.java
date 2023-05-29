@@ -25,6 +25,7 @@ import org.opensaml.core.xml.io.UnmarshallingException;
 import org.opensaml.saml.metadata.resolver.filter.FilterException;
 import org.opensaml.saml.metadata.resolver.impl.AbstractBatchMetadataResolver;
 
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.google.common.base.Charsets;
 
 import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
@@ -35,23 +36,27 @@ public class StaticMetadataResolver extends AbstractBatchMetadataResolver {
 
     private final XMLObject metadata;
 
-    public StaticMetadataResolver(String metadataXml) throws UnmarshallingException, ResolverException, FilterException {
-
-        BasicParserPool basicParserPool = new BasicParserPool();
+    public StaticMetadataResolver(String metadataXml) throws ConfigValidationException {
         try {
-            basicParserPool.initialize();
-        } catch (ComponentInitializationException e) {
-            throw new RuntimeException(e);
-        }
-        setParserPool(basicParserPool);
-        setId("static_metadata");
-        
-        this.metadata = unmarshallMetadata(new ByteArrayInputStream(metadataXml.getBytes(Charsets.UTF_8)));
+            BasicParserPool basicParserPool = new BasicParserPool();
+            try {
+                basicParserPool.initialize();
+            } catch (ComponentInitializationException e) {
+                throw new RuntimeException(e);
+            }
+            setParserPool(basicParserPool);
+            setId("static_metadata");
 
-        if (!isValid(metadata)) {
-            throw new ResolverException("SAML metadata has expired");
-        }
+            this.metadata = unmarshallMetadata(new ByteArrayInputStream(metadataXml.getBytes(Charsets.UTF_8)));
 
+            if (!isValid(metadata)) {
+                throw new ResolverException("SAML metadata has expired");
+            }
+        } catch (ResolverException e) {
+            throw new ConfigValidationException(new com.floragunn.codova.validation.errors.ValidationError(null, e.getMessage()).cause(e));
+        } catch (UnmarshallingException e) {
+            throw new ConfigValidationException(new com.floragunn.codova.validation.errors.ValidationError(null, "Not a valid XML structure").cause(e));
+        } 
     }
 
     public void initializePrivileged() throws ComponentInitializationException {
