@@ -49,6 +49,7 @@ import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.index.StoredFieldVisitor;
+import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.TermState;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
@@ -371,6 +372,26 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         @Override
         public CacheHelper getReaderCacheHelper() {
             return in.getReaderCacheHelper();
+        }
+    }
+
+    @Override
+    public StoredFields storedFields() throws IOException {
+        StoredFields storedFields = super.storedFields();
+        if (flsEnabled) {
+            return new StoredFields() {
+                @Override
+                public void document(int docID, StoredFieldVisitor visitor) throws IOException {
+                    storedFields.document(docID, new FlsStoredFieldVisitor(maskFields ? new HashingStoredFieldVisitor(visitor) : visitor));
+                }
+            };
+        } else {
+            return new StoredFields() {
+                @Override
+                public void document(int docID, StoredFieldVisitor visitor) throws IOException {
+                    storedFields.document(docID, maskFields ? new HashingStoredFieldVisitor(visitor) : visitor);
+                }
+            };
         }
     }
 

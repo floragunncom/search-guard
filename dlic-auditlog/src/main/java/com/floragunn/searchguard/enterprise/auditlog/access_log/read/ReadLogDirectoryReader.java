@@ -20,6 +20,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FilterDirectoryReader;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.StoredFieldVisitor;
+import org.apache.lucene.index.StoredFields;
 import org.elasticsearch.common.lucene.index.SequentialStoredFieldsLeafReader;
 
 public class ReadLogDirectoryReader extends FilterDirectoryReader {
@@ -66,6 +67,24 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
             @Override
             protected StoredFieldsReader doGetSequentialStoredFieldsReader(StoredFieldsReader reader) {
                 return new ReadLogStoredFieldsReader(reader);
+            }
+
+            @Override
+            public StoredFields storedFields() throws IOException {
+                StoredFields storedFields = super.storedFields();
+                if (context.getAuditLogConfig().isEnabled() && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
+                    return new StoredFields() {
+                        @Override
+                        public void document(int docID, StoredFieldVisitor visitor) throws IOException {
+                            ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
+                            storedFields.document(docID, complianceAwareStoredFieldVisitor);
+                            complianceAwareStoredFieldVisitor.finished();
+                        }
+                    };
+                } else {
+                    return storedFields;
+                }
+
             }
 
             @Override
