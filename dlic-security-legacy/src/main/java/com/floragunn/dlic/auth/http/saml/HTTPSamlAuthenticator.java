@@ -51,6 +51,7 @@ import com.floragunn.searchguard.legacy.LegacyComponentFactory;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PemKeyReader;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchsupport.PrivilegedCode;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
 import com.onelogin.saml2.authn.AuthnRequest;
@@ -298,10 +299,25 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
              {
         final AbstractReloadingMetadataResolver metadataResolver;
 
-        if (idpMetadataUrl != null) {
-            metadataResolver = new SamlHTTPMetadataResolver(settings, configPath);
-        } else {
-            metadataResolver = new SamlFilesystemMetadataResolver(settings, configPath);
+        try {
+            if (idpMetadataUrl != null) {
+                metadataResolver = PrivilegedCode.execute(() -> new SamlHTTPMetadataResolver(settings, configPath), Exception.class);
+            } else {
+                metadataResolver = PrivilegedCode.execute(() -> new SamlFilesystemMetadataResolver(settings, configPath), Exception.class);
+            }
+        } catch (Exception e) {
+            // Note: This is a bit messy by as this is the deprecated legacy class, I think it is ok
+            if (e instanceof ResolverException) {
+                throw (ResolverException) e;
+            } else if (e instanceof SSLConfigException) {
+                throw (SSLConfigException) e;
+            } else if (e instanceof ComponentInitializationException) {
+                throw (ComponentInitializationException) e;
+            } else if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            } else {
+                throw new RuntimeException(e);
+            }
         }
 
         SecurityManager sm = System.getSecurityManager();
