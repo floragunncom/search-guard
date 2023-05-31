@@ -310,6 +310,75 @@ public class MultitenancyTests {
             }
         }
     }
+    
+    @Test
+    public void testKibanaAliasKibana_8_8() throws Exception {
+        try {
+
+            try (Client tc = cluster.getInternalNodeClient()) {
+                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
+
+                tc.admin().indices()
+                        .create(new CreateIndexRequest(".kibana_analytics_-815674808_kibana712aliastest_8.8.0_001")
+                                .alias(new Alias(".kibana_analytics_-815674808_kibana712aliastest_8.8.0"))
+                                .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
+                        .actionGet();
+
+                tc.index(new IndexRequest(".kibana_analytics_-815674808_kibana712aliastest_8.8.0").id("test").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                        .source(body, XContentType.JSON)).actionGet();
+            }
+
+            try (GenericRestClient client = cluster.getRestClient("admin", "admin", "kibana_7_12_alias_test")) {
+
+                GenericRestClient.HttpResponse response = client.get(".kibana_analytics_8.8.0/_doc/test");
+
+                Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), ".kibana_analytics_-815674808_kibana712aliastest_8.8.0_001",
+                        response.getBodyAsDocNode().getAsString("_index"));
+            }
+        } finally {
+            try (Client tc = cluster.getInternalNodeClient()) {
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_analytics_-815674808_kibana712aliastest_8.8.0_001")).actionGet();
+            } catch (Exception ignored) {
+            }
+        }
+    } 
+    
+    @Test
+    public void testAliasCreationKibana_8_8() throws Exception {
+        try {
+            try (RestHighLevelClient tenantClient = cluster.getRestHighLevelClient("admin", "admin", "kibana_7_12_alias_creation_test");
+                 Client client = cluster.getInternalNodeClient()) {
+                IndexResponse indexResponse = tenantClient.index(".kibana_analytics_8.8.0_001","test", Map.of("buildNum", 15460));
+                Assert.assertEquals(indexResponse.toString(), indexResponse.result(), Result.Created);
+                Assert.assertEquals(indexResponse.toString(), ".kibana_analytics_1482524924_kibana712aliascreationtest_8.8.0_001", indexResponse.index());
+
+                UpdateAliasesResponse ackResponse = tenantClient.getJavaClient().indices().updateAliases(b->b.actions(
+                        a->a.add(ac->ac.index(".kibana_analytics_8.8.0_001").alias(".kibana_analytics_8.8.0")))
+                );
+
+                Assert.assertTrue(ackResponse.toString(), ackResponse.acknowledged());
+
+                GetResponse<Map> getResponse = tenantClient.get(".kibana_analytics_8.8.0", "test");
+
+                Assert.assertEquals(getResponse.toString(), ".kibana_analytics_1482524924_kibana712aliascreationtest_8.8.0_001", getResponse.index());
+
+                GetAliasesResponse getAliasesResponse = client.admin().indices()
+                        .getAliases(new GetAliasesRequest(".kibana_analytics_1482524924_kibana712aliascreationtest_8.8.0")).actionGet();
+
+                Assert.assertNotNull(getAliasesResponse.getAliases().toString(),
+                        getAliasesResponse.getAliases().get(".kibana_analytics_1482524924_kibana712aliascreationtest_8.8.0_001"));
+                Assert.assertEquals(getAliasesResponse.getAliases().toString(), ".kibana_analytics_1482524924_kibana712aliascreationtest_8.8.0",
+                        getAliasesResponse.getAliases().get(".kibana_analytics_1482524924_kibana712aliascreationtest_8.8.0_001").get(0).alias());
+
+            }
+        } finally {
+            try (Client tc = cluster.getInternalNodeClient()) {
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001")).actionGet();
+            } catch (Exception ignored) {
+            }
+        }
+    }
 
     @Test
     public void testMgetWithKibanaAlias() throws Exception {
