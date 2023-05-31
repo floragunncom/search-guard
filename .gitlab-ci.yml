@@ -99,7 +99,7 @@ veracode_scan:
   services:
     - docker:19.03-dind
   tags:
-    - hetzner-online-docker
+    - veracode-scan
   script:
     - apk add maven
     - JAVA_HOME=/usr/lib/jvm/java-11-openjdk "dev/scan_veracode.sh"
