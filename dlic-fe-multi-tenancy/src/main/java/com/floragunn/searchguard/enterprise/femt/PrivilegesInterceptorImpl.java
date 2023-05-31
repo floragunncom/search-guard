@@ -19,6 +19,7 @@ import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.Interce
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -55,6 +56,7 @@ import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.rest.RestStatus;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
@@ -62,8 +64,8 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
 
@@ -81,6 +83,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     private final Pattern versionedKibanaIndexPattern;
     private final Pattern kibanaIndexPatternWithTenant;
     private final ImmutableSet<String> tenantNames;
+    private final ImmutableList<String> indexSubNames = ImmutableList.of("alerting_cases", "analytics", "security_solution", "ingest");
     private final boolean enabled;
 
     public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, ImmutableSet<String> tenantNames, Actions actions) {
@@ -88,8 +91,8 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
         this.kibanaIndexNamePrefix = this.kibanaIndexName + "_";
-        this.versionedKibanaIndexPattern = Pattern
-                .compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+)?(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)");
+        this.versionedKibanaIndexPattern = Pattern.compile("(" + Pattern.quote(this.kibanaIndexName) + toPatternFragment(indexSubNames) + ")"
+                + "(_-?[0-9]+_[a-z0-9]+)?(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)");
         this.kibanaIndexPatternWithTenant = Pattern.compile(Pattern.quote(this.kibanaIndexName) + "(_-?[0-9]+_[a-z0-9]+(_[0-9]{3})?)");
 
         this.tenantNames = tenantNames.with(Tenant.GLOBAL_TENANT_ID);
@@ -129,8 +132,8 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     }
 
     @Override
-    public InterceptionResult replaceKibanaIndex(
-            PrivilegesEvaluationContext context, ActionRequest request, Action action, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
+    public InterceptionResult replaceKibanaIndex(PrivilegesEvaluationContext context, ActionRequest request, Action action,
+            ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
 
         if (!enabled) {
             return NORMAL;
@@ -138,7 +141,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
         User user = context.getUser();
         ResolvedIndices requestedResolved = context.getRequestInfo().getResolvedIndices();
-        
+
         if (user.getName().equals(kibanaServerUsername)) {
             return NORMAL;
         }
@@ -357,13 +360,13 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
                 // Post 7.12: .kibana_7.12.0
                 // Prefix will be: .kibana_
                 // Suffix will be: _7.12.0
-                if (matcher.group(1) == null) {
+                if (matcher.group(2) == null) {
                     // Basic case
-                    return new IndexInfo(aliasOrIndex, kibanaIndexName, matcher.group(2));
+                    return new IndexInfo(aliasOrIndex, matcher.group(1), matcher.group(3));
                 } else {
                     // We have here the case that the index replacement has been already applied.
                     // This can happen when internal ES operations trigger further operations, e.g. an index triggers an auto_create.
-                    return new IndexInfo(aliasOrIndex, kibanaIndexName, matcher.group(2), matcher.group(1));
+                    return new IndexInfo(aliasOrIndex, matcher.group(1), matcher.group(3), matcher.group(2));
                 }
             }
 
@@ -495,7 +498,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         result.put(user.getName(), true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, roles, null, null, false, null, null);
-        
+
         for (String tenant : this.tenantNames) {
             try {
                 boolean hasReadPermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, tenant).isOk();
@@ -518,4 +521,17 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         return User.USER_TENANT.equals(tenant) || tenantNames.contains(tenant);
     }
 
+    private String toPatternFragment(Collection<String> indexSuffixes) {
+        StringBuilder result = new StringBuilder("(?:");
+
+        for (String suffix : indexSuffixes) {
+            // An empty first element is expected in the result
+            result.append("|_");
+            result.append(Pattern.quote(suffix));
+        }
+
+        result.append(")");
+
+        return result.toString();
+    }
 }
