@@ -4,8 +4,12 @@ set -e
 
 MAIN_DIR=$(echo ~/searchguard-test)
 DOWNLOAD_CACHE="$MAIN_DIR/download-cache"
-INSTALL_DIR="$MAIN_DIR/es2"
+INSTALL_DIR="$MAIN_DIR/es"
 REPO_DIR=$(pwd)
+
+if [ -d $REPO_DIR/plugin/target/releases/ ]; then
+  rm $REPO_DIR/plugin/target/releases/*
+fi
 
 mvn install -Dmaven.test.skip.exec=true -Pquick
 
@@ -220,17 +224,15 @@ searchguard.allow_default_init_sgindex: true
 searchguard.authcz.admin_dn:
   - CN=kirk,OU=client,O=client,L=test, C=de
 searchguard.restapi.roles_enabled: ["SGS_ALL_ACCESS"]
-cluster.name: searchguard_demo2  
+cluster.name: searchguard_demo  
 cluster.routing.allocation.disk.threshold_enabled: false
 xpack.security.enabled: false
-discovery.type: single-node
-http.port: 19200
 EOM
 
 mkdir -p ~/.searchguard
-cat >~/.searchguard/cluster_test2.yml << EOM
+cat >~/.searchguard/cluster_test.yml << EOM
 server: "localhost"
-port: 19200
+port: 9200
 tls:
   trusted_cas: "#{file:$INSTALL_DIR/config/root-ca.pem}"
   client_auth:
@@ -239,7 +241,7 @@ tls:
 EOM
 
 echo >~/.searchguard/sgctl-selected-config.txt test
-
+  
 echo "Starting ES"
 
 bin/elasticsearch
