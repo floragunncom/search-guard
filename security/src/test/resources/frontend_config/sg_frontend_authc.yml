@@ -6,6 +6,7 @@ default:
   auth_domains: 
   - type: basic
     label: "Login Customized"
+    auto_select: true
   - type: oidc
     enabled: false
     label: "Hallo OIDC"

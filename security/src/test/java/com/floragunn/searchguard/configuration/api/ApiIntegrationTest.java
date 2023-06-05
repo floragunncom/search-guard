@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.configuration.api;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -58,6 +59,31 @@ public class ApiIntegrationTest {
             GenericRestClient.HttpResponse response = client.putJson("/_searchguard/license/key",  DocNode.of("key", "aGVsbG8K"));
             Assert.assertEquals(response.getBody(), 400, response.getStatusCode());
             Assert.assertTrue(response.getBody(), response.getBody().contains("Cannot find license signature"));
+        }
+    }
+
+    @Test
+    public void putFrontendAuthc_multipleDomainsWithAutoSelect() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+            DocNode body = DocNode.of("default", DocNode.of("auth_domains", ImmutableList.of(
+                    DocNode.of("type", "basic", "label", "basic-1", "enabled", false, "auto_select", true),
+                    DocNode.of("type", "basic", "label", "basic-2", "enabled", false, "auto_select", true)
+            )));
+            GenericRestClient.HttpResponse response = client.putJson("/_searchguard/config/authc_frontend",  body);
+            Assert.assertEquals(response.getBody(), 400, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBody().contains("'default.auth_domains': Only one frontend authentication domain can have 'auto_select' enabled"));
+        }
+    }
+
+    @Test
+    public void putFrontendAuthc_oneDomainWithAutoSelect() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+            DocNode body = DocNode.of("default", DocNode.of("auth_domains", ImmutableList.of(
+                    DocNode.of("type", "basic", "label", "basic-1", "enabled", false, "auto_select", true),
+                    DocNode.of("type", "oidc", "label", "basic-2", "enabled", false, "auto_select", false)
+            )));
+            GenericRestClient.HttpResponse response = client.putJson("/_searchguard/config/authc_frontend",  body);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
     }
 }
