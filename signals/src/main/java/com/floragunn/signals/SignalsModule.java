@@ -8,8 +8,24 @@ import java.util.function.Supplier;
 
 import com.floragunn.signals.actions.summary.LoadOperatorSummaryAction;
 import com.floragunn.signals.actions.summary.LoadOperatorSummaryHandler;
+import com.floragunn.signals.actions.watch.execute.ExecuteGenericWatchAction;
+import com.floragunn.signals.actions.watch.execute.ExecuteGenericWatchAction.ExecuteGenericWatchHandler;
+import com.floragunn.signals.actions.watch.generic.rest.DisableGenericWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.DisableGenericWatchInstanceAction.DisableGenericWatchInstanceHandler;
+import com.floragunn.signals.actions.watch.generic.rest.EnableGenericWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.EnableGenericWatchInstanceAction.EnableGenericWatchInstanceHandler;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertManyGenericWatchInstancesAction;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertManyGenericWatchInstancesAction.UpsertManyGenericWatchInstancesHandler;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertOneGenericWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertOneGenericWatchInstanceAction.UpsertOneGenericWatchInstanceHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
+import com.floragunn.signals.actions.watch.generic.rest.DeleteWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.DeleteWatchInstanceAction.DeleteWatchInstanceHandler;
+import com.floragunn.signals.actions.watch.generic.rest.GetAllWatchInstancesAction;
+import com.floragunn.signals.actions.watch.generic.rest.GetAllWatchInstancesAction.GetAllWatchInstancesHandler;
+import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceAction.GetWatchInstanceParametersHandler;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
 import com.floragunn.signals.proxy.rest.ProxyApi;
 import com.floragunn.signals.proxy.rest.TransportProxyUpdatedAction;
@@ -134,8 +150,10 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(settings), new ConvertWatchApiAction(settings),
                     new AckAndGetWatchApiAction(settings), CreateOrReplaceTruststoreAction.REST_API, FindOneTruststoreAction.REST_API,
-                    DeleteTruststoreAction.REST_API, FindAllTruststoresAction.REST_API, ProxyApi.REST_API, LoadOperatorSummaryAction.REST_API
-            );
+                    DeleteTruststoreAction.REST_API, FindAllTruststoresAction.REST_API, ProxyApi.REST_API, LoadOperatorSummaryAction.REST_API,
+                    UpsertOneGenericWatchInstanceAction.REST_API, GetWatchInstanceAction.REST_API,
+                    DeleteWatchInstanceAction.REST_API, UpsertManyGenericWatchInstancesAction.REST_API, GetAllWatchInstancesAction.REST_API,
+                    DisableGenericWatchInstanceAction.REST_API, EnableGenericWatchInstanceAction.REST_API);
         } else {
             return Collections.emptyList();
         }
@@ -153,6 +171,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(com.floragunn.signals.actions.watch.activate_deactivate.DeActivateWatchAction.INSTANCE,
                             TransportDeActivateWatchAction.class),
                     new ActionHandler<>(ExecuteWatchAction.INSTANCE, TransportExecuteWatchAction.class),
+                    new ActionHandler<>(ExecuteGenericWatchAction.INSTANCE, ExecuteGenericWatchHandler.class),
                     new ActionHandler<>(DestinationConfigUpdateAction.INSTANCE, TransportDestinationConfigUpdateAction.class),
                     new ActionHandler<>(PutAccountAction.INSTANCE, TransportPutAccountAction.class),
                     new ActionHandler<>(GetAccountAction.INSTANCE, TransportGetAccountAction.class),
@@ -177,7 +196,14 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(ProxyApi.DeleteProxyAction.INSTANCE, ProxyApi.DeleteProxyAction.DeleteProxyHandler.class),
                     new ActionHandler<>(ProxyApi.FindAllProxiesAction.INSTANCE, ProxyApi.FindAllProxiesAction.FindAllProxiesHandler.class),
                     new ActionHandler<>(TransportProxyUpdatedAction.ProxyUpdatedActionType.INSTANCE, TransportProxyUpdatedAction.class),
-                    new ActionHandler<>(LoadOperatorSummaryAction.INSTANCE, LoadOperatorSummaryHandler.class)
+                    new ActionHandler<>(LoadOperatorSummaryAction.INSTANCE, LoadOperatorSummaryHandler.class),
+                    new ActionHandler<>(UpsertOneGenericWatchInstanceAction.INSTANCE, UpsertOneGenericWatchInstanceHandler.class),
+                    new ActionHandler<>(GetWatchInstanceAction.INSTANCE, GetWatchInstanceParametersHandler.class),
+                    new ActionHandler<>(DeleteWatchInstanceAction.INSTANCE, DeleteWatchInstanceHandler.class),
+                    new ActionHandler<>(UpsertManyGenericWatchInstancesAction.INSTANCE, UpsertManyGenericWatchInstancesHandler.class),
+                    new ActionHandler<>(GetAllWatchInstancesAction.INSTANCE, GetAllWatchInstancesHandler.class),
+                    new ActionHandler<>(DisableGenericWatchInstanceAction.INSTANCE, DisableGenericWatchInstanceHandler.class),
+                    new ActionHandler<>(EnableGenericWatchInstanceAction.INSTANCE, EnableGenericWatchInstanceHandler.class)
             );
         } else {
             return Collections.emptyList();

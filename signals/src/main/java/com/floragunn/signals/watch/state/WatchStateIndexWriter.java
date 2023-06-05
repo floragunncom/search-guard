@@ -104,29 +104,6 @@ public class WatchStateIndexWriter implements WatchStateWriter<IndexResponse> {
             throw new RuntimeException(e);
         }
     }
-
-    public void putIfAbsent(String watchId, WatchState watchState) {
-
-        try {
-            put(watchId, watchState, new ActionListener<IndexResponse>() {
-
-                @Override
-                public void onResponse(IndexResponse response) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Updated " + watchId + " to:\n" + watchState + "\n" + Strings.toString(response));
-                    }
-                }
-
-                @Override
-                public void onFailure(Exception e) {
-                    log.error("Error while writing WatchState " + watchState, e);
-                }
-            });
-
-        } catch (Exception e) {
-            log.error("Error while writing WatchState " + watchState, e);
-        }        
-    }
     
     public void putIfAbsent(String watchId, WatchState watchState, ActionListener<IndexResponse> actionListener) {
         IndexRequest indexRequest = createIndexRequest(watchId, watchState, RefreshPolicy.IMMEDIATE, OpType.CREATE);

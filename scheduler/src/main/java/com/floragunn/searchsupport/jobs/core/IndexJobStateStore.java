@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -87,6 +88,8 @@ import com.google.common.collect.MapMaker;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 
+import static java.util.Objects.requireNonNull;
+
 public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs.config.JobConfig> implements DistributedJobStore {
 
     /**
@@ -134,9 +137,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     private final ClusterService clusterService;
     private final Collection<JobConfigListener<JobType>> jobConfigListeners;
 
+    private final GenericJobInstanceFactory<JobType> genericJobInstanceFactory;
+
     public IndexJobStateStore(String schedulerName, String statusIndexName, String statusIndexIdPrefix, String nodeId, Client client,
             Iterable<JobType> jobConfigSource, JobConfigFactory<JobType> jobFactory, ClusterService clusterService,
-            Collection<JobConfigListener<JobType>> jobConfigListeners) {
+            Collection<JobConfigListener<JobType>> jobConfigListeners, GenericJobInstanceFactory<JobType> genericJobInstanceFactory) {
         this.schedulerName = schedulerName;
         this.statusIndexName = statusIndexName;
         this.statusIndexIdPrefix = statusIndexIdPrefix;
@@ -146,6 +151,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         this.jobFactory = jobFactory;
         this.clusterService = clusterService;
         this.jobConfigListeners = new ArrayList<>(jobConfigListeners);
+        this.genericJobInstanceFactory = requireNonNull(genericJobInstanceFactory, "Generic job instance factory is required.");
     }
 
     @Override
@@ -172,6 +178,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         }
 
         try {
+            log.debug("Initialize scheduler jobs.");
             this.initJobs();
         } catch (Exception e) {
             if (clusterService != null) {
@@ -1797,6 +1804,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     }
 
     private Set<JobType> loadJobConfigAfterReachingYellowStatus() {
+        log.debug("Load signals job config after reaching yellow state");
         try {
             // TODO XXX
             ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth().setWaitForYellowStatus()
@@ -1815,11 +1823,15 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             throw e;
         }
 
-        return Sets.newHashSet(this.jobConfigSource);
+        return loadJobConfig();
     }
 
     private Set<JobType> loadJobConfig() {
-        return Sets.newHashSet(this.jobConfigSource);
+        log.debug("Loading signals job config and create watch instances.");
+        return Sets.newHashSet(this.jobConfigSource)//
+            .stream()//
+            .flatMap(jobType -> genericJobInstanceFactory.instantiateGeneric(jobType).stream())//
+            .collect(Collectors.toSet());//
     }
 
     private String quartzKeyToKeyString(org.quartz.utils.Key<?> key) {
@@ -2094,7 +2106,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         private InternalJobDetail jobDetail;
 
         InternalOperableTrigger(IndexJobStateStore<?> jobStore, TriggerKey key) {
-            this.key = java.util.Objects.requireNonNull(key, "TriggerKey must not be null");
+            this.key = requireNonNull(key, "TriggerKey must not be null");
             this.keyString = jobStore.quartzKeyToKeyString(key);
             this.jobStore = jobStore;
         }

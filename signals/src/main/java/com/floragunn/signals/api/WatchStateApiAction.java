@@ -28,13 +28,14 @@ public class WatchStateApiAction extends SignalsTenantAwareRestHandler {
 
     @Override
     public List<Route> routes() {
-        return ImmutableList.of(new Route(GET, "/_signals/watch/{tenant}/{id}/_state"));
+        return ImmutableList.of(new Route(GET, "/_signals/watch/{tenant}/{id}/_state"),
+            new Route(GET, "/_signals/watch/{tenant}/{id}/instances/{instance_id}/_state"));
     }
 
     @Override
     protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
 
-        final String watchId = request.param("id");
+        final String watchId = watchOrInstanceId(request.param("id"), request.param("instance_id"));
 
         return channel -> {
 

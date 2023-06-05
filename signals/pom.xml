@@ -31,6 +31,20 @@
       <scope>provided</scope>
     </dependency>
 
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-flx-support</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.floragunn</groupId>
+			<artifactId>search-guard-flx-support</artifactId>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Security -->
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-security</artifactId>

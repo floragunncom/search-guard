@@ -127,9 +127,12 @@ public class IndexMapping implements Document<IndexMapping> {
      * for the field exact value with terms query.
      */
     public static class TextWithKeywordProperty extends Property {
+
+        public static final String KEYWORD = "keyword";
+
         public TextWithKeywordProperty(String name) {
             super(name, "text");
-            withField(new KeywordProperty("keyword"));
+            withField(new KeywordProperty(KEYWORD));
         }
     }
 

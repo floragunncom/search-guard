@@ -20,16 +20,33 @@ package com.floragunn.signals;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchsupport.jobs.cluster.CurrentNodeJobSelector;
+import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactory;
+import com.floragunn.signals.actions.watch.generic.service.WatchInstancesLoader;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstancesRepository;
+import com.floragunn.signals.watch.GenericWatchInstanceFactory;
+import com.floragunn.signals.watch.WatchInstanceIdService;
 import com.floragunn.signals.watch.common.Ack;
+import com.floragunn.signals.watch.common.InstanceParser;
+import com.floragunn.signals.watch.common.Instances;
 import com.floragunn.signals.watch.common.throttle.DefaultThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import com.floragunn.signals.watch.common.ValidationLevel;
@@ -39,6 +56,12 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.get.MultiGetItemResponse;
+import org.elasticsearch.action.get.MultiGetRequest;
+import org.elasticsearch.action.get.MultiGetRequest.Item;
+import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -52,6 +75,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
@@ -95,6 +119,7 @@ import com.floragunn.signals.watch.state.WatchStateIndexWriter;
 import com.floragunn.signals.watch.state.WatchStateManager;
 
 import static com.floragunn.signals.watch.common.ValidationLevel.LENIENT;
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 
 public class SignalsTenant implements Closeable {
     private static final Logger log = LogManager.getLogger(SignalsTenant.class);
@@ -117,7 +142,7 @@ public class SignalsTenant implements Closeable {
     private final String scopedName;
     private final String configIndexName;
     private final String watchIdPrefix;
-    private final Client privilegedConfigClient;
+    private final PrivilegedConfigClient privilegedConfigClient;
     private final Client client;
     private final ClusterService clusterService;
     private final NodeEnvironment nodeEnvironment;
@@ -206,8 +231,17 @@ public class SignalsTenant implements Closeable {
                 .maxThreads(settings.getStaticSettings().getMaxThreads())//
                 .threadKeepAlive(settings.getStaticSettings().getThreadKeepAlive())//
                 .threadPriority(settings.getStaticSettings().getThreadPrio())//
+                .jobGenericWatchInstanceFactory(this::createGenericWatchInstanceFactory)
                 .build();
         this.scheduler.start();
+    }
+
+    private GenericJobInstanceFactory<Watch> createGenericWatchInstanceFactory(CurrentNodeJobSelector currentNodeJobSelector) {
+        WatchInstancesRepository repository = new WatchInstancesRepository(PrivilegedConfigClient.adapt(client));
+        WatchInstancesLoader watchInstancesLoader = new WatchInstancesLoader(getName(), repository);
+        ValidatingThrottlePeriodParser throttlePeriodParser = new ValidatingThrottlePeriodParser(settings);
+        WatchInitializationService watchInitService = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT);
+        return new GenericWatchInstanceFactory(watchInstancesLoader, watchInitService, currentNodeJobSelector);
     }
 
     public void pause() throws SchedulerException {
@@ -352,11 +386,13 @@ public class SignalsTenant implements Closeable {
         WatchInitializationService initializationService = new WatchInitializationService(accountRegistry, scriptService,//
             trustManagerRegistry, httpProxyHostRegistry, new ValidatingThrottlePeriodParser(settings), validationLevel);
         Watch watch = Watch.parse(initializationService, getName(), watchId, DocNode.wrap(watchJson), -1);
+        validateGenericWatchParameters(watch);
+        validateNonGenericWatchId(watchId, watch);
 
         watch.setTenant(name);
         watch.getMeta().setLastEditByUser(user.getName());
         watch.getMeta().setLastEditByDate(new Date());
-        watch.getMeta().setAuthToken(internalAuthTokenProvider.getJwt(user, watch.getIdAndHash()));
+        watch.getMeta().setAuthToken(internalAuthTokenProvider.getJwt(user, watch.getSecureAuthTokenAudience()));
 
         watchJson.put("_tenant", watch.getTenant());
         watchJson.put("_meta", watch.getMeta().toMap());
@@ -373,26 +409,67 @@ public class SignalsTenant implements Closeable {
             log.debug("IndexResponse from addWatch()\n" + Strings.toString(indexResponse));
         }
 
-        if (indexResponse.getResult() == Result.CREATED) {
-            watchStateWriter.put(watch.getId(), new WatchState(name), new ActionListener<IndexResponse>() {
 
-                @Override
-                public void onResponse(IndexResponse response) {
-                    SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
-                }
+        if ((indexResponse.getResult() == Result.CREATED)) {
+            if(watch.isExecutable()) {
+                WatchState watchState = new WatchState(name);
+                watchState.linkWithGenericWatch(watch);
+                watchStateWriter.put(watch.getId(), watchState, new ActionListener<IndexResponse>() {
 
-                @Override
-                public void onFailure(Exception e) {
-                    log.warn("Error while writing initial state for " + watch + ". Ignoring", e);
-                    SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
-                }
+                    @Override
+                    public void onResponse(IndexResponse response) {
+                        SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
+                    }
 
-            });
+                    @Override
+                    public void onFailure(Exception e) {
+                        log.warn("Error while writing initial state for " + watch + ". Ignoring", e);
+                        SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
+                    }
+
+                });
+            } else {
+                // state for not executable watches should not be saved. Just scheduler configuration needs to be updated in order to
+                // reload executable watches instances of a generic watch (generic watches are not executable
+                // whereas generic watches instances are executable)
+                SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
+            }
         } else if (indexResponse.getResult() == Result.UPDATED) {
             SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
         }
 
         return indexResponse;
+    }
+
+    private void validateNonGenericWatchId(String watchId, Watch watch) throws ConfigValidationException {
+        ValidationErrors validationErrors = new ValidationErrors();
+        if((!watch.getInstanceDefinition().isEnabled()) && WatchInstanceIdService.isPossibleGenericWatchInstanceId(watchId)) {
+            String genericWatchId = WatchInstanceIdService.extractParentGenericWatchId(watchId);
+            Boolean possibleIdConflict = watchesExist(genericWatchId).getOrDefault(genericWatchId, false);
+            if(possibleIdConflict) {
+                String message = "Possible ID conflict with one of generic watch instances";
+                ValidationError validationError = new ValidationError("watchId", message);
+                validationErrors.add(validationError);
+            }
+        }
+        validationErrors.throwExceptionForPresentErrors();
+    }
+
+    private void validateGenericWatchParameters(Watch watch) throws ConfigValidationException {
+        String watchId = watch.getId();
+        Instances currentInstance = watch.getInstanceDefinition();
+        Instances previousInstance = findGenericWatchInstanceConfig(watchId).orElse(currentInstance);
+        if(!currentInstance.hasSameParameterList(previousInstance)) {
+            StringBuilder stringBuilder = new StringBuilder("Previous version of generic watch '") //
+                .append(watchId) //
+                .append("' has distinct instance parameters list. Current list of parameters: [") //
+                .append(String.join(", ", currentInstance.getParams())) //
+                .append("]. Previous parameter list: [") //
+                .append(String.join(", ", previousInstance.getParams())) //
+                .append("]. To update generic watch both parameters list must be the same.");
+            String parametersPath = InstanceParser.FIELD_INSTANCES + "." + Instances.FIELD_PARAMS;
+            throw new ConfigValidationException(new ValidationError(parametersPath, stringBuilder.toString()));
+        }
     }
 
     public Map<String, Ack> ack(String watchId, User user) throws NoSuchWatchOnThisNodeException {
@@ -410,12 +487,14 @@ public class SignalsTenant implements Closeable {
 
         Map<String, Ack> result = watchState.ack(user != null ? user.getName() : null, watch);
 
+        watchState.linkWithGenericWatch(watch);
         watchStateWriter.put(watchId, watchState);
 
         return result;
     }
 
-    public WatchState ack(String watchId, String actionId, User user) throws NoSuchWatchOnThisNodeException, NoSuchActionException, NotAcknowledgeableException {
+    public WatchState ack(String watchId, String actionId, User user)
+        throws NoSuchWatchOnThisNodeException, NoSuchActionException, NotAcknowledgeableException {
         if (log.isInfoEnabled()) {
             log.info("ack(" + watchId + ", " + actionId + ", " + user + ")");
         }
@@ -436,6 +515,7 @@ public class SignalsTenant implements Closeable {
 
         watchState.getActionState(actionId).ack(user != null ? user.getName() : null);
 
+        watchState.linkWithGenericWatch(watch);
         watchStateWriter.put(watchId, watchState);
         return watchState;
     }
@@ -449,6 +529,12 @@ public class SignalsTenant implements Closeable {
 
         if (watchState == null) {
             throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
+        }
+        Watch watch = getLocallyRunningWatch(watchId);
+        if(watch != null) {
+            watchState.linkWithGenericWatch(watch);
+        } else {
+            log.warn("Try to unack watch '{}' actions, but watch is not running locally.", watchId);
         }
 
         List<String> result = watchState.unack(user != null ? user.getName() : null);
@@ -471,6 +557,12 @@ public class SignalsTenant implements Closeable {
 
         if (watchState == null) {
             throw new NoSuchWatchOnThisNodeException(watchId, nodeName);
+        }
+        Watch watch = getLocallyRunningWatch(watchId);
+        if(watch != null) {
+            watchState.linkWithGenericWatch(watch);
+        } else {
+            log.warn("Try to unack watch '{}' action '{}', but watch is not running locally.", watchId, actionId);
         }
 
         boolean result = watchState.getActionState(actionId).unackIfPossible(user != null ? user.getName() : null);
@@ -582,11 +674,20 @@ public class SignalsTenant implements Closeable {
 
         @Override
         public void onInit(Set<Watch> watches) {
-            Set<String> watchIds = watches.stream().map((watch) -> watch.getId()).collect(Collectors.toSet());
+            Map<String, Watch> watchIdToWatch = watches.stream().collect(Collectors.toMap(Watch::getId, Function.identity()));
 
             tenantState.setState(State.INITIALIZING, "reading_states");
 
-            Map<String, WatchState> dirtyStates = watchStateManager.reset(watchStateReader.get(watchIds), watchIds);
+            Map<String, WatchState> dirtyStates = watchStateManager.reset(watchStateReader.get(watchIdToWatch.keySet()), watchIdToWatch.keySet());
+            for(Map.Entry<String, WatchState> entry : dirtyStates.entrySet()) {
+                String currentWatchId = entry.getKey();
+                Watch watch = watchIdToWatch.get(currentWatchId);
+                if(watch == null) {
+                    log.warn("Cannot retrieve watch '{}' by its id in on init in job config listener", currentWatchId);
+                    continue;
+                }
+                entry.getValue().linkWithGenericWatch(watch);
+            }
 
             if (!dirtyStates.isEmpty()) {
                 tenantState.setState(State.INITIALIZING, "writing_states");
@@ -600,17 +701,26 @@ public class SignalsTenant implements Closeable {
         @Override
         public void beforeChange(Set<Watch> newJobs) {
             if (newJobs != null && newJobs.size() > 0) {
-                Set<String> watchIds = newJobs.stream().map((watch) -> watch.getId()).collect(Collectors.toSet());
+                Map<String, Watch> watchIdToWatch = newJobs.stream().collect(Collectors.toMap(Watch::getId, Function.identity()));
 
                 tenantState.setState(State.INITIALIZING, "reading_states");
 
                 if (log.isDebugEnabled()) {
-                    log.debug("Reading states of newly arrived watches from index: " + watchIds);
+                    log.debug("Reading states of newly arrived watches from index: " + watchIdToWatch.keySet());
                 }
 
-                Map<String, WatchState> statesFromIndex = watchStateReader.get(watchIds);
+                Map<String, WatchState> statesFromIndex = watchStateReader.get(watchIdToWatch.keySet());
 
-                Map<String, WatchState> dirtyStates = watchStateManager.add(statesFromIndex, watchIds);
+                Map<String, WatchState> dirtyStates = watchStateManager.add(statesFromIndex, watchIdToWatch.keySet());
+                for(Map.Entry<String, WatchState> entry : dirtyStates.entrySet()) {
+                    String currentWatchId = entry.getKey();
+                    Watch watch = watchIdToWatch.get(currentWatchId);
+                    if(watch == null) {
+                        log.warn("Cannot retrieve watch '{}' by its id in on before change in job config listener", currentWatchId);
+                        continue;
+                    }
+                    entry.getValue().linkWithGenericWatch(watch);
+                }
 
                 if (!dirtyStates.isEmpty()) {
                     tenantState.setState(State.INITIALIZING, "writing_states");
@@ -645,6 +755,58 @@ public class SignalsTenant implements Closeable {
 
     private QueryBuilder getConfigQuery(String tenant) {
         return QueryBuilders.boolQuery().must(QueryBuilders.termQuery("_tenant", tenant));
+    }
+
+    public Optional<Instances> findGenericWatchInstanceConfig(String watchId) {
+        Objects.requireNonNull(watchId, "Watch id is required");
+        String watchDocumentId = getWatchIdForConfigIndex(watchId);
+        GetRequest getRequest = new GetRequest(configIndexName).id(watchDocumentId);
+        ValidationErrors validationErrors = new ValidationErrors();
+        InstanceParser instanceParser = new InstanceParser(validationErrors);
+        Optional<Instances> optional = Optional.ofNullable(privilegedConfigClient.get(getRequest).actionGet())//
+            .filter(GetResponse::isExists)//
+            .map(GetResponse::getSourceAsString)//
+            .map(response -> {
+                try {
+                    return DocNode.parse(Format.JSON).from(response);
+                } catch (DocumentParseException e) {
+                    throw new RuntimeException("Cannot parse watch " + watchDocumentId, e);
+                }
+            })//
+            .map(docNode -> new ValidatingDocNode(docNode, validationErrors)) //
+            .map(instanceParser::parse);
+        if(validationErrors.hasErrors()) {
+            log.warn("Watch '{}' instance parameters contains configuration errors: '{}'.", watchDocumentId, validationErrors.toDebugString());
+        }
+        return optional;
+    }
+
+    public ImmutableMap<String, Boolean> watchesExist(String...watchIds) {
+        if(watchIds.length == 0) {
+            return ImmutableMap.empty();
+        }
+        Map<String, String> internalIdToWatchId = new HashMap<>();
+        MultiGetRequest request = new MultiGetRequest();
+        for(String currentWatchId : watchIds) {
+            String internalWatchId = getWatchIdForConfigIndex(currentWatchId);
+            internalIdToWatchId.put(internalWatchId, currentWatchId);
+            Item item = new Item(configIndexName, internalWatchId);
+            item.fetchSourceContext(FetchSourceContext.DO_NOT_FETCH_SOURCE);
+            request.add(item);
+        }
+        MultiGetResponse multiGetresponse = privilegedConfigClient.multiGet(request).actionGet();
+        ImmutableMap.Builder result = new ImmutableMap.Builder();
+        for(MultiGetItemResponse response : multiGetresponse.getResponses()) {
+            if(response.isFailed()) {
+                String message = "Cannot load watch '" + response.getId() + "', error occurred " + response.getFailure().getMessage();
+                throw new RuntimeException(message);
+            }
+            GetResponse getResponse = response.getResponse();
+            boolean exists = getResponse.isExists();
+            String externalWatchId = internalIdToWatchId.get(getResponse.getId());
+            result.put(externalWatchId, exists);
+        }
+        return result.build();
     }
 
     public String getName() {

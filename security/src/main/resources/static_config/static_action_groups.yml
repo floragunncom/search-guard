@@ -292,6 +292,8 @@ SGS_SIGNALS_WATCH_READ:
     - "cluster:admin:searchguard:tenant:signals:watch/search"
     - "cluster:admin:searchguard:tenant:signals:watch:state/get"
     - "cluster:admin:searchguard:tenant:signals:watch:state/search"
+    - "cluster:admin:searchguard:tenant:signals:watch/get_all_instances"
+    - "cluster:admin:searchguard:tenant:signals:watch/instances/get_one"
   type: "signals"
   description: "Grants permissions to read Signals Alerting watches"
 
@@ -303,8 +305,16 @@ SGS_SIGNALS_WATCH_MANAGE:
     - "cluster:admin:searchguard:tenant:signals:watch/put"
     - "cluster:admin:searchguard:tenant:signals:watch/delete"
     - "cluster:admin:searchguard:tenant:signals:watch/execute"
+    - "cluster:admin:searchguard:tenant:signals:watch/generic_execute"
     - "cluster:admin:searchguard:tenant:signals:watch/activate_deactivate"
     - "cluster:admin:searchguard:tenant:signals:watch/ack"
+    - "cluster:admin:searchguard:tenant:signals:watch/instances/delete"
+    - "cluster:admin:searchguard:tenant:signals:watch/instances/disable"
+    - "cluster:admin:searchguard:tenant:signals:watch/instances/enable"
+    - "cluster:admin:searchguard:tenant:signals:watch/get_all_instances"
+    - "cluster:admin:searchguard:tenant:signals:watch/instances/get_one"
+    - "cluster:admin:searchguard:tenant:signals:watch/instances/upsert_many"
+    - "cluster:admin:searchguard:tenant:signals:watch/instances/upsert_one"
   type: "signals"
   description: "Grants permissions to write Signals Alerting watches"
 
@@ -313,6 +323,7 @@ SGS_SIGNALS_WATCH_EXECUTE:
   hidden: false
   allowed_actions:
     - "cluster:admin:searchguard:tenant:signals:watch/execute"
+    - "cluster:admin:searchguard:tenant:signals:watch/generic_execute"
   type: "signals"
   description: "Grants permissions to execute Signals Alerting watches"
 
@@ -321,6 +332,8 @@ SGS_SIGNALS_WATCH_ACTIVATE:
   hidden: false
   allowed_actions:
     - "cluster:admin:searchguard:tenant:signals:watch/activate_deactivate"
+    - "cluster:admin:searchguard:tenant:signals:watch/instances/delete"
+    - "cluster:admin:searchguard:tenant:signals:watch/instances/disable"
   type: "signals"
   description: "Grants permissions to activate and deactivate Signals Alerting watches"
 

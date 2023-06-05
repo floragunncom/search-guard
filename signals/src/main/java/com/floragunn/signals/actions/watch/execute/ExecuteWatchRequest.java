@@ -9,6 +9,11 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 
 import com.floragunn.signals.execution.SimulationMode;
 
+/**
+ * @deprecated please use {@link ExecuteGenericWatchAction} instead. Class is still needed to preserve backwards compatibility during
+ * rolling upgrade.
+ */
+@Deprecated
 public class ExecuteWatchRequest extends ActionRequest {
 
     private String watchId;

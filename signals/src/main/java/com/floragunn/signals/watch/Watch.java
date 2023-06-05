@@ -24,11 +24,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.watch.common.InstanceParser;
+import com.floragunn.signals.watch.common.Instances;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
@@ -38,6 +47,7 @@ import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentFactory;
 import org.elasticsearch.xcontent.json.JsonXContent;
 import org.quartz.Job;
 import org.quartz.JobKey;
@@ -68,7 +78,27 @@ import com.floragunn.signals.watch.severity.SeverityMapping;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 
-public class Watch extends WatchElement implements JobConfig, ToXContentObject {
+import static com.floragunn.signals.watch.WatchInstanceIdService.INSTANCE_ID_SEPARATOR;
+
+public class Watch extends WatchElement implements JobConfig, ToXContentObject, Cloneable {
+
+    public static final String GENERIC_WATCH_INSTANCE_ID_PARAMETER = "id";
+
+    public enum WatchType {
+        SINGLE_INSTANCE(true),
+        GENERIC(false),
+        GENERIC_INSTANCE(true);
+
+        private final boolean executable;
+
+        WatchType(boolean executable) {
+            this.executable = executable;
+        }
+
+        public boolean isExecutable() {
+            return executable;
+        }
+    }
     private final static Logger log = LogManager.getLogger(Watch.class);
 
     public static Map<String, String> WITHOUT_AUTH_TOKEN_PARAM_MAP = Collections.singletonMap("include_auth_token", "false");
@@ -92,25 +122,103 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     private boolean logRuntimeData;
     private SeverityMapping severityMapping;
     private Meta meta = new Meta();
+    private Instances instances;
+    private String instanceId;
 
+    private com.floragunn.fluent.collections.ImmutableMap<String, Object> instanceParameters;
     private long version;
 
     public Watch() {
     }
 
     public Watch(JobKey jobKey, Schedule schedule, List<Check> checks, SeverityMapping severityMapping, List<AlertAction> actions,
-            List<ResolveAction> resolveActions) {
+            List<ResolveAction> resolveActions, Instances instances) {
         this.jobKey = jobKey;
         this.schedule = schedule;
         this.checks = checks;
         this.severityMapping = severityMapping;
         this.actions = actions;
         this.resolveActions = resolveActions;
+        this.instances = Objects.requireNonNull(instances, "Watch instances is required");
     }
 
     public String getId() {
         return jobKey.getName();
     }
+
+    public Optional<String> getParentGenericWatchId() {
+        return Optional.of(this) //
+            .filter(watch -> WatchType.GENERIC_INSTANCE.equals(watch.getWatchType())) //
+            .map(Watch::getId) //
+            .map(WatchInstanceIdService::extractParentGenericWatchId);
+    }
+
+    public Instances getInstanceDefinition() {
+        return instances;
+    }
+
+    public Optional<String> getInstanceId() {
+        return Optional.ofNullable(instanceId);
+    }
+
+    public com.floragunn.fluent.collections.ImmutableMap<String, Object> getInstanceParameters() {
+        return instanceParameters == null ? com.floragunn.fluent.collections.ImmutableMap.empty() : instanceParameters;
+    }
+
+    private void setInstancesParameters(WatchInstanceData instancesParameters) {
+        if(instancesParameters != null) {
+            this.instanceId = Objects.requireNonNull(instancesParameters.getInstanceId(), "Generic watch instance id is required");
+            this.instanceParameters = Objects.requireNonNull(instancesParameters.getParameters(), "Watch parameters are required")//
+                .with(GENERIC_WATCH_INSTANCE_ID_PARAMETER, instanceId);
+        }
+    }
+
+    private long computeVersion(long watchVersion, long parametersVersion) {
+        log.debug("Watch version '{}', parameters version '{}'.", watchVersion, parametersVersion);
+        if(watchVersion < 0) {
+            throw new IllegalArgumentException("Watch version " + watchVersion + " is below 0");
+        }
+        if(parametersVersion < 0) {
+            throw new IllegalArgumentException("Parameters version " + parametersVersion + " is below 0");
+        }
+        watchVersion = watchVersion << 32;
+        return watchVersion | parametersVersion;
+    }
+
+    Watch createInstance(WatchInstanceData watchInstanceData) throws CloneNotSupportedException, IOException, ConfigValidationException {
+        if(!(instances.isEnabled() || (getWatchType().equals(WatchType.GENERIC)))) {
+            throw new IllegalArgumentException("It is possible to create instance only of generic watch");
+        }
+        Watch clone = this.clone();
+        Objects.requireNonNull(watchInstanceData, "Watch instance data is required");
+        clone.instanceId = Objects.requireNonNull(watchInstanceData.getInstanceId(), "Generic watch instance id is required");
+        clone.instanceParameters = Objects.requireNonNull(watchInstanceData.getParameters(), "Watch parameters are required")//
+            .with(GENERIC_WATCH_INSTANCE_ID_PARAMETER, watchInstanceData.getInstanceId());
+        clone.version = computeVersion(clone.version, watchInstanceData.getVersion());
+        String newId = Watch.createInstanceId(clone.getId(), watchInstanceData.getInstanceId());
+        clone.jobKey = createJobKey(newId);
+        ValidationErrors validationErrors = new ValidationErrors();
+        // it is necessary to clone schedulers with a new job key because otherwise watch will be not executed
+        clone.schedule = clone.cloneSchedule(validationErrors);
+        validationErrors.throwExceptionForPresentErrors();
+        return clone;
+    }
+
+    private Schedule cloneSchedule(ValidationErrors validationErrors) throws IOException, DocumentParseException {
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        builder.startObject();
+        this.scheduleToXContent(builder);
+        builder.endObject();
+        String triggerJson = BytesReference.bytes(builder).utf8ToString();
+        DocNode docNode = DocNode.parse(Format.JSON).from(triggerJson);
+        ValidatingDocNode vJsonNode = new ValidatingDocNode(docNode, validationErrors);
+        return vJsonNode.get("trigger").by((triggerNode) -> DefaultScheduleFactory.INSTANCE.create(jobKey, triggerNode));
+    }
+
+    public static String createInstanceId(String watchId, String instanceId) {
+        return WatchInstanceIdService.createInstanceId(watchId, instanceId);
+    }
+
 
     @Override
     public JobKey getJobKey() {
@@ -229,7 +337,11 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     }
 
     public String getSecureAuthTokenAudience() {
-        return getIdAndHash();
+        if((WatchType.SINGLE_INSTANCE == getWatchType()) || (WatchType.GENERIC == getWatchType())) {
+            return getIdAndHash();
+        }
+        // so this code is executed only for watch of type GENERIC_INSTANCE>
+        return WatchInstanceIdService.extractParentGenericWatchId(getId()) + "." + secureHash();
     }
 
     private void initAutoResolveActions() {
@@ -260,14 +372,11 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             builder.field("_tenant", tenant);
         }
 
-        if (schedule != null) {
-            builder.field("trigger");
-            builder.startObject();
-
-            builder.field("schedule", schedule);
-
-            builder.endObject();
+        if((instances != null) && (instances.isEnabled())) {
+            builder.field(InstanceParser.FIELD_INSTANCES, instances);
         }
+
+        scheduleToXContent(builder);
 
         if (throttlePeriod != null) {
             builder.field("throttle_period", throttlePeriod.toString());
@@ -321,6 +430,17 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         builder.endObject();
         return builder;
+    }
+
+    private void scheduleToXContent(XContentBuilder builder) throws IOException {
+        if (schedule != null) {
+            builder.field("trigger");
+            builder.startObject();
+
+            builder.field("schedule", schedule);
+
+            builder.endObject();
+        }
     }
 
     public DurationExpression getThrottlePeriod() {
@@ -396,6 +516,26 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         this.description = description;
     }
 
+    private WatchType getWatchType() {
+        if(instances.isEnabled() && Objects.nonNull(instanceId)) {
+            return WatchType.GENERIC_INSTANCE;
+        } else if(instances.isEnabled()) {
+            return WatchType.GENERIC;
+        } else {
+            return WatchType.SINGLE_INSTANCE;
+        }
+    }
+
+    @Override
+    public boolean isExecutable() {
+        return getWatchType().isExecutable();
+    }
+
+    @Override
+    public boolean isGenericJobConfig() {
+        return getWatchType() == WatchType.GENERIC;
+    }
+
     public static Watch parse(WatchInitializationService ctx, String tenant, String id, String json, long version) throws ConfigValidationException {
         return parse(ctx, tenant, id, DocNode.parse(Format.JSON).from(json), version);
     }
@@ -436,6 +576,15 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         }
 
         result.schedule = vJsonNode.get("trigger").by((triggerNode) -> DefaultScheduleFactory.INSTANCE.create(jobKey, triggerNode));
+
+        InstanceParser instanceParser = new InstanceParser(validationErrors);
+        result.instances = instanceParser.parse(vJsonNode);
+        if(result.instances.isEnabled()) {
+            if(id.contains(INSTANCE_ID_SEPARATOR)) {
+                String message = "Generic watch id cannot contain '" + INSTANCE_ID_SEPARATOR + "' string.";
+                validationErrors.add(new ValidationError(GENERIC_WATCH_INSTANCE_ID_PARAMETER, message));
+            }
+        }
         
         try {
             if (vJsonNode.get("inputs").asAnything() instanceof List) {
@@ -514,6 +663,20 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         validationErrors.throwExceptionForPresentErrors();
 
         return result;
+    }
+
+    @Override
+    protected Watch clone() throws CloneNotSupportedException {
+        Watch copy = (Watch) super.clone();
+        copy.jobKey = createJobKey(copy.getId());
+        copy.jobDataMap = copy.jobDataMap == null ? null : new HashMap<>(copy.jobDataMap);
+        copy.schedule = new ScheduleImpl(new ArrayList<>(this.schedule.getTriggers()));
+        copy.checks = copy.checks == null ? null : new ArrayList<>(copy.checks);
+        copy.actions = copy.actions == null ? null : new ArrayList<>(copy.actions);
+        copy.resolveActions = copy.resolveActions == null ? null : new ArrayList<>(copy.resolveActions);
+        copy.ui = copy.ui == null ? null : new HashMap<>(copy.ui);
+        copy.instances = copy.instances == null ? null : new Instances(copy.instances.isEnabled(), copy.instances.getParams());
+        return copy;
     }
 
     public static JobKey createJobKey(String id) {

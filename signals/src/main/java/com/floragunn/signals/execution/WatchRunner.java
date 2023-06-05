@@ -109,7 +109,8 @@ public class WatchRunner implements Job {
         this.watchState = watchState;
         this.diagnosticContext = diagnosticContext;
         this.lastSeverityLevel = watchState != null ? watchState.getLastSeverityLevel() : null;
-        this.contextData = new WatchExecutionContextData(new WatchExecutionContextData.WatchInfo(watch.getId(), watch.getTenant()));
+        this.contextData = new WatchExecutionContextData(new WatchExecutionContextData.WatchInfo(watch.getId(), watch.getTenant()),//
+            watch.getInstanceParameters());
         this.ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment,
                 ActionInvocationType.ALERT, this.contextData, watchState != null ? watchState.getLastExecutionContextData() : null, simulationMode,
                 new HttpEndpointWhitelist(signalsSettings.getDynamicSettings().getAllowedHttpEndpoints()),
@@ -145,17 +146,26 @@ public class WatchRunner implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
+        if(! watch.isExecutable()) {
+            log.error("Watch '{}' is not executable and should be not scheduled.", watch.getId());
+            throw new JobExecutionException("The watch is not executable '" + watch.getId() + "' and should be not scheduled.");
+        }
         try {
             contextData.setTriggerInfo(new WatchExecutionContextData.TriggerInfo(context.getFireTime(), context.getScheduledFireTime(),
                     context.getPreviousFireTime(), context.getNextFireTime()));
             execute();
-        } catch (WatchExecutionException e) {
+        } catch (WatchExecutionException | NotExecutableWatchException e) {
             log.info("Error while executing " + watch, e);
             throw new JobExecutionException(e);
         }
     }
 
-    public WatchLog execute() throws WatchExecutionException {
+    public WatchLog execute() throws WatchExecutionException, NotExecutableWatchException {
+        if(! watch.isExecutable()) {
+            log.error("Generic watch '{}' is not executable and should be not scheduled.", watch.getId());
+            String message = "Generic watch '" + watch.getId() + "' is not executable";
+            throw new NotExecutableWatchException(message);
+        }
         try (DiagnosticContext.Handle h = diagnosticContext.pushActionStack("signals_watch:" + watch.getTenant() + "/" + watch.getId())) {
 
             if (log.isInfoEnabled()) {
@@ -216,9 +226,11 @@ public class WatchRunner implements Job {
                     }
 
                     this.watchState.setLastStatus(this.watchLog.getStatus());
+
                 }
 
                 if (this.watchStateWriter != null && this.watchState != null) {
+                    this.watchState.linkWithGenericWatch(watch);
                     this.watchStateWriter.put(watch.getId(), this.watchState);
                 }
 

@@ -46,7 +46,7 @@ public class IndexAction extends ActionHandler {
 
     @Override
     public ActionExecutionResult execute(WatchExecutionContext ctx) throws ActionExecutionException {
-
+        log.debug("Index action is executed for index '{}'.", index);
         NestedValueMap data = ctx.getContextData().getData();
         Object subDoc = data.get("_doc");
 

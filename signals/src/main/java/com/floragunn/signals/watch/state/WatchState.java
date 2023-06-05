@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.floragunn.signals.watch.common.Ack;
@@ -45,8 +46,12 @@ import com.floragunn.signals.watch.action.invokers.AlertAction;
 import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.severity.SeverityLevel;
 
+import static com.floragunn.signals.execution.WatchExecutionContextData.KEY_INSTANCE_PARAMS;
+
 public class WatchState implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(WatchState.class);
+    private static final String FIELD_INSTANCE_ID = "instance_id";
+    public static final String FIELD_PARENT_GENERIC_WATCH_ID = "parent_generic_watch_id";
 
     private Map<String, ActionState> actions = new ConcurrentHashMap<>();
     private volatile WatchExecutionContextData lastExecutionContextData;
@@ -56,6 +61,8 @@ public class WatchState implements ToXContentObject {
     private String node;
     private boolean refreshBeforeExecuting;
     private transient final Instant creationTime = Instant.now();
+    private String instanceId;
+    private String parentGenericWatchId;
 
     public WatchState(String tenant) {
         this.tenant = tenant;
@@ -130,6 +137,12 @@ public class WatchState implements ToXContentObject {
         builder.startObject();
 
         builder.field("_tenant", tenant);
+        if(instanceId != null) {
+            builder.field(FIELD_INSTANCE_ID, instanceId);
+        }
+        if(parentGenericWatchId != null) {
+            builder.field(FIELD_PARENT_GENERIC_WATCH_ID, parentGenericWatchId);
+        }
 
         builder.startObject("actions");
 
@@ -161,7 +174,12 @@ public class WatchState implements ToXContentObject {
 
     public static WatchState createFrom(String tenant, DocNode jsonNode) {
         WatchState result = new WatchState(tenant);
-
+        if(jsonNode.hasNonNull(FIELD_INSTANCE_ID)) {
+            result.setInstanceId(jsonNode.getAsString(FIELD_INSTANCE_ID));
+        }
+        if(jsonNode.hasNonNull(FIELD_PARENT_GENERIC_WATCH_ID)) {
+            result.setParentGenericWatchId(jsonNode.getAsString(FIELD_PARENT_GENERIC_WATCH_ID));
+        }
         if (jsonNode.hasNonNull("last_execution")) {
             try {
                 result.lastExecutionContextData = WatchExecutionContextData.create(jsonNode.getAsNode("last_execution"));
@@ -208,8 +226,24 @@ public class WatchState implements ToXContentObject {
         result.put(new NestedValueMap.Path("properties", "last_execution", "properties", "data", "dynamic"), true);
         result.put(new NestedValueMap.Path("properties", "last_execution", "properties", "data", "enabled"), false);
 
+        result.put(new NestedValueMap.Path("properties", FIELD_INSTANCE_ID, "type"), "keyword");
+        result.put(new NestedValueMap.Path("properties", FIELD_PARENT_GENERIC_WATCH_ID, "type"), "keyword");
+        result.put(new NestedValueMap.Path("properties", "last_execution", "properties", KEY_INSTANCE_PARAMS, "type"), "object");
+        result.put(new NestedValueMap.Path("properties", "last_execution", "properties", KEY_INSTANCE_PARAMS, "dynamic"), true);
+        result.put(new NestedValueMap.Path("properties", "last_execution", "properties", KEY_INSTANCE_PARAMS, "enabled"), false);
         return result;
     }
+
+    public static Map<String, Object> getIndexMappingUpdate() {
+        NestedValueMap result = new NestedValueMap();
+        result.put(new NestedValueMap.Path("properties", FIELD_INSTANCE_ID, "type"), "keyword");
+        result.put(new NestedValueMap.Path("properties", FIELD_PARENT_GENERIC_WATCH_ID, "type"), "keyword");
+        result.put(new NestedValueMap.Path("properties", "last_execution", "properties", KEY_INSTANCE_PARAMS, "type"), "object");
+        result.put(new NestedValueMap.Path("properties", "last_execution", "properties", KEY_INSTANCE_PARAMS, "dynamic"), true);
+        result.put(new NestedValueMap.Path("properties", "last_execution", "properties", KEY_INSTANCE_PARAMS, "enabled"), false);
+        return result;
+    }
+
 
     public SeverityLevel getLastSeverityLevel() {
         if (lastExecutionContextData != null && lastExecutionContextData.getSeverity() != null) {
@@ -269,5 +303,19 @@ public class WatchState implements ToXContentObject {
 
     public Instant getCreationTime() {
         return creationTime;
+    }
+
+    public void linkWithGenericWatch(Watch watch) {
+        Objects.requireNonNull(watch, "Watch is required");
+        this.instanceId = watch.getInstanceId().orElse(null);
+        this.parentGenericWatchId = watch.getParentGenericWatchId().orElse(null);
+    }
+
+    public void setInstanceId(String instanceId) {
+        this.instanceId = instanceId;
+    }
+
+    public void setParentGenericWatchId(String parentGenericWatchId) {
+        this.parentGenericWatchId = parentGenericWatchId;
     }
 }

@@ -103,6 +103,16 @@ public class DefaultJobConfig implements JobConfig {
         return secureAuthTokenAudience;
     }
 
+    @Override
+    public boolean isExecutable() {
+        return true;
+    }
+
+    @Override
+    public boolean isGenericJobConfig() {
+        return false;
+    }
+
     public void setSecureAuthTokenAudience(String secureAuthTokenAudience) {
         this.secureAuthTokenAudience = secureAuthTokenAudience;
     }

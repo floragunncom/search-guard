@@ -3,6 +3,8 @@ package com.floragunn.signals.api;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
+import com.floragunn.signals.watch.Watch;
+import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -83,6 +85,10 @@ public abstract class SignalsBaseRestHandler extends BaseRestHandler {
             log.error(e.toString(), e);
             throw ExceptionsHelper.convertToElastic(e);
         }
+    }
+
+    protected String watchOrInstanceId(String watchId, String instanceId) {
+        return Strings.isNullOrEmpty(instanceId) ? watchId : Watch.createInstanceId(watchId, instanceId);
     }
 
 }

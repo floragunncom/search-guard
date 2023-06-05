@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.floragunn.signals.actions.watch.execute.ExecuteGenericWatchAction;
+import com.floragunn.signals.actions.watch.execute.ExecuteGenericWatchAction.ExecuteGenericWatchRequest;
+import com.floragunn.signals.actions.watch.execute.ExecuteGenericWatchAction.ExecuteGenericWatchResponse;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -27,6 +30,7 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchAction;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchRequest;
+import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchResponse;
 import com.floragunn.signals.execution.SimulationMode;
 import com.floragunn.signals.watch.Watch;
@@ -51,7 +55,8 @@ public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
     @Override
     public List<Route> routes() {
         return ImmutableList.of(new Route(Method.POST, "/_signals/watch/{tenant}/_execute"),
-                new Route(Method.POST, "/_signals/watch/{tenant}/{id}/_execute"));
+            new Route(Method.POST, "/_signals/watch/{tenant}/{id}/_execute"),
+            new Route(Method.POST, "/_signals/watch/{tenant}/{id}/instances/{instance_id}/_execute"));
     }
 
     @Override
@@ -59,6 +64,7 @@ public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
         try {
 
             final String id = request.param("id");
+            final String instanceId = request.param("instance_id");
             request.param("tenant");
             WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
                 null, null, throttlePeriodParser, LENIENT);
@@ -71,7 +77,7 @@ public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
             SimulationMode simulationMode = requestBody.isSkipActions() ? SimulationMode.SKIP_ACTIONS
                     : requestBody.isSimulate() ? SimulationMode.SIMULATE_ACTIONS : SimulationMode.FOR_REAL;
 
-            ExecuteWatchRequest executeWatchRequest = new ExecuteWatchRequest(id,
+            ExecuteGenericWatchRequest executeWatchRequest = new ExecuteGenericWatchRequest(id, instanceId,
                     requestBody.getWatch() != null ? requestBody.getWatch().toJson() : null, requestBody.isRecordExecution(), simulationMode,
                     requestBody.isShowAllRuntimeAttributes());
 
@@ -82,26 +88,36 @@ public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
             executeWatchRequest.setGoTo(requestBody.getGoTo());
 
             return channel -> {
-                client.execute(ExecuteWatchAction.INSTANCE, executeWatchRequest, new ActionListener<ExecuteWatchResponse>() {
+                client.execute(ExecuteGenericWatchAction.INSTANCE, executeWatchRequest, new ActionListener<ExecuteGenericWatchResponse>() {
 
                     @Override
-                    public void onResponse(ExecuteWatchResponse response) {
-                        if (response.getStatus() == ExecuteWatchResponse.Status.EXECUTED) {
+                    public void onResponse(ExecuteGenericWatchResponse response) {
+                        if (response.getExecutionStatus() == ExecuteWatchResponse.Status.EXECUTED) {
                             channel.sendResponse(new BytesRestResponse(RestStatus.OK, "application/json", response.getResult()));
-                        } else if (response.getStatus() == ExecuteWatchResponse.Status.NOT_FOUND) {
+                        } else if (response.getExecutionStatus() == ExecuteWatchResponse.Status.NOT_FOUND) {
                             errorResponse(channel, RestStatus.NOT_FOUND, "No watch with id " + id);
-                        } else if (response.getStatus() == ExecuteWatchResponse.Status.TENANT_NOT_FOUND) {
+                        } else if(response.getExecutionStatus() == ExecuteWatchResponse.Status.INSTANCE_NOT_FOUND) {
+                            String error = "Generic watch '" + id + "' instance '" + instanceId + "' not found.";
+                            errorResponse(channel, RestStatus.NOT_FOUND, error);
+                        } else if (response.getExecutionStatus() == ExecuteWatchResponse.Status.TENANT_NOT_FOUND) {
                             errorResponse(channel, RestStatus.NOT_FOUND, "Tenant does not exist");
-                        } else if (response.getStatus() == ExecuteWatchResponse.Status.ERROR_WHILE_EXECUTING) {
+                        } else if (response.getExecutionStatus() == ExecuteWatchResponse.Status.ERROR_WHILE_EXECUTING) {
                             channel.sendResponse(new BytesRestResponse(RestStatus.UNPROCESSABLE_ENTITY, "application/json", response.getResult()));
-                        } else if (response.getStatus() == ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION) {
+                        } else if (response.getExecutionStatus() == ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION) {
                             if (requestBody.getWatch() != null) {
                                 channel.sendResponse(new BytesRestResponse(RestStatus.BAD_REQUEST, "application/json", response.getResult()));
                             } else {
                                 errorResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, "Internal Server Error: Stored watch cannot be parsed");
                             }
-                        } else if (response.getStatus() == ExecuteWatchResponse.Status.INVALID_GOTO) {
+                        } else if (response.getExecutionStatus() == ExecuteWatchResponse.Status.INVALID_GOTO) {
                             errorResponse(channel, RestStatus.BAD_REQUEST, "Invalid goto value: " + requestBody.getGoTo());
+                        } else if(response.getExecutionStatus() == ExecuteWatchResponse.Status.NOT_EXECUTABLE_WATCH) {
+                            String error = "Generic watch is not executable.";
+                            errorResponse(channel, RestStatus.CONFLICT, error);
+                        } else if(response.getExecutionStatus() == ExecuteWatchResponse.Status.MISSING_WATCH) {
+                            String error = "The request body does not contain 'watch' attribute. Path param 'watch_id' is also missing. " +
+                                "Please provide one of these parameters.";
+                            errorResponse(channel, RestStatus.BAD_REQUEST, error);
                         } else {
                             errorResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, "Internal Server Error");
                         }

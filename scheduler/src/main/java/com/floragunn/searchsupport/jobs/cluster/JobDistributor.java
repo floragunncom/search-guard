@@ -12,7 +12,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 
 import com.floragunn.searchsupport.jobs.config.JobConfig;
 
-public class JobDistributor implements AutoCloseable {
+public class JobDistributor implements AutoCloseable, CurrentNodeJobSelector {
     protected final Logger log = LogManager.getLogger(this.getClass());
 
     private final String name;
@@ -41,6 +41,7 @@ public class JobDistributor implements AutoCloseable {
         init();
     }
 
+    @Override
     public boolean isJobSelected(JobConfig jobConfig) {
         return this.isJobSelected(jobConfig, this.currentNodeIndex);
     }
@@ -48,6 +49,13 @@ public class JobDistributor implements AutoCloseable {
     public boolean isJobSelected(JobConfig jobConfig, int nodeIndex) {
         if (this.availableNodes == 0) {
             return false;
+        }
+        if(jobConfig.isGenericJobConfig()) {
+            // generic jobs are not executable. Generic jobs are used to create executable job instances which
+            // are assigned to each node at a later stage in method
+            // com.floragunn.signals.watch.GenericWatchInstanceFactory.instantiateGeneric
+            log.trace("Generic jobs config '{}' is assigned to the current node", jobConfig);
+            return true;
         }
 
         int jobNodeIndex = Math.abs(jobConfig.hashCode()) % this.availableNodes;

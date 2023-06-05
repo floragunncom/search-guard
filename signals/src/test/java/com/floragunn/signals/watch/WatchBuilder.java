@@ -27,7 +27,11 @@ import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.common.TlsConfig;
 import com.jayway.jsonpath.JsonPath;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
+import com.floragunn.signals.watch.common.TlsConfig;
 import com.google.common.base.Strings;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.signals.watch.common.Instances;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.mockito.Mockito;
 import org.quartz.CronScheduleBuilder;
@@ -80,6 +84,8 @@ public class WatchBuilder {
     List<ResolveAction> resolveActions = new ArrayList<>();
     SeverityMapping severityMapping;
     DurationExpression throttlePeriod;
+
+    private Instances instances = Instances.EMPTY;
 
     final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private boolean active = true;
@@ -154,6 +160,11 @@ public class WatchBuilder {
         return this;
     }
 
+    public WatchBuilder instances(boolean enabled, String...genericWatchParameterNames) {
+        this.instances = new Instances(enabled, ImmutableList.of(Arrays.asList(genericWatchParameterNames)));
+        return this;
+    }
+
     public SearchBuilder search(String... indices) {
         return new SearchBuilder(this, indices);
     }
@@ -190,7 +201,8 @@ public class WatchBuilder {
     }
 
     public Watch build() {
-        Watch result = new Watch(Watch.createJobKey(name), new ScheduleImpl(triggers), inputs, severityMapping, actions, resolveActions);
+        Watch result = new Watch(Watch.createJobKey(name), new ScheduleImpl(triggers), inputs, severityMapping, actions, resolveActions,
+            instances);
 
         result.setDescription(description);
         result.setActive(active);
@@ -295,7 +307,7 @@ public class WatchBuilder {
             return new GenericActionBuilder(this, actionHandler);
         }
 
-        protected abstract void addActionHandler(ActionHandler actionHandler, AbstractActionBuilder abstractActionBuilder);
+        protected abstract void addActionHandler(ActionHandler actionHandler, AbstractActionBuilder abstractActionBuilder, List<Check> checks);
 
     }
 
@@ -308,10 +320,11 @@ public class WatchBuilder {
             this.severityLevelSet = severityLevelSet;
         }
 
-        protected void addActionHandler(ActionHandler actionHandler, AbstractActionBuilder abstractActionBuilder) {
+        @Override
+        protected void addActionHandler(ActionHandler actionHandler, AbstractActionBuilder abstractActionBuilder, List<Check> checks) {
             if (actionHandler != null) {
                 parent.actions.add(new AlertAction(abstractActionBuilder.name, actionHandler, abstractActionBuilder.throttlePeriod, severityLevelSet,
-                        null, null, null, abstractActionBuilder.ackEnabled));
+                    checks, null, null, abstractActionBuilder.ackEnabled));
             }
 
         }
@@ -326,9 +339,10 @@ public class WatchBuilder {
             this.severityLevelSet = new SeverityLevel.Set(severityLevel1, severityLevel2);
         }
 
-        protected void addActionHandler(ActionHandler actionHandler, AbstractActionBuilder abstractActionBuilder) {
+        @Override
+        protected void addActionHandler(ActionHandler actionHandler, AbstractActionBuilder abstractActionBuilder, List<Check> checks) {
             if (actionHandler != null) {
-                parent.resolveActions.add(new ResolveAction(abstractActionBuilder.name, actionHandler, severityLevelSet, Collections.emptyList()));
+                parent.resolveActions.add(new ResolveAction(abstractActionBuilder.name, actionHandler, severityLevelSet, checks));
             }
         }
     }
@@ -338,6 +352,8 @@ public class WatchBuilder {
         protected String name;
         protected DurationExpression throttlePeriod;
         protected boolean ackEnabled = true;
+
+        protected List<Check> checks = new ArrayList<>();
 
         AbstractActionBuilder(BaseActionBuilder parent) {
             this.parent = parent;
@@ -367,7 +383,7 @@ public class WatchBuilder {
             ActionHandler actionHandler = finish();
 
             if (actionHandler != null) {
-                parent.addActionHandler(actionHandler, this);
+                parent.addActionHandler(actionHandler, this, checks);
             }
 
             return parent;
@@ -377,7 +393,7 @@ public class WatchBuilder {
             ActionHandler actionHandler = finish();
 
             if (actionHandler != null) {
-                parent.addActionHandler(actionHandler, this);
+                parent.addActionHandler(actionHandler, this, checks);
             }
 
             return parent.parent.build();
@@ -423,13 +439,17 @@ public class WatchBuilder {
             return this;
         }
 
+        public IndexActionBuilder transform(String name, String transformationSource) {
+            Transform transform = new Transform(name, null, transformationSource, null, ImmutableMap.empty());
+            checks.add(transform);
+            return this;
+        }
+
         protected ActionHandler finish() {
             IndexAction action = new IndexAction(indexName, refreshPolicy);
-
             if (id != null) {
                 action.setDocId(id);
             }
-
             return action;
         }
     }
@@ -491,6 +511,10 @@ public class WatchBuilder {
 
         public WebhookActionBuilder truststoreId(String truststoreId) {
             this.truststoreId = truststoreId;
+            return this;
+        }
+        public WebhookActionBuilder body(DocNode body) {
+            this.body = body.toJsonString();
             return this;
         }
 

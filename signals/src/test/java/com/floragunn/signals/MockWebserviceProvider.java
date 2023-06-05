@@ -50,6 +50,11 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.certificate.utils.CertificateAndPrivateKeyWriter;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
+import com.google.common.collect.EvictingQueue;
+import com.google.common.collect.ImmutableList;
 import org.apache.http.Header;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntityEnclosingRequest;
@@ -76,11 +81,15 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.google.common.base.Charsets;
 import com.google.common.io.CharStreams;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bouncycastle.cert.X509CertificateHolder;
 
 import static com.floragunn.signals.truststore.rest.TruststoreLoader.storeTruststoreInPemFormat;
 
 public class MockWebserviceProvider implements Closeable {
+
+    private static final Logger log = LogManager.getLogger(MockWebserviceProvider.class);
 
     private HttpServer httpServer;
     private final int port;
@@ -97,7 +106,9 @@ public class MockWebserviceProvider implements Closeable {
     private Header requiredHttpHeader;
     private KeyStore trustStore;
 
-    MockWebserviceProvider(String path) throws IOException {
+    private EvictingQueue<String> recentRequestBodies = EvictingQueue.create(10);
+
+    public MockWebserviceProvider(String path) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort());
     }
 
@@ -237,8 +248,13 @@ public class MockWebserviceProvider implements Closeable {
         response.setEntity(new ByteArrayEntity(responseBody));
 
         if (request instanceof HttpEntityEnclosingRequest) {
-            lastRequestBody = CharStreams
+            String body = CharStreams
                     .toString(new InputStreamReader(((HttpEntityEnclosingRequest) request).getEntity().getContent(), Charsets.UTF_8));
+            synchronized (recentRequestBodies) {
+                recentRequestBodies.add(body);
+            }
+            lastRequestBody = body;
+            log.debug("Request with body '{}', received.", body);
         } else {
             lastRequestBody = null;
         }
@@ -334,8 +350,20 @@ public class MockWebserviceProvider implements Closeable {
         return lastRequestBody;
     }
 
+    public DocNode getLastRequestBodyAsDocNode() {
+        String body = getLastRequestBody();
+        try {
+            return DocNode.parse(Format.JSON).from(body);
+        } catch (DocumentParseException e) {
+            throw new RuntimeException("Cannot parse last request body as JSON: " + body, e);
+        }
+    }
+
     public void setLastRequestBody(String lastRequestBody) {
         this.lastRequestBody = lastRequestBody;
+        synchronized (recentRequestBodies) {
+            this.recentRequestBodies.add(lastRequestBody);
+        }
     }
 
     public List<Header> getLastRequestHeaders() {
@@ -382,6 +410,18 @@ public class MockWebserviceProvider implements Closeable {
         String pemCertificate = this.trustedCertificatePem("root-ca");
         try(GenericRestClient genericRestClient = cluster.getRestClient(user)) {
             storeTruststoreInPemFormat(genericRestClient, truststoreId, "name", pemCertificate);
+        }
+    }
+
+    public ImmutableList<String> getRecentRequestBodies() {
+        synchronized (recentRequestBodies) {
+            return ImmutableList.copyOf(this.recentRequestBodies);
+        }
+    }
+
+    public boolean containRecentRequestWithBody(String requiredBodyFragment) {
+        synchronized (recentRequestBodies) {
+            return recentRequestBodies.stream().filter(body -> body.contains(requiredBodyFragment)).count() > 0;
         }
     }
 }

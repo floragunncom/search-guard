@@ -77,7 +77,8 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
                 new ActionHandler<>(SessionApi.CreateAction.INSTANCE, SessionApi.CreateAction.Handler.class),
                 new ActionHandler<>(SessionApi.DeleteAction.INSTANCE, SessionApi.DeleteAction.Handler.class),
                 new ActionHandler<>(PushSessionTokenUpdateAction.INSTANCE, PushSessionTokenUpdateAction.TransportAction.class)//
-        ).with(SessionServiceConfigApi.ACTION_HANDLERS);
+        ).with(ImmutableList.of(SessionServiceConfigApi.ACTION_HANDLERS));
+            //.with(SessionServiceConfigApi.ACTION_HANDLERS);
     }
 
     @Override

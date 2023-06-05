@@ -37,12 +37,17 @@ public class SchedulerConfigUpdateAction extends ActionType<SchedulerConfigUpdat
     }
 
     public static void send(Client client, String schedulerName) {
+        send(client, schedulerName, () -> log.debug("nothing to do"));
+    }
+
+    public static void send(Client client, String schedulerName, Runnable afterSuccessSchedulerUpdateTask) {
         client.execute(SchedulerConfigUpdateAction.INSTANCE, new SchedulerConfigUpdateRequest(schedulerName),
                 new ActionListener<SchedulerConfigUpdateResponse>() {
 
                     @Override
                     public void onResponse(SchedulerConfigUpdateResponse response) {
                         log.info("Result of scheduler config update of " + schedulerName + ":\n" + response);
+                        afterSuccessSchedulerUpdateTask.run();
 
                     }
 

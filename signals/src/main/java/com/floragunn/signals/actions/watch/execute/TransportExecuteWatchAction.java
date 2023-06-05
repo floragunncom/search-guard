@@ -2,6 +2,7 @@ package com.floragunn.signals.actions.watch.execute;
 
 import java.io.IOException;
 
+import com.floragunn.signals.execution.NotExecutableWatchException;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,6 +54,11 @@ import com.google.common.base.Charsets;
 
 import static com.floragunn.signals.watch.common.ValidationLevel.LENIENT;
 
+/**
+ * @deprecated please use {@link ExecuteGenericWatchAction} instead. Class is still needed to preserve backwards compatibility during
+ * rolling upgrade.
+ */
+@Deprecated
 public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteWatchRequest, ExecuteWatchResponse> {
 
     private static final Logger log = LogManager.getLogger(TransportExecuteWatchAction.class);
@@ -239,7 +245,20 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
             log.info("Error while manually executing watch", e);
             return new ExecuteWatchResponse(null, request.getWatchId(), Status.ERROR_WHILE_EXECUTING,
                     toBytesReference(e.getWatchLog(), watchLogToXparams));
+        } catch (NotExecutableWatchException e) {
+            return new ExecuteWatchResponse(null, request.getWatchId(), Status.NOT_EXECUTABLE_WATCH,
+                toBytesReference(errorMessage("Provided watch is not executable, is it generic watch definition?"), watchLogToXparams));
         }
+
+    }
+
+    private ToXContent errorMessage(String message) {
+        return (xContentBuilder, params) -> {
+            xContentBuilder.startObject();
+            xContentBuilder.field("error", message);
+            xContentBuilder.endObject();
+            return xContentBuilder;
+        };
     }
 
     private BytesReference toBytesReference(ToXContent toXContent, ToXContent.Params toXparams) {

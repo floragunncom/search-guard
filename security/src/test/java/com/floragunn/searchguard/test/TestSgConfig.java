@@ -603,8 +603,27 @@ public class TestSgConfig {
             this.allowedActions = Objects.requireNonNull(allowedActions, "Tenant allowed actions must not be null");
         }
 
+        public TenantPermission() {
+            this.tenantPatterns = new ArrayList<>();
+            this.allowedActions = new ArrayList<>();
+        }
+
         NestedValueMap asNestedValueMap() {
             return NestedValueMap.of("tenant_patterns", tenantPatterns, "allowed_actions", allowedActions);
+        }
+
+        public static final TenantPermission ALL_TENANTS_AND_ACCESS = new TenantPermission().tenantPattern("*").allowedActions("*");
+
+        public TenantPermission tenantPattern(String...patterns) {
+            Objects.requireNonNull(patterns, "Tenant patterns are required");
+            this.tenantPatterns.addAll(Arrays.asList(patterns));
+            return this;
+        }
+
+        public TenantPermission allowedActions(String...actions) {
+            Objects.requireNonNull(actions, "Allowed actions are required");
+            this.allowedActions.addAll(Arrays.asList(actions));
+            return this;
         }
     }
 
@@ -649,6 +668,11 @@ public class TestSgConfig {
 
         public ExcludedIndexPermission excludeIndexPermissions(String... indexPermissions) {
             return new ExcludedIndexPermission(this, indexPermissions);
+        }
+
+        public Role tenantPermission(TenantPermission...permission) {
+            this.tenantPermissions.addAll(Arrays.asList(permission));
+            return this;
         }
 
         public String getName() {

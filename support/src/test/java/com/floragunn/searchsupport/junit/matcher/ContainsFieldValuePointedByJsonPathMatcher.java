@@ -30,7 +30,7 @@ class ContainsFieldValuePointedByJsonPathMatcher extends TypeSafeDiagnosingMatch
     @Override
     protected boolean matchesSafely(DocNode docNode, Description mismatchDescription) {
         if(log.isDebugEnabled()) {
-            log.debug("Checking id DocNode {} contain field {} with value {}", docNode.toPrettyJsonString(), jsonPath, fieldValue);
+            log.debug("Checking if DocNode '{}' contain field '{}' with value '{}'", docNode.toPrettyJsonString(), jsonPath, fieldValue);
         }
         try {
             Object nodeValue = docNode.findSingleValueByJsonPath(jsonPath, fieldValue.getClass());
@@ -41,7 +41,7 @@ class ContainsFieldValuePointedByJsonPathMatcher extends TypeSafeDiagnosingMatch
             }
             return true;
         } catch (PathNotFoundException e) {
-            log.debug("Patch {} not found in DocNode {}.", jsonPath, docNode, e);
+            log.debug("Patch '{}' not found in DocNode '{}'.", jsonPath, docNode, e);
             mismatchDescription.appendText(" path ").appendValue(jsonPath).appendText(" does not exists in doc node ")
                 .appendValue(docNode.toJsonString());
             return false;

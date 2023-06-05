@@ -19,6 +19,7 @@ import com.floragunn.signals.truststore.service.TruststoreCrudService;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.truststore.service.persistence.TruststoreData;
 import com.floragunn.signals.truststore.service.persistence.TruststoreRepository;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -172,7 +173,7 @@ public class Signals extends AbstractLifecycleComponent {
         IndexNames indexNames = signalsSettings.getStaticSettings().getIndexNames();
 
         String[] allIndexes = new String[] { indexNames.getWatches(), indexNames.getWatchesState(), indexNames.getWatchesTriggerState(),
-                indexNames.getAccounts(), indexNames.getSettings(), IndexNames.TRUSTSTORES, IndexNames.PROXIES };
+                indexNames.getAccounts(), indexNames.getSettings(), IndexNames.TRUSTSTORES, IndexNames.PROXIES, IndexNames.WATCHES_INSTANCES};
 
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping(), 2)
                 .mappingUpdate(0, Watch.getIndexMappingUpdate()).dependsOnIndices(allIndexes).onIndexReady(this::init)));
@@ -181,10 +182,14 @@ public class Signals extends AbstractLifecycleComponent {
         ConfigIndex proxyConfigIndex = new ConfigIndex(IndexNames.PROXIES).mapping(ProxyData.MAPPINGS);
         componentState.addPart(protectedConfigIndexService.createIndex(proxyConfigIndex));
         componentState.addPart(
-                protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping())));
+                protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping(), 1)
+                    .mappingUpdate(0, WatchState.getIndexMappingUpdate())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getAccounts())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getSettings())));
+        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(IndexNames.WATCHES_INSTANCES).mapping(
+            WatchInstanceData.MAPPINGS)));
+
     }
 
     private void checkInitState() throws SignalsUnavailableException {

@@ -31,4 +31,7 @@ public interface JobConfig {
     
     String getSecureAuthTokenAudience();
 
+    boolean isExecutable();
+
+    boolean isGenericJobConfig();
 }

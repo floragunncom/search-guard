@@ -1,5 +1,7 @@
 package com.floragunn.signals.actions.watch.delete;
 
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchService;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchServiceFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -32,6 +34,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
     private final Signals signals;
     private final Client client;
     private final ThreadPool threadPool;
+    private final GenericWatchService genericWatchService;
 
     @Inject
     public TransportDeleteWatchAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
@@ -41,6 +44,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
         this.signals = signals;
         this.client = client;
         this.threadPool = threadPool;
+        this.genericWatchService = new GenericWatchServiceFactory(signals, client).create();
     }
 
     @Override
@@ -85,22 +89,11 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
                                     threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
                                     threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
 
-                                    client.prepareDelete().setIndex(signalsTenant.getSettings().getStaticSettings().getIndexNames().getWatchesState())
-                                            .setId(idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
-
-                                                @Override
-                                                public void onResponse(DeleteResponse response) {
-                                                    if (log.isDebugEnabled()) {
-                                                        log.debug("Result of deleting state " + idInIndex + "\n" + Strings.toString(response));
-                                                    }
-                                                }
-
-                                                @Override
-                                                public void onFailure(Exception e) {
-                                                    log.error("Error while deleting state " + idInIndex, e);
-                                                }
-
-                                            });
+                                    fireDeleteWatchState(signalsTenant, idInIndex);
+                                    String name = signalsTenant.getName();
+                                    String watchId = request.getWatchId();
+                                    threadPool.generic() //
+                                        .submit(() -> genericWatchService.deleteAllInstanceParametersWithState(name, watchId));
                                 }
 
                                 listener.onResponse(new DeleteWatchResponse(request.getWatchId(), response.getVersion(), response.getResult(),
@@ -120,6 +113,25 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
         } catch (Exception e) {
             listener.onFailure(e);
         }
+    }
+
+    private void fireDeleteWatchState(SignalsTenant signalsTenant, String idInIndex) {
+        client.prepareDelete().setIndex(signalsTenant.getSettings().getStaticSettings().getIndexNames().getWatchesState())
+                .setId(idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
+
+                    @Override
+                    public void onResponse(DeleteResponse response) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Result of deleting state " + idInIndex + "\n" + Strings.toString(response));
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        log.error("Error while deleting state " + idInIndex, e);
+                    }
+
+                });
     }
 
 }

@@ -19,6 +19,7 @@ import com.floragunn.signals.watch.action.invokers.AlertAction;
 import com.floragunn.signals.watch.checks.Check;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.common.HttpRequestConfig.Method;
+import com.floragunn.signals.watch.common.Instances;
 import com.floragunn.signals.watch.common.auth.Auth;
 import com.floragunn.signals.watch.common.auth.BasicAuth;
 
@@ -72,7 +73,7 @@ public class EsWatcherConverter {
             validationErrors.add("actions", conversionResult.getSourceValidationErrors());
         }
 
-        return new ConversionResult<Watch>(new Watch(null, schedule, checks, null, actions, null), validationErrors);
+        return new ConversionResult<Watch>(new Watch(null, schedule, checks, null, actions, null, Instances.EMPTY), validationErrors);
     }
 
     static ConversionResult<HttpRequestConfig> createHttpRequestConfig(DocNode jsonNode) {
