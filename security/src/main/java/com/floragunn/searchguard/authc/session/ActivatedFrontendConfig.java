@@ -50,6 +50,7 @@ public class ActivatedFrontendConfig {
         private final String ssoLocation;
         private final String ssoContext;
         private final boolean captureUrlFragment;
+        private final boolean autoSelect;
         private final Map<String, Object> details;
         private final Map<String, Object> config;
 
@@ -66,15 +67,17 @@ public class ActivatedFrontendConfig {
             this.ssoContext = null;
             this.details = Collections.emptyMap();
             this.captureUrlFragment = false;
+            this.autoSelect = false;
         }
 
-        public AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment, String messageTitle, String message) {
+        public AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment, boolean autoSelect, String messageTitle, String message) {
             this.method = method;
             this.label = label;
             this.id = id;
             this.session = session;
             this.unavailable = unavailable;
             this.captureUrlFragment = captureUrlFragment;
+            this.autoSelect = autoSelect;
             this.messageTitle = messageTitle;
             this.message = message;
             this.config = Collections.emptyMap();
@@ -83,13 +86,14 @@ public class ActivatedFrontendConfig {
             this.details = Collections.emptyMap();
         }
 
-        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment,String messageTitle, String message,
-                String ssoLocation, String ssoContext, Map<String, Object> config) {
+        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment, boolean autoSelect,
+                           String messageTitle, String message,  String ssoLocation, String ssoContext, Map<String, Object> config) {
             this.method = method;
             this.id = id;
             this.session = session;
             this.unavailable = unavailable;
             this.captureUrlFragment = captureUrlFragment;
+            this.autoSelect = autoSelect;
             this.label = label;
             this.messageTitle = messageTitle;
             this.message = message;
@@ -99,13 +103,14 @@ public class ActivatedFrontendConfig {
             this.details = Collections.emptyMap();
         }
 
-        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment, String messageTitle, String message,
-                String ssoLocation, String ssoContext, Map<String, Object> config, Map<String, Object> details) {
+        private AuthMethod(String method, String label, String id, boolean session, boolean unavailable, boolean captureUrlFragment, boolean autoSelect,
+                           String messageTitle, String message, String ssoLocation, String ssoContext, Map<String, Object> config, Map<String, Object> details) {
             this.method = method;
             this.id = id;
             this.session = session;
             this.unavailable = unavailable;
             this.captureUrlFragment = captureUrlFragment;
+            this.autoSelect = autoSelect;
             this.label = label;
             this.messageTitle = messageTitle;
             this.message = message;
@@ -124,6 +129,7 @@ public class ActivatedFrontendConfig {
             this.message = docNode.getAsString("message_body");
             this.unavailable = docNode.getBoolean("unavailable") != null ? docNode.getBoolean("unavailable") : false;
             this.captureUrlFragment = docNode.getBoolean("capture_url_fragment") != null ? docNode.getBoolean("capture_url_fragment") : false;
+            this.autoSelect = docNode.getBoolean("auto_select") != null ? docNode.getBoolean("auto_select") : false;
             this.ssoLocation = docNode.getAsString("sso_location");
             this.ssoContext = docNode.getAsString("sso_context");
             this.config = docNode.hasNonNull("config") ? docNode.getAsNode("config").toMap() : null;
@@ -131,29 +137,29 @@ public class ActivatedFrontendConfig {
         }
 
         public AuthMethod unavailable(String messageTitle, String message) {
-            return new AuthMethod(method, label, id, session, true, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, true, captureUrlFragment, autoSelect, messageTitle, message, ssoLocation, ssoContext, config);
         }
 
         public AuthMethod unavailable(String messageTitle, String message, Map<String, Object> details) {
-            return new AuthMethod(method, label, id, session, true, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config, details);
+            return new AuthMethod(method, label, id, session, true, captureUrlFragment, autoSelect, messageTitle, message, ssoLocation, ssoContext, config, details);
         }
 
         public AuthMethod ssoLocation(String ssoLocation) {
-            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, autoSelect, messageTitle, message, ssoLocation, ssoContext, config);
         }
 
         public AuthMethod ssoContext(String ssoContext) {
-            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, autoSelect, messageTitle, message, ssoLocation, ssoContext, config);
         }
 
         public AuthMethod config(Map<String, Object> config) {
-            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config);
+            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, autoSelect, messageTitle, message, ssoLocation, ssoContext, config);
         }
 
         public AuthMethod config(String key, Object value) {
             HashMap<String, Object> newConfig = new HashMap<>(this.config);
             newConfig.put(key, value);
-            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, newConfig);
+            return new AuthMethod(method, label, id, session, unavailable, captureUrlFragment, autoSelect, messageTitle, message, ssoLocation, ssoContext, newConfig);
         }
 
         public String getMethod() {
@@ -177,7 +183,7 @@ public class ActivatedFrontendConfig {
         }
 
         public AuthMethod clone() {
-            return new AuthMethod(method, label, id, session, unavailable,captureUrlFragment, messageTitle, message, ssoLocation, ssoContext, config, details);
+            return new AuthMethod(method, label, id, session, unavailable,captureUrlFragment, autoSelect, messageTitle, message, ssoLocation, ssoContext, config, details);
         }
 
         public Map<String, Object> getConfig() {
@@ -207,6 +213,10 @@ public class ActivatedFrontendConfig {
             
             if (captureUrlFragment) {
                 result.put("capture_url_fragment", captureUrlFragment);
+            }
+
+            if (autoSelect) {
+                result.put("auto_select", autoSelect);
             }
 
             if (messageTitle != null) {

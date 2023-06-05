@@ -33,6 +33,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
@@ -79,12 +80,24 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
         result.parsedJson = DocNode.wrap(parsedJson);
         result.authDomains = ImmutableList
                 .of(vNode.get("auth_domains").asList((documentNode) -> FrontendAuthenticationDomain.parse(documentNode, context, metricsLevel)));
+        checkForMultipleAuthDomainsWithAutoSelectEnabled(result.authDomains, validationErrors);
+
         result.loginPage = vNode.get("login_page").withDefault(LoginPage.DEFAULT).by(LoginPage::parse);
         result.debug = vNode.get("debug").withDefault(false).asBoolean();
 
         vNode.checkForUnusedAttributes();
 
         return new ValidationResult<FrontendAuthcConfig>(result, validationErrors);
+    }
+
+    private static void checkForMultipleAuthDomainsWithAutoSelectEnabled(ImmutableList<FrontendAuthenticationDomain> authDomains, ValidationErrors validationErrors) {
+        long domainsWithAutoSelectEnabled = authDomains
+                .stream()
+                .filter(FrontendAuthenticationDomain::isAutoSelect)
+                .count();
+        if (domainsWithAutoSelectEnabled > 1) {
+            validationErrors.add(new ValidationError("auth_domains", "Only one frontend authentication domain can have 'auto_select' enabled"));
+        }
     }
 
     public static class FrontendAuthenticationDomain implements Document<FrontendAuthenticationDomain> {
@@ -96,6 +109,7 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
         private String message;
         private Map<String, Object> parsedJson;
         private boolean captureUrlFragment;
+        private boolean autoSelect = false;
 
         public FrontendAuthenticationDomain() {
 
@@ -130,6 +144,7 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
             result.enabled = vNode.get("enabled").withDefault(true).asBoolean();
             result.message = vNode.get("message").asString();
             result.captureUrlFragment = vNode.get("capture_url_fragment").withDefault(false).asBoolean();
+            result.autoSelect = vNode.get("auto_select").withDefault(false).asBoolean();
 
             if ("basic".equals(result.type)) {
                 if (result.message == null) {
@@ -184,6 +199,10 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
 
         public boolean isCaptureUrlFragment() {
             return captureUrlFragment;
+        }
+
+        public boolean isAutoSelect() {
+            return autoSelect;
         }
 
         @Override
