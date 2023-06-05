@@ -6,10 +6,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
-import com.floragunn.signals.actions.watch.CreateWatchInstanceAction;
-import com.floragunn.signals.actions.watch.CreateWatchInstanceAction.CreateWatchInstanceHandler;
+import com.floragunn.signals.actions.watch.template.rest.CreateOneWatchInstanceAction;
+import com.floragunn.signals.actions.watch.template.rest.CreateOneWatchInstanceAction.CreateWatchInstanceHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
+import com.floragunn.signals.actions.watch.template.rest.GetWatchInstanceParametersAction;
+import com.floragunn.signals.actions.watch.template.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersHandler;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
 import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.elasticsearch.action.ActionRequest;
@@ -126,7 +128,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
-                    new AckAndGetWatchApiAction(settings), CreateWatchInstanceAction.REST_API);
+                new AckAndGetWatchApiAction(settings), CreateOneWatchInstanceAction.REST_API, GetWatchInstanceParametersAction.REST_API);
         } else {
             return Collections.emptyList();
         }
@@ -159,7 +161,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(SearchWatchStateAction.INSTANCE, TransportSearchWatchStateAction.class),
                     new ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class),
                     new ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
-                    new ActionHandler<>(CreateWatchInstanceAction.INSTANCE, CreateWatchInstanceHandler.class)
+                    new ActionHandler<>(CreateOneWatchInstanceAction.INSTANCE, CreateWatchInstanceHandler.class),
+                    new ActionHandler<>(GetWatchInstanceParametersAction.INSTANCE, GetWatchInstanceParametersHandler.class)
             );
         } else {
             return Collections.emptyList();
