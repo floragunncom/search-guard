@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.floragunn.signals.actions.watch.CreateWatchInstanceAction;
+import com.floragunn.signals.actions.watch.CreateWatchInstanceAction.CreateWatchInstanceHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
@@ -124,7 +126,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
-                    new AckAndGetWatchApiAction(settings));
+                    new AckAndGetWatchApiAction(settings), CreateWatchInstanceAction.REST_API);
         } else {
             return Collections.emptyList();
         }
@@ -156,8 +158,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(StartStopAction.INSTANCE, TransportStartStopAction.class),
                     new ActionHandler<>(SearchWatchStateAction.INSTANCE, TransportSearchWatchStateAction.class),
                     new ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class),
-                    new ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class)
-
+                    new ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
+                    new ActionHandler<>(CreateWatchInstanceAction.INSTANCE, CreateWatchInstanceHandler.class)
             );
         } else {
             return Collections.emptyList();

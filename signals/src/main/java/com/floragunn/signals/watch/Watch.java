@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.signals.watch.common.Instances;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
@@ -92,6 +95,8 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     private boolean logRuntimeData;
     private SeverityMapping severityMapping;
     private Meta meta = new Meta();
+
+    private Instances instances;
 
     private long version;
 
@@ -436,6 +441,17 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         }
 
         result.schedule = vJsonNode.get("trigger").by((triggerNode) -> DefaultScheduleFactory.INSTANCE.create(jobKey, triggerNode));
+
+        if(vJsonNode.hasNonNull("instances")) {
+            DocNode instancesNode = vJsonNode.get("instances").asDocNode();
+            if(instancesNode.hasNonNull("enabled")) {
+                boolean enabled = instancesNode.getBoolean("enabled");
+                ImmutableList<String> params = instancesNode.getListOfStrings("params");
+                result.instances = new Instances(enabled, params);
+            } else {
+                validationErrors.add(new ValidationError("instances.enabled", "Attribute is missing"));
+            }
+        }
         
         try {
             if (vJsonNode.get("inputs").asAnything() instanceof List) {
