@@ -43,7 +43,7 @@ docker run --rm \
         -scanpollinginterval 60 \
         -toplevel true \
         -scanallnonfataltoplevelmodules false \
-        -include "*search-guard*" \
+        -include "dlic-search-guard*" \
         -exclude "*listen*avoid-conflict-with*,bcpkix*" \
         -deleteincompletescan 2 \
         -filepath /myapp/veracode_upload.zip
