@@ -26,6 +26,8 @@ public class WatchTemplateService {
     }
 
     public StandardResponse getTemplateParameters(GetWatchInstanceParametersRequest request) {
-        return new StandardResponse(303).message("Not implemented");
+        return parametersRepository.findOneById(request.getTenantId(), request.getWatchId(), request.getInstanceId())//
+            .map(watchParameters -> new StandardResponse(200).data(watchParameters.getParameters()))//
+            .orElseGet(() -> new StandardResponse(404));
     }
 }

@@ -47,4 +47,8 @@ public class WatchParametersData implements Document<WatchParametersData> {
     public static String createId(String tenantId, String watchId, String instanceId) {
         return String.format("param@%s/%s/%s", tenantId, watchId, instanceId);
     }
+
+    public ImmutableMap<String, Object> getParameters() {
+        return parameters;
+    }
 }

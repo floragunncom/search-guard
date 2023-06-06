@@ -25,7 +25,6 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -584,6 +583,35 @@ public class TestSgConfig {
 
     }
 
+    public static class TenantPermission {
+
+        public static final TenantPermission ALL_TENANTS_AND_ACCESS = new TenantPermission().tenantPattern("*").allowedActions("*");
+
+        private List<String> tenantPatterns;
+        private List<String> allowedActions;
+
+        public TenantPermission() {
+            this.tenantPatterns = new ArrayList<>();
+            this.allowedActions = new ArrayList<>();
+        }
+
+        public TenantPermission tenantPattern(String...patterns) {
+            Objects.requireNonNull(patterns, "Tenant patterns are required");
+            this.tenantPatterns.addAll(Arrays.asList(patterns));
+            return this;
+        }
+
+        public TenantPermission allowedActions(String...actions) {
+            Objects.requireNonNull(actions, "Allowed actions are required");
+            this.allowedActions.addAll(Arrays.asList(actions));
+            return this;
+        }
+
+        ImmutableMap<String, Object> toBasicObject() {
+            return ImmutableMap.of("tenant_patterns", tenantPatterns, "allowed_actions", allowedActions);
+        }
+    }
+
     public static class Role {
         public static Role ALL_ACCESS = new Role("all_access").clusterPermissions("*").indexPermissions("*").on("*");
 
@@ -593,6 +621,7 @@ public class TestSgConfig {
 
         private List<IndexPermission> indexPermissions = new ArrayList<>();
         private List<ExcludedIndexPermission> excludedIndexPermissions = new ArrayList<>();
+        private List<TenantPermission> tenantPermissions = new ArrayList<>();
 
         public Role(String name) {
             this.name = name;
@@ -609,12 +638,19 @@ public class TestSgConfig {
             return this;
         }
 
+
         public IndexPermission indexPermissions(String... indexPermissions) {
             return new IndexPermission(this, indexPermissions);
         }
 
         public ExcludedIndexPermission excludeIndexPermissions(String... indexPermissions) {
             return new ExcludedIndexPermission(this, indexPermissions);
+        }
+
+        public Role tenantPermission(TenantPermission...permission) {
+            Objects.requireNonNull(permission, "Tenant permission list is required.");
+            this.tenantPermissions.addAll(Arrays.asList(permission));
+            return this;
         }
 
         public String getName() {
@@ -645,6 +681,12 @@ public class TestSgConfig {
             if (this.excludedIndexPermissions.size() > 0) {
                 map.put(new NestedValueMap.Path(name, "exclude_index_permissions"), this.excludedIndexPermissions.stream()
                     .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "actions", p.actions)).collect(Collectors.toList()));
+            }
+            if(this.tenantPermissions.size() > 0) {
+                List<ImmutableMap<String, Object>> permissions = tenantPermissions.stream()//
+                    .map(TenantPermission::toBasicObject)//
+                    .collect(Collectors.toList());
+                map.put(new NestedValueMap.Path(name, "tenant_permissions"), permissions);
             }
             return map;
         }
