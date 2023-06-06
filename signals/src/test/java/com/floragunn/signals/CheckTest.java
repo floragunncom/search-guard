@@ -574,7 +574,7 @@ public class CheckTest {
 
     private WatchLog getMostRecentWatchLog(Client client, String tenantName, String watchName) {
         try {
-            SearchResponse searchResponse = client.search(new SearchRequest("signals_log_*").source(
+            SearchResponse searchResponse = client.search(new SearchRequest(".signals_log_*").source(
                     new SearchSourceBuilder().size(1).sort("execution_end", SortOrder.DESC).query(new MatchQueryBuilder("watch_id", watchName))))
                     .actionGet();
 
