@@ -12,7 +12,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.template.put.PutComposableIndexTemplateAction;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
+import org.elasticsearch.cluster.metadata.Template;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Settings;
@@ -39,6 +44,7 @@ import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.state.WatchState;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.BaseEncoding;
 
 public class Signals extends AbstractLifecycleComponent {
@@ -258,6 +264,8 @@ public class Signals extends AbstractLifecycleComponent {
                 }
             }
 
+            createSignalsLogIndex();
+
             componentState.setState(State.INITIALIZING, "creating_tenants");
 
             if (configuredTenants != null) {
@@ -278,6 +286,49 @@ public class Signals extends AbstractLifecycleComponent {
             initException = e;
             componentState.setFailed(e);
         }
+    }
+
+    private void createSignalsLogIndex() {
+        String signalsLogIndex = signalsSettings.getDynamicSettings().getWatchLogIndex();
+
+        if (!clusterService.state().nodes().isLocalNodeElectedMaster()) {
+            log.debug("Not checking signals_log index because local node is not master");
+            return;
+        }
+        
+        if (clusterService.state().getMetadata().componentTemplates().containsKey("signals_log_template")) {
+            log.debug("Template signals_log_template does already exist.");
+            return;
+        }
+                
+        if (signalsLogIndex.startsWith("<") && signalsLogIndex.endsWith(">")) {
+            signalsLogIndex = signalsLogIndex.substring(1, signalsLogIndex.length() - 1).replaceAll("\\{.*\\}", "*");
+        }
+
+        if (!signalsLogIndex.startsWith(".")) {
+            log.debug("signals log index does not start with ., so we do not need to create a template");
+            return;
+        }
+        
+        log.debug("Creating signals_log_template for {}", signalsLogIndex);
+        
+        PutComposableIndexTemplateAction.Request putRequest = new PutComposableIndexTemplateAction.Request("signals_log_template");
+        putRequest.indexTemplate(new ComposableIndexTemplate(ImmutableList.of(signalsLogIndex), new Template(Settings.builder().put("index.hidden", true).build(), null, null), null, null, null, null));
+        
+        client.execute(PutComposableIndexTemplateAction.INSTANCE, putRequest, new ActionListener<AcknowledgedResponse>() {
+
+            @Override
+            public void onResponse(AcknowledgedResponse response) {
+                log.debug("Created signals_log_template");
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                componentState.addLastException("create_signals_log_template", e);
+                log.error("Error while creating signals_log_template", e);                
+            }
+            
+        });
     }
 
     synchronized void updateTenants(Set<String> configuredTenants) {
