@@ -40,10 +40,9 @@ docker run --rm \
         -maxretrycount 3 \
         -createprofile "false" \
         -scantimeout 60 \
-        -scanpollinginterval 60 \
+        -scanpollinginterval 20 \
         -toplevel true \
         -scanallnonfataltoplevelmodules false \
         -include "dlic-search-guard*" \
-        -exclude "*listen*avoid-conflict-with*,bcpkix*" \
         -deleteincompletescan 0 \
         -filepath /myapp/veracode_upload.zip
