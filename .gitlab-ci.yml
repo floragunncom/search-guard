@@ -83,6 +83,10 @@ veracode_scan:
     key: mavenrepo
     paths:
       - .m2/repository
+  artifacts:
+    when: always
+    paths:
+      - "plugin/target"
 
 build_for_tag_version:
   stage: build
