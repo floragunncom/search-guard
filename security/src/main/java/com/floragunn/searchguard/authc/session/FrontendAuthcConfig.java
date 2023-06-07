@@ -214,7 +214,7 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
     public static class LoginPage implements Document<LoginPage> {
         public static final LoginPage DEFAULT = new LoginPage();
 
-        private URI brandImage = URI.create("plugins/searchguard/assets/searchguard_logo.svg");
+        private URI brandImage = URI.create("/plugins/searchguard/assets/searchguard_logo.svg");
         private boolean showBrandImage = true;
         private String title = "Please log in";
         private String buttonStyle = "";
