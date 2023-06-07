@@ -53,18 +53,18 @@ public class CreateOneWatchInstanceAction extends Action<CreateOneWatchInstanceA
 
     public static class CreateOneWatchInstanceRequest extends Request {
         public static final String FIELD_PARAMETERS = "parameters";
-        private final TemplateParametersIdRepresentation id;
+        private final WatchInstanceIdRepresentation id;
         private final ImmutableMap<String, Object> parameters;
 
         public CreateOneWatchInstanceRequest(UnparsedMessage message) throws ConfigValidationException {
             DocNode docNode = message.requiredDocNode();
-            this.id = new TemplateParametersIdRepresentation(docNode);
+            this.id = new WatchInstanceIdRepresentation(docNode);
             this.parameters = docNode.getAsNode(FIELD_PARAMETERS).toMap();
         }
 
         public CreateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, UnparsedDocument message)
             throws ConfigValidationException {
-            this.id = new TemplateParametersIdRepresentation(tenantId, watchId, instanceId);
+            this.id = new WatchInstanceIdRepresentation(tenantId, watchId, instanceId);
             if(message == null) {
                 ValidationError validationError = new ValidationError("body",
                     "Request body is required and should contains watch template parameters");

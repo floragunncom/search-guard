@@ -7,7 +7,7 @@ import com.floragunn.fluent.collections.ImmutableMap;
 
 import java.util.Objects;
 
-public class TemplateParametersIdRepresentation implements Document<TemplateParametersIdRepresentation> {
+public class WatchInstanceIdRepresentation implements Document<WatchInstanceIdRepresentation> {
     public static final String FIELD_TENANT_ID = "tenant_id";
     public static final String FIELD_WATCH_ID = "watch_id";
     public static final String FIELD_INSTANCE_ID = "instance_id";
@@ -15,13 +15,13 @@ public class TemplateParametersIdRepresentation implements Document<TemplatePara
     private final String watchId;
     private final String instanceId;
 
-    public TemplateParametersIdRepresentation(String tenantId, String watchId, String instanceId) {
+    public WatchInstanceIdRepresentation(String tenantId, String watchId, String instanceId) {
         this.tenantId = Objects.requireNonNull(tenantId, "tenant id is required");
         this.watchId = Objects.requireNonNull(watchId, "Watch id is required");
         this.instanceId = Objects.requireNonNull(instanceId, "Instance id is required");
     }
 
-    public TemplateParametersIdRepresentation(DocNode docNode) {
+    public WatchInstanceIdRepresentation(DocNode docNode) {
         this.tenantId = docNode.getAsString(FIELD_TENANT_ID);
         this.watchId = docNode.getAsString(FIELD_WATCH_ID);
         this.instanceId = docNode.getAsString(FIELD_INSTANCE_ID);

@@ -10,6 +10,8 @@ import com.floragunn.signals.actions.watch.template.rest.CreateOneWatchInstanceA
 import com.floragunn.signals.actions.watch.template.rest.CreateOneWatchInstanceAction.CreateWatchInstanceHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
+import com.floragunn.signals.actions.watch.template.rest.DeleteWatchInstanceAction;
+import com.floragunn.signals.actions.watch.template.rest.DeleteWatchInstanceAction.DeleteWatchInstanceHandler;
 import com.floragunn.signals.actions.watch.template.rest.GetWatchInstanceParametersAction;
 import com.floragunn.signals.actions.watch.template.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersHandler;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
@@ -128,7 +130,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
-                new AckAndGetWatchApiAction(settings), CreateOneWatchInstanceAction.REST_API, GetWatchInstanceParametersAction.REST_API);
+                    new AckAndGetWatchApiAction(settings), CreateOneWatchInstanceAction.REST_API, GetWatchInstanceParametersAction.REST_API,
+                    DeleteWatchInstanceAction.REST_API);
         } else {
             return Collections.emptyList();
         }
@@ -162,7 +165,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class),
                     new ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
                     new ActionHandler<>(CreateOneWatchInstanceAction.INSTANCE, CreateWatchInstanceHandler.class),
-                    new ActionHandler<>(GetWatchInstanceParametersAction.INSTANCE, GetWatchInstanceParametersHandler.class)
+                    new ActionHandler<>(GetWatchInstanceParametersAction.INSTANCE, GetWatchInstanceParametersHandler.class),
+                    new ActionHandler<>(DeleteWatchInstanceAction.INSTANCE, DeleteWatchInstanceHandler.class)
             );
         } else {
             return Collections.emptyList();

@@ -14,25 +14,26 @@ import org.elasticsearch.common.inject.Inject;
 
 import java.util.concurrent.CompletableFuture;
 
-public class GetWatchInstanceParametersAction extends Action<GetWatchInstanceParametersAction.GetWatchInstanceParametersRequest, StandardResponse> {
+public class DeleteWatchInstanceAction extends Action<DeleteWatchInstanceAction.DeleteWatchInstanceRequest, StandardResponse> {
 
-    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instance/parameters";
-    public static final GetWatchInstanceParametersAction INSTANCE = new GetWatchInstanceParametersAction();
+    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instance/delete";
+    public static final DeleteWatchInstanceAction INSTANCE = new DeleteWatchInstanceAction();
 
     public static final RestApi REST_API = new RestApi().responseHeaders(SearchGuardVersion.header())//
-        .handlesGet("/_signals/watch/{tenant}/{id}/instances/{instance_id}/parameters")//
-        .with(INSTANCE, (params, body) -> new GetWatchInstanceParametersRequest(params.get("tenant"), params.get("id"), params.get("instance_id")))//
-        .name("GET /_signals/watch/{tenant}/{id}/instances/{instance_id}/parameters");
+        .handlesDelete("/_signals/watch/{tenant}/{id}/instances/{instance_id}")//
+        .with(INSTANCE, (params, body) -> new DeleteWatchInstanceRequest(params.get("tenant"), params.get("id"), params.get("instance_id")))//
+        .name("DELETE /_signals/watch/{tenant}/{id}/instances/{instance_id}");
 
-    public GetWatchInstanceParametersAction() {
-        super(NAME, GetWatchInstanceParametersRequest::new, StandardResponse::new);
+    public DeleteWatchInstanceAction() {
+        super(NAME, DeleteWatchInstanceRequest::new, StandardResponse::new);
     }
 
-    public static class GetWatchInstanceParametersHandler extends Handler<GetWatchInstanceParametersRequest, StandardResponse> {
+    public static class DeleteWatchInstanceHandler extends Handler<DeleteWatchInstanceRequest, StandardResponse> {
+
         private final WatchTemplateService templateService;
 
         @Inject
-        public GetWatchInstanceParametersHandler(HandlerDependencies handlerDependencies, Client client) {
+        public DeleteWatchInstanceHandler(HandlerDependencies handlerDependencies, Client client) {
             super(INSTANCE, handlerDependencies);
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
             WatchParametersRepository watchParametersRepository = new WatchParametersRepository(privilegedConfigClient);
@@ -40,27 +41,27 @@ public class GetWatchInstanceParametersAction extends Action<GetWatchInstancePar
         }
 
         @Override
-        protected CompletableFuture<StandardResponse> doExecute(GetWatchInstanceParametersRequest request) {
-            return supplyAsync(() -> templateService.getTemplateParameters(request));
+        protected CompletableFuture<StandardResponse> doExecute(DeleteWatchInstanceRequest request) {
+            return supplyAsync(() -> templateService.deleteWatchInstance(request));
         }
     }
 
-    public static class GetWatchInstanceParametersRequest extends Request {
+    public static class DeleteWatchInstanceRequest extends Request {
 
         private final WatchInstanceIdRepresentation id;
 
-        public GetWatchInstanceParametersRequest(String tenantId, String watchId, String instanceId) {
+        public DeleteWatchInstanceRequest(String tenantId, String watchId, String instanceId) {
             this.id = new WatchInstanceIdRepresentation(tenantId, watchId, instanceId);
         }
 
-        public GetWatchInstanceParametersRequest(UnparsedMessage unparsedMessage) throws ConfigValidationException {
+        public DeleteWatchInstanceRequest(UnparsedMessage unparsedMessage) throws ConfigValidationException {
             DocNode docNode = unparsedMessage.requiredDocNode();
             this.id = new WatchInstanceIdRepresentation(docNode);
         }
 
         @Override
         public Object toBasicObject() {
-            return this.id.toBasicObject();
+            return id.toBasicObject();
         }
 
         public String getTenantId() {

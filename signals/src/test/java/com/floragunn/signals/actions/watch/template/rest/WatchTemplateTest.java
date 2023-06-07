@@ -28,6 +28,7 @@ public class WatchTemplateTest {
         .clusterPermissions("*")//
         .indexPermissions("*").on("*")//
         .tenantPermission(ALL_TENANTS_AND_ACCESS));
+    public static final String DEFAULT_TENANT = "_main";
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()//
@@ -37,10 +38,13 @@ public class WatchTemplateTest {
 
     @Test
     public void shouldCreateTemplateParameters() throws Exception {
+        String watchId = "my_watch";
+        String instanceId = "instance_id_should_create_template_parameters";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("id", 258);
 
-            HttpResponse response = client.putJson("/_signals/watch/_main/my_watch/instances/instance_id_01", node.toJsonString());
+            HttpResponse response = client.putJson(path, node.toJsonString());
 
             log.info("Create watch template response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(201));
@@ -49,12 +53,15 @@ public class WatchTemplateTest {
 
     @Test
     public void shouldLoadTemplateParameters() throws Exception {
+        String watchId = "my_watch";
+        String instanceId = "instance_id_should_load_parameters";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("id", 258, "name","kirk", "time", "2023-05-15T13:07:52.000Z");
-            HttpResponse response = client.putJson("/_signals/watch/_main/my_watch/instances/instance_id_01", node.toJsonString());
+            HttpResponse response = client.putJson(path, node.toJsonString());
             log.info("Create watch template response '{}'.", response.getBody());
 
-            response = client.get("/_signals/watch/_main/my_watch/instances/instance_id_01/parameters");
+            response = client.get(path + "/parameters");
 
             log.info("Get watch template parameters response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(200));
@@ -66,15 +73,18 @@ public class WatchTemplateTest {
     }
 
     @Test
-    public void shouldUseNestedValues() throws Exception {
+    public void shouldUseNestedValuesInList() throws Exception {
+        String watchId = "my_watch";
+        String instanceId = "instance_id_should_use_nested_values_in_list";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             ImmutableMap<String, String> firstMap = ImmutableMap.of("one-key", "one-value", "two-key", "two-value");
             ImmutableMap<String, Integer> secondMap = ImmutableMap.of("three-key", 3, "four-key", 4);
             DocNode node = DocNode.of("list", Arrays.asList(firstMap, secondMap));
-            HttpResponse response = client.putJson("/_signals/watch/_main/my_watch/instances/instance_id_01", node.toJsonString());
+            HttpResponse response = client.putJson(path, node.toJsonString());
             log.info("Create watch template response '{}'.", response.getBody());
 
-            response = client.get("/_signals/watch/_main/my_watch/instances/instance_id_01/parameters");
+            response = client.get( path + "/parameters");
 
             log.info("Get watch template parameters response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(200));
@@ -87,20 +97,105 @@ public class WatchTemplateTest {
     }
 
     @Test
+    public void shouldUseNestedValuesInMap() throws Exception {
+        String watchId = "my_watch";
+        String instanceId = "instance_id_should_use_nested_values_in_map";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            ImmutableMap<String, String> firstMap = ImmutableMap.of("one-key", "one-value", "two-key", "two-value");
+            ImmutableMap<String, Integer> secondMap = ImmutableMap.of("three-key", 3, "four-key", 4);
+            DocNode node = DocNode.of("outer_map", ImmutableMap.of("first_map", firstMap, "second_map", secondMap));
+            HttpResponse response = client.putJson(path, node.toJsonString());
+            log.info("Create watch template response '{}'.", response.getBody());
+
+            response = client.get(path + "/parameters");
+
+            log.info("Get watch template parameters response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(200));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("data.outer_map.first_map.one-key", "one-value"));
+            assertThat(body, containsValue("data.outer_map.first_map.two-key", "two-value"));
+            assertThat(body, containsValue("data.outer_map.second_map.three-key", 3));
+            assertThat(body, containsValue("data.outer_map.second_map.four-key", 4));
+        }
+    }
+
+    @Test
     public void shouldStoreParameterWithTheSameNameButWithVariousTypes() throws Exception {
+        String instanceId = "instance_parameters";
+        String pathWatch1 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, "my_watch_one", instanceId);
+        String pathWatch2 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, "my_watch_two", instanceId);
+        String pathWatch3 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, "my_watch_three", instanceId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("param", "2023-05-15T13:07:52.000Z");
-            HttpResponse response = client.putJson("/_signals/watch/_main/my_watch-1/instances/instance_id_01", node.toJsonString());
+            HttpResponse response = client.putJson(pathWatch1, node.toJsonString());
             log.info("Watch 1 instance parameters response '{}'.", response.getBody());
             node = DocNode.of("param", 10);
-            response = client.putJson("/_signals/watch/_main/my_watch-2/instances/instance_id_01", node.toJsonString());
+            response = client.putJson(pathWatch2, node.toJsonString());
             log.info("Watch 2 instance parameters response '{}'.", response.getBody());
             node = DocNode.of("param", "ten");
 
-            response = client.putJson("/_signals/watch/_main/my_watch-3/instances/instance_id_01", node.toJsonString());
+            response = client.putJson(pathWatch3, node.toJsonString());
 
-            log.info("Watch 2 instance parameters response '{}'.", response.getBody());
+            log.info("Watch 3 instance parameters response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(201));
+        }
+    }
+
+    @Test
+    public void shouldHaveOwnParameterCopy() throws Exception {
+        String instanceId = "common_parameters";
+        String pathWatch1 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, "my_watch_one", instanceId);
+        String pathWatch2 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, "my_watch_two", instanceId);
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            DocNode node = DocNode.of("common-parameter-name", "first-value");
+            HttpResponse response = client.putJson(pathWatch1, node.toJsonString());
+            log.info("Watch 1 instance parameters response '{}'.", response.getBody());
+            node = DocNode.of("common-parameter-name", "second-value");
+            response = client.putJson(pathWatch2, node.toJsonString());
+            log.info("Watch 2 instance parameters response '{}'.", response.getBody());
+
+            response = client.get(pathWatch1 + "/parameters");
+
+            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.common-parameter-name", "first-value"));
+            response = client.get(pathWatch2 + "/parameters");
+            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.common-parameter-name", "second-value"));
+        }
+    }
+
+    @Test
+    public void shouldDeleteWatchInstance() throws Exception {
+        String watchId = "to-be-deleted";
+        String instanceId = "instance_id_should_use_nested_values_in_map";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            DocNode node = DocNode.of("message", "please do not delete me!" );
+            HttpResponse response = client.putJson(path, node.toJsonString());
+            log.info("Create watch template response '{}'.", response.getBody());
+            response = client.get(path + "/parameters");
+            log.info("Get watch template parameters response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(200));
+
+            response = client.delete(path);
+
+            assertThat(response.getStatusCode(), equalTo(200));
+            response = client.get(path + "/parameters");
+            assertThat(response.getStatusCode(), equalTo(404));
+        }
+    }
+
+    @Test
+    public void shouldNotDeleteWatchInstanceWhichDoesNotExist() throws Exception {
+        String watchId = "non-existing-watch-instance-to-be-deleted";
+        String instanceId = "instance_id_should_use_nested_values_in_map";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+
+            HttpResponse response = client.delete(path);
+
+            assertThat(response.getStatusCode(), equalTo(404));
         }
     }
 

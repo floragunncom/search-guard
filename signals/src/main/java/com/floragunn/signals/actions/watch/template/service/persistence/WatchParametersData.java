@@ -3,6 +3,7 @@ package com.floragunn.signals.actions.watch.template.service.persistence;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchsupport.indices.IndexMapping.DisabledIndexProperty;
 import com.floragunn.searchsupport.indices.IndexMapping.DynamicIndexMapping;
 import com.floragunn.searchsupport.indices.IndexMapping.KeywordProperty;
 
@@ -13,8 +14,13 @@ public class WatchParametersData implements Document<WatchParametersData> {
     public static final String FIELD_WATCH_ID = "watch_id";
     public static final String FIELD_INSTANCE_ID = "instance_id";
     public static final String FIELD_PARAMETERS = "parameters";
+
+    //TODO: consider usage multiple field mappings so that parameters are searchable via full text search using
+    // - tenant id
+    // - watch id
+    // - instance id
     public static final DynamicIndexMapping MAPPINGS = new DynamicIndexMapping(new KeywordProperty(FIELD_TENANT_ID),
-        new KeywordProperty(FIELD_WATCH_ID), new KeywordProperty(FIELD_INSTANCE_ID));
+        new KeywordProperty(FIELD_WATCH_ID), new KeywordProperty(FIELD_INSTANCE_ID), new DisabledIndexProperty(FIELD_PARAMETERS));
     private final String tenantId;
     private final String watchId;
     private final String instanceId;
