@@ -159,6 +159,8 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             org.apache.logging.log4j.ThreadContext.clearAll();
             diagnosticContext.traceActionStack(request.getHttpRequest().method() + " " + request.getHttpRequest().uri());
 
+            log.warn("XXX " + request.getHttpRequest().method() + " " + request.getHttpRequest().uri() + " " + request.getHeaders());
+            
             if (!checkRequest(request, channel)) {
                 return;
             }
