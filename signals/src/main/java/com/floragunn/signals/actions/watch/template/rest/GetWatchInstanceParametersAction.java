@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class GetWatchInstanceParametersAction extends Action<GetWatchInstanceParametersAction.GetWatchInstanceParametersRequest, StandardResponse> {
 
-    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instance/parameters";
+    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/parameters/get";
     public static final GetWatchInstanceParametersAction INSTANCE = new GetWatchInstanceParametersAction();
 
     public static final RestApi REST_API = new RestApi().responseHeaders(SearchGuardVersion.header())//

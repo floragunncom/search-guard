@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class DeleteWatchInstanceAction extends Action<DeleteWatchInstanceAction.DeleteWatchInstanceRequest, StandardResponse> {
 
-    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instance/delete";
+    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/delete";
     public static final DeleteWatchInstanceAction INSTANCE = new DeleteWatchInstanceAction();
 
     public static final RestApi REST_API = new RestApi().responseHeaders(SearchGuardVersion.header())//

@@ -57,4 +57,8 @@ public class WatchParametersData implements Document<WatchParametersData> {
     public ImmutableMap<String, Object> getParameters() {
         return parameters;
     }
+
+    public String getInstanceId() {
+        return instanceId;
+    }
 }

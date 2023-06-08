@@ -40,7 +40,7 @@ public class WatchInstanceIdRepresentation implements Document<WatchInstanceIdRe
     }
 
     @Override
-    public ImmutableMap toBasicObject() {
+    public ImmutableMap<String, Object> toBasicObject() {
         return ImmutableMap.of(FIELD_TENANT_ID, tenantId, FIELD_WATCH_ID, watchId, FIELD_INSTANCE_ID, instanceId);
     }
 }

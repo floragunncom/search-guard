@@ -12,6 +12,8 @@ import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 
@@ -19,7 +21,9 @@ import java.util.concurrent.CompletableFuture;
 
 public class CreateOneWatchInstanceAction extends Action<CreateOneWatchInstanceAction.CreateOneWatchInstanceRequest, StandardResponse> {
 
-    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instance/create";
+    private static final Logger log = LogManager.getLogger(CreateOneWatchInstanceAction.class);
+
+    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/create_one";
     public static final CreateOneWatchInstanceAction INSTANCE = new CreateOneWatchInstanceAction();
 
     public static final RestApi REST_API = new RestApi()
@@ -47,7 +51,14 @@ public class CreateOneWatchInstanceAction extends Action<CreateOneWatchInstanceA
 
         @Override
         protected CompletableFuture<StandardResponse> doExecute(CreateOneWatchInstanceRequest request) {
-            return supplyAsync(() -> templateService.createOrUpdate(request));
+            return supplyAsync(() -> {
+                try {
+                    return templateService.createOrReplace(request);
+                } catch (ConfigValidationException e) {
+                    log.error("Cannot create watch template instance.", e);
+                    return new StandardResponse(500).message("Cannot create watch template instance.").error(e);
+                }
+            });
         }
     }
 
@@ -62,9 +73,8 @@ public class CreateOneWatchInstanceAction extends Action<CreateOneWatchInstanceA
             this.parameters = docNode.getAsNode(FIELD_PARAMETERS).toMap();
         }
 
-        public CreateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, UnparsedDocument message)
+        public CreateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, UnparsedDocument<?> message)
             throws ConfigValidationException {
-            this.id = new WatchInstanceIdRepresentation(tenantId, watchId, instanceId);
             if(message == null) {
                 ValidationError validationError = new ValidationError("body",
                     "Request body is required and should contains watch template parameters");
@@ -72,6 +82,12 @@ public class CreateOneWatchInstanceAction extends Action<CreateOneWatchInstanceA
             }
             DocNode docNode = message.parseAsDocNode();
             this.parameters = docNode.toMap();
+            this.id = new WatchInstanceIdRepresentation(tenantId, watchId, instanceId);
+        }
+
+        CreateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, DocNode message) {
+            this.parameters = message.toMap();
+            this.id = new WatchInstanceIdRepresentation(tenantId, watchId, instanceId);
         }
 
         @Override
