@@ -21,7 +21,7 @@ tar -xzf "$DIR/elasticsearch-${VERSION}-${ARCH}.tar.gz" --directory "$DIR/"
 
 PATH_PREFIX="$DIR/elasticsearch-${VERSION}/modules"
 
-modules=(rank-eval lang-mustache lang-painless reindex parent-join percolator)
+modules=(rank-eval lang-mustache lang-painless aggs-matrix-stats reindex parent-join percolator)
 
 for module in "${modules[@]}"
 do

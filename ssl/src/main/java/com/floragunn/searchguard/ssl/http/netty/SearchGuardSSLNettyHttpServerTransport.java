@@ -29,7 +29,6 @@ import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
-import org.elasticsearch.transport.netty4.TLSConfig;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
@@ -50,7 +49,7 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
                                                   final ThreadPool threadPool, final SearchGuardKeyStore sgks, final NamedXContentRegistry namedXContentRegistry,
                                                   final Dispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory,
                                                   final SslExceptionHandler errorHandler, Tracer tracer) {
-        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, tracer, TLSConfig.noTLS(), null);
+        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, tracer);
         this.sgks = sgks;
         this.errorHandler = errorHandler;
     }
@@ -82,7 +81,7 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
 
         protected SSLHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings,
                 final SearchGuardKeyStore sgks) {
-            super(transport, handlingSettings, TLSConfig.noTLS(), null);
+            super(transport, handlingSettings);
         }
 
         @Override

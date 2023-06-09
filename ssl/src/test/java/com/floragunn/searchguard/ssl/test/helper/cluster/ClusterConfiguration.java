@@ -29,6 +29,7 @@ import org.elasticsearch.percolator.PercolatorPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.reindex.ReindexPlugin;
 import org.elasticsearch.script.mustache.MustachePlugin;
+import org.elasticsearch.search.aggregations.matrix.MatrixAggregationPlugin;
 
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.google.common.collect.Lists;
@@ -86,7 +87,7 @@ public enum ClusterConfiguration {
     public static class NodeSettings {
         public boolean masterNode;
         public boolean dataNode;
-        public List<Class<? extends Plugin>> plugins = Lists.newArrayList(Netty4Plugin.class, SearchGuardSSLPlugin.class,
+        public List<Class<? extends Plugin>> plugins = Lists.newArrayList(Netty4Plugin.class, SearchGuardSSLPlugin.class, MatrixAggregationPlugin.class,
                 MustachePlugin.class, ParentJoinPlugin.class, PercolatorPlugin.class, ReindexPlugin.class);
 
         public NodeSettings(boolean masterNode, boolean dataNode) {

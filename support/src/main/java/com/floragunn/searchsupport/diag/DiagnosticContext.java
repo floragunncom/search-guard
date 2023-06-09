@@ -96,7 +96,7 @@ public final class DiagnosticContext {
 
         String currentActionStack = getActionStack();
 
-        StoredContext ctx = threadContext.newStoredContext(DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY, DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY);
+        StoredContext ctx = threadContext.newStoredContext(DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY);
 
         try {
 
@@ -195,7 +195,7 @@ public final class DiagnosticContext {
             LogContextPreservingActionListener<Response> wrappedListener = LogContextPreservingActionListener.wrapPreservingContext(listener,
                     threadContext);
 
-            try (StoredContext ctx = threadContext.newStoredContext(DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY, DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY)) {
+            try (StoredContext ctx = threadContext.newStoredContext(DiagnosticContext.CLEAR_TRANSIENT_HEADERS_ON_APPLY)) {
                 traceActionStack(actionStack, action);
 
                 chain.proceed(task, action, request, wrappedListener);

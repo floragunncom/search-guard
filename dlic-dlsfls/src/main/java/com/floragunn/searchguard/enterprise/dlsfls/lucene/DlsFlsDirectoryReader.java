@@ -581,7 +581,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 }
 
                 @Override
-                public void document(int docID, StoredFieldVisitor visitor) throws IOException {
+                public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
                     if (log.isTraceEnabled()) {
                         log.trace("DlsFlsStoredFieldsReader.visitDocument()\nindex: " + dlsFlsContext.getIndexService().index().getName() + "\nfls: "
                                 + dlsFlsContext.getFlsRule() + "\nfieldMasking: " + dlsFlsContext.getFieldMaskingRule());
@@ -591,7 +591,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                         visitor = new FlsStoredFieldVisitor(visitor, dlsFlsContext.getFlsRule(), dlsFlsContext.getFieldMaskingRule());
                     }
 
-                    delegate.document(docID, visitor);
+                    delegate.visitDocument(docID, visitor);
                 }
 
                 @Override

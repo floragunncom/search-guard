@@ -1,25 +1,26 @@
 package org.elasticsearch.plugins;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Stream;
-
+import com.floragunn.searchguard.SearchGuardPlugin;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.join.ParentJoinPlugin;
 import org.elasticsearch.percolator.PercolatorPlugin;
 import org.elasticsearch.reindex.ReindexPlugin;
 import org.elasticsearch.script.mustache.MustachePlugin;
+import org.elasticsearch.search.aggregations.matrix.MatrixAggregationPlugin;
 import org.elasticsearch.transport.netty4.Netty4Plugin;
 
-import com.floragunn.searchguard.SearchGuardPlugin;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Stream;
 
 public class SgAwarePluginsService extends PluginsService {
 
     private final List<LoadedPlugin> loadedPlugins = new ArrayList<>();
     private static final List<Class<? extends Plugin>> STANDARD_PLUGINS = List.of(
             Netty4Plugin.class,
+            MatrixAggregationPlugin.class,
             MustachePlugin.class,
             ParentJoinPlugin.class,
             PercolatorPlugin.class,

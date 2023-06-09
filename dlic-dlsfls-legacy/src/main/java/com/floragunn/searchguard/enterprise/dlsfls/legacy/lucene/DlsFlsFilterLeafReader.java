@@ -724,7 +724,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
         }
 
         @Override
-        public void document(int docID, StoredFieldVisitor visitor) throws IOException {
+        public void visitDocument(int docID, StoredFieldVisitor visitor) throws IOException {
             try {
                 if (maskFields) {
                     visitor = new HashingStoredFieldVisitor(visitor);
@@ -734,7 +734,7 @@ class DlsFlsFilterLeafReader extends SequentialStoredFieldsLeafReader {
                     visitor = new FlsStoredFieldVisitor(visitor);
                 }
 
-                delegate.document(docID, visitor);
+                delegate.visitDocument(docID, visitor);
 
             } catch (RuntimeException e) {
                 log.error("Error in SearchGuardStoredFieldsReader.visitDocument()", e);
