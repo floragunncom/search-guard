@@ -8,6 +8,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
+import com.floragunn.signals.Signals;
 import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
 import org.elasticsearch.client.Client;
@@ -39,11 +40,11 @@ public class GetAllWatchInstancesAction extends Action<GetAllWatchInstancesActio
         private final WatchTemplateService templateService;
 
         @Inject
-        public GetAllWatchInstancesHandler(HandlerDependencies handlerDependencies, Client client) {
+        public GetAllWatchInstancesHandler(HandlerDependencies handlerDependencies, Signals signals, Client client) {
             super(INSTANCE, handlerDependencies);
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
             WatchParametersRepository watchParametersRepository = new WatchParametersRepository(privilegedConfigClient);
-            this.templateService = new WatchTemplateService(watchParametersRepository);
+            this.templateService = new WatchTemplateService(signals, watchParametersRepository);
         }
 
         @Override

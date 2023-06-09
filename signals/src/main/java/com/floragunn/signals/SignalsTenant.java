@@ -44,8 +44,10 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -627,6 +629,17 @@ public class SignalsTenant implements Closeable {
 
     private QueryBuilder getConfigQuery(String tenant) {
         return QueryBuilders.boolQuery().must(QueryBuilders.termQuery("_tenant", tenant));
+    }
+
+    public boolean watchTemplateExist(String watchId) {
+        TermQueryBuilder watchIdQuery = QueryBuilders.termQuery("_name.keyword", watchId);
+        TermQueryBuilder templateQuery = QueryBuilders.termQuery("instances.enabled", true);
+        BoolQueryBuilder query = QueryBuilders.boolQuery().must(getConfigQuery(name)).must(watchIdQuery).must(templateQuery);
+        SearchRequest searchRequest = new SearchRequest(configIndexName);
+        searchRequest.source().query(query);
+        SearchResponse searchResponse = privilegedConfigClient.search(searchRequest).actionGet();
+        // TODO use aggregation
+        return searchResponse.getHits().getTotalHits().value > 0;
     }
 
     public String getName() {
