@@ -36,7 +36,6 @@ import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.index.StoredFieldVisitor;
-import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.TermState;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
@@ -122,26 +121,6 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 } catch (RuntimeException e) {
                     log.error("Got exception while initializing " + this, e);
                     throw e;
-                }
-            }
-
-            @Override
-            public StoredFields storedFields() throws IOException {
-                StoredFields storedFields = super.storedFields();
-                if (log.isTraceEnabled()) {
-                    log.trace("FilterLeafReader.storedFields()\nindex: " + dlsFlsContext.getIndexService().index().getName() + "\nfls: "
-                            + dlsFlsContext.getFlsRule() + "\nfieldMasking: " + dlsFlsContext.getFieldMaskingRule());
-                }
-
-                if (dlsFlsContext.hasFlsRestriction() || dlsFlsContext.hasFieldMasking()) {
-                    return new StoredFields() {
-                        @Override
-                        public void document(int docID, StoredFieldVisitor visitor) throws IOException {
-                            storedFields.document(docID, new FlsStoredFieldVisitor(visitor, dlsFlsContext.getFlsRule(), dlsFlsContext.getFieldMaskingRule()));
-                        }
-                    };
-                } else {
-                    return storedFields;
                 }
             }
 

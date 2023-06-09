@@ -22,12 +22,10 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpHandlingSettings;
-import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
@@ -42,28 +40,19 @@ import io.netty.channel.ChannelHandler;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SslHandler;
 
-import java.util.function.BiConsumer;
-
 public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTransport {
 
     private static final Logger logger = LogManager.getLogger(SearchGuardSSLNettyHttpServerTransport.class);
     private final SearchGuardKeyStore sgks;
     private final SslExceptionHandler errorHandler;
-    private final BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext;
 
     public SearchGuardSSLNettyHttpServerTransport(final Settings settings, final NetworkService networkService,
                                                   final ThreadPool threadPool, final SearchGuardKeyStore sgks, final NamedXContentRegistry namedXContentRegistry,
                                                   final Dispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory,
-                                                  final SslExceptionHandler errorHandler, Tracer tracer, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
-        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, tracer, TLSConfig.noTLS(), null, null);
+                                                  final SslExceptionHandler errorHandler, Tracer tracer) {
+        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, tracer, TLSConfig.noTLS(), null);
         this.sgks = sgks;
         this.errorHandler = errorHandler;
-        this.perRequestThreadContext = perRequestThreadContext;
-    }
-
-    @Override
-    protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
-        perRequestThreadContext.accept(restRequest.getHttpRequest(), threadContext);
     }
 
     @Override
@@ -93,7 +82,7 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
 
         protected SSLHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings,
                 final SearchGuardKeyStore sgks) {
-            super(transport, handlingSettings, TLSConfig.noTLS(), null, null, null);
+            super(transport, handlingSettings, TLSConfig.noTLS(), null);
         }
 
         @Override

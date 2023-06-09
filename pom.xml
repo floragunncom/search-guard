@@ -52,7 +52,7 @@
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <maven.compiler.release>17</maven.compiler.release>
 
-    <elasticsearch.version>8.8.0</elasticsearch.version>
+    <elasticsearch.version>8.7.0</elasticsearch.version>
 
     <log4j.version>2.19.0</log4j.version>
     <jackson.version>2.14.2</jackson.version>
@@ -733,12 +733,6 @@
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch</artifactId>
       <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.elasticsearch</groupId>
-          <artifactId>elasticsearch-preallocate</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
