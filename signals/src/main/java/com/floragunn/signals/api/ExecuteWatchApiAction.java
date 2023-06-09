@@ -100,6 +100,9 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                             }
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.INVALID_GOTO) {
                             errorResponse(channel, RestStatus.BAD_REQUEST, "Invalid goto value: " + requestBody.getGoTo());
+                        } if(response.getStatus() == ExecuteWatchResponse.Status.NOT_EXECUTABLE_WATCH) {
+                            String error = "Watch is not executable, do you try to execute watch template?";
+                            errorResponse(channel, RestStatus.CONFLICT, error);
                         } else {
                             errorResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, "Internal Server Error");
                         }

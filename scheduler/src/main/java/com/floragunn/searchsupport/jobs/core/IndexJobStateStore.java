@@ -1819,7 +1819,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     }
 
     private Set<JobType> loadJobConfig() {
-        return Sets.newHashSet(this.jobConfigSource);
+        return Sets.newHashSet(this.jobConfigSource)//
+            .stream()//
+            //TODO replace filtering with watch template instance creation
+            .filter(JobType::isExecutable)//
+            .collect(Collectors.toSet());//
     }
 
     private String quartzKeyToKeyString(org.quartz.utils.Key<?> key) {

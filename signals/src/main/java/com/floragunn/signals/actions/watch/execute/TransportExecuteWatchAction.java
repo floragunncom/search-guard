@@ -133,14 +133,19 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
                                 Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())),
                                         signalsTenant.getName(), request.getWatchId(), response.getSourceAsString(), response.getVersion());
+                                if(watch.isExecutable()) {
 
-                                try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-                                    threadContext.putTransient(ConfigConstants.SG_USER, user);
-                                    threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
-                                    threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+                                    try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+                                        threadContext.putTransient(ConfigConstants.SG_USER, user);
+                                        threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
+                                        threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
 
-                                    listener.onResponse(executeWatch(watch, request, signalsTenant));
+                                        listener.onResponse(executeWatch(watch, request, signalsTenant));
 
+                                    }
+                                } else {
+                                    listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
+                                        Status.NOT_EXECUTABLE_WATCH, null));
                                 }
 
                             } catch (ConfigValidationException e) {

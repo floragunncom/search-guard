@@ -27,10 +27,12 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.signals.watch.common.InstanceParser;
 import com.floragunn.signals.watch.common.Instances;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -72,6 +74,20 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 
 public class Watch extends WatchElement implements JobConfig, ToXContentObject {
+
+    public enum WatchType {
+        SINGLE_INSTANCE(true), TEMPLATE(false), TEMPLATE_INSTANCE(true);
+
+        private final boolean executable;
+
+        WatchType(boolean executable) {
+            this.executable = executable;
+        }
+
+        public boolean isExecutable() {
+            return executable;
+        }
+    }
     private final static Logger log = LogManager.getLogger(Watch.class);
 
     public static Map<String, String> WITHOUT_AUTH_TOKEN_PARAM_MAP = Collections.singletonMap("include_auth_token", "false");
@@ -97,6 +113,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     private Meta meta = new Meta();
 
     private Instances instances;
+    private String instanceId;
 
     private long version;
 
@@ -104,13 +121,14 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     }
 
     public Watch(JobKey jobKey, Schedule schedule, List<Check> checks, SeverityMapping severityMapping, List<AlertAction> actions,
-            List<ResolveAction> resolveActions) {
+            List<ResolveAction> resolveActions, Instances instances) {
         this.jobKey = jobKey;
         this.schedule = schedule;
         this.checks = checks;
         this.severityMapping = severityMapping;
         this.actions = actions;
         this.resolveActions = resolveActions;
+        this.instances = Objects.requireNonNull(instances, "Watch instances is required");
     }
 
     public String getId() {
@@ -265,6 +283,10 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             builder.field("_tenant", tenant);
         }
 
+        if(instances != null) {
+            builder.field(InstanceParser.FIELD_INSTANCES, instances);
+        }
+
         if (schedule != null) {
             builder.field("trigger");
             builder.startObject();
@@ -401,6 +423,21 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         this.description = description;
     }
 
+    private WatchType getWatchType() {
+        if(instances.isEnabled() && Objects.nonNull(instanceId)) {
+            return WatchType.TEMPLATE_INSTANCE;
+        } else if(instances.isEnabled()) {
+            return WatchType.TEMPLATE;
+        } else {
+            return WatchType.SINGLE_INSTANCE;
+        }
+    }
+
+    @Override
+    public boolean isExecutable() {
+        return getWatchType().isExecutable();
+    }
+
     public static Watch parse(WatchInitializationService ctx, String tenant, String id, String json, long version) throws ConfigValidationException {
         return parse(ctx, tenant, id, DocNode.parse(Format.JSON).from(json), version);
     }
@@ -442,16 +479,8 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         result.schedule = vJsonNode.get("trigger").by((triggerNode) -> DefaultScheduleFactory.INSTANCE.create(jobKey, triggerNode));
 
-        if(vJsonNode.hasNonNull("instances")) {
-            DocNode instancesNode = vJsonNode.get("instances").asDocNode();
-            if(instancesNode.hasNonNull("enabled")) {
-                boolean enabled = instancesNode.getBoolean("enabled");
-                ImmutableList<String> params = instancesNode.getListOfStrings("params");
-                result.instances = new Instances(enabled, params);
-            } else {
-                validationErrors.add(new ValidationError("instances.enabled", "Attribute is missing"));
-            }
-        }
+        InstanceParser instanceParser = new InstanceParser(validationErrors);
+        result.instances = instanceParser.parse(vJsonNode);
         
         try {
             if (vJsonNode.get("inputs").asAnything() instanceof List) {

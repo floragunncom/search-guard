@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.signals.watch.common.Instances;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.SimpleScheduleBuilder;
@@ -68,6 +70,8 @@ public class WatchBuilder {
     List<ResolveAction> resolveActions = new ArrayList<>();
     SeverityMapping severityMapping;
     DurationExpression throttlePeriod;
+
+    private Instances instances = Instances.EMPTY;
 
     final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private boolean active = true;
@@ -135,6 +139,11 @@ public class WatchBuilder {
         return this;
     }
 
+    public WatchBuilder instances(boolean enabled, String...templateParameterNames) {
+        this.instances = new Instances(enabled, ImmutableList.of(Arrays.asList(templateParameterNames)));
+        return this;
+    }
+
     public SearchBuilder search(String... indices) {
         return new SearchBuilder(this, indices);
     }
@@ -171,7 +180,8 @@ public class WatchBuilder {
     }
 
     public Watch build() {
-        Watch result = new Watch(Watch.createJobKey(name), new ScheduleImpl(triggers), inputs, severityMapping, actions, resolveActions);
+        Watch result = new Watch(Watch.createJobKey(name), new ScheduleImpl(triggers), inputs, severityMapping, actions, resolveActions,
+            instances);
 
         result.setDescription(description);
         result.setActive(active);

@@ -142,6 +142,10 @@ public class WatchRunner implements Job {
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
+        if(! watch.isExecutable()) {
+            log.error("Watch '{}' is not executable and should be not scheduled.", watch.getId());
+            throw new JobExecutionException("The watch is not executable '" + watch.getId() + "' and should be not scheduled.");
+        }
         try {
             contextData.setTriggerInfo(new WatchExecutionContextData.TriggerInfo(context.getFireTime(), context.getScheduledFireTime(),
                     context.getPreviousFireTime(), context.getNextFireTime()));

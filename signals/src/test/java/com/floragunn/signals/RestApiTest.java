@@ -57,6 +57,8 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.xcontent.XContentType;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -97,6 +99,9 @@ import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetup;
 
 import net.jcip.annotations.NotThreadSafe;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 
 @NotThreadSafe
 public class RestApiTest {
@@ -974,6 +979,26 @@ public class RestApiTest {
             response = restClient.postJson(watchPath + "/_execute", "{}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+        }
+    }
+
+    @Test
+    public void testShouldNotExecuteWatchTemplates() throws Exception {
+        String tenant = "_main";
+        String watchId = "prevent_template_execution_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("0 0 0 1 1 ?")//
+                .search("testsource").query("{\"match_all\" : {} }").as("testsearch")//
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = restClient.postJson(watchPath + "/_execute", "{}");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CONFLICT, response.getStatusCode());
         }
     }
 
@@ -2931,14 +2956,12 @@ public class RestApiTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         DurationExpression lowerBound = DurationExpression.parse("10m");
 
-        try (Client client = cluster.getInternalNodeClient();
-             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+        try (
+            Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
-            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").then()
-                    .index(testSink).name(actionName)
-                    .build();
+            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").then().index(testSink).name(actionName).build();
 
             putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
@@ -2957,7 +2980,30 @@ public class RestApiTest {
             watchState = getWatchByRest(tenant, watchId, restClient);
             Assert.assertNull(watch.toJson(), watchState.getThrottlePeriod());
             Assert.assertNull(watch.toJson(), watchState.getActionByName(actionName).getThrottlePeriod());
+        }
+    }
 
+    public void testWatchTemplateShouldNotBeExecution() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_watch_template_execution_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String sinkIndexName = "sink_" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest(sinkIndexName)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?")//
+                .search("testsource").query("{\"match_all\" : {} }").as("testsearch")//
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(sinkIndexName)//
+                .name("testsink").build();
+
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+            response = restClient.get(watchPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            Thread.sleep(1000);
+            assertThat(getCountOfDocuments(client, sinkIndexName), equalTo(0L));
         }
     }
 

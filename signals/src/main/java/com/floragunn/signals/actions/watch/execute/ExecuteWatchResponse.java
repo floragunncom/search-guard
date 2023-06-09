@@ -70,7 +70,8 @@ public class ExecuteWatchResponse extends ActionResponse implements ToXContentOb
     }
 
     public static enum Status {
-        EXECUTED, ERROR_WHILE_EXECUTING, NOT_FOUND, TENANT_NOT_FOUND, INVALID_WATCH_DEFINITION, INVALID_INPUT, INVALID_GOTO
+        EXECUTED, ERROR_WHILE_EXECUTING, NOT_FOUND, TENANT_NOT_FOUND, INVALID_WATCH_DEFINITION, INVALID_INPUT, INVALID_GOTO,
+        NOT_EXECUTABLE_WATCH
     }
 
     public Status getStatus() {
