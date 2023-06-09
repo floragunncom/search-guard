@@ -183,6 +183,11 @@
           <version>${project.version}</version>
           <scope>runtime</scope>
         </dependency>
+        <dependency>
+          <groupId>com.floragunn.org.opensaml</groupId>
+          <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+          <scope>runtime</scope>
+        </dependency>
       </dependencies>
 
       <build>

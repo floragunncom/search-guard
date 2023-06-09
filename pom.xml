@@ -420,7 +420,6 @@
         <groupId>com.floragunn.org.opensaml</groupId>
         <artifactId>opensaml-xmlsec-impl-patched</artifactId>
         <version>${project.version}</version>
-        <scope>provided</scope>
       </dependency>
       <dependency>
         <!-- We explicitly specify jakarta.activation-api as provided dependency, as the API is also provided by jakarta.activation. However the explicit provided scope avoids activation-api
