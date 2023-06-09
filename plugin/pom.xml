@@ -205,6 +205,12 @@
 					<artifactId>search-guard-flx-support</artifactId>
 					<version>${project.version}</version>
 				</dependency>
+
+				<dependency>
+					<groupId>com.floragunn.org.opensaml</groupId>
+					<artifactId>opensaml-xmlsec-impl-patched</artifactId>
+					<version>${project.version}</version>
+				</dependency>
 				
 				<!-- DLIC -->
 				<dependency>
@@ -312,6 +318,12 @@
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>search-guard-flx-support</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+
+				<dependency>
+					<groupId>com.floragunn.org.opensaml</groupId>
+					<artifactId>opensaml-xmlsec-impl-patched</artifactId>
 					<version>${project.version}</version>
 				</dependency>
 
