@@ -74,6 +74,14 @@
     </dependency>
 
     <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <version>4.2.0</version>
+      <scope>test</scope>
+    </dependency>
+
+
+    <dependency>
       <groupId>io.github.hakky54</groupId>
       <artifactId>sslcontext-kickstart-for-pem</artifactId>
       <scope>test</scope>
