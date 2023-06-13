@@ -24,18 +24,18 @@ import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.nodes.BaseNodeRequest;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
@@ -78,7 +78,7 @@ public class TransportTruststoreUpdatedAction extends
     }
 
     @Override
-    protected NodeResponse nodeOperation(NodeRequest request) {
+    protected NodeResponse nodeOperation(NodeRequest request,Task task) {
         DiscoveryNode localNode = clusterService.localNode();
         log.info("Local node '{}' received notification about truststore update '{}'.", localNode.getName(), request);
         String truststoreId = request.getTruststoreId();
@@ -92,7 +92,7 @@ public class TransportTruststoreUpdatedAction extends
         }
     }
 
-    public static class NodeRequest extends BaseNodeRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
         private final TruststoreUpdatedRequest request;
 
@@ -102,6 +102,7 @@ public class TransportTruststoreUpdatedAction extends
         }
 
         public NodeRequest(TruststoreUpdatedRequest request) {
+            super((String[]) null);
             this.request = request;
         }
 

@@ -30,7 +30,7 @@ import com.floragunn.signals.truststore.service.TruststoreCrudService;
 import com.floragunn.signals.truststore.service.persistence.TruststoreRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.client.node.NodeClient;
+import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 
 import java.util.ArrayList;
