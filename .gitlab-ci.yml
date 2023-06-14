@@ -297,8 +297,8 @@ test_dlic_security_legacy:
     - if: '$DOCKER_ONLY'
       when: never
     - when: always
-  :
-    - test-large
+  tags:
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
   artifacts:
