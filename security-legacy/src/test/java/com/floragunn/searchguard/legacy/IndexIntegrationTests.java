@@ -317,7 +317,6 @@ public class IndexIntegrationTests extends SingleClusterTest {
     }
 
     @Test
-    @Ignore("Cross-cluster calls are not supported in this context but remote indices were requested")
     public void testCCSIndexResolve() throws Exception {
         
         setup();
@@ -337,7 +336,6 @@ public class IndexIntegrationTests extends SingleClusterTest {
     }
 
     @Test
-    @Ignore("TODO why is this ignored?")
     public void testCCSIndexResolve2() throws Exception {
         
         setup();
@@ -355,7 +353,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
         Assert.assertTrue(res.getBody(),res.getBody().contains("\"content\":1"));
         
         res = rh.executeGetRequest("/ba*bcuzh/_search", encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertTrue(res.getBody(),res.getBody().contains("\"content\":12"));
+        Assert.assertTrue(res.getBody(),res.getBody().contains("\"hits\":[]"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
         
         res = rh.executeGetRequest("/*:.abc/_search", encodeBasicHeader("nagilum", "nagilum"));
@@ -366,8 +364,8 @@ public class IndexIntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
         Assert.assertTrue(res.getBody(),res.getBody().contains("\"content\":2"));
         
-        //res = rh.executeGetRequest("/*noexist/_search", encodeBasicHeader("nagilum", "nagilum"));
-        //Assert.assertEquals(HttpStatus.SC_NOT_FOUND, res.getStatusCode()); 
+        res = rh.executeGetRequest("/*noexist/_search", encodeBasicHeader("nagilum", "nagilum"));
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
         
         res = rh.executeGetRequest("/*:.abc/_search", encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode()); 
@@ -380,7 +378,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
         res = rh.executeGetRequest("/.abc/_search", encodeBasicHeader("ccsresolv", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
         res = rh.executeGetRequest("/xyz/_search", encodeBasicHeader("ccsresolv", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());
         res = rh.executeGetRequest("/*:.abc,.abc/_search", encodeBasicHeader("ccsresolv", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
         res = rh.executeGetRequest("/*:xyz,xyz/_search", encodeBasicHeader("ccsresolv", "nagilum"));

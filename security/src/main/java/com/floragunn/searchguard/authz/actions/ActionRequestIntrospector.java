@@ -17,19 +17,12 @@
 
 package com.floragunn.searchguard.authz.actions;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.rmi.Remote;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -798,7 +791,7 @@ public class ActionRequestIntrospector {
                     OriginalIndices localOriginalIndices = groupedIndices.get(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY);
 
                     localIndices = localOriginalIndices != null ? Arrays.asList(localOriginalIndices.indices()) : Collections.emptyList();
-                    remoteIndices = buildRemoteIndicesSet(groupedIndices);
+                    remoteIndices = buildRemoteIndicesSet(remoteClusterService.isCrossClusterSearchEnabled(), groupedIndices);
                 } else {
                     localIndices = indices;
                     remoteIndices = ImmutableSet.empty();
@@ -807,8 +800,17 @@ public class ActionRequestIntrospector {
             }
         }
 
-        private ImmutableSet<String> buildRemoteIndicesSet(Map<String, OriginalIndices> groupedIndices) {
+        private ImmutableSet<String> buildRemoteIndicesSet(boolean crossClusterSearchEnabled, Map<String, OriginalIndices> groupedIndices) {
             if (groupedIndices.size() == 1 && groupedIndices.containsKey(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY)) {
+                List<String> localClusterIndices = Optional.ofNullable(groupedIndices.get(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY))
+                        .map(OriginalIndices::indices).map(Arrays::asList).orElse(Collections.emptyList());
+                // index/indices on remote cluster(s) requested, but no remote cluster(s) are configured
+                if (!crossClusterSearchEnabled && localClusterIndices.size() != indicesArray.length) {
+                    Set<String> result = Stream.of(indicesArray)
+                            .filter(index -> !localClusterIndices.contains(index) && isRemoteClusterIndex(index))
+                            .collect(Collectors.toSet());
+                    return ImmutableSet.of(result);
+                }
                 return ImmutableSet.empty();
             }
 
@@ -823,6 +825,10 @@ public class ActionRequestIntrospector {
             }
 
             return ImmutableSet.of(result);
+        }
+
+        private boolean isRemoteClusterIndex(String indexName) {
+            return indexName != null && indexName.indexOf(RemoteClusterService.REMOTE_CLUSTER_INDEX_SEPARATOR) >= 0;
         }
 
         @Override
