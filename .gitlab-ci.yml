@@ -71,7 +71,7 @@ build:
       when: never
     - when: always
   tags:
-    - build
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
@@ -94,7 +94,7 @@ build_for_tag_version:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
   tags:
-    - build
+    - runner-1-fail
   before_script:
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   script:
@@ -127,7 +127,7 @@ test_security:
       when: never
     - when: always
   tags:
-    - test-large
+    - runner-1-fail
   script:
     - find .
     - mvn $MAVEN_CLI_OPTS -pl security test
@@ -152,7 +152,7 @@ test_security_legacy:
       when: never
     - when: always
   tags:
-    - test-large
+    - runner-1-fail
   script:
     - find .
     - mvn $MAVEN_CLI_OPTS -pl security-legacy test
@@ -177,7 +177,7 @@ test_ssl:
       when: never
     - when: always
   tags:
-    - test
+    - runner-1-fail
   script:
     - find .
     - mvn $MAVEN_CLI_OPTS -pl ssl test
@@ -202,7 +202,7 @@ test_signals:
       when: never
     - when: always
   tags:
-    - test-large
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl signals test
   artifacts:
@@ -226,7 +226,7 @@ test_scheduler:
       when: never
     - when: always
   tags:
-    - test
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl scheduler test
   artifacts:
@@ -250,7 +250,7 @@ test_support:
       when: never
     - when: always
   tags:
-    - test
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl support test
   artifacts:
@@ -274,7 +274,7 @@ test_dlic_security:
       when: never
     - when: always
   tags:
-    - test-large
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-security test
   artifacts:
@@ -297,7 +297,7 @@ test_dlic_security_legacy:
     - if: '$DOCKER_ONLY'
       when: never
     - when: always
-  tags:
+  :
     - test-large
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
@@ -322,7 +322,7 @@ test_dlic_dlsfls:
       when: never
     - when: always
   tags:
-    - test
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test
   artifacts:
@@ -346,7 +346,7 @@ test_dlic_dlsfls_legacy:
       when: never
     - when: always
   tags:
-    - test
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls-legacy test
   artifacts:
@@ -370,7 +370,7 @@ test_dlic_femt:
       when: never
     - when: always
   tags:
-    - test
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test
   artifacts:
@@ -394,7 +394,7 @@ test_dlic_auditlog:
       when: never
     - when: always
   tags:
-    - test-large
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
   artifacts:
@@ -418,7 +418,7 @@ test_dlic_signals:
       when: never
     - when: always
   tags:
-    - test-large
+    - runner-1-fail
   script:
     - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
   artifacts:
@@ -439,7 +439,7 @@ deploy_snapshot:
   stage: package
   interruptible: true
   tags:
-    - build
+    - runner-1-fail
   needs:
     - job: build
       artifacts: true
@@ -509,7 +509,7 @@ deploy_staging:
   before_script:
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   tags:
-    - build
+    - runner-1-fail
   script:
     - |
       set -x
@@ -571,7 +571,7 @@ deploy_release:
   before_script:
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
   tags:
-    - build
+    - runner-1-fail
   script:
     - ./dev/setup_gpg.sh
     - |
@@ -605,7 +605,7 @@ deploy_docker_image:
     - if: '$DOCKER_ONLY'
       when: always
   tags:
-    - build
+    - runner-1-fail
   script:
     - |
       apk update && apk add bash

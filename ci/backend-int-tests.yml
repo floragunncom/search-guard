@@ -120,7 +120,7 @@ ccs_3_roundtrips_true:
   services:
     - docker:19.03-dind
   tags:
-    - test-large
+    - runner-1-fail
   script:
     - |
        echo "============================================="
