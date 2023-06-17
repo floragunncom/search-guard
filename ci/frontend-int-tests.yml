@@ -151,7 +151,7 @@ fe_kerberos:
     - apk add python python-dev python py3-setuptools py-pip git
     - pip install awscli --upgrade || true
   services:
-    - docker:19.03-dind
+    - docker:20.10.17-dind
   tags:
     - runner-1-fail
   script:
