@@ -687,11 +687,7 @@ public class ActionRequestIntrospector {
 
                 if (expandWildcards) {
                     try {
-                        IndicesOptions resolveOptions = allowNoIndices(indicesOptions);
-                        if (allowsRemoteIndices) {
-                            resolveOptions = ignoreUnavailable(resolveOptions);
-                        }
-                        return ImmutableSet.ofArray(resolver.concreteIndexNames(clusterService.state(), resolveOptions,
+                        return ImmutableSet.ofArray(resolver.concreteIndexNames(clusterService.state(), allowNoIndices(indicesOptions),
                                 this.asIndicesRequestWithoutRemoteIndices()));
                     } catch (IndexNotFoundException | IndexClosedException | InvalidIndexNameException e) {
                         // For some reason, concreteIndexNames() also throws IndexNotFoundException in some cases when ALLOW_NO_INDICES is specified. 
@@ -837,11 +833,7 @@ public class ActionRequestIntrospector {
 
                 @Override
                 public String[] indices() {
-                    if (remoteIndices.isEmpty()) {
-                        return indicesArray;
-                    } else {
-                        return localIndices.toArray(new String[localIndices.size()]);
-                    }
+                    return localIndices.toArray(new String[localIndices.size()]);
                 }
 
                 @Override
