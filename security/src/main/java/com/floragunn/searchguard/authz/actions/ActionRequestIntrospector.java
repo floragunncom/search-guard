@@ -687,7 +687,11 @@ public class ActionRequestIntrospector {
 
                 if (expandWildcards) {
                     try {
-                        return ImmutableSet.ofArray(resolver.concreteIndexNames(clusterService.state(), allowNoIndices(indicesOptions),
+                        IndicesOptions resolveOptions = allowNoIndices(indicesOptions);
+                        if (allowsRemoteIndices) {
+                            resolveOptions = ignoreUnavailable(resolveOptions);
+                        }
+                        return ImmutableSet.ofArray(resolver.concreteIndexNames(clusterService.state(), resolveOptions,
                                 this.asIndicesRequestWithoutRemoteIndices()));
                     } catch (IndexNotFoundException | IndexClosedException | InvalidIndexNameException e) {
                         // For some reason, concreteIndexNames() also throws IndexNotFoundException in some cases when ALLOW_NO_INDICES is specified. 
@@ -791,7 +795,7 @@ public class ActionRequestIntrospector {
                     OriginalIndices localOriginalIndices = groupedIndices.get(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY);
 
                     localIndices = localOriginalIndices != null ? Arrays.asList(localOriginalIndices.indices()) : Collections.emptyList();
-                    remoteIndices = buildRemoteIndicesSet(remoteClusterService.isCrossClusterSearchEnabled(), groupedIndices);
+                    remoteIndices = buildRemoteIndicesSet(groupedIndices);
                 } else {
                     localIndices = indices;
                     remoteIndices = ImmutableSet.empty();
@@ -800,17 +804,8 @@ public class ActionRequestIntrospector {
             }
         }
 
-        private ImmutableSet<String> buildRemoteIndicesSet(boolean crossClusterSearchEnabled, Map<String, OriginalIndices> groupedIndices) {
+        private ImmutableSet<String> buildRemoteIndicesSet(Map<String, OriginalIndices> groupedIndices) {
             if (groupedIndices.size() == 1 && groupedIndices.containsKey(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY)) {
-                List<String> localClusterIndices = Optional.ofNullable(groupedIndices.get(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY))
-                        .map(OriginalIndices::indices).map(Arrays::asList).orElse(Collections.emptyList());
-                // index/indices on remote cluster(s) requested, but no remote cluster(s) are configured
-                if (!crossClusterSearchEnabled && localClusterIndices.size() != indicesArray.length) {
-                    Set<String> result = Stream.of(indicesArray)
-                            .filter(index -> !localClusterIndices.contains(index) && isRemoteClusterIndex(index))
-                            .collect(Collectors.toSet());
-                    return ImmutableSet.of(result);
-                }
                 return ImmutableSet.empty();
             }
 
@@ -825,10 +820,6 @@ public class ActionRequestIntrospector {
             }
 
             return ImmutableSet.of(result);
-        }
-
-        private boolean isRemoteClusterIndex(String indexName) {
-            return indexName != null && indexName.indexOf(RemoteClusterService.REMOTE_CLUSTER_INDEX_SEPARATOR) >= 0;
         }
 
         @Override
@@ -911,6 +902,10 @@ public class ActionRequestIntrospector {
 
         public boolean isLocalIndicesEmpty() {
             return !localAll && getLocalIndices().isEmpty();
+        }
+
+        public boolean areAllIndicesEmpty() {
+            return !localAll && getLocalIndices().isEmpty() && getRemoteIndices().isEmpty();
         }
 
         public boolean containsOnlyRemoteIndices() {

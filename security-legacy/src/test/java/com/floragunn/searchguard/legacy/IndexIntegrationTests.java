@@ -22,6 +22,8 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
@@ -31,21 +33,17 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class IndexIntegrationTests extends SingleClusterTest {
@@ -350,51 +348,80 @@ public class IndexIntegrationTests extends SingleClusterTest {
         
         HttpResponse res = rh.executeGetRequest("/*:.abc,.abc/_search", encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        Assert.assertTrue(res.getBody(),res.getBody().contains("\"content\":1"));
-        
+        DocNode body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 1, body.getAsNode("hits").getAsListOfNodes("hits").size());
+        Assert.assertEquals(res.getBody(), ".abc", body.findSingleNodeByJsonPath("hits.hits[0]").getAsString("_index"));
+        Assert.assertEquals(res.getBody(), "1", body.findSingleNodeByJsonPath("hits.hits[0]._source").getAsString("content"));
+
         res = rh.executeGetRequest("/ba*bcuzh/_search", encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertTrue(res.getBody(),res.getBody().contains("\"hits\":[]"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 0, body.getAsNode("hits").getAsListOfNodes("hits").size());
         
         res = rh.executeGetRequest("/*:.abc/_search", encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertTrue(res.getBody(),res.getBody().contains("\"content\":1"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 0, body.getAsNode("hits").getAsListOfNodes("hits").size());
         
         res = rh.executeGetRequest("/*:xyz,xyz/_search", encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        Assert.assertTrue(res.getBody(),res.getBody().contains("\"content\":2"));
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 1, body.getAsNode("hits").getAsListOfNodes("hits").size());
+        Assert.assertEquals(res.getBody(), "xyz", body.findSingleNodeByJsonPath("hits.hits[0]").getAsString("_index"));
+        Assert.assertEquals(res.getBody(), "2", body.findSingleNodeByJsonPath("hits.hits[0]._source").getAsString("content"));
         
         res = rh.executeGetRequest("/*noexist/_search", encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        
-        res = rh.executeGetRequest("/*:.abc/_search", encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode()); 
-        Assert.assertTrue(res.getBody(),res.getBody().contains("\"content\":1"));
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 0, body.getAsNode("hits").getAsListOfNodes("hits").size());
         
         res = rh.executeGetRequest("/*:xyz/_search", encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode()); 
-        Assert.assertTrue(res.getBody(),res.getBody().contains("\"content\":2"));
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 0, body.getAsNode("hits").getAsListOfNodes("hits").size());
    
         res = rh.executeGetRequest("/.abc/_search", encodeBasicHeader("ccsresolv", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 1, body.getAsNode("hits").getAsListOfNodes("hits").size());
+        Assert.assertEquals(res.getBody(), ".abc", body.findSingleNodeByJsonPath("hits.hits[0]").getAsString("_index"));
+        Assert.assertEquals(res.getBody(), "1", body.findSingleNodeByJsonPath("hits.hits[0]._source").getAsString("content"));
+
+
         res = rh.executeGetRequest("/xyz/_search", encodeBasicHeader("ccsresolv", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());
+
         res = rh.executeGetRequest("/*:.abc,.abc/_search", encodeBasicHeader("ccsresolv", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());  
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 1, body.getAsNode("hits").getAsListOfNodes("hits").size());
+        Assert.assertEquals(res.getBody(), ".abc", body.findSingleNodeByJsonPath("hits.hits[0]").getAsString("_index"));
+        Assert.assertEquals(res.getBody(), "1", body.findSingleNodeByJsonPath("hits.hits[0]._source").getAsString("content"));
+
         res = rh.executeGetRequest("/*:xyz,xyz/_search", encodeBasicHeader("ccsresolv", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 0, body.getAsNode("hits").getAsListOfNodes("hits").size());
+
         res = rh.executeGetRequest("/*:.abc/_search", encodeBasicHeader("ccsresolv", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode()); 
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 0, body.getAsNode("hits").getAsListOfNodes("hits").size());
+
         res = rh.executeGetRequest("/*:xyz/_search", encodeBasicHeader("ccsresolv", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode()); 
+        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 0, body.getAsNode("hits").getAsListOfNodes("hits").size());
+
         res = rh.executeGetRequest("/*:noperm/_search", encodeBasicHeader("ccsresolv", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        res = rh.executeGetRequest("/*:noperm/_search", encodeBasicHeader("ccsresolv", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        //System.out.println(res.getBody());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 0, body.getAsNode("hits").getAsListOfNodes("hits").size());
+
         res = rh.executeGetRequest("/*:noexists/_search", encodeBasicHeader("ccsresolv", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        //System.out.println(res.getBody());
+        body = DocNode.parse(Format.getByContentType(res.getContentType())).from(res.getBody());
+        Assert.assertEquals(res.getBody(), 0, body.getAsNode("hits").getAsListOfNodes("hits").size());
     }
     
     @Test

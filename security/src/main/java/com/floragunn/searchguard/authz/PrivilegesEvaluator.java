@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -410,6 +411,16 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         if (log.isDebugEnabled()) {
             log.debug("requested resolved indextypes: {}", actionRequestInfo);
+        }
+
+        if (actionRequestInfo.getResolvedIndices().areAllIndicesEmpty()) {
+            if (actionRequestIntrospector.forceEmptyResult(request)) {
+                log.debug("Resolved indices were empty. Forcing empty result succeed");
+                return PrivilegesEvaluationResult.OK;
+            } else {
+                log.debug("Resolved indices were empty. Forcing empty result failed for " + action0 + " (" + request.getClass().getName() + ")");
+                return PrivilegesEvaluationResult.INSUFFICIENT;
+            }
         }
 
         // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
