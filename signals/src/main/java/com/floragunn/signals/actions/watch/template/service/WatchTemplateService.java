@@ -44,7 +44,7 @@ public class WatchTemplateService {
             parametersRepository.store(toWatchParameterData(request));
             return new StandardResponse(responseCode);
         } else {
-            return new StandardResponse(404).message("No such watch template");
+            return new StandardResponse(404).error("Watch template with id " + request.getWatchId() + " does not exist.");
         }
     }
 

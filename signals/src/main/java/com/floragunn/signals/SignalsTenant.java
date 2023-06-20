@@ -50,6 +50,10 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.metrics.ValueCount;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
@@ -636,10 +640,11 @@ public class SignalsTenant implements Closeable {
         TermQueryBuilder templateQuery = QueryBuilders.termQuery("instances.enabled", true);
         BoolQueryBuilder query = QueryBuilders.boolQuery().must(getConfigQuery(name)).must(watchIdQuery).must(templateQuery);
         SearchRequest searchRequest = new SearchRequest(configIndexName);
-        searchRequest.source().query(query);
+        searchRequest.source().size(0).query(query).aggregation(AggregationBuilders.count("number_of_watch_templates")//
+            .field("instances.enabled"));
         SearchResponse searchResponse = privilegedConfigClient.search(searchRequest).actionGet();
-        // TODO use aggregation
-        return searchResponse.getHits().getTotalHits().value > 0;
+        ValueCount countAggregation = (ValueCount) searchResponse.getAggregations().asList().get(0);
+        return countAggregation.getValue() > 0;
     }
 
     public String getName() {
