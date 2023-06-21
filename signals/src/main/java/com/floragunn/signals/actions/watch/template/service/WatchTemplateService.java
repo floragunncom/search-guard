@@ -1,9 +1,12 @@
 package com.floragunn.signals.actions.watch.template.service;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.searchsupport.jobs.config.InstanceParameterLoader;
+import com.floragunn.searchsupport.jobs.config.InstanceParameters;
 import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
@@ -18,6 +21,7 @@ import com.floragunn.signals.actions.watch.template.service.persistence.WatchPar
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;

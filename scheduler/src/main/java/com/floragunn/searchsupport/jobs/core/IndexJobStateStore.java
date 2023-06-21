@@ -20,7 +20,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchsupport.jobs.config.InstanceParameterLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -87,6 +90,8 @@ import com.google.common.collect.MapMaker;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Table;
 
+import static java.util.Objects.requireNonNull;
+
 public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs.config.JobConfig> implements DistributedJobStore {
 
     /**
@@ -134,9 +139,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     private final ClusterService clusterService;
     private final Collection<JobConfigListener<JobType>> jobConfigListeners;
 
+    private final InstanceParameterLoader instanceParameterLoader;
+
     public IndexJobStateStore(String schedulerName, String statusIndexName, String statusIndexIdPrefix, String nodeId, Client client,
             Iterable<JobType> jobConfigSource, JobConfigFactory<JobType> jobFactory, ClusterService clusterService,
-            Collection<JobConfigListener<JobType>> jobConfigListeners) {
+            Collection<JobConfigListener<JobType>> jobConfigListeners, InstanceParameterLoader instanceParameterLoader) {
         this.schedulerName = schedulerName;
         this.statusIndexName = statusIndexName;
         this.statusIndexIdPrefix = statusIndexIdPrefix;
@@ -146,6 +153,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         this.jobFactory = jobFactory;
         this.clusterService = clusterService;
         this.jobConfigListeners = new ArrayList<>(jobConfigListeners);
+        this.instanceParameterLoader = requireNonNull(instanceParameterLoader, "Instance parameter loader is required");
     }
 
     @Override
@@ -1821,9 +1829,19 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     private Set<JobType> loadJobConfig() {
         return Sets.newHashSet(this.jobConfigSource)//
             .stream()//
-            //TODO replace filtering with watch template instance creation
-            .filter(JobType::isExecutable)//
+            .flatMap(this::createJobInstancesFromTemplate)//
             .collect(Collectors.toSet());//
+    }
+
+    private Stream<JobType> createJobInstancesFromTemplate(JobType jobType) {
+        if(jobType.isExecutable()) {
+            return Stream.of(jobType);
+        }
+        jobType.getParametersKey()
+            .map(watchId -> instanceParameterLoader.findParameters(watchId))
+            .orElseGet(ImmutableList::empty);
+        //todo create watches based on the above parameters
+        return Stream.empty();
     }
 
     private String quartzKeyToKeyString(org.quartz.utils.Key<?> key) {
@@ -2098,7 +2116,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         private InternalJobDetail jobDetail;
 
         InternalOperableTrigger(IndexJobStateStore<?> jobStore, TriggerKey key) {
-            this.key = java.util.Objects.requireNonNull(key, "TriggerKey must not be null");
+            this.key = requireNonNull(key, "TriggerKey must not be null");
             this.keyString = jobStore.quartzKeyToKeyString(key);
             this.jobStore = jobStore;
         }

@@ -28,10 +28,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
-import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.signals.watch.common.InstanceParser;
 import com.floragunn.signals.watch.common.Instances;
 import org.apache.logging.log4j.LogManager;
@@ -76,16 +75,22 @@ import com.google.common.hash.Hashing;
 public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     public enum WatchType {
-        SINGLE_INSTANCE(true), TEMPLATE(false), TEMPLATE_INSTANCE(true);
+        SINGLE_INSTANCE(true, false), TEMPLATE(false, true), TEMPLATE_INSTANCE(true, false);
 
         private final boolean executable;
+        private final boolean containParameters;
 
-        WatchType(boolean executable) {
+        WatchType(boolean executable, boolean containParameters) {
             this.executable = executable;
+            this.containParameters = containParameters;
         }
 
         public boolean isExecutable() {
             return executable;
+        }
+
+        public boolean isContainParameters() {
+            return containParameters;
         }
     }
     private final static Logger log = LogManager.getLogger(Watch.class);
@@ -436,6 +441,11 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     @Override
     public boolean isExecutable() {
         return getWatchType().isExecutable();
+    }
+
+    @Override
+    public Optional<String> getParametersKey() {
+        return getWatchType().isContainParameters() ? Optional.of(getId()) : Optional.empty();
     }
 
     public static Watch parse(WatchInitializationService ctx, String tenant, String id, String json, long version) throws ConfigValidationException {

@@ -2,6 +2,7 @@ package com.floragunn.searchsupport.jobs.config;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 
 import org.quartz.Job;
 import org.quartz.JobKey;
@@ -32,4 +33,6 @@ public interface JobConfig {
     String getSecureAuthTokenAudience();
 
     boolean isExecutable();
+
+    Optional<String> getParametersKey();
 }

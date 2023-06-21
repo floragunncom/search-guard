@@ -2,6 +2,7 @@ package com.floragunn.searchsupport.jobs.config;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.quartz.Job;
 import org.quartz.JobKey;
@@ -106,6 +107,11 @@ public class DefaultJobConfig implements JobConfig {
     @Override
     public boolean isExecutable() {
         return true;
+    }
+
+    @Override
+    public Optional<String> getParametersKey() {
+        return Optional.empty();
     }
 
     public void setSecureAuthTokenAudience(String secureAuthTokenAudience) {

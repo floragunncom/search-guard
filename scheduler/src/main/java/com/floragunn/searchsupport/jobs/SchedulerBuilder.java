@@ -10,11 +10,13 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import com.floragunn.searchsupport.jobs.config.InstanceParameterLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
@@ -96,6 +98,8 @@ public class SchedulerBuilder<JobType extends JobConfig> {
     private List<JobConfigListener<JobType>> jobConfigListeners = new ArrayList<>();
     private Duration threadKeepAlive = Duration.ofHours(1);
 
+    private InstanceParameterLoader instanceParameterLoader = InstanceParameterLoader.NOOP_LOADER;
+
     public SchedulerBuilder<JobType> name(String name) {
         this.name = name;
         return this;
@@ -119,6 +123,11 @@ public class SchedulerBuilder<JobType extends JobConfig> {
 
     public SchedulerBuilder<JobType> stateIndexIdPrefix(String stateIndexIdPrefix) {
         this.stateIndexIdPrefix = stateIndexIdPrefix;
+        return this;
+    }
+
+    public SchedulerBuilder<JobType> instanceParameterLoader(InstanceParameterLoader loader) {
+        this.instanceParameterLoader = Objects.requireNonNull(loader, "Instance parameter loader");
         return this;
     }
 
@@ -220,7 +229,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
 
         if (this.jobStore == null) {
             this.jobStore = new IndexJobStateStore<>(name, stateIndex, stateIndexIdPrefix, nodeId, client, jobConfigSource, jobConfigFactory,
-                    clusterService, jobConfigListeners);
+                    clusterService, jobConfigListeners, instanceParameterLoader);
         }
 
         if (this.jobStore instanceof DistributedJobStore && this.jobDistributor != null) {

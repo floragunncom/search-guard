@@ -27,6 +27,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.jobs.config.InstanceParameterLoader;
+import com.floragunn.signals.actions.watch.template.service.WatchInstanceParameterLoader;
+import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
 import com.floragunn.signals.watch.common.Ack;
 import com.floragunn.signals.watch.common.throttle.DefaultThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -116,7 +119,7 @@ public class SignalsTenant implements Closeable {
     private final String scopedName;
     private final String configIndexName;
     private final String watchIdPrefix;
-    private final Client privilegedConfigClient;
+    private final PrivilegedConfigClient privilegedConfigClient;
     private final Client client;
     private final ClusterService clusterService;
     private final NodeEnvironment nodeEnvironment;
@@ -198,8 +201,14 @@ public class SignalsTenant implements Closeable {
                 .maxThreads(settings.getStaticSettings().getMaxThreads())//
                 .threadKeepAlive(settings.getStaticSettings().getThreadKeepAlive())//
                 .threadPriority(settings.getStaticSettings().getThreadPrio())//
+                .instanceParameterLoader(createInstanceParameterLoader())
                 .build();
         this.scheduler.start();
+    }
+
+    private InstanceParameterLoader createInstanceParameterLoader() {
+        WatchParametersRepository repository = new WatchParametersRepository(privilegedConfigClient);
+        return new WatchInstanceParameterLoader(getName(), repository);
     }
 
     public void pause() throws SchedulerException {
