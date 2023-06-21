@@ -55,6 +55,10 @@ public class SignalsSettings {
         return dynamicSettings.getDefaultThrottlePeriod();
     }
 
+    public DurationExpression getThrottlePeriodLowerBound() {
+        return dynamicSettings.getThrottlePeriodLowerBound();
+    }
+
     public Tenant getTenant(String tenant) {
         return dynamicSettings.getTenant(tenant);
     }
@@ -92,6 +96,7 @@ public class SignalsSettings {
         public static final Setting<Boolean> ACTIVE = Setting.boolSetting("active", Boolean.TRUE);
         // TODO find reasonable default
         public static Setting<String> DEFAULT_THROTTLE_PERIOD = Setting.simpleString("execution.default_throttle_period", "10s");
+        public static Setting<String> THROTTLE_PERIOD_LOWER_BOUND = Setting.simpleString("execution.throttle_period_lower_bound");
         public static Setting<Boolean> INCLUDE_NODE_IN_WATCHLOG = Setting.boolSetting("watch_log.include_node", Boolean.TRUE);
         public static Setting<String> WATCH_LOG_INDEX = Setting.simpleString("watch_log.index");
         public static Setting<Settings> TENANT = Setting.groupSetting("tenant.");
@@ -111,6 +116,7 @@ public class SignalsSettings {
 
         private volatile Settings settings = Settings.builder().build();
         private volatile DurationExpression defaultThrottlePeriod;
+        private volatile DurationExpression throttlePeriodLowerBound;
 
         private Collection<ChangeListener> changeListeners = Collections.newSetFromMap(new ConcurrentHashMap<ChangeListener, Boolean>());
 
@@ -125,6 +131,10 @@ public class SignalsSettings {
 
         DurationExpression getDefaultThrottlePeriod() {
             return defaultThrottlePeriod;
+        }
+
+        DurationExpression getThrottlePeriodLowerBound() {
+            return throttlePeriodLowerBound;
         }
 
         boolean isIncludeNodeInWatchLogEnabled() {
@@ -206,6 +216,19 @@ public class SignalsSettings {
             } catch (Exception e) {
                 log.error("Error parsing signals.execution.default_throttle_period: " + DEFAULT_THROTTLE_PERIOD.get(settings), e);
                 this.defaultThrottlePeriod = new ConstantDurationExpression(Duration.ofSeconds(10));
+            }
+        }
+
+        private void initThrottlePeriodLowerBound() {
+            if (THROTTLE_PERIOD_LOWER_BOUND.exists(settings)) {
+                try {
+                    this.throttlePeriodLowerBound = DurationExpression.parse(THROTTLE_PERIOD_LOWER_BOUND.get(settings));
+                } catch (Exception e) {
+                    log.error("Error parsing signals.{}: {}", THROTTLE_PERIOD_LOWER_BOUND.getKey(), THROTTLE_PERIOD_LOWER_BOUND.get(settings), e);
+                    this.throttlePeriodLowerBound = null;
+                }
+            } else {
+                this.throttlePeriodLowerBound = null;
             }
         }
 
@@ -356,6 +379,7 @@ public class SignalsSettings {
                 throw new SignalsInitializationException("Error while loading settings", e);
             } finally {
                 initDefaultThrottlePeriod();
+                initThrottlePeriodLowerBound();
             }
 
         }
@@ -371,7 +395,7 @@ public class SignalsSettings {
         }
 
         static List<Setting<?>> getAvailableSettings() {
-            return Arrays.asList(ACTIVE, DEFAULT_THROTTLE_PERIOD, INCLUDE_NODE_IN_WATCHLOG, ALLOWED_HTTP_ENDPOINTS, TENANT,
+            return Arrays.asList(ACTIVE, DEFAULT_THROTTLE_PERIOD, THROTTLE_PERIOD_LOWER_BOUND, INCLUDE_NODE_IN_WATCHLOG, ALLOWED_HTTP_ENDPOINTS, TENANT,
                     INTERNAL_AUTH_TOKEN_SIGNING_KEY, INTERNAL_AUTH_TOKEN_ENCRYPTION_KEY, WATCH_LOG_INDEX, NODE_FILTER, HTTP_PROXY, FRONTEND_BASE_URL);
         }
 

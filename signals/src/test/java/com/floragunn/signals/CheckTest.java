@@ -10,6 +10,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,6 +71,7 @@ public class CheckTest {
 
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
+    private static ThrottlePeriodParser throttlePeriodParser;
     private static BrowserUpProxy httpProxy;
 
     private static TestCertificates testCertificates = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
@@ -109,6 +112,7 @@ public class CheckTest {
     public static void setupDependencies() throws Exception {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
+        throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
         httpProxy = new BrowserUpProxyServer();
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
@@ -126,7 +130,7 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"x\"} }}");
-            searchInput.compileScripts(new WatchInitializationService(null, scriptService));
+            searchInput.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -151,7 +155,7 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"{{data.match}}\"} }}");
-            searchInput.compileScripts(new WatchInitializationService(null, scriptService));
+            searchInput.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("match"), "xx");
@@ -178,7 +182,7 @@ public class CheckTest {
 
             SearchInput searchInput = new SearchInput("test", "test", "testsource",
                     "{\"query\": {\"range\" : {\"date\": {\"gte\": \"{{trigger.scheduled_time}}||-1M\", \"lt\": \"{{trigger.scheduled_time}}\", \"format\": \"strict_date_time\"} } }}");
-            searchInput.compileScripts(new WatchInitializationService(null, scriptService));
+            searchInput.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("match"), "xx");
@@ -254,7 +258,7 @@ public class CheckTest {
 
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-                watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(),
+                watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(),
                         -1);
 
                 WatchLog watchLog = awaitWatchLog(client, tenant, watchId);
@@ -276,7 +280,7 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -304,7 +308,7 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -334,7 +338,7 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -360,7 +364,7 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -400,7 +404,7 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, "application/x-yaml");
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -424,7 +428,7 @@ public class CheckTest {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null);
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(1, 1, null, null));
 
@@ -446,7 +450,7 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             Condition scriptCondition = new Condition(null, "data.x.hits.total > 5", "painless", Collections.emptyMap());
-            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService));
+            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -465,7 +469,7 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             Condition scriptCondition = new Condition(null, "data.x.hits.total > 510", "painless", Collections.emptyMap());
-            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService));
+            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -484,7 +488,7 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             Condition scriptCondition = new Condition(null, "data.x.hits.hits.length > data.constants.threshold", "painless", Collections.emptyMap());
-            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService));
+            scriptCondition.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -505,7 +509,7 @@ public class CheckTest {
         try (Client client = cluster.getInternalNodeClient()) {
 
             Calc calc = new Calc(null, "data.x.y = 5", "painless", Collections.emptyMap());
-            calc.compileScripts(new WatchInitializationService(null, scriptService));
+            calc.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);

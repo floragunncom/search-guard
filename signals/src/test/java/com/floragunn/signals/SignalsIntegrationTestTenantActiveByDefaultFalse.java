@@ -19,6 +19,8 @@ package com.floragunn.signals;
 
 import java.util.concurrent.ExecutionException;
 
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,6 +56,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     private static final Logger log = LogManager.getLogger(SignalsIntegrationTestTenantActiveByDefaultFalse.class);
 
     private static ScriptService scriptService;
+    private static ThrottlePeriodParser throttlePeriodParser;
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/signals").nodeSettings("signals.enabled", true,
@@ -76,6 +79,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     @BeforeClass
     public static void setupDependencies() {
         scriptService = cluster.getInjectable(ScriptService.class);
+        throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
     }
 
     @Test
@@ -98,7 +102,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
 
             Thread.sleep(2000);
 

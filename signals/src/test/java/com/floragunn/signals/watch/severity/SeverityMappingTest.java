@@ -45,7 +45,7 @@ public class SeverityMappingTest {
 
     @Test
     public void basicTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null, null);
 
         DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 2, "level", "error")));
@@ -60,7 +60,7 @@ public class SeverityMappingTest {
 
     @Test
     public void reorderTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null, null);
 
         DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 2, "level", "error"), DocNode.of("threshold", 1, "level", "info")));
@@ -75,7 +75,7 @@ public class SeverityMappingTest {
 
     @Test
     public void descendingOrderTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null, null);
 
         DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
                 Arrays.asList(DocNode.of("threshold", 2, "level", "info"), DocNode.of("threshold", 1, "level", "error")));
@@ -90,7 +90,7 @@ public class SeverityMappingTest {
 
     @Test
     public void descendingReOrderTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null, null);
 
         DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "error"), DocNode.of("threshold", 2, "level", "info")));
@@ -105,7 +105,7 @@ public class SeverityMappingTest {
 
     @Test
     public void duplicateTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null, null);
 
         DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 1, "level", "error")));
@@ -120,7 +120,7 @@ public class SeverityMappingTest {
 
     @Test
     public void findValueTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null, null);
 
         DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 2, "level", "error")));
@@ -139,7 +139,7 @@ public class SeverityMappingTest {
 
     @Test
     public void findValueWithBigNumbersTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null, null);
 
         String configJson = "{\"value\": \"data.x\", \"mapping\": [{\"threshold\": 123456789999, \"level\": \"info\"}, {\"threshold\": 223456789999, \"level\": \"error\"}]}";
 
@@ -159,7 +159,7 @@ public class SeverityMappingTest {
 
     @Test
     public void descendingFindValueTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null, null);
 
         DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "error"), DocNode.of("threshold", 2, "level", "info")));
@@ -178,7 +178,7 @@ public class SeverityMappingTest {
 
     @Test
     public void evaluationResultTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService, null);
 
         String configJson = "{\n" + "    \"mapping\": [\n" + "      {\n" + "        \"level\": \"info\",\n" + "        \"threshold\": 100\n"
                 + "      },\n" + "      {\n" + "        \"level\": \"warning\",\n" + "        \"threshold\": 200\n" + "      },\n" + "      {\n"

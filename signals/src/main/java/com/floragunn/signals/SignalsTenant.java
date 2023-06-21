@@ -19,7 +19,6 @@ package com.floragunn.signals;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,6 +28,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.floragunn.signals.watch.common.Ack;
+import com.floragunn.signals.watch.common.throttle.DefaultThrottlePeriodParser;
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -183,7 +184,7 @@ public class SignalsTenant implements Closeable {
                 .configIndex(configIndexName, getActiveConfigQuery(name))//
                 .stateIndex(settings.getStaticSettings().getIndexNames().getWatchesTriggerState())//
                 .stateIndexIdPrefix(watchIdPrefix)//
-                .jobConfigFactory(new Watch.JobConfigFactory(name, watchIdPrefix, new WatchInitializationService(accountRegistry, scriptService)))//
+                .jobConfigFactory(new Watch.JobConfigFactory(name, watchIdPrefix, new WatchInitializationService(accountRegistry, scriptService, new DefaultThrottlePeriodParser(settings))))//
                 .distributed(clusterService, nodeEnvironment)//
                 .jobFactory(jobFactory)//
                 .nodeFilter(nodeFilter)//
@@ -333,7 +334,7 @@ public class SignalsTenant implements Closeable {
 
         Map<String, Object> watchJson = new LinkedHashMap<>(DocReader.json().readObject(watchJsonString));
 
-        Watch watch = Watch.parse(new WatchInitializationService(accountRegistry, scriptService), getName(), watchId, DocNode.wrap(watchJson), -1);
+        Watch watch = Watch.parse(new WatchInitializationService(accountRegistry, scriptService, new ValidatingThrottlePeriodParser(settings)), getName(), watchId, DocNode.wrap(watchJson), -1);
 
         watch.setTenant(name);
         watch.getMeta().setLastEditByUser(user.getName());

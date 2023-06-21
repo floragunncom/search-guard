@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -137,7 +138,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                     return;
                                 }
 
-                                Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService),
+                                Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())),
                                         signalsTenant.getName(), request.getWatchId(), response.getSourceAsString(), response.getVersion());
 
                                 try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
@@ -180,7 +181,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
             ActionListener<ExecuteWatchResponse> listener) {
 
         try {
-            Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService), signalsTenant.getName(),
+            Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())), signalsTenant.getName(),
                     "__inline_watch", request.getWatchJson(), -1);
 
             threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {

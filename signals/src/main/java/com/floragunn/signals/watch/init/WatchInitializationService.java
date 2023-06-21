@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.floragunn.signals.script.SignalsScriptContextFactory;
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.script.Script;
@@ -27,10 +28,12 @@ public class WatchInitializationService {
 
     private final ScriptService scriptService;
     private final AccountRegistry accountRegistry;
+    private final ThrottlePeriodParser throttlePeriodParser;
 
-    public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService) {
+    public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService, ThrottlePeriodParser throttlePeriodParser) {
         this.accountRegistry = accountRegistry;
         this.scriptService = scriptService;
+        this.throttlePeriodParser = throttlePeriodParser;
     }
 
     public ScriptService getScriptService() {
@@ -129,5 +132,8 @@ public class WatchInitializationService {
 
     public AccountRegistry getAccountRegistry() {
         return accountRegistry;
+    }
+    public ThrottlePeriodParser getThrottlePeriodParser() {
+        return throttlePeriodParser;
     }
 }
