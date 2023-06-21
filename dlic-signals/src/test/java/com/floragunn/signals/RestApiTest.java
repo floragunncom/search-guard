@@ -1,5 +1,7 @@
 package com.floragunn.signals;
 
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -21,6 +23,7 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 public class RestApiTest {
 
     private static ScriptService scriptService;
+    private static ThrottlePeriodParser throttlePeriodParser;
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
@@ -43,6 +46,7 @@ public class RestApiTest {
     @BeforeClass
     public static void setupDependencies() {
         scriptService = cluster.getInjectable(ScriptService.class);
+        throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
 
     }
 
@@ -71,7 +75,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
 
         }
     }

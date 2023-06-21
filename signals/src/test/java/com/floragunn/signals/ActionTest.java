@@ -223,7 +223,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             webhookAction.execute(ctx);
 
@@ -252,7 +252,7 @@ public class ActionTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                     "/{{data.path}}", null, "{{data.body}}", null, null, null);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             TlsConfig tlsConfig = new TlsConfig();
             tlsConfig.setInlineTruststorePem(ROOT_CA_CERT);
@@ -261,7 +261,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService), webhookAction, new WebhookAction.Factory());
+            //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService, null), webhookAction, new WebhookAction.Factory());
 
             webhookAction.execute(ctx);
 
@@ -287,7 +287,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             webhookAction.execute(ctx);
 
@@ -313,7 +313,7 @@ public class ActionTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                     "/{{data.path}}", null, "{{data.body}}", null, null, null);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             TlsClientAuthConfig tlsClientAuthConfig = new TlsClientAuthConfig();
             tlsClientAuthConfig.setInlineAuthCertsPem(KIRK_CERT);
@@ -329,7 +329,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService), webhookAction, new WebhookAction.Factory());
+            //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService, null), webhookAction, new WebhookAction.Factory());
 
             webhookAction.execute(ctx);
 
@@ -359,7 +359,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             webhookAction.execute(ctx);
 
@@ -389,7 +389,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(1, 1, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             webhookAction.execute(ctx);
 
@@ -552,7 +552,7 @@ public class ActionTest {
             c.setText("{{data.body}}");
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             slackAction.execute(ctx);
 
@@ -598,7 +598,7 @@ public class ActionTest {
             c.setBlocks(blocks);
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             slackAction.execute(ctx);
 
@@ -647,7 +647,7 @@ public class ActionTest {
             c.setBlocks(blocks);
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             slackAction.execute(ctx);
 
@@ -696,7 +696,7 @@ public class ActionTest {
             c.setBlocks(blocks);
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             slackAction.execute(ctx);
 
@@ -717,7 +717,7 @@ public class ActionTest {
             SlackAction slackAction = new SlackAction(c);
 
             try {
-                slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                slackAction.compileScripts(new WatchInitializationService(null, scriptService, null));
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains("'text': Required attribute is missing"));
             }
@@ -777,7 +777,7 @@ public class ActionTest {
             c.setAttachments(attachments);
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             slackAction.execute(ctx);
 
@@ -820,7 +820,7 @@ public class ActionTest {
 
             emailAction.setAttachments(ImmutableMap.of("test2", attachment2, "test1", attachment1));
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -885,7 +885,7 @@ public class ActionTest {
 
             emailAction.setAttachments(ImmutableMap.of("test2", attachment2, "test1", attachment1));
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -946,7 +946,7 @@ public class ActionTest {
 
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -1008,7 +1008,7 @@ public class ActionTest {
 
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -1065,7 +1065,7 @@ public class ActionTest {
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
             try {
-                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
             } catch (ConfigValidationException e) {
                 Assert.assertTrue(e.getMessage().contains("Both body and html_body are empty"));
             }
@@ -1091,7 +1091,7 @@ public class ActionTest {
                         "/{{data.path}}", null, "{{data.body}}", null, null, null);
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
-                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
                 EmailAccount emailDestination = new EmailAccount();
                 emailDestination.setHost("localhost");
@@ -1118,7 +1118,7 @@ public class ActionTest {
 
                 emailAction.setAttachments(ImmutableMap.of("test", attachment, "test2", attachment2));
 
-                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
                 WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                         ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
@@ -1166,7 +1166,7 @@ public class ActionTest {
                         "/{{data.path}}", null, "{{data.body}}", null, null, null);
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
-                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
                 EmailAccount emailDestination = new EmailAccount();
                 emailDestination.setHost("localhost");
@@ -1193,7 +1193,7 @@ public class ActionTest {
 
                 emailAction.setAttachments(ImmutableMap.of("test", attachment, "test2", attachment2));
 
-                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
                 WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                         ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
@@ -1241,7 +1241,7 @@ public class ActionTest {
                         "/{{data.path}}", null, "{{data.body}}", null, null, null);
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
-                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
                 EmailAccount emailDestination = new EmailAccount();
                 emailDestination.setHost("localhost");
@@ -1273,7 +1273,7 @@ public class ActionTest {
 
                 emailAction.setAttachments(ImmutableMap.of("attachment3", attachment3, "test", attachment, "test2", attachment2));
 
-                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
                 WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                         ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
@@ -1346,7 +1346,7 @@ public class ActionTest {
             emailAction.setReplyTo("Reply To <replyto@specific.sgtest>");
             emailAction.setAccount("test_destination");
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
@@ -1401,7 +1401,7 @@ public class ActionTest {
             emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
             emailAction.setAccount("test_destination");
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(null, scriptService, null));
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));

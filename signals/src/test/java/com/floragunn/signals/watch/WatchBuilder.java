@@ -130,6 +130,11 @@ public class WatchBuilder {
         return this;
     }
 
+    public WatchBuilder throttledFor(DurationExpression expression) throws ConfigValidationException {
+        throttlePeriod = expression;
+        return this;
+    }
+
     public SearchBuilder search(String... indices) {
         return new SearchBuilder(this, indices);
     }
@@ -264,7 +269,7 @@ public class WatchBuilder {
                 propertyMap.put(Path.parse(String.valueOf(properties[i])), properties[i + 1]);
             }
 
-            ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(new WatchInitializationService(null, null),
+            ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(new WatchInitializationService(null, null, null),
                     DocNode.parse(Format.JSON).from(propertyMap.toJsonString()));
 
             return new GenericActionBuilder(this, actionHandler);

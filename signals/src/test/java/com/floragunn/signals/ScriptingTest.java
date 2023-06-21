@@ -54,7 +54,7 @@ public class ScriptingTest {
     public static void setupDependencies() {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
-        watchInitService = new WatchInitializationService(null, scriptService);
+        watchInitService = new WatchInitializationService(null, scriptService, null);
         signalsModule = cluster.getInjectable(SignalsModule.class);
     }
 

@@ -85,7 +85,7 @@ public class ActionTest {
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
-            WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService);
+            WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService, null);
 
             PagerDutyEventConfig eventConfig = new PagerDutyEventConfig();
             eventConfig.setDedupKey(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_key"));
@@ -125,7 +125,7 @@ public class ActionTest {
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
-            WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService);
+            WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService, null);
 
             JiraIssueConfig jiraIssueConfig = new JiraIssueConfig("bug",
                     InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "Look: {{data.summary}}"),

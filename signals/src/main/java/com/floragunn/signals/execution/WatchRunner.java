@@ -688,6 +688,14 @@ public class WatchRunner implements Job {
             result = watch.getThrottlePeriod();
         }
 
+        DurationExpression lowerBound = signalsSettings.getThrottlePeriodLowerBound();
+
+        if (lowerBound != null) {
+            if (result == null || result.getActualDuration(0).compareTo(lowerBound.getActualDuration(0)) < 0) {
+                result = lowerBound;
+            }
+        }
+
         if (result == null) {
             return signalsSettings.getDefaultThrottlePeriod();
         }

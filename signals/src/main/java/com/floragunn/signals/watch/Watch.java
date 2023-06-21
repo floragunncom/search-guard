@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
@@ -419,6 +420,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
+        ThrottlePeriodParser throttlePeriodParser = ctx.getThrottlePeriodParser();
         boolean severityHasErrors = false;
 
         vJsonNode.used("trigger", "_tenant", "_name");
@@ -478,7 +480,9 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             validationErrors.add("resolve_actions", e);
         }
 
-        result.throttlePeriod = vJsonNode.get("throttle_period").byString(DurationExpression::parse);
+        result.throttlePeriod = vJsonNode.get("throttle_period")
+                .withDefault(throttlePeriodParser.getDefaultThrottle())
+                .byString(throttlePeriodParser::parseThrottle);
 
         if (vJsonNode.hasNonNull("active")) {
             result.active = vJsonNode.get("active").asBoolean();

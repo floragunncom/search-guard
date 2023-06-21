@@ -31,6 +31,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.floragunn.codova.config.temporal.DurationExpression;
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -101,6 +104,7 @@ public class RestApiTest {
     public static final String USERNAME_UHURA = "uhura";
 
     private static ScriptService scriptService;
+    private static ThrottlePeriodParser throttlePeriodParser;
     private static BrowserUpProxy httpProxy;
 
     @Rule
@@ -132,6 +136,7 @@ public class RestApiTest {
     @BeforeClass
     public static void setupDependencies() throws Exception {
         scriptService = cluster.getInjectable(ScriptService.class);
+        throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
         httpProxy = new BrowserUpProxyServer();
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
@@ -178,7 +183,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 
@@ -260,7 +265,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, testSink, 1);
 
@@ -340,7 +345,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
 
             log.info("Created watch; as it should find one doc in " + testSource + ", it should go to severity ERROR and write exactly one doc to "
                     + testSink);
@@ -409,7 +414,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch_with_dash", 1);
 
@@ -442,7 +447,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
 
             Assert.assertTrue(response.getBody(), watch.getSchedule().getTriggers().isEmpty());
         }
@@ -466,7 +471,7 @@ public class RestApiTest {
 
             Assert.assertFalse(response.getBody(), response.getBody().contains("auth_token"));
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", watchId, response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", watchId, response.getBody(), -1);
 
             Assert.assertNull(response.getBody(), watch.getAuthToken());
         }
@@ -836,7 +841,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
 
@@ -867,7 +872,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
 
@@ -2094,7 +2099,7 @@ public class RestApiTest {
                     HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                             "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null);
 
-                    httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+                    httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
                     EmailAccount destination = new EmailAccount();
                     destination.setHost("localhost");
@@ -2815,6 +2820,147 @@ public class RestApiTest {
         }
     }
 
+    @Test
+    public void testPutWatch_throttlePeriodCannotBeShorterThanLowerBound() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_test_throttle_period_shorter_than_lower_bound";
+        String actionName = "indexAction";
+        String testSink = "throttle_period_shorter_than_lower_bound";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        DurationExpression watchThrottle = DurationExpression.parse("2m");
+        DurationExpression lowerBound = DurationExpression.parse("6m");
+
+        try (Client client = cluster.getInternalNodeClient();
+             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?")
+                    .throttledFor(watchThrottle).then()
+                    .index(testSink).name(actionName).throttledFor(watchThrottle)
+                    .build();
+
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            String errorMsg = String.format("Throttle period: %s longer than configured lower bound: %s", watchThrottle, lowerBound);
+            Assert.assertEquals(response.getBody(),
+                    errorMsg,
+                    response.getBodyAsDocNode().getAsNode("detail").getAsListOfNodes("throttle_period").get(0).getAsString("expected")
+            );
+            Assert.assertEquals(response.getBody(),
+                    errorMsg,
+                    response.getBodyAsDocNode().getAsNode("detail").getAsListOfNodes("actions[indexAction].throttle_period").get(0).getAsString("expected")
+
+            );
+
+            watchThrottle = DurationExpression.parse("1m**3");
+            lowerBound = DurationExpression.parse("2m**2");
+            watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?")
+                    .throttledFor(watchThrottle).then()
+                    .index(testSink).name(actionName).throttledFor(watchThrottle)
+                    .build();
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            errorMsg = String.format("Throttle period: %s longer than configured lower bound: %s", watchThrottle, lowerBound);
+            Assert.assertEquals(response.getBody(),
+                    errorMsg,
+                    response.getBodyAsDocNode().getAsNode("detail").getAsListOfNodes("throttle_period").get(0).getAsString("expected")
+            );
+            Assert.assertEquals(response.getBody(),
+                    errorMsg,
+                    response.getBodyAsDocNode().getAsNode("detail").getAsListOfNodes("actions[indexAction].throttle_period").get(0).getAsString("expected")
+
+            );
+        }
+    }
+
+    @Test
+    public void testPutWatch_throttlePeriodLongerThanLowerBound() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_test_throttle_period_longer_than_lower_bound";
+        String actionName = "indexAction";
+        String testSink = "throttle_period_longer_than_lower_bound";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        DurationExpression watchThrottle = DurationExpression.parse("6m");
+        DurationExpression lowerBound = DurationExpression.parse("2m");
+
+        try (Client client = cluster.getInternalNodeClient();
+             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?")
+                    .throttledFor(watchThrottle).then()
+                    .index(testSink).name(actionName).throttledFor(watchThrottle)
+                    .build();
+
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+            watch = getWatchByRest(tenant, watchId, restClient);
+            Assert.assertEquals(watch.toJson(), watchThrottle.toString(), watch.getThrottlePeriod().toString());
+            Assert.assertEquals(watch.toJson(), watchThrottle.toString(), watch.getActionByName(actionName).getThrottlePeriod().toString());
+
+            watchThrottle = DurationExpression.parse("3m**2");
+            lowerBound = DurationExpression.parse("1m**2");
+            watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?")
+                    .throttledFor(watchThrottle).then()
+                    .index(testSink).name(actionName).throttledFor(watchThrottle)
+                    .build();
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            watch = getWatchByRest(tenant, watchId, restClient);
+            Assert.assertEquals(watch.toJson(), watchThrottle.toString(), watch.getThrottlePeriod().toString());
+            Assert.assertEquals(watch.toJson(), watchThrottle.toString(), watch.getActionByName(actionName).getThrottlePeriod().toString());
+        }
+    }
+
+    @Test
+    public void testPutWatch_unsetThrottlePeriodDefaultsToLowerBound() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_test_throttle_period_defaults_to_lower_bound";
+        String actionName = "indexAction";
+        String testSink = "throttle_period_defaults_to_than_lower_bound";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        DurationExpression lowerBound = DurationExpression.parse("10m");
+
+        try (Client client = cluster.getInternalNodeClient();
+             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").then()
+                    .index(testSink).name(actionName)
+                    .build();
+
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Watch watchState = getWatchByRest(tenant, watchId, restClient);
+            Assert.assertEquals(watch.toJson(), lowerBound.toString(), watchState.getThrottlePeriod().toString());
+            Assert.assertEquals(watch.toJson(), lowerBound.toString(), watchState.getActionByName(actionName).getThrottlePeriod().toString());
+
+            deleteDynamicSetting("execution.throttle_period_lower_bound", restClient);
+
+            response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            watchState = getWatchByRest(tenant, watchId, restClient);
+            Assert.assertNull(watch.toJson(), watchState.getThrottlePeriod());
+            Assert.assertNull(watch.toJson(), watchState.getActionByName(actionName).getThrottlePeriod());
+
+        }
+    }
+
     private long getCountOfDocuments(Client client, String index) throws InterruptedException, ExecutionException {
         SearchRequest request = new SearchRequest(index);
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -2948,7 +3094,7 @@ public class RestApiTest {
 
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-        return Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", id, response.getBody(), -1);
+        return Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", id, response.getBody(), -1);
     }
 
     private HttpResponse awaitRestGet(String request, GenericRestClient restClient) throws Exception {
@@ -2970,6 +3116,18 @@ public class RestApiTest {
 
         return response;
 
+    }
+
+    private void putDynamicSetting(String settingName, String settingValue, GenericRestClient restClient) throws Exception {
+        HttpResponse response = restClient.putJson("/_signals/settings/" + settingName, DocNode.wrap(settingValue));
+
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+    }
+
+    private void deleteDynamicSetting(String settingName, GenericRestClient restClient) throws Exception {
+        HttpResponse response = restClient.delete("/_signals/settings/" + settingName);
+
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
     }
 
 }
