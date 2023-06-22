@@ -1,5 +1,5 @@
 variables:
-  SG_KI_PLUGIN: "https://maven.search-guard.com:443/search-guard-kibana-plugin-snapshot/com/floragunn/search-guard-kibana-plugin/b-sg-7.53.x-es-7.17.x-SNAPSHOT/search-guard-kibana-plugin-b-sg-7.53.x-es-7.17.x-20221215.190521-1.zip"
-  IT_BRANCH: "sg-7.52.6-es-7.16.3"
-  KI_VERSION: "7.16.3"
+  SG_KI_PLUGIN: "b-main-sg-classic-SNAPSHOT"
+  IT_BRANCH: "main-sg-classic"
+  KI_VERSION: "7.17.10"
 
