@@ -1,14 +1,13 @@
 package com.floragunn.signals.actions.watch.template.service;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchsupport.jobs.config.InstanceParameterLoader;
-import com.floragunn.searchsupport.jobs.config.InstanceParameters;
+import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
 
-import java.util.List;
 import java.util.Objects;
 
-public class WatchInstanceParameterLoader implements InstanceParameterLoader {
+// TODO consider if this class is needed
+public class WatchInstanceParameterLoader {
 
 
     private final String tenantId;
@@ -20,9 +19,7 @@ public class WatchInstanceParameterLoader implements InstanceParameterLoader {
         this.repository = Objects.requireNonNull(repository, "Watch parameter repository is required");
     }
 
-    @Override
-    public ImmutableList<InstanceParameters> findParameters(String parametersKey) {
-        return repository.findByWatchId(tenantId, parametersKey) //
-            .map(watchParametersData -> new InstanceParameters(watchParametersData.getInstanceId(), watchParametersData.getParameters()));
+    public ImmutableList<WatchParametersData> findParameters(String watchId) {
+        return repository.findByWatchId(tenantId, watchId);
     }
 }

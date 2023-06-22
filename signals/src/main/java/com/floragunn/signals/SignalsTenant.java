@@ -27,9 +27,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchsupport.jobs.config.InstanceParameterLoader;
 import com.floragunn.signals.actions.watch.template.service.WatchInstanceParameterLoader;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.watch.WatchTemplateInstanceFactory;
 import com.floragunn.signals.watch.common.Ack;
 import com.floragunn.signals.watch.common.throttle.DefaultThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -53,8 +53,6 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.aggregations.Aggregation;
-import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.metrics.ValueCount;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -201,14 +199,17 @@ public class SignalsTenant implements Closeable {
                 .maxThreads(settings.getStaticSettings().getMaxThreads())//
                 .threadKeepAlive(settings.getStaticSettings().getThreadKeepAlive())//
                 .threadPriority(settings.getStaticSettings().getThreadPrio())//
-                .instanceParameterLoader(createInstanceParameterLoader())
+                .jobTemplateInstanceFactory(createWatchTemplateInstanceFactory())
                 .build();
         this.scheduler.start();
     }
 
-    private InstanceParameterLoader createInstanceParameterLoader() {
+    private WatchTemplateInstanceFactory createWatchTemplateInstanceFactory() {
         WatchParametersRepository repository = new WatchParametersRepository(privilegedConfigClient);
-        return new WatchInstanceParameterLoader(getName(), repository);
+        WatchInstanceParameterLoader watchInstanceParameterLoader = new WatchInstanceParameterLoader(getName(), repository);
+        ValidatingThrottlePeriodParser throttlePeriodParser = new ValidatingThrottlePeriodParser(settings);
+        WatchInitializationService watchInitService = new WatchInitializationService(accountRegistry, scriptService, throttlePeriodParser);
+        return new WatchTemplateInstanceFactory(watchInstanceParameterLoader, watchInitService);
     }
 
     public void pause() throws SchedulerException {

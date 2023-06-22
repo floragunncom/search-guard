@@ -33,6 +33,4 @@ public interface JobConfig {
     String getSecureAuthTokenAudience();
 
     boolean isExecutable();
-
-    Optional<String> getParametersKey();
 }

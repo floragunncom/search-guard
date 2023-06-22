@@ -1,12 +1,11 @@
 package com.floragunn.signals.actions.watch.template.service;
 
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.StandardResponse;
-import com.floragunn.searchsupport.jobs.config.InstanceParameterLoader;
-import com.floragunn.searchsupport.jobs.config.InstanceParameters;
+import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
@@ -21,7 +20,6 @@ import com.floragunn.signals.actions.watch.template.service.persistence.WatchPar
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -33,10 +31,13 @@ public class WatchTemplateService {
 
     private final Signals signals;
     private final WatchParametersRepository parametersRepository;
+    private final SchedulerConfigUpdateNotifier notifier;
 
-    public WatchTemplateService(Signals signals, WatchParametersRepository parametersRepository) {
+
+    WatchTemplateService(Signals signals, WatchParametersRepository parametersRepository, SchedulerConfigUpdateNotifier notifier) {
         this.signals = Objects.requireNonNull(signals, "Signals module is required");
         this.parametersRepository = Objects.requireNonNull(parametersRepository);
+        this.notifier = Objects.requireNonNull(notifier, "Scheduler config update notifier is required.");
     }
 
     public StandardResponse createOrReplace(CreateOneWatchInstanceRequest request) throws ConfigValidationException {
@@ -46,6 +47,7 @@ public class WatchTemplateService {
                 .map(ignore -> 200) //
                 .orElse(201); //
             parametersRepository.store(toWatchParameterData(request));
+            notifier.send();
             return new StandardResponse(responseCode);
         } else {
             return new StandardResponse(404).error("Watch template with id " + request.getWatchId() + " does not exist.");
@@ -66,7 +68,12 @@ public class WatchTemplateService {
     public StandardResponse deleteWatchInstance(DeleteWatchInstanceRequest request) {
         Objects.requireNonNull(request, "Delete watch instance request is required");
         boolean deleted = parametersRepository.delete(request.getTenantId(), request.getWatchId(), request.getInstanceId());
-        return new StandardResponse(deleted ? 200 : 404);
+        if(deleted) {
+            notifier.send();
+            return new StandardResponse(200);
+        } else {
+            return new StandardResponse(404);
+        }
     }
 
     public StandardResponse createManyInstances(CreateManyWatchInstances request) throws ConfigValidationException {
@@ -77,6 +84,7 @@ public class WatchTemplateService {
             WatchParametersData[] watchParametersData = request.toCreateOneWatchInstanceRequest().stream()//
                 .map(WatchTemplateService::toWatchParameterData).toArray(WatchParametersData[]::new);
             parametersRepository.store(watchParametersData);
+            notifier.send();
             return new StandardResponse(update ? 200 : 201);
         } else {
             return new StandardResponse(404).message("No such watch template.");

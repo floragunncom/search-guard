@@ -28,8 +28,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
+import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.InstanceParser;
 import com.floragunn.signals.watch.common.Instances;
@@ -89,7 +89,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             return executable;
         }
 
-        public boolean isContainParameters() {
+        public boolean hasParameters() {
             return containParameters;
         }
     }
@@ -116,10 +116,11 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     private boolean logRuntimeData;
     private SeverityMapping severityMapping;
     private Meta meta = new Meta();
-
     private Instances instances;
     private String instanceId;
+    private String templateDefinition;
 
+    private com.floragunn.fluent.collections.ImmutableMap<String, Object> instanceParameters;
     private long version;
 
     public Watch() {
@@ -138,6 +139,24 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     public String getId() {
         return jobKey.getName();
+    }
+
+    public String getInstanceId() {
+        return instanceId;
+    }
+
+    public String getTemplateDefinition() {
+        return templateDefinition;
+    }
+
+    public void setInstancesParameters(WatchParametersData instancesParameters) {
+        Objects.requireNonNull(instancesParameters, "Instance parameters are required");
+        this.instanceId = Objects.requireNonNull(instancesParameters.getInstanceId(), "Watch template instance id is required");
+        this.instanceParameters = Objects.requireNonNull(instancesParameters.getParameters(), "Watch parameters are required");
+    }
+
+    public static String createInstanceId(String watchId, String instanceId) {
+        return String.format("%s+%s", watchId, instanceId);
     }
 
     @Override
@@ -443,9 +462,8 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         return getWatchType().isExecutable();
     }
 
-    @Override
-    public Optional<String> getParametersKey() {
-        return getWatchType().isContainParameters() ? Optional.of(getId()) : Optional.empty();
+    public boolean hasParameters() {
+        return getWatchType().hasParameters();
     }
 
     public static Watch parse(WatchInitializationService ctx, String tenant, String id, String json, long version) throws ConfigValidationException {
@@ -491,6 +509,9 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
         InstanceParser instanceParser = new InstanceParser(validationErrors);
         result.instances = instanceParser.parse(vJsonNode);
+        if(result.instances.isEnabled()) {
+            result.templateDefinition = jsonNode.toJsonString();
+        }
         
         try {
             if (vJsonNode.get("inputs").asAnything() instanceof List) {

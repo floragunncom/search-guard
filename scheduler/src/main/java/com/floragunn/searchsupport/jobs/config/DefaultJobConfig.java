@@ -109,11 +109,6 @@ public class DefaultJobConfig implements JobConfig {
         return true;
     }
 
-    @Override
-    public Optional<String> getParametersKey() {
-        return Optional.empty();
-    }
-
     public void setSecureAuthTokenAudience(String secureAuthTokenAudience) {
         this.secureAuthTokenAudience = secureAuthTokenAudience;
     }

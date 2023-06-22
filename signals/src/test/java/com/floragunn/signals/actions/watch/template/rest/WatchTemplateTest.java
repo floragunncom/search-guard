@@ -13,10 +13,22 @@ import com.floragunn.signals.watch.WatchBuilder;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.awaitility.Awaitility;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.WriteRequest;
+import org.elasticsearch.client.Client;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.xcontent.XContentType;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
 
 import static com.floragunn.searchguard.test.TestSgConfig.TenantPermission.ALL_TENANTS_AND_ACCESS;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
@@ -29,17 +41,31 @@ public class WatchTemplateTest {
 
     private static final Logger log = LogManager.getLogger(WatchTemplateTest.class);
 
+    private static final String DEFAULT_TENANT = "_main";
+    private static final String INDEX_SOURCE = "test_source_index";
+
     private final static User USER_ADMIN = new User("admin").roles(new Role("signals_master")//
         .clusterPermissions("*")//
         .indexPermissions("*").on("*")//
         .tenantPermission(ALL_TENANTS_AND_ACCESS));
-    public static final String DEFAULT_TENANT = "_main";
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()//
         .user(USER_ADMIN).enableModule(SignalsModule.class)//
         .nodeSettings("signals.enabled", true)
         .build();
+
+    @BeforeClass
+    public static void setupTestData() {
+
+        try (Client client = cluster.getInternalNodeClient()) {
+            client.index(new IndexRequest(INDEX_SOURCE).source(XContentType.JSON, "key1", "1", "key2", "2")).actionGet();
+            client.index(new IndexRequest(INDEX_SOURCE).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1", "3", "key2", "4"))
+                .actionGet();
+            client.index(new IndexRequest(INDEX_SOURCE).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1", "5", "key2", "6"))
+                .actionGet();
+        }
+    }
 
     @Test
     public void shouldCreateTemplateParameters() throws Exception {
@@ -451,6 +477,46 @@ public class WatchTemplateTest {
         }
     }
 
+    @Test
+    public void shouldNotExecuteWatchTemplate() throws Exception {
+        String watchId = "watch-template-should-not-be-executed";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources(); Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE)
+                .query("{\"match_all\" : {} }").as("testsearch")
+                .then().index(destinationIndex).name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(201));
+
+            Thread.sleep(1200);
+            assertThat(countDocumentInIndex(client, destinationIndex), equalTo(0L));
+        }
+    }
+
+    @Test
+    public void shouldExecuteWatchTemplateInstance() throws Exception {
+        String watchId = "watch-template-instance-should-be-executed";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources(); Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE)
+                .query("{\"match_all\" : {} }").as("testsearch")
+                .then().index(destinationIndex).name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(201));
+            DocNode node = DocNode.of("watch_instance_id", DocNode.of("instance_parameter", 7));
+
+            response = restClient.putJson(parametersPath, node.toJsonString());
+
+            assertThat(response.getStatusCode(), equalTo(201));
+            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+        }
+    }
+
     private void createWatchTemplate(String tenant, String watchId) throws Exception {
         createWatch(tenant, watchId, true);
     }
@@ -459,11 +525,22 @@ public class WatchTemplateTest {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             Watch watch = new WatchBuilder(watchId).instances(template).cronTrigger("0 0 0 1 1 ?")//
-                .search("testsource").query("{\"match_all\" : {} }").as("testsearch")//
-                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
+                .search(INDEX_SOURCE).query("{\"match_all\" : {} }").as("testsearch")//
+                .then().index("testsink").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
             assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
         }
+    }
+
+    private long countDocumentInIndex(Client client, String index) throws InterruptedException, ExecutionException {
+        SearchRequest request = new SearchRequest(index);
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+        request.source(searchSourceBuilder);
+        SearchResponse response = client.search(request).get();
+        long count = response.getHits().getTotalHits().value;
+        log.info("Number of documents in index '{}' is '{}'", index, count);
+        return count;
     }
 
 }

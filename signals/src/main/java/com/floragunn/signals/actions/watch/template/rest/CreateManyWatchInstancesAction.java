@@ -8,18 +8,18 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.SearchGuardVersion;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.actions.watch.template.rest.CreateOneWatchInstanceAction.CreateOneWatchInstanceRequest;
 import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.template.service.WatchTemplateServiceFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.List;
 import java.util.Objects;
@@ -50,11 +50,10 @@ public class CreateManyWatchInstancesAction extends Action<CreateManyWatchInstan
         private final WatchTemplateService templateService;
 
         @Inject
-        public CreateManyWatchInstancesActionHandler(HandlerDependencies handlerDependencies, Signals signals, Client client) {
+        public CreateManyWatchInstancesActionHandler(HandlerDependencies handlerDependencies, Signals signals, Client client,
+            ThreadPool threadPool) {
             super(INSTANCE, handlerDependencies);
-            PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-            WatchParametersRepository watchParametersRepository = new WatchParametersRepository(privilegedConfigClient);
-            this.templateService = new WatchTemplateService(signals, watchParametersRepository);
+            this.templateService = new WatchTemplateServiceFactory(signals, client, threadPool).create();
         }
 
         @Override

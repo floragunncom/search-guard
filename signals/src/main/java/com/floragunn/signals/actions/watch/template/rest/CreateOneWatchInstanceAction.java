@@ -6,17 +6,17 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.SearchGuardVersion;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.template.service.WatchTemplateServiceFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -43,11 +43,10 @@ public class CreateOneWatchInstanceAction extends Action<CreateOneWatchInstanceA
         private final WatchTemplateService templateService;
 
         @Inject
-        public CreateWatchInstanceHandler(NodeClient client, Signals signals, HandlerDependencies handlerDependencies) {
+        public CreateWatchInstanceHandler(NodeClient client, Signals signals, HandlerDependencies handlerDependencies,
+            ThreadPool threadPool) {
             super(INSTANCE, handlerDependencies);
-            PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-            WatchParametersRepository watchParametersRepository = new WatchParametersRepository(privilegedConfigClient);
-            this.templateService = new WatchTemplateService(signals, watchParametersRepository);
+            this.templateService = new WatchTemplateServiceFactory(signals, client, threadPool).create();
         }
 
         @Override

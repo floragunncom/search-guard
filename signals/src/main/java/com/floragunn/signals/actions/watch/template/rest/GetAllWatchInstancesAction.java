@@ -4,15 +4,15 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.SearchGuardVersion;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.template.service.WatchTemplateServiceFactory;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -40,11 +40,9 @@ public class GetAllWatchInstancesAction extends Action<GetAllWatchInstancesActio
         private final WatchTemplateService templateService;
 
         @Inject
-        public GetAllWatchInstancesHandler(HandlerDependencies handlerDependencies, Signals signals, Client client) {
-            super(INSTANCE, handlerDependencies);
-            PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-            WatchParametersRepository watchParametersRepository = new WatchParametersRepository(privilegedConfigClient);
-            this.templateService = new WatchTemplateService(signals, watchParametersRepository);
+        public GetAllWatchInstancesHandler(HandlerDependencies dependencies, Signals signals, Client client, ThreadPool threadPool) {
+            super(INSTANCE, dependencies);
+            this.templateService = new WatchTemplateServiceFactory(signals, client, threadPool).create();
         }
 
         @Override
