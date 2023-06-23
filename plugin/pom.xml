@@ -207,9 +207,9 @@
 				</dependency>
 
 				<dependency>
-					<groupId>com.floragunn.org.opensaml</groupId>
+					<groupId>com.floragunn.dependencies.org.opensaml</groupId>
 					<artifactId>opensaml-xmlsec-impl-patched</artifactId>
-					<version>${project.version}</version>
+					<version>${opensaml.patch.version}</version>
 				</dependency>
 				
 				<!-- DLIC -->
@@ -322,9 +322,9 @@
 				</dependency>
 
 				<dependency>
-					<groupId>com.floragunn.org.opensaml</groupId>
+					<groupId>com.floragunn.dependencies.org.opensaml</groupId>
 					<artifactId>opensaml-xmlsec-impl-patched</artifactId>
-					<version>${project.version}</version>
+					<version>${opensaml.patch.version}</version>
 				</dependency>
 
 				<!-- DLIC -->

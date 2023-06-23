@@ -270,7 +270,7 @@
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>com.floragunn.org.opensaml</groupId>
+			<groupId>com.floragunn.dependencies.org.opensaml</groupId>
 			<artifactId>opensaml-xmlsec-impl-patched</artifactId>
 		</dependency>
 		<dependency>

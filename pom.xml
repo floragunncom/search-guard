@@ -43,6 +43,7 @@
 		<quartz.version>2.3.2</quartz.version>
 		<simplemail.version>5.2.1</simplemail.version>
 		<opensaml.version>4.3.0</opensaml.version>
+		<opensaml.patch.version>4.3.0-1.0.3</opensaml.patch.version>
 
 		<!-- Test only -->
 		<mockito.version>2.23.0</mockito.version>
@@ -54,7 +55,6 @@
 	</properties>
 
 	<modules>
-		<module>xmlsec</module>
 		<module>security</module>
 		<module>security-legacy</module>		
 		<module>scheduler</module>
@@ -374,9 +374,9 @@
 			</dependency>
 
 			<dependency>
-				<groupId>com.floragunn.org.opensaml</groupId>
+				<groupId>com.floragunn.dependencies.org.opensaml</groupId>
 				<artifactId>opensaml-xmlsec-impl-patched</artifactId>
-				<version>${project.version}</version>
+				<version>${opensaml.patch.version}</version>
 			</dependency>
 
 			<dependency>
