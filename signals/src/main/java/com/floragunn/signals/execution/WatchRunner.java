@@ -107,7 +107,8 @@ public class WatchRunner implements Job {
         this.watchState = watchState;
         this.diagnosticContext = diagnosticContext;
         this.lastSeverityLevel = watchState != null ? watchState.getLastSeverityLevel() : null;
-        this.contextData = new WatchExecutionContextData(new WatchExecutionContextData.WatchInfo(watch.getId(), watch.getTenant()));
+        this.contextData = new WatchExecutionContextData(new WatchExecutionContextData.WatchInfo(watch.getId(), watch.getTenant()),//
+            watch.getInstanceParameters());
         this.ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment,
                 ActionInvocationType.ALERT, this.contextData, watchState != null ? watchState.getLastExecutionContextData() : null, simulationMode,
                 new HttpEndpointWhitelist(signalsSettings.getDynamicSettings().getAllowedHttpEndpoints()),

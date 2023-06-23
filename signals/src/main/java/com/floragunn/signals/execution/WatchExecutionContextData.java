@@ -25,6 +25,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.script.JodaCompatibleZonedDateTime;
@@ -38,6 +39,7 @@ import com.floragunn.signals.watch.severity.SeverityMapping;
 
 public class WatchExecutionContextData implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(WatchExecutionContextData.class);
+    public static final String KEY_INSTANCE_PARAMS = "instance";
 
     private NestedValueMap data;
     private NestedValueMap item;
@@ -46,21 +48,25 @@ public class WatchExecutionContextData implements ToXContentObject {
     private JodaCompatibleZonedDateTime executionTime;
     private WatchInfo watch;
 
+    private ImmutableMap<String, Object> instanceParameters;
+
     public WatchExecutionContextData() {
         this.data = new NestedValueMap();
         this.triggerInfo = new TriggerInfo();
     }
     
-    public WatchExecutionContextData(WatchInfo watch) {
+    public WatchExecutionContextData(WatchInfo watch, ImmutableMap<String, Object> instanceParameters) {
         this.data = new NestedValueMap();
         this.triggerInfo = new TriggerInfo();
         this.watch = watch;
+        this.instanceParameters = instanceParameters == null ? ImmutableMap.empty() : instanceParameters;
     }
 
     public WatchExecutionContextData(NestedValueMap data) {
         this.data = data;
         this.triggerInfo = new TriggerInfo();
         this.watch = new WatchInfo(null, null);
+        this.instanceParameters = ImmutableMap.empty();
     }
 
     public WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime) {
@@ -68,16 +74,18 @@ public class WatchExecutionContextData implements ToXContentObject {
         this.triggerInfo = triggerInfo;
         this.executionTime = executionTime;
         this.watch = watch;
+        this.instanceParameters = ImmutableMap.empty();
     }
 
     private WatchExecutionContextData(NestedValueMap data, WatchInfo watch, TriggerInfo triggerInfo, JodaCompatibleZonedDateTime executionTime,
-            SeverityMapping.EvaluationResult severity, NestedValueMap item) {
+            SeverityMapping.EvaluationResult severity, NestedValueMap item, ImmutableMap<String, Object> instanceParameters) {
         this.data = data;
         this.triggerInfo = triggerInfo;
         this.executionTime = executionTime;
         this.severity = severity;
         this.item = item;
         this.watch = watch;
+        this.instanceParameters = instanceParameters == null ? ImmutableMap.empty() : instanceParameters;
     }
 
     public Map<String, Object> getTemplateScriptParamsAsMap() {
@@ -88,7 +96,7 @@ public class WatchExecutionContextData implements ToXContentObject {
         result.put("trigger", triggerInfo != null ? triggerInfo.toMap() : null);
         result.put("execution_time", executionTime);
         result.put("watch", watch != null ? watch.toMap() : null);
-
+        result.put(KEY_INSTANCE_PARAMS, this.instanceParameters);
         return result;
     }
 
@@ -124,8 +132,12 @@ public class WatchExecutionContextData implements ToXContentObject {
         this.executionTime = executionTime;
     }
 
+    public ImmutableMap<String, Object> getInstanceParameters() {
+        return instanceParameters;
+    }
+
     public WatchExecutionContextData clone() {
-        return new WatchExecutionContextData(data.clone(), watch, triggerInfo, executionTime, severity, item);
+        return new WatchExecutionContextData(data.clone(), watch, triggerInfo, executionTime, severity, item, instanceParameters);
     }
 
     @Override
@@ -136,6 +148,7 @@ public class WatchExecutionContextData implements ToXContentObject {
         builder.field("severity", severity);
         builder.field("trigger", triggerInfo);
         builder.field("execution_time", executionTime);
+        builder.field(KEY_INSTANCE_PARAMS, NestedValueMap.copy(instanceParameters));
         builder.endObject();
         return builder;
     }
@@ -180,6 +193,14 @@ public class WatchExecutionContextData implements ToXContentObject {
                 result.executionTime = parseJodaCompatibleZonedDateTime(jsonNode.getAsString("execution_time"));
             } catch (Exception e) {
                 log.error("Error while parsing " + jsonNode.get("execution_time"), e);
+            }
+        }
+
+        if(jsonNode.hasNonNull(KEY_INSTANCE_PARAMS)) {
+            try {
+                result.instanceParameters = ImmutableMap.of(jsonNode.getAsNode(KEY_INSTANCE_PARAMS).toMap());
+            } catch (Exception e) {
+                log.error("Error while parsing instance parameters " + jsonNode.get(KEY_INSTANCE_PARAMS), e);
             }
         }
 

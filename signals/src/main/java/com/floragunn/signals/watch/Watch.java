@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -149,10 +150,15 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         return templateDefinition;
     }
 
+    public com.floragunn.fluent.collections.ImmutableMap<String, Object> getInstanceParameters() {
+        return instanceParameters == null ? com.floragunn.fluent.collections.ImmutableMap.empty() : instanceParameters;
+    }
+
     public void setInstancesParameters(WatchParametersData instancesParameters) {
         Objects.requireNonNull(instancesParameters, "Instance parameters are required");
         this.instanceId = Objects.requireNonNull(instancesParameters.getInstanceId(), "Watch template instance id is required");
-        this.instanceParameters = Objects.requireNonNull(instancesParameters.getParameters(), "Watch parameters are required");
+        this.instanceParameters = Objects.requireNonNull(instancesParameters.getParameters(), "Watch parameters are required")//
+            .with("id", instanceId);
     }
 
     public static String createInstanceId(String watchId, String instanceId) {

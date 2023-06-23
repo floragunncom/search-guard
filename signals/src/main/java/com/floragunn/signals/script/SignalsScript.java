@@ -2,6 +2,7 @@ package com.floragunn.signals.script;
 
 import java.util.Map;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import org.elasticsearch.script.JodaCompatibleZonedDateTime;
 
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -18,6 +19,7 @@ public abstract class SignalsScript {
     private final SeverityMapping.EvaluationResult severity;
     private final JodaCompatibleZonedDateTime execution_time;
     private final WatchExecutionContextData resolved;
+    private final ImmutableMap<String, Object> instance;
 
     protected SignalsScript(Map<String, Object> params, WatchExecutionContext watchRuntimeContext) {
         this.params = params;
@@ -30,6 +32,7 @@ public abstract class SignalsScript {
         this.resolved = watchRuntimeContext.getResolvedContextData();
         this.item = watchRuntimeContext.getContextData().getItem();
         this.watch = watchRuntimeContext.getContextData().getWatch();
+        this.instance = watchRuntimeContext.getContextData().getInstanceParameters();
     }
 
     public Map<String, Object> getParams() {
@@ -62,5 +65,9 @@ public abstract class SignalsScript {
 
     public WatchExecutionContextData.WatchInfo getWatch() {
         return watch;
+    }
+
+    public Map<String, Object> getInstance() {
+        return instance;
     }
 }
