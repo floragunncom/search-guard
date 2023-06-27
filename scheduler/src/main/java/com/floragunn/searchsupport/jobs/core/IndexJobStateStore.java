@@ -178,6 +178,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         }
 
         try {
+            log.info("Initialize scheduler jobs.");
             this.initJobs();
         } catch (Exception e) {
             if (clusterService != null) {
@@ -1264,6 +1265,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                 log.trace("Going to load jobs; ");
             }
 
+            log.info("Load jobs invoked");
             Set<JobType> jobConfigSet = this.loadJobConfigAfterReachingYellowStatus();
 
             notifyJobConfigInitListeners(jobConfigSet);
@@ -1803,6 +1805,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     }
 
     private Set<JobType> loadJobConfigAfterReachingYellowStatus() {
+        log.debug("Load signals job config after reaching yellow state");
         try {
             // TODO XXX
             ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth().setWaitForYellowStatus()
@@ -1821,10 +1824,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             throw e;
         }
 
-        return Sets.newHashSet(this.jobConfigSource);
+        return loadJobConfig();
     }
 
     private Set<JobType> loadJobConfig() {
+        log.debug("Loading signals job config and create watch instances.");
         return Sets.newHashSet(this.jobConfigSource)//
             .stream()//
             .flatMap(jobType -> jobTemplateInstanceFactory.instantiateTemplate(jobType).stream())//

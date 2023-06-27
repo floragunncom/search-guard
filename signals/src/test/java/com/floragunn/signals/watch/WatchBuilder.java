@@ -461,6 +461,11 @@ public class WatchBuilder {
             return this;
         }
 
+        public WebhookActionBuilder body(DocNode body) {
+            this.body = body.toJsonString();
+            return this;
+        }
+
         protected ActionHandler finish() {
             return new WebhookAction(new HttpRequestConfig(method, uri, null, null, body, headers, auth, null),
                     new HttpClientConfig(null, null, null, proxy));

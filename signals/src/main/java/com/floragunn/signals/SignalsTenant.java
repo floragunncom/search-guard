@@ -355,7 +355,7 @@ public class SignalsTenant implements Closeable {
         watch.setTenant(name);
         watch.getMeta().setLastEditByUser(user.getName());
         watch.getMeta().setLastEditByDate(new Date());
-        watch.getMeta().setAuthToken(internalAuthTokenProvider.getJwt(user, watch.getIdAndHash()));
+        watch.getMeta().setAuthToken(internalAuthTokenProvider.getJwt(user, watch.getSecureAuthTokenAudience()));
 
         watchJson.put("_tenant", watch.getTenant());
         watchJson.put("_meta", watch.getMeta().toMap());

@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -142,6 +141,10 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         return jobKey.getName();
     }
 
+    public String getWatchTemplateId() {
+        return WatchInstanceIdService.INSTANCE.getWatchTemplateId(getId());
+    }
+
     public String getInstanceId() {
         return instanceId;
     }
@@ -162,8 +165,9 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     }
 
     public static String createInstanceId(String watchId, String instanceId) {
-        return String.format("%s+%s", watchId, instanceId);
+        return WatchInstanceIdService.INSTANCE.createInstanceId(watchId, instanceId);
     }
+
 
     @Override
     public JobKey getJobKey() {
@@ -282,7 +286,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     }
 
     public String getSecureAuthTokenAudience() {
-        return getIdAndHash();
+        return getWatchTemplateId() + "." + secureHash();
     }
 
     private void initAutoResolveActions() {

@@ -44,6 +44,9 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import org.apache.http.Header;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntityEnclosingRequest;
@@ -87,7 +90,7 @@ public class MockWebserviceProvider implements Closeable {
     private long responseDelayMs = 0;
     private InetAddress acceptConnectionsOnlyFromInetAddress;
 
-    MockWebserviceProvider(String path) throws IOException {
+    public MockWebserviceProvider(String path) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort());
     }
 
@@ -310,6 +313,15 @@ public class MockWebserviceProvider implements Closeable {
 
     public String getLastRequestBody() {
         return lastRequestBody;
+    }
+
+    public DocNode getLastRequestBodyAsDocNode() {
+        String body = getLastRequestBody();
+        try {
+            return DocNode.parse(Format.JSON).from(body);
+        } catch (DocumentParseException e) {
+            throw new RuntimeException("Cannot parse last request body as JSON: " + body, e);
+        }
     }
 
     public void setLastRequestBody(String lastRequestBody) {

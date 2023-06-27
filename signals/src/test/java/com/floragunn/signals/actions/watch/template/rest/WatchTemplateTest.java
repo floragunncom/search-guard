@@ -8,7 +8,7 @@ import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
+import com.floragunn.signals.MockWebserviceProvider;
 import com.floragunn.signals.SignalsModule;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
@@ -22,7 +22,6 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -56,7 +55,7 @@ public class WatchTemplateTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()//
         .user(USER_ADMIN).enableModule(SignalsModule.class)//
-        .nodeSettings("signals.enabled", true)
+        .nodeSettings("signals.enabled", true) //
         .build();
 
     @BeforeClass
@@ -64,9 +63,9 @@ public class WatchTemplateTest {
 
         try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest(INDEX_SOURCE).source(XContentType.JSON, "key1", "1", "key2", "2")).actionGet();
-            client.index(new IndexRequest(INDEX_SOURCE).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1", "3", "key2", "4"))
+            client.index(new IndexRequest(INDEX_SOURCE).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1", "3", "key2", "4")) //
                 .actionGet();
-            client.index(new IndexRequest(INDEX_SOURCE).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1", "5", "key2", "6"))
+            client.index(new IndexRequest(INDEX_SOURCE).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1", "5", "key2", "6")) //
                 .actionGet();
         }
     }
@@ -488,8 +487,8 @@ public class WatchTemplateTest {
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources(); Client client = cluster.getInternalNodeClient()) {
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE)
-                .query("{\"match_all\" : {} }").as("testsearch")
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             assertThat(response.getStatusCode(), equalTo(201));
@@ -509,8 +508,8 @@ public class WatchTemplateTest {
 
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE)
-                .query("{\"match_all\" : {} }").as("testsearch")
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             assertThat(response.getStatusCode(), equalTo(201));
@@ -530,12 +529,12 @@ public class WatchTemplateTest {
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         String instanceId = "watch_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()
+            Client client = cluster.getInternalNodeClient() //
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE)
-                .query("{\"match_all\" : {} }").as("testsearch")
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['created_by':instance.id]").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -558,12 +557,12 @@ public class WatchTemplateTest {
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         String instanceId = "another_watch_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()
+            Client client = cluster.getInternalNodeClient() //
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE)
-                .query("{\"match_all\" : {} }").as("testsearch")
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['created_by':instance.id]").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -586,12 +585,12 @@ public class WatchTemplateTest {
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         String instanceId = "watch_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()
+            Client client = cluster.getInternalNodeClient() //
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE)
-                .query("{\"match_all\" : {} }").as("testsearch")
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['priority':instance.instance_parameter]").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -614,12 +613,12 @@ public class WatchTemplateTest {
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         String instanceId = "watch_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()
+            Client client = cluster.getInternalNodeClient() //
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE)
-                .query("{\"match_all\" : {} }").as("testsearch")
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['priority':instance.instance_parameter]").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -641,12 +640,12 @@ public class WatchTemplateTest {
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()
+            Client client = cluster.getInternalNodeClient() //
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE)
-                .query("{\"match_all\" : {} }").as("testsearch")
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['name':instance.value]").name("testsink")//
                 .build();
             HttpResponse response = restClient.putJson(watchPath, watch);
@@ -663,6 +662,142 @@ public class WatchTemplateTest {
         }
     }
 
+    @Test
+    public void shouldUseManyParameters() throws Exception {
+        String watchId = "watch-should-use-many-parameters";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String instanceId = "multiple-parameters-instance";
+        String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient() //
+        ){
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch").then().index(destinationIndex) //
+                .transform(null, "['Color':instance.color, 'Shp':instance.shape, 'Opacity':instance.transparency]") //
+                .name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(201));
+            DocNode node = DocNode.of("color", "blue", "shape", "round", "transparency", "medium");
+
+            response = restClient.putJson(parametersPath, node.toJsonString());
+
+            assertThat(response.getStatusCode(), equalTo(201));
+            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            String createdDocument = findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString();
+            log.info("Document created by watch template '{}'.", createdDocument);
+            DocNode firstHit = DocNode.parse(Format.JSON).from(createdDocument);
+            assertThat(firstHit.size(), equalTo(3));
+            assertThat(firstHit, containsValue("Color", "blue"));
+            assertThat(firstHit, containsValue("Shp", "round"));
+            assertThat(firstHit, containsValue("Opacity", "medium"));
+        }
+    }
+
+    @Test
+    public void shouldUseManyParametersOtherParameterSet() throws Exception {
+        String watchId = "watch-should-use-many-parameters-other-parameter-set";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String instanceId = "multiple-parameters-instance";
+        String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient() //
+        ){
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch").then().index(destinationIndex) //
+                .transform(null, "['Color':instance.color, 'Shp':instance.shape, 'Opacity':instance.transparency]") //
+                .name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(201));
+            DocNode node = DocNode.of("color", "black", "shape", "rectangular", "transparency", "minimal");
+
+            response = restClient.putJson(parametersPath, node.toJsonString());
+
+            assertThat(response.getStatusCode(), equalTo(201));
+            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            String createdDocument = findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString();
+            log.info("Document created by watch template '{}'.", createdDocument);
+            DocNode firstHit = DocNode.parse(Format.JSON).from(createdDocument);
+            assertThat(firstHit.size(), equalTo(3));
+            assertThat(firstHit, containsValue("Color", "black"));
+            assertThat(firstHit, containsValue("Shp", "rectangular"));
+            assertThat(firstHit, containsValue("Opacity", "minimal"));
+        }
+    }
+
+    @Test
+    public void shouldUseInstanceParameterInWebhookAction() throws Exception {
+        String watchId = "watch-should-use-instance-parameter-in-webhook-action";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String instanceId = "multiple-parameters-instance";
+        String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        ){
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            DocNode bodyTemplate = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch").then()//
+                .postWebhook(webhookProvider.getUri()).body(bodyTemplate).throttledFor("1h").name("webhook-action-name")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(201));
+            DocNode node = DocNode.of("color", "black", "shape", "rectangular", "transparency", "minimal");
+
+            response = restClient.putJson(parametersPath, node.toJsonString());
+
+            assertThat(response.getStatusCode(), equalTo(201));
+            Awaitility.await().until(() -> webhookProvider.getRequestCount() > 0);
+            DocNode webhookBody =  webhookProvider.getLastRequestBodyAsDocNode();
+            assertThat(webhookBody.size(), equalTo(3));
+            assertThat(webhookBody, containsValue("Color", "black"));
+            assertThat(webhookBody, containsValue("Shp", "rectangular"));
+            assertThat(webhookBody, containsValue("Opacity", "minimal"));
+        }
+    }
+
+    @Test
+    public void shouldUseInstanceParameterInWebhookActionWithAnotherParameters() throws Exception {
+        String watchId = "watch-should-use-instance-parameter-in-webhook-action-with-another-parameters";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String instanceId = "multiple-parameters-instance";
+        String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        ){
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            DocNode bodyTemplate = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
+            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch").then()//
+                .postWebhook(webhookProvider.getUri()).body(bodyTemplate).throttledFor("1h").name("webhook-action-name")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(201));
+            DocNode node = DocNode.of("color", "green", "shape", "square", "transparency", "almost full");
+
+            response = restClient.putJson(parametersPath, node.toJsonString());
+
+            assertThat(response.getStatusCode(), equalTo(201));
+            Awaitility.await().until(() -> webhookProvider.getRequestCount() > 0);
+            DocNode webhookBody =  webhookProvider.getLastRequestBodyAsDocNode();
+            assertThat(webhookBody.size(), equalTo(3));
+            assertThat(webhookBody, containsValue("Color", "green"));
+            assertThat(webhookBody, containsValue("Shp", "square"));
+            assertThat(webhookBody, containsValue("Opacity", "almost full"));
+        }
+    }
+
     private void createWatchTemplate(String tenant, String watchId) throws Exception {
         createWatch(tenant, watchId, true);
     }
@@ -673,7 +808,9 @@ public class WatchTemplateTest {
             Watch watch = new WatchBuilder(watchId).instances(template).cronTrigger("0 0 0 1 1 ?")//
                 .search(INDEX_SOURCE).query("{\"match_all\" : {} }").as("testsearch")//
                 .then().index("testsink").name("testsink").build();
-            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+            String watchJson = watch.toJson();
+            log.info("Create watch '{}'.", watchJson);
+            HttpResponse response = restClient.putJson(watchPath, watchJson);
             assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
         }
     }
@@ -688,16 +825,14 @@ public class WatchTemplateTest {
     private static SearchResponse findAllDocuments(Client client, String index) throws InterruptedException, ExecutionException {
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.query(QueryBuilders.matchAllQuery());
-        SearchResponse response = findDocuments(client, index, searchSourceBuilder);
-        return response;
+        return findDocuments(client, index, searchSourceBuilder);
     }
 
     private static SearchResponse findDocuments(Client client, String index, SearchSourceBuilder searchSourceBuilder)
         throws InterruptedException, ExecutionException {
         SearchRequest request = new SearchRequest(index);
         request.source(searchSourceBuilder);
-        SearchResponse response = client.search(request).get();
-        return response;
+        return client.search(request).get();
     }
 
     private static long countDocumentWithTerm(Client client, String index, String fieldName, String fieldValue)
