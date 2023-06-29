@@ -121,4 +121,10 @@ public class WatchTemplateService {
             return false;
         }
     }
+
+    public void deleteAllInstanceParameters(String tenantId, String watchId) {
+        Objects.requireNonNull(tenantId, "Tenant id is required");
+        Objects.requireNonNull(watchId, "Watch id is required");
+        parametersRepository.deleteByWatchId(tenantId, watchId);
+    }
 }

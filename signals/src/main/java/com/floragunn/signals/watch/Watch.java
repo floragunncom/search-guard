@@ -75,6 +75,7 @@ import com.google.common.hash.Hashing;
 public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     public enum WatchType {
+        // TODO Replace template with generic watch definition
         SINGLE_INSTANCE(true, false), TEMPLATE(false, true), TEMPLATE_INSTANCE(true, false);
 
         private final boolean executable;

@@ -21,6 +21,8 @@ public class GetWatchInstanceParametersAction extends Action<GetWatchInstancePar
     public static final GetWatchInstanceParametersAction INSTANCE = new GetWatchInstanceParametersAction();
 
     public static final RestApi REST_API = new RestApi().responseHeaders(SearchGuardVersion.header())//
+        //TODO consider changing path to /_signals/watch/{tenant}/{id}/instances/{instance_id}
+        // without `parameters` postfix
         .handlesGet("/_signals/watch/{tenant}/{id}/instances/{instance_id}/parameters")//
         .with(INSTANCE, (params, body) -> new GetWatchInstanceParametersRequest(params.get("tenant"), params.get("id"), params.get("instance_id")))//
         .name("GET /_signals/watch/{tenant}/{id}/instances/{instance_id}/parameters");

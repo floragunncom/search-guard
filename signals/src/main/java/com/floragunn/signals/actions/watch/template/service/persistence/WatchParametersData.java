@@ -46,11 +46,14 @@ public class WatchParametersData implements Document<WatchParametersData> {
             FIELD_PARAMETERS, parameters);
     }
 
-    String id() {
+    String getId() {
         return createId(tenantId, watchId, instanceId);
     }
 
     public static String createId(String tenantId, String watchId, String instanceId) {
+        Objects.requireNonNull(tenantId, "Tenant id is required");
+        Objects.requireNonNull(watchId, "Watch id is required");
+        Objects.requireNonNull(instanceId, "Instance id is required.");
         return String.format("param@%s/%s/%s", tenantId, watchId, instanceId);
     }
 
