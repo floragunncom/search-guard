@@ -46,7 +46,7 @@
 		<opensaml.patch.version>4.3.0-1.0.3</opensaml.patch.version>
 
 		<!-- Test only -->
-		<mockito.version>2.23.0</mockito.version>
+		<mockito.version>5.4.0</mockito.version>
 		<powermock.version>2.0.2</powermock.version>
 
 		<!-- For mvn license:aggregate-add-third-party -->
