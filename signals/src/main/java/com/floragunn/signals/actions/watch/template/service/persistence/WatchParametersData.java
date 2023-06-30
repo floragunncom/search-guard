@@ -64,4 +64,9 @@ public class WatchParametersData implements Document<WatchParametersData> {
     public String getInstanceId() {
         return instanceId;
     }
+
+    @Override
+    public String toString() {
+        return "WatchParametersData{" + "tenantId='" + tenantId + '\'' + ", watchId='" + watchId + '\'' + ", instanceId='" + instanceId + '\'' + '}';
+    }
 }

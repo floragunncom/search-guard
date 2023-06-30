@@ -37,6 +37,7 @@ import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDI
 public class WatchParametersRepository {
 
     private static final Logger log = LogManager.getLogger(WatchParametersRepository.class);
+    public static final int WATCH_PARAMETER_DATA_PAGE_SIZE = 100;
 
     private final PrivilegedConfigClient client;
 
@@ -69,8 +70,9 @@ public class WatchParametersRepository {
         Objects.requireNonNull(watchId, "Watch id is required");
         BoolQueryBuilder boolQuery = parametersByTenantIdAndWatchIdQuery(tenantId, watchId);
         SearchRequest request = new SearchRequest(WATCHES_INSTANCE_PARAMETERS);
-        //TODO set correct page size
-        request.source(SearchSourceBuilder.searchSource().query(boolQuery));
+        SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource().query(boolQuery);
+        sourceBuilder.size(WATCH_PARAMETER_DATA_PAGE_SIZE);
+        request.source(sourceBuilder);
         SearchScroller searchScroller = new SearchScroller(client);
         ImmutableList<WatchParametersData> result = searchScroller.scrollAndLoadAll(request, this::jsonToWatchParametersData);
         log.info("Found '{}' watch instances for generic watch '{}' and tenant '{}'", result.size(), watchId, tenantId);

@@ -10,6 +10,7 @@ import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.MockWebserviceProvider;
 import com.floragunn.signals.SignalsModule;
+import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -28,8 +29,12 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
 import static com.floragunn.searchguard.test.TestSgConfig.TenantPermission.ALL_TENANTS_AND_ACCESS;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
@@ -902,7 +907,7 @@ public class WatchTemplateTest {
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             response = restClient.delete(watchPath);
-            log.info("Watch template deletion status code '{}' and response body '{}'.");
+            log.info("Watch template deletion status code '{}' and response body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             Thread.sleep(2000);//let's wait for watch removal from quartz scheduler
             long numberOfDocumentAfterTemplateDeletion = countDocumentInIndex(client, destinationIndex);
@@ -971,6 +976,80 @@ public class WatchTemplateTest {
             HttpResponse response = client.delete(watchPath);
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
+        }
+    }
+
+    /**
+     * The test check if it is possible to run more watch instances then the default ES page size which is equal to 10.
+     * The ensure that loading watch parameters works correctly. The test consumes a lot of resources.
+     */
+    @Test
+    public void shouldRunManyWatchInstances() throws Exception {
+        String watchId = "my-watch-should-run-many-watch-instances";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true).atMsInterval(5000).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name]")//
+                .throttledFor("1h").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            List<String> nameParameterValues = new ArrayList<>();
+            DocNode node = DocNode.EMPTY;
+            for(int i = 0; i < (WatchParametersRepository.WATCH_PARAMETER_DATA_PAGE_SIZE + 5); ++i) {
+                String name = "my_name_is_" + i;
+                nameParameterValues.add(name);
+                node = node.with(DocNode.of("instance_id_" + i, DocNode.of("name", name)));
+            }
+
+            //this line should run watch instances
+            response = restClient.putJson(parametersPath, node.toJsonString());
+
+            log.info("Create watch instances response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            for(String parameterValue : nameParameterValues) {
+                Awaitility.await().until(() -> countDocumentWithTerm(client, destinationIndex, "name", parameterValue) > 0);
+            }
+        }
+    }
+
+    @Test
+    public void shouldLoadManyInstanceParameters() throws Exception {
+        String watchId = "my-watch-should-create-significant-number-of-instances";
+        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId);
+        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            try {
+                DocNode node = DocNode.EMPTY;
+                final int numberOfInstances = WatchParametersRepository.WATCH_PARAMETER_DATA_PAGE_SIZE * 2;
+                Function<Integer, String> createInstanceId = i -> "instance_id_" + i;
+                for (int i = 0; i < numberOfInstances; ++i) {
+                    String instanceId = createInstanceId.apply(i);
+                    node = node.with(DocNode.of(instanceId, DocNode.of("parameter", "value_" + i)));
+                }
+                HttpResponse response = client.putJson(parametersPath, node.toJsonString());
+                log.info("Create watch template response '{}'.", response.getBody());
+                assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+
+                response = client.get(parametersPath);
+
+                log.info("Get many parameters response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+                assertThat(response.getStatusCode(), equalTo(SC_OK));
+                DocNode body = response.getBodyAsDocNode();
+                Set<String> existingInstancesIds = body.getAsNode("data").keySet();
+                for (int i = 0; i < numberOfInstances; ++i) {
+                    String instanceId = createInstanceId.apply(i);
+                    assertThat(existingInstancesIds.contains(instanceId), equalTo(true));
+                }
+            } finally {
+                client.delete(watchPath);
+            }
         }
     }
 
