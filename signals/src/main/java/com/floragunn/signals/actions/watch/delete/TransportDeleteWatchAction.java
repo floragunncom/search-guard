@@ -115,6 +115,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
     }
 
     private void deleteWatchParametersAsync(String name, String watchId) {
+        // TODO verify if async operation is triggered correctly and use appropriate thread pool
         CompletableFuture.runAsync(() -> {
             watchTemplateService.deleteAllInstanceParameters(name, watchId);
         }, threadPool.generic());
