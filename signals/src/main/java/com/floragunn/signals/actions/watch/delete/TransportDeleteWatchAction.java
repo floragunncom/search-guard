@@ -28,6 +28,8 @@ import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 import com.floragunn.signals.SignalsUnavailableException;
 
+import java.util.concurrent.CompletableFuture;
+
 public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWatchRequest, DeleteWatchResponse> {
     private static final Logger log = LogManager.getLogger(TransportDeleteWatchAction.class);
 
@@ -90,7 +92,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
                                     threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
 
                                     fireDeleteWatchState(signalsTenant, idInIndex);
-                                    watchTemplateService.deleteAllInstanceParameters(signalsTenant.getName(), request.getWatchId());
+                                    deleteWatchParametersAsync(signalsTenant.getName(), request.getWatchId());
                                 }
 
                                 listener.onResponse(new DeleteWatchResponse(request.getWatchId(), response.getVersion(), response.getResult(),
@@ -110,6 +112,12 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
         } catch (Exception e) {
             listener.onFailure(e);
         }
+    }
+
+    private void deleteWatchParametersAsync(String name, String watchId) {
+        CompletableFuture.runAsync(() -> {
+            watchTemplateService.deleteAllInstanceParameters(name, watchId);
+        }, threadPool.generic());
     }
 
     private void fireDeleteWatchState(SignalsTenant signalsTenant, String idInIndex) {

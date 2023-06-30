@@ -287,6 +287,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     }
 
     public String getSecureAuthTokenAudience() {
+        // TODO This method should ensure backwards compatibility
         return getWatchTemplateId() + "." + secureHash();
     }
 

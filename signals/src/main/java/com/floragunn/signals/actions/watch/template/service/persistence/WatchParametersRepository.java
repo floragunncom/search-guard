@@ -92,6 +92,8 @@ public class WatchParametersRepository {
     }
 
     private <T> ImmutableList<T> scroll(SearchResponse searchResponse, Scroll scroll, Function<String, T> resultMapper) {
+        // TODO implement scrolling similar to
+        // https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/blob/master/scheduler/src/main/java/com/floragunn/searchsupport/jobs/core/IndexJobStateStore.java#L1743
         List<T> mutableList = new ArrayList<>();
         try {
             SearchHit[] hits = searchResponse.getHits().getHits();

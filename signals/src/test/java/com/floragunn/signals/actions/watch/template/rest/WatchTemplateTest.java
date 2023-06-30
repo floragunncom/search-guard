@@ -926,9 +926,14 @@ public class WatchTemplateTest {
             response = client.delete(watchPath);
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            response = client.get(watchPath + "/instances");
-            log.info("Get deleted watch watch instances response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
+
+            Awaitility.await().until(() -> {
+                HttpResponse instancesResponse = client.get(watchPath + "/instances");
+                int statusCode = instancesResponse.getStatusCode();
+                String body = instancesResponse.getBody();
+                log.info("Get deleted watch watch instances response status '{}' and body '{}'.", statusCode, body);
+                return statusCode == SC_NOT_FOUND;
+            });
         }
     }
 
@@ -949,8 +954,11 @@ public class WatchTemplateTest {
             response = client.delete(watchPath);
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            HttpResponse instancesResponse = client.get(parametersPath);
-            assertThat(instancesResponse.getStatusCode(), equalTo(SC_NOT_FOUND));
+
+            Awaitility.await().until(() -> {
+                HttpResponse instancesResponse = client.get(parametersPath);
+                return SC_NOT_FOUND == instancesResponse.getStatusCode();
+            });
         }
     }
 
