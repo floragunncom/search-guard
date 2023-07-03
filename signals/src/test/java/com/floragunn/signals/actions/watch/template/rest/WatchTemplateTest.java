@@ -39,6 +39,7 @@ import java.util.function.Function;
 import static com.floragunn.searchguard.test.TestSgConfig.TenantPermission.ALL_TENANTS_AND_ACCESS;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.http.HttpStatus.SC_CREATED;
 import static org.apache.http.HttpStatus.SC_NOT_FOUND;
 import static org.apache.http.HttpStatus.SC_OK;
@@ -525,7 +526,7 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
         }
     }
 
@@ -552,7 +553,7 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             DocNode firstHit = DocNode.parse(Format.JSON).from(findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString());
             assertThat(firstHit, containsValue("created_by", instanceId));
         }
@@ -581,7 +582,7 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             DocNode firstHit = DocNode.parse(Format.JSON).from(findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString());
             assertThat(firstHit, containsValue("created_by", instanceId));
         }
@@ -610,7 +611,7 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             DocNode firstHit = DocNode.parse(Format.JSON).from(findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString());
             assertThat(firstHit, containsValue("priority", 7));
         }
@@ -639,7 +640,7 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             DocNode firstHit = DocNode.parse(Format.JSON).from(findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString());
             assertThat(firstHit, containsValue("priority", 3));
         }
@@ -668,8 +669,10 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "one") > 0);
-            Awaitility.await().until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "two") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "one") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "two") > 0);
         }
     }
 
@@ -696,7 +699,7 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             String createdDocument = findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString();
             log.info("Document created by watch template '{}'.", createdDocument);
             DocNode firstHit = DocNode.parse(Format.JSON).from(createdDocument);
@@ -730,7 +733,7 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             String createdDocument = findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString();
             log.info("Document created by watch template '{}'.", createdDocument);
             DocNode firstHit = DocNode.parse(Format.JSON).from(createdDocument);
@@ -766,7 +769,7 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> webhookProvider.getRequestCount() > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> webhookProvider.getRequestCount() > 0);
             DocNode webhookBody =  webhookProvider.getLastRequestBodyAsDocNode();
             assertThat(webhookBody.size(), equalTo(3));
             assertThat(webhookBody, containsValue("Color", "black"));
@@ -800,7 +803,7 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> webhookProvider.getRequestCount() > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> webhookProvider.getRequestCount() > 0);
             DocNode webhookBody =  webhookProvider.getLastRequestBodyAsDocNode();
             assertThat(webhookBody.size(), equalTo(3));
             assertThat(webhookBody, containsValue("Color", "green"));
@@ -833,8 +836,8 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "one") > 0);
-            Awaitility.await().until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "two") > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "one") > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "two") > 0);
             response = restClient.get(String.format("/_signals/watch/%s/%s+%s/_state", DEFAULT_TENANT, watchId, instanceIdOne));
             log.info("Watch state response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -870,7 +873,7 @@ public class WatchTemplateTest {
             DocNode node = DocNode.of("instance_parameter", 3);
             response = restClient.putJson(parametersPath, node.toJsonString());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             response = restClient.delete(parametersPath);
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             Thread.sleep(2000);
@@ -905,7 +908,7 @@ public class WatchTemplateTest {
             node = DocNode.of("instance_parameter", 4);
             response = restClient.putJson(parametersPathTwo, node.toJsonString());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             response = restClient.delete(watchPath);
             log.info("Watch template deletion status code '{}' and response body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -932,7 +935,7 @@ public class WatchTemplateTest {
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
 
-            Awaitility.await().until(() -> {
+            Awaitility.await().atMost(3, SECONDS).until(() -> {
                 HttpResponse instancesResponse = client.get(watchPath + "/instances");
                 int statusCode = instancesResponse.getStatusCode();
                 String body = instancesResponse.getBody();
@@ -960,7 +963,7 @@ public class WatchTemplateTest {
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
 
-            Awaitility.await().until(() -> {
+            Awaitility.await().atMost(3, SECONDS).until(() -> {
                 HttpResponse instancesResponse = client.get(parametersPath);
                 return SC_NOT_FOUND == instancesResponse.getStatusCode();
             });
@@ -1014,7 +1017,7 @@ public class WatchTemplateTest {
             log.info("Create watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             for(String parameterValue : nameParameterValues) {
-                Awaitility.await().until(() -> countDocumentWithTerm(client, destinationIndex, "name", parameterValue) > 0);
+                Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name", parameterValue) > 0);
             }
         }
     }
@@ -1050,6 +1053,79 @@ public class WatchTemplateTest {
             } finally {
                 client.delete(watchPath);
             }
+        }
+    }
+
+    @Test
+    public void shouldUpdateParameterValue() throws Exception {
+        String watchId = "my-watch-should-update-instance-parameter-value";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        String instanceId = "update_my_parameters_id";
+        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN);
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true).atMsInterval(500).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name]")//
+                .throttledFor("1s").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("name", "initial_value");
+            response = restClient.putJson(instancePath, node.toJsonString());
+            log.info("Create watch instances response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name", "initial_value") > 0);
+            node = DocNode.of("name", "updated_value");
+
+            response = restClient.putJson(instancePath, node.toJsonString());
+
+
+            log.info("Update instances response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            response = restClient.get(watchPath + "/instances");
+            log.info("Getting instance parameters after update, status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name", "updated_value") > 0);
+        }
+    }
+
+    @Test
+    public void shouldUpdateGenericWatchDefinition() throws Exception {
+        String watchId = "my-watch-should-update-generic-watch";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        String instanceId = "update_my_parameters_id";
+        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN);
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true).atMsInterval(500).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name]")//
+                .throttledFor("1s").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("name", "parameter_value");
+            response = restClient.putJson(instancePath, node.toJsonString());
+            log.info("Create watch instances response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name", "parameter_value") > 0);
+            watch = new WatchBuilder(watchId).instances(true).atMsInterval(500).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['surname':instance.name]")//
+                .throttledFor("1s").name("testsink").build();
+
+
+            response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Awaitility.await()//
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "surname", "parameter_value") > 0);
         }
     }
 

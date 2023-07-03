@@ -35,7 +35,7 @@ public class SearchScroller {
      * @return all search results
      * @param <T> type of search result
      */
-    public  <T> ImmutableList<T> scrollAndLoadAll(SearchRequest request, Function<String, T> resultMapper) {
+    public  <T> ImmutableList<T> scrollAndLoadAll(SearchRequest request, Function<SearchHit, T> resultMapper) {
         Objects.requireNonNull(request, "Search request is required to scroll");
         Objects.requireNonNull(resultMapper, "Scroll result mapper is required");
         request.scroll(new TimeValue(10000));
@@ -49,7 +49,7 @@ public class SearchScroller {
                     log.debug("'{}' elements were gained due to scrolling with id '{}'.", hits.length, scrollId);
                     for (SearchHit searchHit : hits) {
                         try {
-                            mutableResultList.add(resultMapper.apply(searchHit.getSourceAsString()));
+                            mutableResultList.add(resultMapper.apply(searchHit));
                         } catch (Exception e) {
                             log.error("Error while loading scroll result " + searchHit, e);
                         }

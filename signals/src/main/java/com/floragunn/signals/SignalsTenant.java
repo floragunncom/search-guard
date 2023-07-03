@@ -205,7 +205,7 @@ public class SignalsTenant implements Closeable {
     }
 
     private WatchTemplateInstanceFactory createWatchTemplateInstanceFactory() {
-        WatchParametersRepository repository = new WatchParametersRepository(privilegedConfigClient);
+        WatchParametersRepository repository = new WatchParametersRepository(PrivilegedConfigClient.adapt(client));
         WatchInstanceParameterLoader watchInstanceParameterLoader = new WatchInstanceParameterLoader(getName(), repository);
         ValidatingThrottlePeriodParser throttlePeriodParser = new ValidatingThrottlePeriodParser(settings);
         WatchInitializationService watchInitService = new WatchInitializationService(accountRegistry, scriptService, throttlePeriodParser);

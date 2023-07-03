@@ -24,20 +24,32 @@ public class WatchParametersData implements Document<WatchParametersData> {
     private final String tenantId;
     private final String watchId;
     private final String instanceId;
+
+    private final long version;
     private final ImmutableMap<String, Object> parameters;
 
     public WatchParametersData(String tenantId, String watchId, String instanceId, ImmutableMap<String, Object> parameters) {
+        this(tenantId, watchId, instanceId, parameters, -1);
+    }
+
+    private WatchParametersData(String tenantId, String watchId, String instanceId, ImmutableMap<String, Object> parameters, long version) {
         this.tenantId = Objects.requireNonNull(tenantId);
         this.watchId = watchId;
         this.instanceId = instanceId;
         this.parameters = parameters;
+        this.version = version;
     }
 
-    public WatchParametersData(DocNode node) {
+    public WatchParametersData(DocNode node, long version) {
         this.tenantId = node.getAsString(FIELD_TENANT_ID);
         this.watchId = node.getAsString(FIELD_WATCH_ID);
         this.instanceId = node.getAsString(FIELD_INSTANCE_ID);
         this.parameters = node.getAsNode(FIELD_PARAMETERS).toMap();
+        if(version < 0) {
+            String currentId = getId();
+            throw new IllegalArgumentException("Watch parameter " + currentId +  "version " + version + " must be positive value.");
+        }
+        this.version = version;
     }
 
     @Override
@@ -65,8 +77,12 @@ public class WatchParametersData implements Document<WatchParametersData> {
         return instanceId;
     }
 
+    public long getVersion() {
+        return version;
+    }
+
     @Override
     public String toString() {
-        return "WatchParametersData{" + "tenantId='" + tenantId + '\'' + ", watchId='" + watchId + '\'' + ", instanceId='" + instanceId + '\'' + '}';
+        return "WatchParametersData{" + "tenantId='" + tenantId + '\'' + ", watchId='" + watchId + '\'' + ", instanceId='" + instanceId + '\'' + ", version=" + version + '}';
     }
 }

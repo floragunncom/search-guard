@@ -22,6 +22,7 @@ import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -64,17 +65,16 @@ public class WatchParametersRepository {
         return getResponseToWatchParametersData(response);
     }
 
-    // support scrolling
     public ImmutableList<WatchParametersData> findByWatchId(String tenantId, String watchId) {
         Objects.requireNonNull(tenantId, "Tenant id is required");
         Objects.requireNonNull(watchId, "Watch id is required");
         BoolQueryBuilder boolQuery = parametersByTenantIdAndWatchIdQuery(tenantId, watchId);
         SearchRequest request = new SearchRequest(WATCHES_INSTANCE_PARAMETERS);
-        SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource().query(boolQuery);
+        SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource().query(boolQuery).version(true);
         sourceBuilder.size(WATCH_PARAMETER_DATA_PAGE_SIZE);
         request.source(sourceBuilder);
         SearchScroller searchScroller = new SearchScroller(client);
-        ImmutableList<WatchParametersData> result = searchScroller.scrollAndLoadAll(request, this::jsonToWatchParametersData);
+        ImmutableList<WatchParametersData> result = searchScroller.scrollAndLoadAll(request, this::searchHitToWatchParameterData);
         log.info("Found '{}' watch instances for generic watch '{}' and tenant '{}'", result.size(), watchId, tenantId);
         return result;
     }
@@ -120,15 +120,20 @@ public class WatchParametersRepository {
     }
 
     private Optional<WatchParametersData> getResponseToWatchParametersData(GetResponse response) {
-        return response.isExists() ? Optional.ofNullable(jsonToWatchParametersData(response.getSourceAsString())) : Optional.empty();
+        return Optional.ofNullable(response) //
+            .filter(GetResponse::isExists) //
+            .map(existingResponse -> documentToWatchParameterData(existingResponse.getSourceAsString(), existingResponse.getVersion()));
     }
 
-    private WatchParametersData jsonToWatchParametersData(String json) {
+    private WatchParametersData searchHitToWatchParameterData(SearchHit searchHit) {
+        return documentToWatchParameterData(searchHit.getSourceAsString(), searchHit.getVersion());
+    }
+
+    private static WatchParametersData documentToWatchParameterData(String jsonDocument, long version) {
         try {
-            return new WatchParametersData(DocNode.parse(Format.JSON).from(json));
+            return new WatchParametersData(DocNode.parse(Format.JSON).from(jsonDocument), version);
         } catch (DocumentParseException e) {
             throw new RuntimeException("Database contain watch parameters which are not valid json document", e);
         }
     }
-
 }

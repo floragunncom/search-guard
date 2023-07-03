@@ -3,12 +3,15 @@ package com.floragunn.signals.actions.watch.template.service;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
 
 // TODO consider if this class is needed
 public class WatchInstanceParameterLoader {
 
+    private static final Logger log = LogManager.getLogger(WatchInstanceParameterLoader.class);
 
     private final String tenantId;
 
@@ -20,6 +23,8 @@ public class WatchInstanceParameterLoader {
     }
 
     public ImmutableList<WatchParametersData> findParameters(String watchId) {
+        Objects.requireNonNull(watchId, "Watch id is required");
+        log.debug("Loading watch parameters for watch '{}' and tenant '{}'.", watchId, tenantId);
         return repository.findByWatchId(tenantId, watchId);
     }
 }

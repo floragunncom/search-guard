@@ -20,37 +20,37 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.concurrent.CompletableFuture;
 
-public class CreateOneWatchInstanceAction extends Action<CreateOneWatchInstanceAction.CreateOneWatchInstanceRequest, StandardResponse> {
+public class CreateOrUpdateOneWatchInstanceAction extends Action<CreateOrUpdateOneWatchInstanceAction.CreateOrUpdateOneWatchInstanceRequest, StandardResponse> {
 
-    private static final Logger log = LogManager.getLogger(CreateOneWatchInstanceAction.class);
+    private static final Logger log = LogManager.getLogger(CreateOrUpdateOneWatchInstanceAction.class);
 
-    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/create_one";
-    public static final CreateOneWatchInstanceAction INSTANCE = new CreateOneWatchInstanceAction();
+    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/create_or_update_one";
+    public static final CreateOrUpdateOneWatchInstanceAction INSTANCE = new CreateOrUpdateOneWatchInstanceAction();
 
     public static final RestApi REST_API = new RestApi()
         .responseHeaders(SearchGuardVersion.header())//
         .handlesPut("/_signals/watch/{tenant}/{id}/instances/{instance_id}")//
-        .with(INSTANCE, (params, body) -> new CreateOneWatchInstanceRequest(params.get("tenant"), params.get("id"),
+        .with(INSTANCE, (params, body) -> new CreateOrUpdateOneWatchInstanceRequest(params.get("tenant"), params.get("id"),
             params.get("instance_id"), body))//
         .name("PUT /_signals/watch/{tenant}/{id}/instances/{instance_id}");
 
-    public CreateOneWatchInstanceAction() {
-        super(NAME, CreateOneWatchInstanceRequest::new, StandardResponse::new);
+    public CreateOrUpdateOneWatchInstanceAction() {
+        super(NAME, CreateOrUpdateOneWatchInstanceRequest::new, StandardResponse::new);
     }
 
-    public static class CreateWatchInstanceHandler extends Handler<CreateOneWatchInstanceRequest, StandardResponse> {
+    public static class CreateOrUpdateOneWatchInstanceHandler extends Handler<CreateOrUpdateOneWatchInstanceRequest, StandardResponse> {
 
         private final WatchTemplateService templateService;
 
         @Inject
-        public CreateWatchInstanceHandler(NodeClient client, Signals signals, HandlerDependencies handlerDependencies,
+        public CreateOrUpdateOneWatchInstanceHandler(NodeClient client, Signals signals, HandlerDependencies handlerDependencies,
             ThreadPool threadPool) {
             super(INSTANCE, handlerDependencies);
             this.templateService = new WatchTemplateServiceFactory(signals, client, threadPool).create();
         }
 
         @Override
-        protected CompletableFuture<StandardResponse> doExecute(CreateOneWatchInstanceRequest request) {
+        protected CompletableFuture<StandardResponse> doExecute(CreateOrUpdateOneWatchInstanceRequest request) {
             return supplyAsync(() -> {
                 try {
                     return templateService.createOrReplace(request);
@@ -62,18 +62,18 @@ public class CreateOneWatchInstanceAction extends Action<CreateOneWatchInstanceA
         }
     }
 
-    public static class CreateOneWatchInstanceRequest extends Request {
+    public static class CreateOrUpdateOneWatchInstanceRequest extends Request {
         public static final String FIELD_PARAMETERS = "parameters";
         private final WatchInstanceIdRepresentation id;
         private final ImmutableMap<String, Object> parameters;
 
-        public CreateOneWatchInstanceRequest(UnparsedMessage message) throws ConfigValidationException {
+        public CreateOrUpdateOneWatchInstanceRequest(UnparsedMessage message) throws ConfigValidationException {
             DocNode docNode = message.requiredDocNode();
             this.id = new WatchInstanceIdRepresentation(docNode);
             this.parameters = docNode.getAsNode(FIELD_PARAMETERS).toMap();
         }
 
-        public CreateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, UnparsedDocument<?> message)
+        public CreateOrUpdateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, UnparsedDocument<?> message)
             throws ConfigValidationException {
             if(message == null) {
                 ValidationError validationError = new ValidationError("body",
@@ -85,7 +85,7 @@ public class CreateOneWatchInstanceAction extends Action<CreateOneWatchInstanceA
             this.id = new WatchInstanceIdRepresentation(tenantId, watchId, instanceId);
         }
 
-        CreateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, DocNode message) {
+        CreateOrUpdateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, DocNode message) {
             this.parameters = message.toMap();
             this.id = new WatchInstanceIdRepresentation(tenantId, watchId, instanceId);
         }

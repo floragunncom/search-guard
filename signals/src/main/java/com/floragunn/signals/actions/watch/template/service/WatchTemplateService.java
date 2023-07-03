@@ -3,15 +3,13 @@ package com.floragunn.signals.actions.watch.template.service;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.StandardResponse;
-import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 import com.floragunn.signals.SignalsUnavailableException;
 import com.floragunn.signals.actions.watch.template.rest.CreateManyWatchInstancesAction.CreateManyWatchInstances;
-import com.floragunn.signals.actions.watch.template.rest.CreateOneWatchInstanceAction.CreateOneWatchInstanceRequest;
+import com.floragunn.signals.actions.watch.template.rest.CreateOrUpdateOneWatchInstanceAction.CreateOrUpdateOneWatchInstanceRequest;
 import com.floragunn.signals.actions.watch.template.rest.DeleteWatchInstanceAction.DeleteWatchInstanceRequest;
 import com.floragunn.signals.actions.watch.template.rest.GetAllWatchInstancesAction.GetAllWatchInstancesRequest;
 import com.floragunn.signals.actions.watch.template.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersRequest;
@@ -40,7 +38,7 @@ public class WatchTemplateService {
         this.notifier = Objects.requireNonNull(notifier, "Scheduler config update notifier is required.");
     }
 
-    public StandardResponse createOrReplace(CreateOneWatchInstanceRequest request) throws ConfigValidationException {
+    public StandardResponse createOrReplace(CreateOrUpdateOneWatchInstanceRequest request) throws ConfigValidationException {
         Objects.requireNonNull(request, "Create one watch request is required");
         if(templateExists(request.getTenantId(), request.getWatchId())) {
             int responseCode = parametersRepository.findOneById(request.getTenantId(), request.getWatchId(), request.getInstanceId()) //
@@ -50,11 +48,12 @@ public class WatchTemplateService {
             notifier.send();
             return new StandardResponse(responseCode);
         } else {
+            // Watch does not exist therefore it is not possible to create none existing watch instance
             return new StandardResponse(404).error("Watch template with id " + request.getWatchId() + " does not exist.");
         }
     }
 
-    private static WatchParametersData toWatchParameterData(CreateOneWatchInstanceRequest request) {
+    private static WatchParametersData toWatchParameterData(CreateOrUpdateOneWatchInstanceRequest request) {
         return new WatchParametersData(request.getTenantId(), request.getWatchId(), request.getInstanceId(), request.getParameters());
     }
 

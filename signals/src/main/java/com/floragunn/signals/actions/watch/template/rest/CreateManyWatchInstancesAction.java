@@ -12,7 +12,7 @@ import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.Signals;
-import com.floragunn.signals.actions.watch.template.rest.CreateOneWatchInstanceAction.CreateOneWatchInstanceRequest;
+import com.floragunn.signals.actions.watch.template.rest.CreateOrUpdateOneWatchInstanceAction.CreateOrUpdateOneWatchInstanceRequest;
 import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
 import com.floragunn.signals.actions.watch.template.service.WatchTemplateServiceFactory;
 import org.apache.logging.log4j.LogManager;
@@ -122,10 +122,10 @@ public class CreateManyWatchInstancesAction extends Action<CreateManyWatchInstan
             return ImmutableMap.of(FIELD_TENANT_ID, tenantId, FIELD_WATCH_ID, watchId, WATCH_INSTANCES, watchInstances);
         }
 
-        public ImmutableList<CreateOneWatchInstanceRequest> toCreateOneWatchInstanceRequest() {
-            List<CreateOneWatchInstanceRequest> mutableList = watchInstances.entrySet()//
+        public ImmutableList<CreateOrUpdateOneWatchInstanceRequest> toCreateOneWatchInstanceRequest() {
+            List<CreateOrUpdateOneWatchInstanceRequest> mutableList = watchInstances.entrySet()//
                     .stream()//
-                    .map(entry -> new CreateOneWatchInstanceRequest(tenantId, watchId, entry.getKey(), DocNode.wrap(entry.getValue()))) //
+                    .map(entry -> new CreateOrUpdateOneWatchInstanceRequest(tenantId, watchId, entry.getKey(), DocNode.wrap(entry.getValue()))) //
                     .collect(Collectors.toList());
             return ImmutableList.of(mutableList);
         }
