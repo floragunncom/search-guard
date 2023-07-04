@@ -63,7 +63,7 @@ public class CreateManyWatchInstancesAction extends Action<CreateManyWatchInstan
                     return templateService.createManyInstances(request);
                 } catch (ConfigValidationException e) {
                     log.error("Cannot create watch template instances.", e);
-                    return new StandardResponse(500).message("Cannot create watch template instances.").error(e);
+                    return new StandardResponse(400).message("Cannot create watch template instances.").error(e);
                 }
             });
         }

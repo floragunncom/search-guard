@@ -56,7 +56,7 @@ public class CreateOrUpdateOneWatchInstanceAction extends Action<CreateOrUpdateO
                     return templateService.createOrReplace(request);
                 } catch (ConfigValidationException e) {
                     log.error("Cannot create watch template instance.", e);
-                    return new StandardResponse(500).message("Cannot create watch template instance.").error(e);
+                    return new StandardResponse(400).message("Cannot create watch template instance.").error(e);
                 }
             });
         }

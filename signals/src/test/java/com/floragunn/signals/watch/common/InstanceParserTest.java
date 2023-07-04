@@ -17,11 +17,11 @@ import static org.hamcrest.Matchers.notNullValue;
 
 public class InstanceParserTest {
 
-    public static final String PARAM_ONE = "param-one";
-    public static final String PARAM_TWO = "param-two";
-    public static final String PARAM_THREE = "param-three";
-    public static final String PARAM_FOUR = "param-four";
-    public static final String PARAM_FIVE = "param-five";
+    public static final String PARAM_ONE = "param_one";
+    public static final String PARAM_TWO = "param_two";
+    public static final String PARAM_THREE = "param_three";
+    public static final String PARAM_FOUR = "param_four";
+    public static final String PARAM_FIVE = "param_five";
     public static final String ATTRIBUTE_ENABLED = "enabled";
     public static final String ATTRIBUTE_PARAMS = "params";
     public static final String ATTRIBUTE_INSTANCES = "instances";
@@ -159,5 +159,7 @@ public class InstanceParserTest {
         assertThat(validationErrors.size(), equalTo(1));
         assertThat(validationErrors.getErrors(), hasKey("instances.enabled"));
     }
+
+    // TODO add test related to parameters' name validation
 
 }

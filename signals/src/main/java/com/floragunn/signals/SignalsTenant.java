@@ -24,13 +24,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.signals.actions.watch.template.service.WatchInstanceParameterLoader;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
 import com.floragunn.signals.watch.WatchTemplateInstanceFactory;
 import com.floragunn.signals.watch.common.Ack;
+import com.floragunn.signals.watch.common.InstanceParser;
+import com.floragunn.signals.watch.common.Instances;
 import com.floragunn.signals.watch.common.throttle.DefaultThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
@@ -39,6 +46,8 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -645,16 +654,29 @@ public class SignalsTenant implements Closeable {
         return QueryBuilders.boolQuery().must(QueryBuilders.termQuery("_tenant", tenant));
     }
 
-    public boolean watchTemplateExist(String watchId) {
-        TermQueryBuilder watchIdQuery = QueryBuilders.termQuery("_name.keyword", watchId);
-        TermQueryBuilder templateQuery = QueryBuilders.termQuery("instances.enabled", true);
-        BoolQueryBuilder query = QueryBuilders.boolQuery().must(getConfigQuery(name)).must(watchIdQuery).must(templateQuery);
-        SearchRequest searchRequest = new SearchRequest(configIndexName);
-        searchRequest.source().size(0).query(query).aggregation(AggregationBuilders.count("number_of_watch_templates")//
-            .field("instances.enabled"));
-        SearchResponse searchResponse = privilegedConfigClient.search(searchRequest).actionGet();
-        ValueCount countAggregation = (ValueCount) searchResponse.getAggregations().asList().get(0);
-        return countAggregation.getValue() > 0;
+    public Instances findGenericWatchInstanceConfig(String watchId) {
+        Objects.requireNonNull(watchId, "Watch id is required");
+        String watchDocumentId = getWatchIdForConfigIndex(watchId);
+        GetRequest getRequest = new GetRequest(configIndexName).id(watchDocumentId);
+        ValidationErrors validationErrors = new ValidationErrors();
+
+        InstanceParser instanceParser = new InstanceParser(validationErrors);
+        Optional<Instances> optional = Optional.ofNullable(privilegedConfigClient.get(getRequest).actionGet())//
+            .filter(response -> response.isExists())//
+            .map(response -> response.getSourceAsString())//
+            .map(response -> {
+                try {
+                    return DocNode.parse(Format.JSON).from(response);
+                } catch (DocumentParseException e) {
+                    throw new RuntimeException("Cannot parse watch " + watchDocumentId, e);
+                }
+            })//
+            .map(docNode -> new ValidatingDocNode(docNode, validationErrors)) //
+            .map(validatingDocNode -> instanceParser.parse(validatingDocNode));
+        if(validationErrors.hasErrors()) {
+            log.warn("Watch '{}' instance parameters contains configuration errors: '{}'.", watchDocumentId, validationErrors.toDebugString());
+        }
+        return optional.orElse(Instances.EMPTY);
     }
 
     public String getName() {

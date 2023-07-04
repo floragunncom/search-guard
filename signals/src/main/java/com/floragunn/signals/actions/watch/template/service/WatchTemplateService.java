@@ -1,6 +1,8 @@
 package com.floragunn.signals.actions.watch.template.service;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchsupport.action.StandardResponse;
@@ -15,9 +17,12 @@ import com.floragunn.signals.actions.watch.template.rest.GetAllWatchInstancesAct
 import com.floragunn.signals.actions.watch.template.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersRequest;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.watch.common.Instances;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -40,7 +45,9 @@ public class WatchTemplateService {
 
     public StandardResponse createOrReplace(CreateOrUpdateOneWatchInstanceRequest request) throws ConfigValidationException {
         Objects.requireNonNull(request, "Create one watch request is required");
-        if(templateExists(request.getTenantId(), request.getWatchId())) {
+        Instances instances = instanceConfiguration(request.getTenantId(), request.getWatchId());
+        if(instances.isEnabled()) {
+            validateParameters(instances, request.getInstanceId(), request.getParameters());
             int responseCode = parametersRepository.findOneById(request.getTenantId(), request.getWatchId(), request.getInstanceId()) //
                 .map(ignore -> 200) //
                 .orElse(201); //
@@ -51,6 +58,37 @@ public class WatchTemplateService {
             // Watch does not exist therefore it is not possible to create none existing watch instance
             return new StandardResponse(404).error("Watch template with id " + request.getWatchId() + " does not exist.");
         }
+    }
+
+    private void validateParameters(Instances instances, String instanceId, ImmutableMap<String, Object> parameters)
+        throws ConfigValidationException {
+        Set<String> predefinedParameters = new HashSet<>(instances.getParams());
+        String requiredParameters = predefinedParameters.stream() //
+            .map(name -> String.format("'%s'", name)) //
+            .collect(Collectors.joining(", "));
+        ImmutableSet<String> actualParameters = parameters.keySet();
+        ValidationErrors validationErrors = new ValidationErrors();
+        if(! Instances.isValidParameterName(instanceId)) {
+            validationErrors.add(new ValidationError("instance.id", "Watch instance id is incorrect."));
+        }
+        List<String> notAllowedParameters = actualParameters.stream() //
+            .filter(name -> !predefinedParameters.contains(name)) //
+            .collect(Collectors.toList());
+        if(!notAllowedParameters.isEmpty()) {
+            String incorrectParameters = notAllowedParameters.stream() //
+                .map(name -> String.format("'%s'", name)) //
+                .collect(Collectors.joining(","));
+            String message = "Incorrect parameter names: [" + incorrectParameters + "]. Valid parameter names: [" + requiredParameters + "]";
+            validationErrors.add(new ValidationError(instanceId, message));
+        }
+        Set<String> missingParameters = new HashSet<>(predefinedParameters);
+        missingParameters.removeAll(actualParameters);
+        if(!missingParameters.isEmpty()) {
+            String missing = missingParameters.stream().map(name -> String.format("'%s'", name)).collect(Collectors.joining(", "));
+            String message = "Watch instance does not contain required parameters: [" + missing + "]";
+            validationErrors.add(new ValidationError(instanceId, message));
+        }
+        validationErrors.throwExceptionForPresentErrors();
     }
 
     private static WatchParametersData toWatchParameterData(CreateOrUpdateOneWatchInstanceRequest request) {
@@ -77,7 +115,11 @@ public class WatchTemplateService {
 
     public StandardResponse createManyInstances(CreateManyWatchInstances request) throws ConfigValidationException {
         Objects.requireNonNull(request, "Create watch instances request is required");
-        if(templateExists(request.getTenantId(), request.getWatchId())) {
+        Instances instances = instanceConfiguration(request.getTenantId(), request.getWatchId());
+        if(instances.isEnabled()) {
+            for(CreateOrUpdateOneWatchInstanceRequest singleRequest : request.toCreateOneWatchInstanceRequest()) {
+                validateParameters(instances, singleRequest.getInstanceId(), singleRequest.getParameters());
+            }
             Set<String> existingInstanceIds = findUpdatedWatchesIds(request);
             boolean update = !existingInstanceIds.isEmpty();
             WatchParametersData[] watchParametersData = request.toCreateOneWatchInstanceRequest().stream()//
@@ -111,15 +153,16 @@ public class WatchTemplateService {
         return new StandardResponse(200).data(ImmutableMap.of(watchInstances));
     }
 
-    private boolean templateExists(String tenantName, String watchId) {
+    private Instances instanceConfiguration(String tenantName, String watchId) {
         try {
             SignalsTenant tenant = signals.getTenant(tenantName);
-            return tenant.watchTemplateExist(watchId);
+            return tenant.findGenericWatchInstanceConfig(watchId);
         } catch (SignalsUnavailableException | NoSuchTenantException e) {
-            log.warn("Cannot find tenant '{}',", tenantName);
-            return false;
+            log.warn("Cannot find tenant '{}',", tenantName, e);
+            return Instances.EMPTY;
         }
     }
+
 
     public void deleteAllInstanceParameters(String tenantId, String watchId) {
         Objects.requireNonNull(tenantId, "Tenant id is required");

@@ -26,6 +26,9 @@ public class InstanceParser {
                 if (instancesNode.hasNonNull(Instances.FIELD_ENABLED)) {
                     boolean enabled = instancesNode.getBoolean(Instances.FIELD_ENABLED);
                     ImmutableList<String> params = instancesNode.getListOfStrings(Instances.FIELD_PARAMS);
+                    params = params == null ? ImmutableList.empty() : params;
+                    params.stream().filter(name -> !Instances.isValidParameterName(name))
+                        .forEach(invalidName -> validationErrors.add(new ValidationError("instances." + invalidName, "Instance parameter name is invalid.")));
                     return new Instances(enabled, params != null ? params : ImmutableList.empty());
                 } else {
                     validationErrors.add(new ValidationError("instances.enabled", "Attribute is missing"));

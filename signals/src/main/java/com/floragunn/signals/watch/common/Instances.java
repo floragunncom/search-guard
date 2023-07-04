@@ -7,10 +7,13 @@ import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 public class Instances implements ToXContentObject {
 
     public static final Instances EMPTY = new Instances(false, ImmutableList.empty());
+
+    private static final Pattern PARAMETER_NAME_PATTERN = Pattern.compile("[_a-zA-Z][_a-zA-Z0-9]*");
 
     public final static String FIELD_ENABLED = "enabled";
     public final static String FIELD_PARAMS = "params";
@@ -39,5 +42,12 @@ public class Instances implements ToXContentObject {
         xContentBuilder.array(FIELD_PARAMS, params.toArray(new String[0]));
         xContentBuilder.endObject();
         return xContentBuilder;
+    }
+
+    public static boolean isValidParameterName(String parameterName) {
+        if((parameterName == null) || parameterName.isEmpty()) {
+            return false;
+        }
+        return PARAMETER_NAME_PATTERN.matcher(parameterName).matches();
     }
 }

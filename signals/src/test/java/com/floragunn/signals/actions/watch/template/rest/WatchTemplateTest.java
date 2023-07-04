@@ -27,6 +27,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -37,16 +38,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import static com.floragunn.searchguard.test.TestSgConfig.TenantPermission.ALL_TENANTS_AND_ACCESS;
-import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containSubstring;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
 import static org.apache.http.HttpStatus.SC_CREATED;
 import static org.apache.http.HttpStatus.SC_NOT_FOUND;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.greaterThan;
 
 public class WatchTemplateTest {
 
@@ -83,7 +85,7 @@ public class WatchTemplateTest {
         String watchId = "my-watch-create-template-parameters";
         String instanceId = "instance_id_should_create_template_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "id");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("id", 258);
 
@@ -147,7 +149,7 @@ public class WatchTemplateTest {
         String watchId = "my-watch-load-template-parameters";
         String instanceId = "instance_id_should_load_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name", "time");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("id", 258, "name","kirk", "time", "2023-05-15T13:07:52.000Z");
             HttpResponse response = client.putJson(path, node.toJsonString());
@@ -169,7 +171,7 @@ public class WatchTemplateTest {
         String watchId = "my-watch-use-nested-value-list";
         String instanceId = "instance_id_should_use_nested_values_in_list";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "list");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             ImmutableMap<String, String> firstMap = ImmutableMap.of("one-key", "one-value", "two-key", "two-value");
             ImmutableMap<String, Integer> secondMap = ImmutableMap.of("three-key", 3, "four-key", 4);
@@ -194,7 +196,7 @@ public class WatchTemplateTest {
         String watchId = "my-watch-use-nested-values-in-map";
         String instanceId = "instance_id_should_use_nested_values_in_map";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "outer_map");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             ImmutableMap<String, String> firstMap = ImmutableMap.of("one-key", "one-value", "two-key", "two-value");
             ImmutableMap<String, Integer> secondMap = ImmutableMap.of("three-key", 3, "four-key", 4);
@@ -223,9 +225,9 @@ public class WatchTemplateTest {
         String pathWatch1 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId1, instanceId);
         String pathWatch2 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId2, instanceId);
         String pathWatch3 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId3, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId1);
-        createWatchTemplate(DEFAULT_TENANT, watchId2);
-        createWatchTemplate(DEFAULT_TENANT, watchId3);
+        createWatchTemplate(DEFAULT_TENANT, watchId1, "param");
+        createWatchTemplate(DEFAULT_TENANT, watchId2, "param");
+        createWatchTemplate(DEFAULT_TENANT, watchId3, "param");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("param", "2023-05-15T13:07:52.000Z");
             HttpResponse response = client.putJson(pathWatch1, node.toJsonString());
@@ -249,23 +251,23 @@ public class WatchTemplateTest {
         final String watchIdTwo = "my-watch-own-parameter-copy-two";
         final String pathWatch1 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchIdOne, instanceId);
         final String pathWatch2 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchIdTwo, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchIdOne);
-        createWatchTemplate(DEFAULT_TENANT, watchIdTwo);
+        createWatchTemplate(DEFAULT_TENANT, watchIdOne, "common_parameter_name");
+        createWatchTemplate(DEFAULT_TENANT, watchIdTwo, "common_parameter_name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode node = DocNode.of("common-parameter-name", "first-value");
+            DocNode node = DocNode.of("common_parameter_name", "first-value");
             HttpResponse response = client.putJson(pathWatch1, node.toJsonString());
             log.info("Watch 1 instance parameters response '{}'.", response.getBody());
-            node = DocNode.of("common-parameter-name", "second-value");
+            node = DocNode.of("common_parameter_name", "second-value");
             response = client.putJson(pathWatch2, node.toJsonString());
             log.info("Watch 2 instance parameters response '{}'.", response.getBody());
 
             response = client.get(pathWatch1 + "/parameters");
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            assertThat(response.getBodyAsDocNode(), containsValue("data.common-parameter-name", "first-value"));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.common_parameter_name", "first-value"));
             response = client.get(pathWatch2 + "/parameters");
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            assertThat(response.getBodyAsDocNode(), containsValue("data.common-parameter-name", "second-value"));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.common_parameter_name", "second-value"));
         }
     }
 
@@ -274,11 +276,11 @@ public class WatchTemplateTest {
         String watchId = "my-watch-to-be-deleted";
         String instanceId = "instance_id_should_use_nested_values_in_map";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "message");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("message", "please do not delete me!" );
             HttpResponse response = client.putJson(path, node.toJsonString());
-            log.info("Create watch template response '{}'.", response.getBody());
+            log.info("Create watch instance response '{}'.", response.getBody());
             response = client.get(path + "/parameters");
             log.info("Get watch template parameters response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -324,10 +326,10 @@ public class WatchTemplateTest {
     public void shouldCreateSingleWatchInstanceWithUsageOfBulkRequest() throws Exception {
         String watchId = "watch-with-many-instances-one-parameter-set";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "param_name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            final String instanceId = "instance-id-one";
-            DocNode requestBody = DocNode.of(instanceId, DocNode.of("param-name", "param-value"));
+            final String instanceId = "instance_id_one";
+            DocNode requestBody = DocNode.of(instanceId, DocNode.of("param_name", "param-value"));
 
             HttpResponse response = client.putJson(path, requestBody);
 
@@ -336,7 +338,7 @@ public class WatchTemplateTest {
             response = client.get(path + "/" + instanceId + "/parameters");
             log.info("Stored watch instance parameters '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            assertThat(response.getBodyAsDocNode(), containsValue("data.param-name", "param-value"));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.param_name", "param-value"));
         }
     }
 
@@ -344,14 +346,15 @@ public class WatchTemplateTest {
     public void shouldCreateThreeWatchInstanceWithUsageOfBulkRequest() throws Exception {
         String watchId = "watch-with-many-instances-create-three";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "param_name_1", "param_name_2");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            final String instanceIdOne = "instance-id-one";
-            final String instanceIdTwo = "instance-id-two";
-            final String instanceIdThree = "instance-id-three";
-            DocNode requestBody = DocNode.of(instanceIdOne, DocNode.of("param-name-1", "param-value-1"),
-                instanceIdTwo, DocNode.of("param-name-2", "param-value-2"),
-                instanceIdThree, DocNode.of("param-name-3", "param-value-3", "param-name-4", 4));
+            final String instanceIdOne = "instance_id_one";
+            final String instanceIdTwo = "instance_id_two";
+            final String instanceIdThree = "instance_id_three";
+            DocNode requestBody = DocNode.of(
+                instanceIdOne, DocNode.of("param_name_1", "param-value-1", "param_name_2", 1),
+                instanceIdTwo, DocNode.of("param_name_1", "param-value-2", "param_name_2", 2),
+                instanceIdThree, DocNode.of("param_name_1", "param-value-3", "param_name_2", 3));
 
             HttpResponse response = client.putJson(path, requestBody);
 
@@ -360,81 +363,56 @@ public class WatchTemplateTest {
             response = client.get(path + "/" + instanceIdOne + "/parameters");
             log.info("Stored watch instance '{}' parameters '{}'.", instanceIdOne, response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            assertThat(response.getBodyAsDocNode(), containsValue("data.param-name-1", "param-value-1"));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_1", "param-value-1"));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_2", 1));
             response = client.get(path + "/" + instanceIdTwo + "/parameters");
             log.info("Stored watch instance '{}' parameters '{}'.", instanceIdTwo, response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            assertThat(response.getBodyAsDocNode(), containsValue("data.param-name-2", "param-value-2"));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_1", "param-value-2"));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_2", 2));
             response = client.get(path + "/" + instanceIdThree + "/parameters");
             log.info("Stored watch instance '{}' parameters '{}'.", instanceIdThree, response.getBody());
-            assertThat(response.getBodyAsDocNode(), containsValue("data.param-name-3", "param-value-3"));
-            assertThat(response.getBodyAsDocNode(), containsValue("data.param-name-4", 4));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_1", "param-value-3"));
+            assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_2", 3));
         }
     }
 
     @Test
     public void shouldUpdateWatchInstance() throws Exception {
         String watchId = "watch-to-be-updated";
-        final String instanceId = "instance-id-one";
+        final String instanceId = "instance_id_one";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "param_name_0");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode requestBody = DocNode.of("param-name-0", "param-value-0");
-            HttpResponse response = client.putJson(path, requestBody);
-            log.info("Create multiple watch instances response '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            requestBody = DocNode.of("param-name-0", "param-value-updated", "new-parameter", "new-parameter-value");
-
-            response = client.putJson(path, requestBody);
-
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            response = client.get(path + "/parameters");
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("data.param-name-0", "param-value-updated"));
-            assertThat(body, containsValue("data.new-parameter", "new-parameter-value"));
-        }
-    }
-
-    @Test
-    public void shouldRemoveWatchInstanceParameterDuringUpdate() throws Exception {
-        String watchId = "watch-to-be-updated-and-remove-parameter";
-        final String instanceId = "instance-id";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
-        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            final String fieldToRemoval = "parameter-to-be-removed";
-            DocNode requestBody = DocNode.of("param-name-0", "param-value-0", fieldToRemoval, "Oops!");
+            DocNode requestBody = DocNode.of("param_name_0", "param-value-0");
             HttpResponse response = client.putJson(path, requestBody);
             log.info("Create watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            requestBody = DocNode.of("param-name-0", "param-value-updated");
+            requestBody = DocNode.of("param_name_0", "param-value-updated");
 
             response = client.putJson(path, requestBody);
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             response = client.get(path + "/parameters");
-            log.info("Watch parameters after update '{}'.", response.getBody());
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("data.param-name-0", "param-value-updated"));
-            assertThat(body, not(containsFieldPointedByJsonPath("data", fieldToRemoval)));
+            assertThat(body, containsValue("data.param_name_0", "param-value-updated"));
         }
     }
 
     @Test
     public void shouldUpdateWatchInstancesViaBulkRequest() throws Exception {
         String watchId = "watch-to-be-updated-by-bulk-request";
-        final String instanceOne = "instance-id-one";
-        String instanceTwo = "new-instance-id-two";
+        final String instanceOne = "instance_id_one";
+        String instanceTwo = "new_instance_id_two";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "param_name_0");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            final String fieldToRemoval = "parameter-to-be-removed";
-            DocNode requestBody = DocNode.of("param-name-0", "param-value-0", fieldToRemoval, "Oops!");
+            DocNode requestBody = DocNode.of("param_name_0", "param-value-0");
             HttpResponse response = client.putJson(path + "/" + instanceOne, requestBody);
             log.info("Create watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            requestBody = DocNode.of(instanceOne, DocNode.of("param-name-0", "param-value-updated"),
-                instanceTwo, DocNode.of("param-name-2", "param-value-2"));
+            requestBody = DocNode.of(instanceOne, DocNode.of("param_name_0", "param-value-updated"),
+                instanceTwo, DocNode.of("param_name_0", "param-value-2"));
 
             response = client.putJson(path, requestBody);
 
@@ -442,25 +420,24 @@ public class WatchTemplateTest {
             response = client.get(path + "/" + instanceOne + "/parameters");
             log.info("Watch instance '{}' parameters after update '{}'.", instanceOne, response.getBody());
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("data.param-name-0", "param-value-updated"));
-            assertThat(body, not(containsFieldPointedByJsonPath("data", fieldToRemoval)));
+            assertThat(body, containsValue("data.param_name_0", "param-value-updated"));
             response = client.get(path + "/" + instanceTwo + "/parameters");
             log.info("Watch instance '{}' parameters after update '{}'.", instanceTwo, response.getBody());
             body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("data.param-name-2", "param-value-2"));
+            assertThat(body, containsValue("data.param_name_0", "param-value-2"));
         }
     }
 
     @Test
     public void shouldLoadExistingWatchInstances() throws Exception {
         String watchId = "watch-for-load-all-instance-test";
-        String instanceId = "zero-instance";
+        String instanceId = "zero_instance";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "id");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode requestBody = DocNode.of("param-name-0", "param-value-0", "param-name-1", "param-value-1");
+            DocNode requestBody = DocNode.of("id", "param-value-0");
             client.putJson(path + "/" + instanceId , requestBody);
-            requestBody = DocNode.of("first-instance", DocNode.of("id", 1), "second-instance", DocNode.of("id", 2));
+            requestBody = DocNode.of("first_instance", DocNode.of("id", 1), "second_instance", DocNode.of("id", 2));
             client.putJson(path , requestBody);
 
             HttpResponse response = client.get(path);
@@ -468,10 +445,9 @@ public class WatchTemplateTest {
             log.info("Get all watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("data.zero-instance.param-name-0", "param-value-0"));
-            assertThat(body, containsValue("data.zero-instance.param-name-1", "param-value-1"));
-            assertThat(body, containsValue("data.first-instance.id", 1));
-            assertThat(body, containsValue("data.second-instance.id", 2));
+            assertThat(body, containsValue("data.zero_instance.id", "param-value-0"));
+            assertThat(body, containsValue("data.first_instance.id", 1));
+            assertThat(body, containsValue("data.second_instance.id", 2));
         }
     }
 
@@ -516,7 +492,8 @@ public class WatchTemplateTest {
 
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).throttledFor("1h").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
@@ -541,7 +518,8 @@ public class WatchTemplateTest {
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter") //
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['created_by':instance.id]")//
                 .throttledFor("1h").name("testsink").build();
@@ -570,7 +548,8 @@ public class WatchTemplateTest {
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['created_by':instance.id]").throttledFor("1h")//
                 .name("testsink").build();
@@ -599,7 +578,8 @@ public class WatchTemplateTest {
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['priority':instance.instance_parameter]")//
                 .throttledFor("1h").name("testsink").build();
@@ -628,7 +608,8 @@ public class WatchTemplateTest {
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['priority':instance.instance_parameter]")//
                 .throttledFor("1h").name("testsink").build();
@@ -656,15 +637,16 @@ public class WatchTemplateTest {
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "value")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['name':instance.value]").throttledFor("1h")//
                 .name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            DocNode node = DocNode.of("first-instance-id", DocNode.of("value", "one"),
-                "second-instance-id", DocNode.of("value", "two"));
+            DocNode node = DocNode.of("first_instance_id", DocNode.of("value", "one"),
+                "second_instance_id", DocNode.of("value", "two"));
 
             response = restClient.putJson(parametersPath, node.toJsonString());
 
@@ -680,14 +662,15 @@ public class WatchTemplateTest {
     public void shouldUseManyParameters() throws Exception {
         String watchId = "watch-should-use-many-parameters";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String instanceId = "multiple-parameters-instance";
+        String instanceId = "multiple_parameters_instance";
         String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "color", "shape", "transparency")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch").then().index(destinationIndex) //
                 .transform(null, "['Color':instance.color, 'Shp':instance.shape, 'Opacity':instance.transparency]") //
                 .throttledFor("1h").name("testsink").build();
@@ -714,14 +697,15 @@ public class WatchTemplateTest {
     public void shouldUseManyParametersOtherParameterSet() throws Exception {
         String watchId = "watch-should-use-many-parameters-other-parameter-set";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String instanceId = "multiple-parameters-instance";
+        String instanceId = "multiple_parameters_instance";
         String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "color", "shape", "transparency")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch").then().index(destinationIndex) //
                 .transform(null, "['Color':instance.color, 'Shp':instance.shape, 'Opacity':instance.transparency]") //
                 .throttledFor("1h").name("testsink").build();
@@ -748,7 +732,7 @@ public class WatchTemplateTest {
     public void shouldUseInstanceParameterInWebhookAction() throws Exception {
         String watchId = "watch-should-use-instance-parameter-in-webhook-action";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String instanceId = "multiple-parameters-instance";
+        String instanceId = "multiple_parameters_instance";
         String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient();
@@ -757,7 +741,8 @@ public class WatchTemplateTest {
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
             DocNode bodyTemplate = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "color", "shape", "transparency")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch").then()//
                 .postWebhook(webhookProvider.getUri()).body(bodyTemplate).throttledFor("1h").name("webhook-action-name")
                 .build();
@@ -782,7 +767,7 @@ public class WatchTemplateTest {
     public void shouldUseInstanceParameterInWebhookActionWithAnotherParameters() throws Exception {
         String watchId = "watch-should-use-instance-parameter-in-webhook-action-with-another-parameters";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String instanceId = "multiple-parameters-instance";
+        String instanceId = "multiple_parameters_instance";
         String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient();
@@ -791,9 +776,10 @@ public class WatchTemplateTest {
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
             DocNode bodyTemplate = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "color", "shape", "transparency")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch").then()//
-                .postWebhook(webhookProvider.getUri()).body(bodyTemplate).throttledFor("1h").name("webhook-action-name")
+                .postWebhook(webhookProvider.getUri()).body(bodyTemplate).throttledFor("1h").name("webhook-action-name")//
                 .build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -817,14 +803,15 @@ public class WatchTemplateTest {
         String watchId = "watch-template-instance-state-should-be-stored";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        String instanceIdOne = "first-instance-id";
-        String instanceIdTwo = "second-instance-id";
+        String instanceIdOne = "first_instance_id";
+        String instanceIdTwo = "second_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
         ) {
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "value")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['name':instance.value]").throttledFor("1h")//
                 .name("testsink").build();
@@ -836,8 +823,10 @@ public class WatchTemplateTest {
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "one") > 0);
-            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "two") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "one") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "two") > 0);
             response = restClient.get(String.format("/_signals/watch/%s/%s+%s/_state", DEFAULT_TENANT, watchId, instanceIdOne));
             log.info("Watch state response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -864,7 +853,8 @@ public class WatchTemplateTest {
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).atMsInterval(25).search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .atMsInterval(25).search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).throttledFor("1ms").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
@@ -896,7 +886,8 @@ public class WatchTemplateTest {
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).atMsInterval(25).search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter") //
+                .atMsInterval(25).search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).throttledFor("1ms").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch);
@@ -923,7 +914,7 @@ public class WatchTemplateTest {
     public void shouldDeleteGenericWatchWithItsInstance() throws Exception {
         String watchId = "my-watch-delete-generic-watch-with-its-instance";
         String instanceId = "instance_id_should_create_template_parameters";
-        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId);
+        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId, "instance");
         String instancePath = String.format("%s/instances/%s", watchPath, instanceId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("instance", "to be deleted together with generic watch");
@@ -948,7 +939,7 @@ public class WatchTemplateTest {
     @Test
     public void shouldDeleteGenericWatchWithManyInstances() throws Exception {
         String watchId = "my-watch-delete-generic-watch-with-many-instances";
-        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId);
+        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId, "parameter");
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.EMPTY;
@@ -996,7 +987,7 @@ public class WatchTemplateTest {
         ) {
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).atMsInterval(5000).search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "name").atMsInterval(5000).search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['name':instance.name]")//
                 .throttledFor("1h").name("testsink").build();
@@ -1010,14 +1001,14 @@ public class WatchTemplateTest {
                 nameParameterValues.add(name);
                 node = node.with(DocNode.of("instance_id_" + i, DocNode.of("name", name)));
             }
-
             //this line should run watch instances
             response = restClient.putJson(parametersPath, node.toJsonString());
 
             log.info("Create watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             for(String parameterValue : nameParameterValues) {
-                Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name", parameterValue) > 0);
+                Awaitility.await().atMost(3, SECONDS)
+                    .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", parameterValue) > 0);
             }
         }
     }
@@ -1025,7 +1016,7 @@ public class WatchTemplateTest {
     @Test
     public void shouldLoadManyInstanceParameters() throws Exception {
         String watchId = "my-watch-should-create-significant-number-of-instances";
-        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId);
+        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId, "parameter");
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             try {
@@ -1067,7 +1058,8 @@ public class WatchTemplateTest {
         ) {
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).atMsInterval(500).search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "name")//
+                .atMsInterval(500).search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['name':instance.name]")//
                 .throttledFor("1s").name("testsink").build();
@@ -1078,7 +1070,8 @@ public class WatchTemplateTest {
             response = restClient.putJson(instancePath, node.toJsonString());
             log.info("Create watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name", "initial_value") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "initial_value") > 0);
             node = DocNode.of("name", "updated_value");
 
             response = restClient.putJson(instancePath, node.toJsonString());
@@ -1089,7 +1082,8 @@ public class WatchTemplateTest {
             response = restClient.get(watchPath + "/instances");
             log.info("Getting instance parameters after update, status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name", "updated_value") > 0);
+            Awaitility.await().atMost(3, SECONDS) //
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "updated_value") > 0);
         }
     }
 
@@ -1104,7 +1098,8 @@ public class WatchTemplateTest {
         ) {
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true).atMsInterval(500).search(INDEX_SOURCE) //
+            Watch watch = new WatchBuilder(watchId).instances(true, "name")//
+                .atMsInterval(500).search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['name':instance.name]")//
                 .throttledFor("1s").name("testsink").build();
@@ -1115,7 +1110,8 @@ public class WatchTemplateTest {
             response = restClient.putJson(instancePath, node.toJsonString());
             log.info("Create watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentWithTerm(client, destinationIndex, "name", "parameter_value") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "parameter_value") > 0);
             watch = new WatchBuilder(watchId).instances(true).atMsInterval(500).search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['surname':instance.name]")//
@@ -1124,24 +1120,215 @@ public class WatchTemplateTest {
 
             response = restClient.putJson(watchPath, watch);
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            Awaitility.await()//
-                .until(() -> countDocumentWithTerm(client, destinationIndex, "surname", "parameter_value") > 0);
+            Awaitility.await().atMost(3, SECONDS)//
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "surname.keyword", "parameter_value") > 0);
         }
     }
 
-    private String createWatchTemplate(String tenant, String watchId) throws Exception {
-        return createWatch(tenant, watchId, true);
+    @Test
+    public void shouldUpdateMultipleInstanceParametersWithBulkRequest() throws Exception {
+        String watchId = "my-watch-should-update-multiple-parameters-with-bulk-request";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        String instancesPath = watchPath + "/instances";
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "name").atMsInterval(500).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name]")//
+                .throttledFor("1s").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("first_instance", DocNode.of("name", "Dave"), "second_instance", DocNode.of("name", "Dan"));
+            response = restClient.putJson(instancesPath, node.toJsonString());
+            log.info("Create watch instances response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "Dave") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "Dan") > 0);
+            node = DocNode.of("first_instance", DocNode.of("name", "Angela"), "second_instance", DocNode.of("name", "Daisy"));
+
+            response = restClient.putJson(instancesPath, node.toJsonString());
+
+            log.info("Update watch instance parameters response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "Angela") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "Daisy") > 0);
+        }
     }
 
-    private static String createWatch(String tenant, String watchId, boolean template) throws Exception {
+    @Test
+    public void shouldUpdateAndCreateNewInstanceViaBulkRequest() throws Exception {
+        String watchId = "my-watch-should-update-and-create-new-instance-with-bulk-request";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        String instancesPath = watchPath + "/instances";
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "name")//
+                .atMsInterval(100).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsink").throttledFor("50ms").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("first_instance", DocNode.of("name", "Dave"), "second_instance", DocNode.of("name", "Dan"));
+            response = restClient.putJson(instancesPath, node.toJsonString());
+            log.info("Create watch instances response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "Dave") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "Dan") > 0);
+            node = DocNode.of("new_instance", DocNode.of("name", "Angela"), "second_instance", DocNode.of("name", "Daisy"));
+
+            response = restClient.putJson(instancesPath, node.toJsonString());
+
+            log.info("Update watch instance parameters response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            long numberOfDanDocuments = countDocumentWithTerm(client, destinationIndex, "name.keyword", "Dan");
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "Angela") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "Daisy") > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "Dan") > numberOfDanDocuments);
+        }
+    }
+
+    @Test
+    @Ignore // the test requires 12s sleep time
+    public void shouldAssignThrottleSettingsToWatchInstance() throws Exception {
+        String watchId = "my-watch-should-update-and-create-new-instance-with-bulk-request";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        String instancesPath = watchPath + "/instances";
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "name") //
+                .atMsInterval(100).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsink").throttledFor("2000ms").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("first_instance", DocNode.of("name", "Dave"), "second_instance", DocNode.of("name", "2"),
+                "third_instance", DocNode.of("name", "3"), "fourth_instance", DocNode.of("name", "4"), "fivth_instance", DocNode.of("name", "5"));
+
+            response = restClient.putJson(instancesPath, node.toJsonString());
+
+            log.info("Create watch instances response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Thread.sleep(12000);
+            long numberOfDocuments = countDocumentInIndex(client, destinationIndex);
+            log.info("Number of document created after sleep is equal to '{}'.", numberOfDocuments);
+            assertThat(numberOfDocuments, greaterThan(25L));
+        }
+    }
+
+    @Test
+    public void shouldNotCreateGenericWatchWithIncorrectParameterName() throws Exception {
+        String watchId = "my-watch-with-incorrect-parameter-name";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "invalid-name").atMsInterval(100).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsink").throttledFor("2000ms").build();
+
+            HttpResponse response = restClient.putJson(watchPath, watch);
+
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error", "'instances.invalid-name': Instance parameter name is invalid."));
+        }
+    }
+
+    @Test
+    public void shouldNotCreateTemplateInstanceWithMissingParameters() throws Exception {
+        String watchId = "my-watch-should-not-create-template-instance-with-missing-parameters";
+        String instanceId = "instance_id_should_create_template_parameters";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            DocNode node = DocNode.of("id", 258);
+
+            HttpResponse response = client.putJson(path, node.toJsonString());
+
+            log.info("Create watch instance response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error.message", "does not contain required parameters: ['name']"));
+        }
+    }
+
+    @Test
+    public void shouldNotCreateTemplateInstanceWithTooManyParameters() throws Exception {
+        String watchId = "my-watch-should-not-create-instance-with-too-many-parameters";
+        String instanceId = "instance_id_should_create_template_parameters";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            DocNode node = DocNode.of("id", 258, "name", "Dave", "additional_param", 1);
+
+            HttpResponse response = client.putJson(path, node.toJsonString());
+
+            log.info("Create watch instance response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error.message", "Incorrect parameter names: ['additional_param']."));
+        }
+    }
+
+    @Test
+    public void shouldDetectInvalidInstanceId() throws Exception {
+        String watchId = "my-watch-should-not-create-instance-with-incorrect-instance-id";
+        String instanceId = "1-invalid-id";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            DocNode node = DocNode.of("id", 258, "name", "Dave");
+
+            HttpResponse response = client.putJson(path, node.toJsonString());
+
+            log.info("Create watch instance response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error.message", "Watch instance id is incorrect"));
+        }
+    }
+
+    private String createWatchTemplate(String tenant, String watchId, String...parameterNames) throws Exception {
+        return createWatch(tenant, watchId, true, parameterNames);
+    }
+
+    private static String createWatch(String tenant, String watchId, boolean template, String...parameterNames) throws Exception {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
-            Watch watch = new WatchBuilder(watchId).instances(template).cronTrigger("0 0 0 1 1 ?")//
+            Watch watch = new WatchBuilder(watchId).instances(template, parameterNames).cronTrigger("0 0 0 1 1 ?")//
                 .search(INDEX_SOURCE).query("{\"match_all\" : {} }").as("testsearch")//
                 .then().index("testsink").throttledFor("1h").name("testsink").build();
             String watchJson = watch.toJson();
-            log.info("Create watch '{}'.", watchJson);
+            log.info("Create watch '{}' with id '{}'.", watchJson, watchId);
             HttpResponse response = restClient.putJson(watchPath, watchJson);
+            log.info("Create watch '{}' response status '{}' and body '{}'", watchId, response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             return watchPath;
         }
@@ -1169,6 +1356,10 @@ public class WatchTemplateTest {
 
     private static long countDocumentWithTerm(Client client, String index, String fieldName, String fieldValue)
         throws ExecutionException, InterruptedException {
+        if(!fieldName.endsWith(".keyword")) {
+            String message = "Term query requires usage of not analyzed fields. Please append '.keyword' to your field name";
+            throw new IllegalArgumentException(message);
+        }
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.query(QueryBuilders.termQuery(fieldName, fieldValue));
         SearchResponse response = findDocuments(client, index, searchSourceBuilder);
