@@ -44,17 +44,18 @@ public class PrivilegesInterceptorImplTest {
                                 DocNode.of("tenant_permissions",
                                         Arrays.asList(
                                                 ImmutableMap.of("tenant_patterns", Arrays.asList("*"), "allowed_actions", Arrays.asList("*"))))),
-                        CType.ROLES, null).get();
+                        CType.ROLES, null)
+                .get();
 
         ImmutableSet<String> tenants = ImmutableSet.of("my_tenant", "test");
 
-        RoleBasedActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
-        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, tenants, actions);
+        RoleBasedTenantAuthorization actionAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenants);
+        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, actionAuthorization, tenants, actions, null,
+                null);
 
         User user = User.forUser("test").searchGuardRoles("all_access").build();
 
-        Assert.assertEquals(ImmutableMap.of("test", true, "my_tenant", true),
-                subject.mapTenants(user, ImmutableSet.of("all_access"), actionAuthorization));
+        Assert.assertEquals(ImmutableMap.of("test", true, "my_tenant", true), subject.mapTenants(user, ImmutableSet.of("all_access")));
     }
 
 }

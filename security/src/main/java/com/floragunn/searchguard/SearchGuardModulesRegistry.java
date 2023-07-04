@@ -83,6 +83,7 @@ public class SearchGuardModulesRegistry {
     private ImmutableList<SearchOperationListener> searchOperationListeners;
     private ImmutableList<IndexingOperationListener> indexOperationListeners;
     private ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters;
+    private ImmutableList<SyncAuthorizationFilter> prePrivilegeEvaluationSyncAuthorizationFilters;
     private ImmutableList<Function<String, Predicate<String>>> fieldFilters;
     private ImmutableList<QueryCacheWeightProvider> queryCacheWeightProviders;
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForNormalOperations;
@@ -277,6 +278,20 @@ public class SearchGuardModulesRegistry {
         return result;
     }
 
+    public ImmutableList<SyncAuthorizationFilter> getPrePrivilegeSyncAuthorizationFilters() {
+        ImmutableList<SyncAuthorizationFilter> result = this.prePrivilegeEvaluationSyncAuthorizationFilters;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getPrePrivilegeEvaluationSyncAuthorizationFilters());
+            }
+        }
+
+        return result;
+    }
+    
     public ImmutableList<Function<String, Predicate<String>>> getFieldFilters() {
         ImmutableList<Function<String, Predicate<String>>> result = this.fieldFilters;
 

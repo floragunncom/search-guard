@@ -43,7 +43,7 @@ public class ConfigConstants {
     public static final String SG_DOC_WHITELST_TRANSIENT = SG_CONFIG_PREFIX+"doc_whitelist_t";
 
     public static final String SG_FILTER_LEVEL_DLS_DONE = SG_CONFIG_PREFIX+"filter_level_dls_done";
-    
+
     public static final String SG_DLS_QUERY_CCS = SG_CONFIG_PREFIX+"dls_query_ccs";
 
     public static final String SG_FLS_FIELDS_CCS = SG_CONFIG_PREFIX+"fls_fields_ccs";

@@ -30,6 +30,7 @@ public interface SyncAuthorizationFilter {
         public static final Result OK = new Result(Status.OK);
         public static final Result DENIED = new Result(Status.DENIED);
         public static final Result INTERCEPTED = new Result(Status.INTERCEPTED);
+        public static final Result PASS_ON_FAST_LANE = new Result(Status.PASS_ON_FAST_LANE);
 
         private final Status status;
         private final String reason;
@@ -54,7 +55,7 @@ public interface SyncAuthorizationFilter {
         }
         
         public static enum Status {
-            OK, DENIED, INTERCEPTED;
+            OK, DENIED, INTERCEPTED, PASS_ON_FAST_LANE;
         }
 
         public Exception toSecurityException(PrivilegesEvaluationContext context) {

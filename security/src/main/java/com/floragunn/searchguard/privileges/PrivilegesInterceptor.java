@@ -28,6 +28,9 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.user.User;
 
+/**
+ * @deprecated not really fits any more with the new MT approach. replace or delete.
+ */
 public interface PrivilegesInterceptor {
 
     InterceptionResult replaceKibanaIndex(
