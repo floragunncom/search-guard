@@ -132,7 +132,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                 }
 
                                 Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())),
-                                        signalsTenant.getName(), request.getWatchId(), response.getSourceAsString(), response.getVersion());
+                                        signalsTenant.getName(), request.getWatchId(), response.getSourceAsString(), response.getVersion(), null);
                                 if(watch.isExecutable()) {
 
                                     try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
@@ -176,7 +176,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         try {
             Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())), signalsTenant.getName(),
-                    "__inline_watch", request.getWatchJson(), -1);
+                    "__inline_watch", request.getWatchJson(), -1, null);
 
             threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {
                 try {

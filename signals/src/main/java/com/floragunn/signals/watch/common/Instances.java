@@ -1,12 +1,13 @@
 package com.floragunn.signals.watch.common;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 public class Instances implements ToXContentObject {
@@ -49,5 +50,23 @@ public class Instances implements ToXContentObject {
             return false;
         }
         return PARAMETER_NAME_PATTERN.matcher(parameterName).matches();
+    }
+
+    private int getNumberOfParameters() {
+        return params.size();
+    }
+
+    public boolean hasSameParameterList(Instances previousInstance) {
+        Objects.requireNonNull(previousInstance, "Previous instance is required");
+        if(getNumberOfParameters() != previousInstance.getNumberOfParameters()) {
+            return false;
+        }
+        Set<String> parameterNames = new HashSet<>(getParams());
+        previousInstance.getParams().forEach(parameterNames::remove);
+        return parameterNames.size() == 0;
+    }
+
+    @Override public String toString() {
+        return "Instances{" + "enabled=" + enabled + ", params=" + params + '}';
     }
 }

@@ -231,7 +231,7 @@ public class WatchTemplateInstanceFactoryVersionTest {
                 .search("source-search-index").query("{\"match_all\" : {} }").as("testsearch")//
                 .then().index("testsink").throttledFor("1h").name("testsink").build();
             String watchJson = watch.toJson();
-            watch = Watch.parse(initService, "tenant-id", WATCH_ID_1, watchJson, watchVersion);
+            watch = Watch.parse(initService, "tenant-id", WATCH_ID_1, watchJson, watchVersion, null);
             DocNode docNode = DocNode.of(FIELD_INSTANCE_ID, "instance-id", FIELD_PARAMETERS, DocNode.EMPTY);
             WatchParametersData watchParametersData = new WatchParametersData(docNode, templateVersion);
             when(parameterLoader.findParameters(WATCH_ID_1)).thenReturn(ImmutableList.of(watchParametersData));

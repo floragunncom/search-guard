@@ -62,8 +62,10 @@ public class CreateManyWatchInstancesAction extends Action<CreateManyWatchInstan
                 try {
                     return templateService.createManyInstances(request);
                 } catch (ConfigValidationException e) {
-                    log.error("Cannot create watch template instances.", e);
-                    return new StandardResponse(400).message("Cannot create watch template instances.").error(e);
+                    log.error("Cannot create generic watch instances because validation errors occured.", e);
+                    return new StandardResponse(400) //
+                        .message("Cannot create generic watch instances because validation errors occured.") //
+                        .error(e);
                 }
             });
         }

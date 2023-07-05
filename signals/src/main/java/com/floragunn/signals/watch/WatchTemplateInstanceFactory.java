@@ -45,8 +45,7 @@ public class WatchTemplateInstanceFactory implements JobTemplateInstanceFactory<
         String id = Watch.createInstanceId(watch.getId(), instanceParameters.getInstanceId());
         try {
             long version = computeVersion(watch.getVersion(), instanceParameters.getVersion());
-            Watch watchInstance = Watch.parse(initializationService, watch.getTenant(), id, templateDefinition, version);
-            watchInstance.setInstancesParameters(instanceParameters);
+            Watch watchInstance = Watch.parse(initializationService, watch.getTenant(), id, templateDefinition, version, instanceParameters);
             log.debug("Watch '{}' instance with id '{}' and parameters '{}' created, instance version '{}'", watch.getId(),
                 instanceParameters.getInstanceId(), instanceParameters.getParameters(), version);
             return watchInstance;

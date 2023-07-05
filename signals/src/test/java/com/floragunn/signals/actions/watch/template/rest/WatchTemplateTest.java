@@ -145,15 +145,17 @@ public class WatchTemplateTest {
     }
 
     @Test
-    public void shouldLoadTemplateParameters() throws Exception {
-        String watchId = "my-watch-load-template-parameters";
+    public void shouldLoadTemplateParametersWithVariousDataTypes() throws Exception {
+        String watchId = "my-watch-load-template-parameters-with-various-data-types";
         String instanceId = "instance_id_should_load_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name", "time");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name", "time", "int", "long", "double", "bool");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode node = DocNode.of("id", 258, "name","kirk", "time", "2023-05-15T13:07:52.000Z");
+            DocNode node = DocNode.of("id", 258, "name","kirk", "time", "2023-05-15T13:07:52.000Z")
+                .with(DocNode.of("int", Integer.MAX_VALUE, "long", Long.MIN_VALUE, "double", Math.PI, "bool", false));
             HttpResponse response = client.putJson(path, node.toJsonString());
-            log.info("Create watch template response '{}'.", response.getBody());
+            log.info("Create watch instance response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
 
             response = client.get(path + "/parameters");
 
@@ -163,56 +165,52 @@ public class WatchTemplateTest {
             assertThat(body, containsValue("data.id", 258));
             assertThat(body, containsValue("data.name", "kirk"));
             assertThat(body, containsValue("data.time", "2023-05-15T13:07:52.000Z"));
+            assertThat(body, containsValue("data.int", Integer.MAX_VALUE));
+            assertThat(body, containsValue("data.long", Long.MIN_VALUE));
+            assertThat(body, containsValue("data.double", Math.PI));
+            assertThat(body, containsValue("data.bool", false));
         }
     }
 
-    @Test //TODO this should be not possible
-    public void shouldUseNestedValuesInList() throws Exception {
-        String watchId = "my-watch-use-nested-value-list";
+    @Test
+    public void shouldNotUseNestedValuesInList() throws Exception {
+        String watchId = "my-watch-should-not-use-nested-value-list";
         String instanceId = "instance_id_should_use_nested_values_in_list";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         createWatchTemplate(DEFAULT_TENANT, watchId, "list");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             ImmutableMap<String, String> firstMap = ImmutableMap.of("one-key", "one-value", "two-key", "two-value");
             ImmutableMap<String, Integer> secondMap = ImmutableMap.of("three-key", 3, "four-key", 4);
-            DocNode node = DocNode.of("list", Arrays.asList(firstMap, secondMap));
+            DocNode node = DocNode.of("list", Arrays.asList("one", firstMap, secondMap));
+
             HttpResponse response = client.putJson(path, node.toJsonString());
-            log.info("Create watch template response '{}'.", response.getBody());
 
-            response = client.get( path + "/parameters");
-
-            log.info("Get watch template parameters response '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            log.info("Create generic watch instance response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("data.list[0].one-key", "one-value"));
-            assertThat(body, containsValue("data.list[0].two-key", "two-value"));
-            assertThat(body, containsValue("data.list[1].three-key", 3));
-            assertThat(body, containsValue("data.list[1].four-key", 4));
+            assertThat(body, containSubstring("error.details['instance_id_should_use_nested_values_in_list.list[1]'][0]", "Forbidden parameter value type"));
+            assertThat(body, containSubstring("error.details['instance_id_should_use_nested_values_in_list.list[1]'][0]", "Map"));
+            assertThat(body, containSubstring("error.details['instance_id_should_use_nested_values_in_list.list[2]'][0]", "Forbidden parameter value type"));
+            assertThat(body, containSubstring("error.details['instance_id_should_use_nested_values_in_list.list[2]'][0]", "Map"));
         }
     }
 
-    @Test //TODO this should not be possible
-    public void shouldUseNestedValuesInMap() throws Exception {
-        String watchId = "my-watch-use-nested-values-in-map";
-        String instanceId = "instance_id_should_use_nested_values_in_map";
+    @Test
+    public void shouldNotUseNestedParameters() throws Exception {
+        String watchId = "my-watch-should-not-use-nested-parameters";
+        String instanceId = "instance_id_should_not_use_map";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "outer_map");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "map_parameter");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            ImmutableMap<String, String> firstMap = ImmutableMap.of("one-key", "one-value", "two-key", "two-value");
-            ImmutableMap<String, Integer> secondMap = ImmutableMap.of("three-key", 3, "four-key", 4);
-            DocNode node = DocNode.of("outer_map", ImmutableMap.of("first_map", firstMap, "second_map", secondMap));
+            DocNode node = DocNode.of("map_parameter", ImmutableMap.of("map", "is", "not", "allowed"));
+
             HttpResponse response = client.putJson(path, node.toJsonString());
-            log.info("Create watch template response '{}'.", response.getBody());
 
-            response = client.get(path + "/parameters");
-
-            log.info("Get watch template parameters response '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            log.info("Create generic watch with map response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("data.outer_map.first_map.one-key", "one-value"));
-            assertThat(body, containsValue("data.outer_map.first_map.two-key", "two-value"));
-            assertThat(body, containsValue("data.outer_map.second_map.three-key", 3));
-            assertThat(body, containsValue("data.outer_map.second_map.four-key", 4));
+            assertThat(body, containSubstring("error.message", "Forbidden parameter value type"));
+            assertThat(body, containSubstring("error.message", "Map"));
         }
     }
 
@@ -1112,13 +1110,14 @@ public class WatchTemplateTest {
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             Awaitility.await().atMost(3, SECONDS)
                 .until(() -> countDocumentWithTerm(client, destinationIndex, "name.keyword", "parameter_value") > 0);
-            watch = new WatchBuilder(watchId).instances(true).atMsInterval(500).search(INDEX_SOURCE) //
+            watch = new WatchBuilder(watchId).instances(true, "name").atMsInterval(500).search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch") //
                 .then().index(destinationIndex).transform(null, "['surname':instance.name]")//
                 .throttledFor("1s").name("testsink").build();
 
 
             response = restClient.putJson(watchPath, watch);
+            log.info("Update generic watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             Awaitility.await().atMost(3, SECONDS)//
                 .until(() -> countDocumentWithTerm(client, destinationIndex, "surname.keyword", "parameter_value") > 0);
@@ -1298,6 +1297,28 @@ public class WatchTemplateTest {
     }
 
     @Test
+    public void shouldDetectValidationErrorsDuringUpdate() throws Exception {
+        String watchId = "my-watch-should-detect-validation-errors-during-update";
+        String instanceId = "instance_id_should_create_template_parameters";
+        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            DocNode node = DocNode.of("id", 258, "name", "Dave");
+            HttpResponse response = client.putJson(path, node.toJsonString());
+            log.info("Create correct watch instance response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            node = DocNode.of("id", 258, "name", "Dave", "additional_param","this parameter cause validation error");
+
+            response = client.putJson(path, node.toJsonString());
+
+            log.info("Response which should contain validation errors '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error.message", "Incorrect parameter names: ['additional_param']."));
+        }
+    }
+
+    @Test
     public void shouldDetectInvalidInstanceId() throws Exception {
         String watchId = "my-watch-should-not-create-instance-with-incorrect-instance-id";
         String instanceId = "1-invalid-id";
@@ -1312,6 +1333,203 @@ public class WatchTemplateTest {
             assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, containSubstring("error.message", "Watch instance id is incorrect"));
+        }
+    }
+
+    @Test
+    public void shouldDetectValidationErrorsDuringBatchUpdate() throws Exception {
+        String watchId = "my-watch-should-detect-validation-errors-during-bulk-update";
+        String instanceId = "instance_id_should_create_template_parameters";
+        String singleInstancePatch = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String allInstancesPatch = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            DocNode paramersNode = DocNode.of("id", 258, "name", "Dave");
+            HttpResponse response = client.putJson(singleInstancePatch, paramersNode.toJsonString());
+            log.info("Create correct watch instance response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            paramersNode = DocNode.of("id", 258, "name", "Dave", "additional_param","this parameter cause validation error");
+            DocNode instanceNode = DocNode.of(instanceId, paramersNode);
+
+            response = client.putJson(allInstancesPatch, instanceNode.toJsonString());
+
+            log.info("Bulk update response '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error.message", "Incorrect parameter names: ['additional_param']."));
+        }
+    }
+
+    @Test
+    public void shouldValidateParametersWhenBulkRequestIsUsedToCreateWatches() throws Exception {
+        String watchId = "my-watch-should-detect-validation-errors-when-bulk-request-is-used-to-create-watches";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        String instancesPath = watchPath + "/instances";
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "name") //
+                .atMsInterval(Long.MAX_VALUE).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsink").throttledFor("10h").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("incorrect-watch-id?", DocNode.of("name", "Dave"),
+                "missing_param_instance", DocNode.EMPTY,
+                "third_instance", DocNode.of("name", "3", "additional_parameter", "what is not allowed"));
+
+            response = restClient.putJson(instancesPath, node.toJsonString());
+
+            log.info("Create watch instances response status '{}' and body '{}'.",response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error.details['incorrect-watch-id?'][0].error", "Watch instance id is incorrect."));
+            assertThat(body, containSubstring("error.details.missing_param_instance[0].error", "Watch instance does not contain required parameters: ['name']"));
+            assertThat(body, containSubstring("error.details.third_instance[0].error", "Incorrect parameter names: ['additional_parameter']. Valid parameter names: ['name']"));
+        }
+    }
+
+    @Test
+    public void shouldUpdateGenericWatchWhenParameterListIsTheSame() throws Exception {
+        String watchId = "my-watch-should-update-watch-when-parameters-list-is-same";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "name") //
+                .atMsInterval(Long.MAX_VALUE).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsink").throttledFor("10h").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            watch = new WatchBuilder(watchId).instances(true, "name") //
+                .atMsInterval(Long.MAX_VALUE).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsinkUpdated").throttledFor("10h").build();
+
+            response = restClient.putJson(watchPath, watch);
+
+            log.info("Update watch response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            response = restClient.get(watchPath);
+            log.info("Get watch status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("_source.actions[0].name", "testsinkUpdated"));
+        }
+    }
+
+    @Test
+    public void shouldNotUpdateGenericWatchWhenParameterListWasChanged() throws Exception {
+        String watchId = "my-watch-should-not-update-watch-when-parameters-list-was-changed";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "name") //
+                .atMsInterval(Long.MAX_VALUE).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsink").throttledFor("10h").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            watch = new WatchBuilder(watchId).instances(true, "name", "new_parameter") //
+                .atMsInterval(Long.MAX_VALUE).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsinkUpdated").throttledFor("10h").build();
+
+            response = restClient.putJson(watchPath, watch);
+
+            log.info("Update watch response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error", "instances.params"));
+            assertThat(body, containSubstring("error", "name"));
+            assertThat(body, containSubstring("error", "Watch is invalid"));
+            assertThat(body, containSubstring("error", "has distinct instance parameters list"));
+        }
+    }
+
+    @Test
+    public void shouldAllowUsageOfPlusSignInNonGenericWatchId() throws Exception {
+        String watchId = "my+watch+id+with+plus+sign";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(false ) //
+                .atMsInterval(Long.MAX_VALUE).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsink").throttledFor("10h").build();
+
+            HttpResponse response = restClient.putJson(watchPath, watch);
+
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+        }
+    }
+
+    @Test
+    public void shouldNotAllowUsageOfPlusSignInGenericWatchId() throws Exception {
+        String watchId = "my+generic+watch+id+with+plus+sign";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "name") //
+                .atMsInterval(Long.MAX_VALUE).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsink").throttledFor("10h").build();
+
+            HttpResponse response = restClient.putJson(watchPath, watch);
+
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error", "Generic watch id cannot contain '+' character."));
+        }
+    }
+
+    @Test
+    public void shouldReportValidationErrorWhenNonGenericWatchDefinesInstanceParameters() throws Exception {
+        String watchId = "watch-id-non-generic-watch-with-instance-parameters";
+        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()
+        ) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(false, "params_are_not_allowed_for_non_generic_watch") //
+                .atMsInterval(Long.MAX_VALUE).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
+                .name("testsink").throttledFor("10h").build();
+
+            HttpResponse response = restClient.putJson(watchPath, watch);
+
+            log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containSubstring("error", "Watch is invalid: 'instances.enabled': Only generic watch is allowed to define instance parameters"));
         }
     }
 

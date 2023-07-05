@@ -32,6 +32,7 @@ import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.signals.actions.watch.template.service.WatchInstanceParameterLoader;
 import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
 import com.floragunn.signals.watch.WatchTemplateInstanceFactory;
@@ -56,14 +57,10 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.metrics.ValueCount;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
@@ -359,7 +356,9 @@ public class SignalsTenant implements Closeable {
 
         Map<String, Object> watchJson = new LinkedHashMap<>(DocReader.json().readObject(watchJsonString));
 
-        Watch watch = Watch.parse(new WatchInitializationService(accountRegistry, scriptService, new ValidatingThrottlePeriodParser(settings)), getName(), watchId, DocNode.wrap(watchJson), -1);
+        Watch watch = Watch.parse(new WatchInitializationService(accountRegistry, scriptService, new ValidatingThrottlePeriodParser(settings)), getName(), watchId, DocNode.wrap(watchJson), -1, null);
+
+        validateGenericWatchParameters(watch);
 
         watch.setTenant(name);
         watch.getMeta().setLastEditByUser(user.getName());
@@ -401,6 +400,23 @@ public class SignalsTenant implements Closeable {
         }
 
         return indexResponse;
+    }
+
+    private void validateGenericWatchParameters(Watch watch) throws ConfigValidationException {
+        String watchId = watch.getId();
+        Instances currentInstance = watch.getInstanceDefinition();
+        Instances previousInstance = findGenericWatchInstanceConfig(watchId).orElse(currentInstance);
+        if(!currentInstance.hasSameParameterList(previousInstance)) {
+            StringBuilder stringBuilder = new StringBuilder("Previous version of generic watch '") //
+                .append(watchId) //
+                .append("' has distinct instance parameters list. Current list of parameters: [") //
+                .append(String.join(", ", currentInstance.getParams())) //
+                .append("]. Previous parameter list: [") //
+                .append(String.join(", ", previousInstance.getParams())) //
+                .append("]. To update generic watch both parameters list must be the same.");
+            String parametersPath = InstanceParser.FIELD_INSTANCES + "." + Instances.FIELD_PARAMS;
+            throw new ConfigValidationException(new ValidationError(parametersPath, stringBuilder.toString()));
+        }
     }
 
     public Map<String, Ack> ack(String watchId, User user) throws NoSuchWatchOnThisNodeException {
@@ -654,7 +670,7 @@ public class SignalsTenant implements Closeable {
         return QueryBuilders.boolQuery().must(QueryBuilders.termQuery("_tenant", tenant));
     }
 
-    public Instances findGenericWatchInstanceConfig(String watchId) {
+    public Optional<Instances> findGenericWatchInstanceConfig(String watchId) {
         Objects.requireNonNull(watchId, "Watch id is required");
         String watchDocumentId = getWatchIdForConfigIndex(watchId);
         GetRequest getRequest = new GetRequest(configIndexName).id(watchDocumentId);
@@ -662,8 +678,8 @@ public class SignalsTenant implements Closeable {
 
         InstanceParser instanceParser = new InstanceParser(validationErrors);
         Optional<Instances> optional = Optional.ofNullable(privilegedConfigClient.get(getRequest).actionGet())//
-            .filter(response -> response.isExists())//
-            .map(response -> response.getSourceAsString())//
+            .filter(GetResponse::isExists)//
+            .map(GetResponse::getSourceAsString)//
             .map(response -> {
                 try {
                     return DocNode.parse(Format.JSON).from(response);
@@ -672,11 +688,11 @@ public class SignalsTenant implements Closeable {
                 }
             })//
             .map(docNode -> new ValidatingDocNode(docNode, validationErrors)) //
-            .map(validatingDocNode -> instanceParser.parse(validatingDocNode));
+            .map(instanceParser::parse);
         if(validationErrors.hasErrors()) {
             log.warn("Watch '{}' instance parameters contains configuration errors: '{}'.", watchDocumentId, validationErrors.toDebugString());
         }
-        return optional.orElse(Instances.EMPTY);
+        return optional;
     }
 
     public String getName() {

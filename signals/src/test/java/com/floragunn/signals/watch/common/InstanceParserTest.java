@@ -8,6 +8,9 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.List;
+import java.util.Map;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
@@ -160,6 +163,37 @@ public class InstanceParserTest {
         assertThat(validationErrors.getErrors(), hasKey("instances.enabled"));
     }
 
-    // TODO add test related to parameters' name validation
+    @Test
+    public void shouldDetectInvalidParameterName( ){
+        DocNode instanceNode = DocNode.of(ATTRIBUTE_ENABLED, true, ATTRIBUTE_PARAMS, ImmutableList.of("1-invalid-parameter-name"));
+        DocNode watchNode = DocNode.of(ATTRIBUTE_INSTANCES, instanceNode);
+        ValidatingDocNode validatingNode = new ValidatingDocNode(watchNode, validationErrors);
+
+        Instances instances = instanceParser.parse(validatingNode);
+
+        assertThat(instances.isEnabled(), equalTo(true));
+        assertThat(instances.getParams(), hasSize(1));
+        assertThat(validationErrors.hasErrors(), equalTo(true));
+        Map<String, Object> errorMap = validationErrors.toMap();
+        assertThat(errorMap, hasKey("instances.1-invalid-parameter-name"));
+        List<Map<String, Object>> list = (List<Map<String, Object>>) errorMap.get("instances.1-invalid-parameter-name");
+        String errorMessage = (String) list.get(0).get("error");
+        assertThat(errorMessage, equalTo("Instance parameter name is invalid."));
+    }
+
+    @Test
+    public void shouldContainValidParameterNames() {
+        ImmutableList<String> validParameterNames = ImmutableList.of("c", "c4", "c_4", "_c", "C", "searchGuard", "search_Guard",
+            "SEARCH_GUARD7", "___search__guard_512_", "SearchGuard717", "S0", "SG0", "_111100000", "_1S_g", "SEARCH1Guard");
+        DocNode instanceNode = DocNode.of(ATTRIBUTE_ENABLED, true, ATTRIBUTE_PARAMS, validParameterNames);
+        DocNode watchNode = DocNode.of(ATTRIBUTE_INSTANCES, instanceNode);
+        ValidatingDocNode validatingNode = new ValidatingDocNode(watchNode, validationErrors);
+
+        Instances instances = instanceParser.parse(validatingNode);
+
+        assertThat(instances.isEnabled(), equalTo(true));
+        assertThat(instances.getParams(), hasSize(15));
+        assertThat(validationErrors.hasErrors(), equalTo(false));
+    }
 
 }

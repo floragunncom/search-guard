@@ -7,7 +7,7 @@ import java.util.Objects;
  */
 class WatchInstanceIdService {
 
-    private static final String INSTANCE_ID_SEPARATOR = "+";
+    static final String INSTANCE_ID_SEPARATOR = "+";
 
     static final WatchInstanceIdService INSTANCE = new WatchInstanceIdService();
 
