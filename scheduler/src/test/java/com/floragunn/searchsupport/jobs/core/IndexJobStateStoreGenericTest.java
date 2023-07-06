@@ -5,7 +5,7 @@ import com.floragunn.searchsupport.jobs.JobExecutionEngineTest.TestJob;
 import com.floragunn.searchsupport.jobs.config.DefaultJobConfig;
 import com.floragunn.searchsupport.jobs.config.DefaultJobConfigFactory;
 import com.floragunn.searchsupport.jobs.config.JobConfigFactory;
-import com.floragunn.searchsupport.jobs.config.JobTemplateInstanceFactory;
+import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactory;
 import org.awaitility.Awaitility;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -33,10 +33,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The test verifies if Job Instances are created from template is created by {@link JobTemplateInstanceFactory}.
+ * The test verifies if Job Instances are created from generic jobs by {@link GenericJobInstanceFactory}.
  */
 @RunWith(MockitoJUnitRunner.class)
-public class IndexJobStateStoreTemplateTest {
+public class IndexJobStateStoreGenericTest {
 
     public static final String JOB_KEY_1 = "job-key-1";
     public static final String JOB_INSTANCE_KEY_1 = "job-instance-1";
@@ -52,7 +52,7 @@ public class IndexJobStateStoreTemplateTest {
     @Mock
     private ClusterService clusterService;
     @Mock
-    private JobTemplateInstanceFactory<DefaultJobConfig> jobTemplateInstanceFactory;
+    private GenericJobInstanceFactory<DefaultJobConfig> genericJobInstanceFactory;
     @Mock
     private SchedulerSignaler schedulerSignaler;
 
@@ -64,35 +64,35 @@ public class IndexJobStateStoreTemplateTest {
         JobConfigFactory<DefaultJobConfig>jobConfigFactory = new DefaultJobConfigFactory(TestJob.class);
         this.jobConfigSource = new ArrayList<>();
         this.indexJobStateStore = new IndexJobStateStore<>(SCHEDULER_NAME, INDEX_NAME, STATUS_INDEX_ID_PREFIX,
-            NODE_ID, client, jobConfigSource, jobConfigFactory, clusterService, Collections.emptyList(), jobTemplateInstanceFactory);
+            NODE_ID, client, jobConfigSource, jobConfigFactory, clusterService, Collections.emptyList(), genericJobInstanceFactory);
     }
 
     @Test
-    public void shouldInvokeJobTemplateInstanceFactoryWhenInitialization() throws SchedulerConfigException, JobPersistenceException {
+    public void shouldInvokeGenericJobInstanceFactoryDuringInitialization() throws SchedulerConfigException, JobPersistenceException {
         DefaultJobConfig defaultJobConfig = createJobConfig(JOB_KEY_1);
         this.jobConfigSource.add(defaultJobConfig);
-        when(jobTemplateInstanceFactory.instantiateTemplate(any())) //
+        when(genericJobInstanceFactory.instantiateGeneric(any())) //
             .thenAnswer((Answer<ImmutableList<DefaultJobConfig>>) invocation -> ImmutableList.of(invocation.<DefaultJobConfig>getArgument(0)));
 
         indexJobStateStore.initialize(null, schedulerSignaler);
 
         assertThat(indexJobStateStore.getNumberOfJobs(), equalTo(1));
-        verify(jobTemplateInstanceFactory).instantiateTemplate(same(defaultJobConfig));
+        verify(genericJobInstanceFactory).instantiateGeneric(same(defaultJobConfig));
     }
 
     @Test
     public void shouldCreateJobInstancesWhenInitialization() throws SchedulerConfigException, JobPersistenceException {
-        DefaultJobConfig defaultJobConfigTemplate = createJobConfig(JOB_KEY_1);
+        DefaultJobConfig defaultJobConfigGeneric = createJobConfig(JOB_KEY_1);
         DefaultJobConfig jobConfigInstance1 = createJobConfig(JOB_INSTANCE_KEY_1);
         DefaultJobConfig jobConfigInstance2 = createJobConfig(JOB_INSTANCE_KEY_2);
-        this.jobConfigSource.add(defaultJobConfigTemplate);
-        when(jobTemplateInstanceFactory.instantiateTemplate(same(defaultJobConfigTemplate)))//
+        this.jobConfigSource.add(defaultJobConfigGeneric);
+        when(genericJobInstanceFactory.instantiateGeneric(same(defaultJobConfigGeneric)))//
             .thenReturn(ImmutableList.of(jobConfigInstance1, jobConfigInstance2));
 
         indexJobStateStore.initialize(null, schedulerSignaler);
 
         assertThat(indexJobStateStore.getNumberOfJobs(), equalTo(2));
-        verify(jobTemplateInstanceFactory).instantiateTemplate(same(defaultJobConfigTemplate));
+        verify(genericJobInstanceFactory).instantiateGeneric(same(defaultJobConfigGeneric));
 
         assertThat(indexJobStateStore.checkExists(new JobKey(JOB_INSTANCE_KEY_1)), equalTo(true));
         assertThat(indexJobStateStore.checkExists(new JobKey(JOB_INSTANCE_KEY_2)), equalTo(true));
@@ -100,26 +100,26 @@ public class IndexJobStateStoreTemplateTest {
     }
 
     @Test
-    public void shouldInvokeJobTemplateInstanceFactoryWhenClusterConfigChange() throws JobPersistenceException {
+    public void shouldInvokeGenericJobInstanceFactoryWhenClusterConfigChange() throws JobPersistenceException {
         DefaultJobConfig defaultJobConfig = createJobConfig(JOB_KEY_1);
         this.jobConfigSource.add(defaultJobConfig);
-        when(jobTemplateInstanceFactory.instantiateTemplate(any())) //
+        when(genericJobInstanceFactory.instantiateGeneric(any())) //
             .thenAnswer((Answer<ImmutableList<DefaultJobConfig>>) invocation -> ImmutableList.of(invocation.<DefaultJobConfig>getArgument(0)));
 
         indexJobStateStore.clusterConfigChanged(null);
 
         Awaitility.await().until(() -> indexJobStateStore.getNumberOfJobs() > 0);
         assertThat(indexJobStateStore.getNumberOfJobs(), equalTo(1));
-        verify(jobTemplateInstanceFactory).instantiateTemplate(same(defaultJobConfig));
+        verify(genericJobInstanceFactory).instantiateGeneric(same(defaultJobConfig));
     }
 
     @Test
     public void shouldCreateJobInstancesWhenClusterConfigChange() throws JobPersistenceException {
-        DefaultJobConfig defaultJobConfigTemplate = createJobConfig(JOB_KEY_1);
+        DefaultJobConfig defaultJobConfigGeneric = createJobConfig(JOB_KEY_1);
         DefaultJobConfig jobConfigInstance1 = createJobConfig(JOB_INSTANCE_KEY_1);
         DefaultJobConfig jobConfigInstance2 = createJobConfig(JOB_INSTANCE_KEY_2);
-        this.jobConfigSource.add(defaultJobConfigTemplate);
-        when(jobTemplateInstanceFactory.instantiateTemplate(same(defaultJobConfigTemplate)))
+        this.jobConfigSource.add(defaultJobConfigGeneric);
+        when(genericJobInstanceFactory.instantiateGeneric(same(defaultJobConfigGeneric)))
             .thenReturn(ImmutableList.of(jobConfigInstance1, jobConfigInstance2));
 
         indexJobStateStore.clusterConfigChanged(null);
@@ -132,18 +132,18 @@ public class IndexJobStateStoreTemplateTest {
     }
 
     @Test
-    public void shouldInvokeJobTemplateInstanceFactoryWhenUpdateJobsIsInvoked() throws JobPersistenceException, SchedulerConfigException {
+    public void shouldInvokeGenericJobInstanceFactoryWhenUpdateJobsIsInvoked() throws JobPersistenceException, SchedulerConfigException {
         indexJobStateStore.initialize(null, schedulerSignaler);
         assertThat(indexJobStateStore.getNumberOfJobs(), equalTo(0));
         DefaultJobConfig defaultJobConfig = createJobConfig(JOB_KEY_1);
         this.jobConfigSource.add(defaultJobConfig);
-        when(jobTemplateInstanceFactory.instantiateTemplate(any())) //
+        when(genericJobInstanceFactory.instantiateGeneric(any())) //
             .thenAnswer((Answer<ImmutableList<DefaultJobConfig>>) invocation -> ImmutableList.of(invocation.<DefaultJobConfig>getArgument(0)));
 
         indexJobStateStore.updateJobs();
 
         assertThat(indexJobStateStore.getNumberOfJobs(), equalTo(1));
-        verify(jobTemplateInstanceFactory).instantiateTemplate(same(defaultJobConfig));
+        verify(genericJobInstanceFactory).instantiateGeneric(same(defaultJobConfig));
     }
 
     @Test
@@ -155,7 +155,7 @@ public class IndexJobStateStoreTemplateTest {
         DefaultJobConfig jobConfigInstance2 = createJobConfig(JOB_INSTANCE_KEY_2);
         this.jobConfigSource.add(defaultJobConfigTemplate);
         ImmutableList<DefaultJobConfig> jobInstances = ImmutableList.of(jobConfigInstance1, jobConfigInstance2);
-        when(jobTemplateInstanceFactory.instantiateTemplate(same(defaultJobConfigTemplate))).thenReturn(jobInstances);
+        when(genericJobInstanceFactory.instantiateGeneric(same(defaultJobConfigTemplate))).thenReturn(jobInstances);
 
         indexJobStateStore.updateJobs();
 

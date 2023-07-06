@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchsupport.jobs.config.JobTemplateInstanceFactory;
+import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
@@ -99,7 +99,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
     private List<JobConfigListener<JobType>> jobConfigListeners = new ArrayList<>();
     private Duration threadKeepAlive = Duration.ofHours(1);
 
-    private JobTemplateInstanceFactory<JobType> jobTemplateInstanceFactory = job -> ImmutableList.of(job);
+    private GenericJobInstanceFactory<JobType> genericJobInstanceFactory = job -> ImmutableList.of(job);
 
     public SchedulerBuilder<JobType> name(String name) {
         this.name = name;
@@ -127,8 +127,8 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         return this;
     }
 
-    public SchedulerBuilder<JobType> jobTemplateInstanceFactory(JobTemplateInstanceFactory<JobType> factory) {
-        this.jobTemplateInstanceFactory = Objects.requireNonNull(factory, "Job template instance factory is required");
+    public SchedulerBuilder<JobType> jobGenericWatchInstanceFactory(GenericJobInstanceFactory<JobType> factory) {
+        this.genericJobInstanceFactory = Objects.requireNonNull(factory, "Generic job instance factory is required");
         return this;
     }
 
@@ -230,7 +230,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
 
         if (this.jobStore == null) {
             this.jobStore = new IndexJobStateStore<>(name, stateIndex, stateIndexIdPrefix, nodeId, client, jobConfigSource, jobConfigFactory,
-                    clusterService, jobConfigListeners, jobTemplateInstanceFactory);
+                    clusterService, jobConfigListeners, genericJobInstanceFactory);
         }
 
         if (this.jobStore instanceof DistributedJobStore && this.jobDistributor != null) {

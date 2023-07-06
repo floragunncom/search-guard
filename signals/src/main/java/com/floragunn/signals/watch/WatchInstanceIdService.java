@@ -15,8 +15,12 @@ class WatchInstanceIdService {
 
     }
 
-    public String getWatchTemplateId(String watchOrInstanceId) {
-        Objects.requireNonNull(watchOrInstanceId, "Watch or template id is required");
+    /**
+     * Extract watch id from watch instance id. If non-generic watch id is used, then watch id is returned.
+     * Watch instance id is composed of generic watch id and parameters id.
+     */
+    public static String extractGenericWatchOrWatchId(String watchOrInstanceId) {
+        Objects.requireNonNull(watchOrInstanceId, "Watch or instance id is required");
         if(watchOrInstanceId.contains(INSTANCE_ID_SEPARATOR)) {
             return watchOrInstanceId.substring(0, watchOrInstanceId.indexOf(INSTANCE_ID_SEPARATOR));
         }

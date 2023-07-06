@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.rest;
+package com.floragunn.signals.actions.watch.generic.rest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.UnparsedDocument;
@@ -10,8 +10,8 @@ import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.Signals;
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateServiceFactory;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchService;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchServiceFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.node.NodeClient;
@@ -20,40 +20,40 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.concurrent.CompletableFuture;
 
-public class CreateOrUpdateOneWatchInstanceAction extends Action<CreateOrUpdateOneWatchInstanceAction.CreateOrUpdateOneWatchInstanceRequest, StandardResponse> {
+public class UpsertOneGenericWatchInstanceAction extends Action<UpsertOneGenericWatchInstanceAction.UpsertOneGenericWatchInstanceRequest, StandardResponse> {
 
-    private static final Logger log = LogManager.getLogger(CreateOrUpdateOneWatchInstanceAction.class);
+    private static final Logger log = LogManager.getLogger(UpsertOneGenericWatchInstanceAction.class);
 
-    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/create_or_update_one";
-    public static final CreateOrUpdateOneWatchInstanceAction INSTANCE = new CreateOrUpdateOneWatchInstanceAction();
+    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/upsert_one";
+    public static final UpsertOneGenericWatchInstanceAction INSTANCE = new UpsertOneGenericWatchInstanceAction();
 
     public static final RestApi REST_API = new RestApi()
         .responseHeaders(SearchGuardVersion.header())//
         .handlesPut("/_signals/watch/{tenant}/{id}/instances/{instance_id}")//
-        .with(INSTANCE, (params, body) -> new CreateOrUpdateOneWatchInstanceRequest(params.get("tenant"), params.get("id"),
+        .with(INSTANCE, (params, body) -> new UpsertOneGenericWatchInstanceRequest(params.get("tenant"), params.get("id"),
             params.get("instance_id"), body))//
         .name("PUT /_signals/watch/{tenant}/{id}/instances/{instance_id}");
 
-    public CreateOrUpdateOneWatchInstanceAction() {
-        super(NAME, CreateOrUpdateOneWatchInstanceRequest::new, StandardResponse::new);
+    public UpsertOneGenericWatchInstanceAction() {
+        super(NAME, UpsertOneGenericWatchInstanceRequest::new, StandardResponse::new);
     }
 
-    public static class CreateOrUpdateOneWatchInstanceHandler extends Handler<CreateOrUpdateOneWatchInstanceRequest, StandardResponse> {
+    public static class UpsertOneGenericWatchInstanceHandler extends Handler<UpsertOneGenericWatchInstanceRequest, StandardResponse> {
 
-        private final WatchTemplateService templateService;
+        private final GenericWatchService genericWatchService;
 
         @Inject
-        public CreateOrUpdateOneWatchInstanceHandler(NodeClient client, Signals signals, HandlerDependencies handlerDependencies,
+        public UpsertOneGenericWatchInstanceHandler(NodeClient client, Signals signals, HandlerDependencies handlerDependencies,
             ThreadPool threadPool) {
             super(INSTANCE, handlerDependencies);
-            this.templateService = new WatchTemplateServiceFactory(signals, client, threadPool).create();
+            this.genericWatchService = new GenericWatchServiceFactory(signals, client, threadPool).create();
         }
 
         @Override
-        protected CompletableFuture<StandardResponse> doExecute(CreateOrUpdateOneWatchInstanceRequest request) {
+        protected CompletableFuture<StandardResponse> doExecute(UpsertOneGenericWatchInstanceRequest request) {
             return supplyAsync(() -> {
                 try {
-                    return templateService.createOrReplace(request);
+                    return genericWatchService.createOrReplace(request);
                 } catch (ConfigValidationException e) {
                     log.error("Cannot create generic watch instance because validation errors occured.", e);
                     return new StandardResponse(400) //
@@ -64,18 +64,18 @@ public class CreateOrUpdateOneWatchInstanceAction extends Action<CreateOrUpdateO
         }
     }
 
-    public static class CreateOrUpdateOneWatchInstanceRequest extends Request {
+    public static class UpsertOneGenericWatchInstanceRequest extends Request {
         public static final String FIELD_PARAMETERS = "parameters";
         private final WatchInstanceIdRepresentation id;
         private final ImmutableMap<String, Object> parameters;
 
-        public CreateOrUpdateOneWatchInstanceRequest(UnparsedMessage message) throws ConfigValidationException {
+        public UpsertOneGenericWatchInstanceRequest(UnparsedMessage message) throws ConfigValidationException {
             DocNode docNode = message.requiredDocNode();
             this.id = new WatchInstanceIdRepresentation(docNode);
             this.parameters = docNode.getAsNode(FIELD_PARAMETERS).toMap();
         }
 
-        public CreateOrUpdateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, UnparsedDocument<?> message)
+        public UpsertOneGenericWatchInstanceRequest(String tenantId, String watchId, String instanceId, UnparsedDocument<?> message)
             throws ConfigValidationException {
             if(message == null) {
                 ValidationError validationError = new ValidationError("body",
@@ -87,7 +87,7 @@ public class CreateOrUpdateOneWatchInstanceAction extends Action<CreateOrUpdateO
             this.id = new WatchInstanceIdRepresentation(tenantId, watchId, instanceId);
         }
 
-        CreateOrUpdateOneWatchInstanceRequest(String tenantId, String watchId, String instanceId, DocNode message) {
+        UpsertOneGenericWatchInstanceRequest(String tenantId, String watchId, String instanceId, DocNode message) {
             this.parameters = message.toMap();
             this.id = new WatchInstanceIdRepresentation(tenantId, watchId, instanceId);
         }

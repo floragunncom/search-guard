@@ -140,8 +140,8 @@ public class WatchBuilder {
         return this;
     }
 
-    public WatchBuilder instances(boolean enabled, String...templateParameterNames) {
-        this.instances = new Instances(enabled, ImmutableList.of(Arrays.asList(templateParameterNames)));
+    public WatchBuilder instances(boolean enabled, String...genericWatchParameterNames) {
+        this.instances = new Instances(enabled, ImmutableList.of(Arrays.asList(genericWatchParameterNames)));
         return this;
     }
 

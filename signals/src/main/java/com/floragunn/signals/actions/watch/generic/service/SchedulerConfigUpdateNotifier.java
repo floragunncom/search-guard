@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.service;
+package com.floragunn.signals.actions.watch.generic.service;
 
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;

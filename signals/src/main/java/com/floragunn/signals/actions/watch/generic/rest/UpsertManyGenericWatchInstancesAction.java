@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.rest;
+package com.floragunn.signals.actions.watch.generic.rest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.UnparsedDocument;
@@ -12,9 +12,9 @@ import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.Signals;
-import com.floragunn.signals.actions.watch.template.rest.CreateOrUpdateOneWatchInstanceAction.CreateOrUpdateOneWatchInstanceRequest;
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateServiceFactory;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertOneGenericWatchInstanceAction.UpsertOneGenericWatchInstanceRequest;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchService;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchServiceFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.Client;
@@ -26,41 +26,41 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static com.floragunn.signals.actions.watch.template.rest.WatchInstanceIdRepresentation.FIELD_TENANT_ID;
-import static com.floragunn.signals.actions.watch.template.rest.WatchInstanceIdRepresentation.FIELD_WATCH_ID;
+import static com.floragunn.signals.actions.watch.generic.rest.WatchInstanceIdRepresentation.FIELD_TENANT_ID;
+import static com.floragunn.signals.actions.watch.generic.rest.WatchInstanceIdRepresentation.FIELD_WATCH_ID;
 
-public class CreateManyWatchInstancesAction extends Action<CreateManyWatchInstancesAction.CreateManyWatchInstances, StandardResponse> {
+public class UpsertManyGenericWatchInstancesAction extends Action<UpsertManyGenericWatchInstancesAction.UpsertManyGenericWatchInstancesRequest, StandardResponse> {
 
-    private static final Logger log = LogManager.getLogger(CreateManyWatchInstancesAction.class);
+    private static final Logger log = LogManager.getLogger(UpsertManyGenericWatchInstancesAction.class);
 
-    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/create_many";
-    public static final CreateManyWatchInstancesAction INSTANCE = new CreateManyWatchInstancesAction();
+    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/upsert_many";
+    public static final UpsertManyGenericWatchInstancesAction INSTANCE = new UpsertManyGenericWatchInstancesAction();
 
     public static final RestApi REST_API = new RestApi().responseHeaders(SearchGuardVersion.header())//
         .handlesPut("/_signals/watch/{tenant}/{id}/instances")//
-        .with(INSTANCE, (params, body) -> new CreateManyWatchInstances(params.get("tenant"), params.get("id"), body))//
+        .with(INSTANCE, (params, body) -> new UpsertManyGenericWatchInstancesRequest(params.get("tenant"), params.get("id"), body))//
         .name("PUT /_signals/watch/{tenant}/{id}/instances");
 
-    public CreateManyWatchInstancesAction() {
-        super(NAME, CreateManyWatchInstances::new, StandardResponse::new);
+    public UpsertManyGenericWatchInstancesAction() {
+        super(NAME, UpsertManyGenericWatchInstancesRequest::new, StandardResponse::new);
     }
 
-    public static class CreateManyWatchInstancesActionHandler extends Handler<CreateManyWatchInstances, StandardResponse> {
+    public static class UpsertManyGenericWatchInstancesHandler extends Handler<UpsertManyGenericWatchInstancesRequest, StandardResponse> {
 
-        private final WatchTemplateService templateService;
+        private final GenericWatchService genericWatchService;
 
         @Inject
-        public CreateManyWatchInstancesActionHandler(HandlerDependencies handlerDependencies, Signals signals, Client client,
+        public UpsertManyGenericWatchInstancesHandler(HandlerDependencies handlerDependencies, Signals signals, Client client,
             ThreadPool threadPool) {
             super(INSTANCE, handlerDependencies);
-            this.templateService = new WatchTemplateServiceFactory(signals, client, threadPool).create();
+            this.genericWatchService = new GenericWatchServiceFactory(signals, client, threadPool).create();
         }
 
         @Override
-        protected CompletableFuture<StandardResponse> doExecute(CreateManyWatchInstances request) {
+        protected CompletableFuture<StandardResponse> doExecute(UpsertManyGenericWatchInstancesRequest request) {
             return supplyAsync(() -> {
                 try {
-                    return templateService.createManyInstances(request);
+                    return genericWatchService.createManyInstances(request);
                 } catch (ConfigValidationException e) {
                     log.error("Cannot create generic watch instances because validation errors occured.", e);
                     return new StandardResponse(400) //
@@ -71,14 +71,14 @@ public class CreateManyWatchInstancesAction extends Action<CreateManyWatchInstan
         }
     }
 
-    public static class CreateManyWatchInstances extends Request {
+    public static class UpsertManyGenericWatchInstancesRequest extends Request {
 
         public static final String WATCH_INSTANCES = "watch_instances";
         private final String tenantId;
         private final String watchId;
         private final ImmutableMap<String, Object> watchInstances;
 
-        public CreateManyWatchInstances(String tenantId, String watchId, UnparsedDocument<?> message) throws ConfigValidationException {
+        public UpsertManyGenericWatchInstancesRequest(String tenantId, String watchId, UnparsedDocument<?> message) throws ConfigValidationException {
             this.tenantId = Objects.requireNonNull(tenantId, "Tenant id is required");
             this.watchId = Objects.requireNonNull(watchId, "Watch id is required");
             if(message == null) {
@@ -95,7 +95,7 @@ public class CreateManyWatchInstancesAction extends Action<CreateManyWatchInstan
             }
         }
 
-        public CreateManyWatchInstances(UnparsedMessage unparsedMessage) throws ConfigValidationException {
+        public UpsertManyGenericWatchInstancesRequest(UnparsedMessage unparsedMessage) throws ConfigValidationException {
             DocNode docNode = unparsedMessage.requiredDocNode();
             this.tenantId = docNode.getAsString(FIELD_TENANT_ID);
             this.watchId = docNode.getAsString(FIELD_WATCH_ID);
@@ -124,10 +124,10 @@ public class CreateManyWatchInstancesAction extends Action<CreateManyWatchInstan
             return ImmutableMap.of(FIELD_TENANT_ID, tenantId, FIELD_WATCH_ID, watchId, WATCH_INSTANCES, watchInstances);
         }
 
-        public ImmutableList<CreateOrUpdateOneWatchInstanceRequest> toCreateOneWatchInstanceRequest() {
-            List<CreateOrUpdateOneWatchInstanceRequest> mutableList = watchInstances.entrySet()//
+        public ImmutableList<UpsertOneGenericWatchInstanceRequest> toCreateOneWatchInstanceRequest() {
+            List<UpsertOneGenericWatchInstanceRequest> mutableList = watchInstances.entrySet()//
                     .stream()//
-                    .map(entry -> new CreateOrUpdateOneWatchInstanceRequest(tenantId, watchId, entry.getKey(), DocNode.wrap(entry.getValue()))) //
+                    .map(entry -> new UpsertOneGenericWatchInstanceRequest(tenantId, watchId, entry.getKey(), DocNode.wrap(entry.getValue()))) //
                     .collect(Collectors.toList());
             return ImmutableList.of(mutableList);
         }

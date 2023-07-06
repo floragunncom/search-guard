@@ -983,7 +983,7 @@ public class RestApiTest {
     }
 
     @Test
-    public void testShouldNotExecuteWatchTemplates() throws Exception {
+    public void testShouldNotExecuteGenericWatch() throws Exception {
         String tenant = "_main";
         String watchId = "prevent_template_execution_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
@@ -2983,9 +2983,10 @@ public class RestApiTest {
         }
     }
 
-    public void testWatchTemplateShouldNotBeExecution() throws Exception {
+    @Test
+    public void testGenericWatchShouldNotBeExecuted() throws Exception {
         String tenant = "_main";
-        String watchId = "put_watch_template_execution_test";
+        String watchId = "put_generic_watch_execution_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         String sinkIndexName = "sink_" + watchId;
 

@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.rest;
+package com.floragunn.signals.actions.watch.generic.rest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -7,8 +7,8 @@ import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.Signals;
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateServiceFactory;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchService;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchServiceFactory;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -31,17 +31,17 @@ public class DeleteWatchInstanceAction extends Action<DeleteWatchInstanceAction.
 
     public static class DeleteWatchInstanceHandler extends Handler<DeleteWatchInstanceRequest, StandardResponse> {
 
-        private final WatchTemplateService templateService;
+        private final GenericWatchService genericWatchService;
 
         @Inject
         public DeleteWatchInstanceHandler(HandlerDependencies handlerDependencies, Signals signals, Client client, ThreadPool threadPool) {
             super(INSTANCE, handlerDependencies);
-            this.templateService = new WatchTemplateServiceFactory(signals, client, threadPool).create();
+            this.genericWatchService = new GenericWatchServiceFactory(signals, client, threadPool).create();
         }
 
         @Override
         protected CompletableFuture<StandardResponse> doExecute(DeleteWatchInstanceRequest request) {
-            return supplyAsync(() -> templateService.deleteWatchInstance(request));
+            return supplyAsync(() -> genericWatchService.deleteWatchInstance(request));
         }
     }
 

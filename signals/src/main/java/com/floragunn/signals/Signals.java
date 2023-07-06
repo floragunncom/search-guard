@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;

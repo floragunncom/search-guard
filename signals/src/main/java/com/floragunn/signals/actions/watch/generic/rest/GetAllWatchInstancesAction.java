@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.rest;
+package com.floragunn.signals.actions.watch.generic.rest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -8,8 +8,8 @@ import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.Signals;
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateServiceFactory;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchService;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchServiceFactory;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -17,8 +17,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-import static com.floragunn.signals.actions.watch.template.rest.WatchInstanceIdRepresentation.FIELD_TENANT_ID;
-import static com.floragunn.signals.actions.watch.template.rest.WatchInstanceIdRepresentation.FIELD_WATCH_ID;
+import static com.floragunn.signals.actions.watch.generic.rest.WatchInstanceIdRepresentation.FIELD_TENANT_ID;
+import static com.floragunn.signals.actions.watch.generic.rest.WatchInstanceIdRepresentation.FIELD_WATCH_ID;
 
 public class GetAllWatchInstancesAction extends Action<GetAllWatchInstancesAction.GetAllWatchInstancesRequest, StandardResponse> {
 
@@ -37,17 +37,17 @@ public class GetAllWatchInstancesAction extends Action<GetAllWatchInstancesActio
 
     public static class GetAllWatchInstancesHandler extends Handler<GetAllWatchInstancesRequest, StandardResponse> {
 
-        private final WatchTemplateService templateService;
+        private final GenericWatchService genericWatchService;
 
         @Inject
         public GetAllWatchInstancesHandler(HandlerDependencies dependencies, Signals signals, Client client, ThreadPool threadPool) {
             super(INSTANCE, dependencies);
-            this.templateService = new WatchTemplateServiceFactory(signals, client, threadPool).create();
+            this.genericWatchService = new GenericWatchServiceFactory(signals, client, threadPool).create();
         }
 
         @Override
         protected CompletableFuture<StandardResponse> doExecute(GetAllWatchInstancesRequest request) {
-            return supplyAsync(() -> templateService.findAllInstances(request));
+            return supplyAsync(() -> genericWatchService.findAllInstances(request));
         }
     }
 

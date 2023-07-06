@@ -1,7 +1,7 @@
 package com.floragunn.signals.actions.watch.delete;
 
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateService;
-import com.floragunn.signals.actions.watch.template.service.WatchTemplateServiceFactory;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchService;
+import com.floragunn.signals.actions.watch.generic.service.GenericWatchServiceFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -36,7 +36,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
     private final Signals signals;
     private final Client client;
     private final ThreadPool threadPool;
-    private WatchTemplateService watchTemplateService;
+    private GenericWatchService genericWatchService;
 
     @Inject
     public TransportDeleteWatchAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
@@ -46,7 +46,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
         this.signals = signals;
         this.client = client;
         this.threadPool = threadPool;
-        this.watchTemplateService = new WatchTemplateServiceFactory(signals, client, threadPool).create();
+        this.genericWatchService = new GenericWatchServiceFactory(signals, client, threadPool).create();
     }
 
     @Override
@@ -117,7 +117,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
     private void deleteWatchParametersAsync(String name, String watchId) {
         // TODO verify if async operation is triggered correctly and use appropriate thread pool
         CompletableFuture.runAsync(() -> {
-            watchTemplateService.deleteAllInstanceParameters(name, watchId);
+            genericWatchService.deleteAllInstanceParameters(name, watchId);
         }, threadPool.generic());
     }
 

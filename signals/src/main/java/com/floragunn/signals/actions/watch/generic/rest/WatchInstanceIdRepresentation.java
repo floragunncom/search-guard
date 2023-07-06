@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.rest;
+package com.floragunn.signals.actions.watch.generic.rest;
 
 
 import com.floragunn.codova.documents.DocNode;

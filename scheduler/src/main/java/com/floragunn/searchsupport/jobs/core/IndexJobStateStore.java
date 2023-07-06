@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchsupport.jobs.config.JobTemplateInstanceFactory;
+import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -137,11 +137,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     private final ClusterService clusterService;
     private final Collection<JobConfigListener<JobType>> jobConfigListeners;
 
-    private final JobTemplateInstanceFactory<JobType> jobTemplateInstanceFactory;
+    private final GenericJobInstanceFactory<JobType> genericJobInstanceFactory;
 
     public IndexJobStateStore(String schedulerName, String statusIndexName, String statusIndexIdPrefix, String nodeId, Client client,
             Iterable<JobType> jobConfigSource, JobConfigFactory<JobType> jobFactory, ClusterService clusterService,
-            Collection<JobConfigListener<JobType>> jobConfigListeners, JobTemplateInstanceFactory<JobType> jobTemplateInstanceFactory) {
+            Collection<JobConfigListener<JobType>> jobConfigListeners, GenericJobInstanceFactory<JobType> genericJobInstanceFactory) {
         this.schedulerName = schedulerName;
         this.statusIndexName = statusIndexName;
         this.statusIndexIdPrefix = statusIndexIdPrefix;
@@ -151,7 +151,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         this.jobFactory = jobFactory;
         this.clusterService = clusterService;
         this.jobConfigListeners = new ArrayList<>(jobConfigListeners);
-        this.jobTemplateInstanceFactory = requireNonNull(jobTemplateInstanceFactory, "Job template instance factory is required.");
+        this.genericJobInstanceFactory = requireNonNull(genericJobInstanceFactory, "Generic job instance factory is required.");
     }
 
     @Override
@@ -1831,7 +1831,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         log.debug("Loading signals job config and create watch instances.");
         return Sets.newHashSet(this.jobConfigSource)//
             .stream()//
-            .flatMap(jobType -> jobTemplateInstanceFactory.instantiateTemplate(jobType).stream())//
+            .flatMap(jobType -> genericJobInstanceFactory.instantiateGeneric(jobType).stream())//
             .collect(Collectors.toSet());//
     }
 

@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.service;
+package com.floragunn.signals.actions.watch.generic.service;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -11,13 +11,13 @@ import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 import com.floragunn.signals.SignalsUnavailableException;
-import com.floragunn.signals.actions.watch.template.rest.CreateManyWatchInstancesAction.CreateManyWatchInstances;
-import com.floragunn.signals.actions.watch.template.rest.CreateOrUpdateOneWatchInstanceAction.CreateOrUpdateOneWatchInstanceRequest;
-import com.floragunn.signals.actions.watch.template.rest.DeleteWatchInstanceAction.DeleteWatchInstanceRequest;
-import com.floragunn.signals.actions.watch.template.rest.GetAllWatchInstancesAction.GetAllWatchInstancesRequest;
-import com.floragunn.signals.actions.watch.template.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersRequest;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertManyGenericWatchInstancesAction.UpsertManyGenericWatchInstancesRequest;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertOneGenericWatchInstanceAction.UpsertOneGenericWatchInstanceRequest;
+import com.floragunn.signals.actions.watch.generic.rest.DeleteWatchInstanceAction.DeleteWatchInstanceRequest;
+import com.floragunn.signals.actions.watch.generic.rest.GetAllWatchInstancesAction.GetAllWatchInstancesRequest;
+import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersRequest;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
 import com.floragunn.signals.watch.common.Instances;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,9 +32,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class WatchTemplateService {
+public class GenericWatchService {
 
-    private static final Logger log = LogManager.getLogger(WatchTemplateService.class);
+    private static final Logger log = LogManager.getLogger(GenericWatchService.class);
 
     private final static ImmutableList<Class<?>> ALLOWED_PARAMETER_TYPES = ImmutableList.of(String.class, Number.class, Boolean.class,
         Date.class);
@@ -44,13 +44,13 @@ public class WatchTemplateService {
     private final SchedulerConfigUpdateNotifier notifier;
 
 
-    WatchTemplateService(Signals signals, WatchParametersRepository parametersRepository, SchedulerConfigUpdateNotifier notifier) {
+    GenericWatchService(Signals signals, WatchParametersRepository parametersRepository, SchedulerConfigUpdateNotifier notifier) {
         this.signals = Objects.requireNonNull(signals, "Signals module is required");
         this.parametersRepository = Objects.requireNonNull(parametersRepository);
         this.notifier = Objects.requireNonNull(notifier, "Scheduler config update notifier is required.");
     }
 
-    public StandardResponse createOrReplace(CreateOrUpdateOneWatchInstanceRequest request) throws ConfigValidationException {
+    public StandardResponse createOrReplace(UpsertOneGenericWatchInstanceRequest request) throws ConfigValidationException {
         Objects.requireNonNull(request, "Create one watch request is required");
         Instances instances = instanceConfiguration(request.getTenantId(), request.getWatchId());
         if(instances.isEnabled()) {
@@ -63,7 +63,8 @@ public class WatchTemplateService {
             return new StandardResponse(responseCode);
         } else {
             // Watch does not exist therefore it is not possible to create none existing watch instance
-            return new StandardResponse(404).error("Watch template with id " + request.getWatchId() + " does not exist.");
+            return new StandardResponse(404)//
+                .error("Generic watch with id '" + request.getWatchId() + "' does not exist.");
         }
     }
 
@@ -153,12 +154,12 @@ public class WatchTemplateService {
         return ImmutableList.empty();
     }
 
-    private static WatchParametersData toWatchParameterData(CreateOrUpdateOneWatchInstanceRequest request) {
+    private static WatchParametersData toWatchParameterData(UpsertOneGenericWatchInstanceRequest request) {
         return new WatchParametersData(request.getTenantId(), request.getWatchId(), request.getInstanceId(), request.getParameters());
     }
 
-    public StandardResponse getTemplateParameters(GetWatchInstanceParametersRequest request) {
-        Objects.requireNonNull(request, "Get template parameters request is required");
+    public StandardResponse getWatchInstanceParameters(GetWatchInstanceParametersRequest request) {
+        Objects.requireNonNull(request, "Get generic watch parameters request is required");
         return parametersRepository.findOneById(request.getTenantId(), request.getWatchId(), request.getInstanceId())//
             .map(watchParameters -> new StandardResponse(200).data(watchParameters.getParameters()))//
             .orElseGet(() -> new StandardResponse(404));
@@ -175,7 +176,7 @@ public class WatchTemplateService {
         }
     }
 
-    public StandardResponse createManyInstances(CreateManyWatchInstances request) throws ConfigValidationException {
+    public StandardResponse createManyInstances(UpsertManyGenericWatchInstancesRequest request) throws ConfigValidationException {
         Objects.requireNonNull(request, "Create watch instances request is required");
         Instances instances = instanceConfiguration(request.getTenantId(), request.getWatchId());
         if(instances.isEnabled()) {
@@ -183,7 +184,7 @@ public class WatchTemplateService {
             Set<String> existingInstanceIds = findUpdatedWatchesIds(request);
             boolean update = !existingInstanceIds.isEmpty();
             WatchParametersData[] watchParametersData = request.toCreateOneWatchInstanceRequest().stream()//
-                .map(WatchTemplateService::toWatchParameterData).toArray(WatchParametersData[]::new);
+                .map(GenericWatchService::toWatchParameterData).toArray(WatchParametersData[]::new);
             parametersRepository.store(watchParametersData);
             notifier.send();
             return new StandardResponse(update ? 200 : 201);
@@ -192,9 +193,9 @@ public class WatchTemplateService {
         }
     }
 
-    private void validateManyInstancesParameters(CreateManyWatchInstances createManyWatchInstances, Instances instances)
+    private void validateManyInstancesParameters(UpsertManyGenericWatchInstancesRequest upsertManyGenericWatchInstancesRequest, Instances instances)
         throws ConfigValidationException {
-        List<ValidationError> errorList = createManyWatchInstances.toCreateOneWatchInstanceRequest() //
+        List<ValidationError> errorList = upsertManyGenericWatchInstancesRequest.toCreateOneWatchInstanceRequest() //
                 .stream() //
                 .flatMap(request -> prepateValidationErrorList(instances, request.getInstanceId(), request.getParameters()).stream()) //
                 .collect(Collectors.toList());
@@ -203,7 +204,7 @@ public class WatchTemplateService {
         validationErrors.throwExceptionForPresentErrors();
     }
 
-    private ImmutableSet<String> findUpdatedWatchesIds(CreateManyWatchInstances request) {
+    private ImmutableSet<String> findUpdatedWatchesIds(UpsertManyGenericWatchInstancesRequest request) {
         Set<String> existingInstanceIds = parametersRepository.findByWatchId(request.getTenantId(), request.getWatchId())//
                 .stream()//
                 .map(WatchParametersData::getInstanceId)//

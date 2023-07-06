@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.service.persistence;
+package com.floragunn.signals.actions.watch.generic.service.persistence;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
@@ -30,8 +30,8 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
-import static com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData.FIELD_TENANT_ID;
-import static com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData.FIELD_WATCH_ID;
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_TENANT_ID;
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_WATCH_ID;
 import static com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames.WATCHES_INSTANCE_PARAMETERS;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 

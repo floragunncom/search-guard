@@ -11,9 +11,9 @@ public class WatchInstanceIdServiceTest {
 
     @Test
     public void shouldCreateWatchInstanceId_one() {
-        String instanceId = service.createInstanceId("watch-id-1", "template-id-1");
+        String instanceId = service.createInstanceId("watch-id-1", "generic-id-1");
 
-        assertThat(instanceId, equalTo("watch-id-1+template-id-1"));
+        assertThat(instanceId, equalTo("watch-id-1+generic-id-1"));
     }
 
     @Test
@@ -32,57 +32,57 @@ public class WatchInstanceIdServiceTest {
 
     @Test
     public void shouldReturnWatchId_one() {
-        String templateId = service.getWatchTemplateId("regular_watch_id");
+        String watchId = service.extractGenericWatchOrWatchId("regular_watch_id");
 
-        assertThat(templateId, equalTo("regular_watch_id"));
+        assertThat(watchId, equalTo("regular_watch_id"));
     }
 
     @Test
     public void shouldReturnWatchId_two() {
-        String templateId = service.getWatchTemplateId("watch@no/template2");
+        String watchId = service.extractGenericWatchOrWatchId("watch@no/generic2");
 
-        assertThat(templateId, equalTo("watch@no/template2"));
+        assertThat(watchId, equalTo("watch@no/generic2"));
     }
 
     @Test
     public void shouldReturnWatchId_three() {
-        String templateId = service.getWatchTemplateId("2000");
+        String watchId = service.extractGenericWatchOrWatchId("2000");
 
-        assertThat(templateId, equalTo("2000"));
+        assertThat(watchId, equalTo("2000"));
     }
 
     @Test
     public void shouldExtractWatchId_one() {
-        String templateId = service.getWatchTemplateId("2+2=4");
+        String watchId = service.extractGenericWatchOrWatchId("2+2=4");
 
-        assertThat(templateId, equalTo("2"));
+        assertThat(watchId, equalTo("2"));
     }
 
     @Test
     public void shouldExtractWatchId_two() {
-        String templateId = service.getWatchTemplateId("2+3+4");
+        String watchId = service.extractGenericWatchOrWatchId("2+3+4");
 
-        assertThat(templateId, equalTo("2"));
+        assertThat(watchId, equalTo("2"));
     }
 
     @Test
     public void shouldExtractWatchId_three() {
-        String templateId = service.getWatchTemplateId("watch@no/template2+instance_id");
+        String watchId = service.extractGenericWatchOrWatchId("watch@no/generic2+instance_id");
 
-        assertThat(templateId, equalTo("watch@no/template2"));
+        assertThat(watchId, equalTo("watch@no/generic2"));
     }
 
     @Test
     public void shouldExtractWatchId_four() {
-        String templateId = service.getWatchTemplateId("watchId+123210");
+        String watchId = service.extractGenericWatchOrWatchId("watchId+123210");
 
-        assertThat(templateId, equalTo("watchId"));
+        assertThat(watchId, equalTo("watchId"));
     }
 
     @Test
     public void shouldExtractWatchId_five() {
-        String templateId = service.getWatchTemplateId("watchId5++++++five");
+        String watchId = service.extractGenericWatchOrWatchId("watchId5++++++five");
 
-        assertThat(templateId, equalTo("watchId5"));
+        assertThat(watchId, equalTo("watchId5"));
     }
 }

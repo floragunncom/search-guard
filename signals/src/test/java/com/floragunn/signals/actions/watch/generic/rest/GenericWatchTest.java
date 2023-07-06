@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.rest;
+package com.floragunn.signals.actions.watch.generic.rest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
@@ -10,7 +10,7 @@ import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.MockWebserviceProvider;
 import com.floragunn.signals.SignalsModule;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -50,9 +50,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
-public class WatchTemplateTest {
+public class GenericWatchTest {
 
-    private static final Logger log = LogManager.getLogger(WatchTemplateTest.class);
+    private static final Logger log = LogManager.getLogger(GenericWatchTest.class);
 
     private static final String DEFAULT_TENANT = "_main";
     private static final String INDEX_SOURCE = "test_source_index";
@@ -81,40 +81,40 @@ public class WatchTemplateTest {
     }
 
     @Test
-    public void shouldCreateTemplateParameters() throws Exception {
-        String watchId = "my-watch-create-template-parameters";
-        String instanceId = "instance_id_should_create_template_parameters";
+    public void shouldCreateGenericWatchParameters() throws Exception {
+        String watchId = "my-watch-create-generic-watch-parameters";
+        String instanceId = "instance_id_should_create_generic_watch_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id");
+        createGenericWatch(DEFAULT_TENANT, watchId, "vm_id");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258);
 
             HttpResponse response = client.putJson(path, node.toJsonString());
 
-            log.info("Create watch template response '{}'.", response.getBody());
+            log.info("Create generic watch instance response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
         }
     }
 
     @Test
-    public void shouldNotCreateTemplateParametersWhenWatchDoesNotExist() throws Exception {
-        String watchId = "my-watch-create-template-parameters-when-watch-does-not-exists";
-        String instanceId = "instance_id_should_create_template_parameters";
+    public void shouldNotCreateGenericWatchParametersWhenWatchDoesNotExist() throws Exception {
+        String watchId = "my-watch-create-generic-watch-parameters-when-watch-does-not-exists";
+        String instanceId = "instance_id_should_create_generic_watch_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("id", 258);
 
             HttpResponse response = client.putJson(path, node.toJsonString());
 
-            log.info("Create watch template response '{}'.", response.getBody());
+            log.info("Create generic watch instance response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
         }
     }
 
     @Test
-    public void shouldNotCreateTemplateParametersWhenWatchIsNotTemplate() throws Exception {
-        String watchId = "my-watch-create-template-parameters-when-watch-is-not-template";
-        String instanceId = "instance_id_should_create_template_parameters";
+    public void shouldNotCreateGenericWatchParametersWhenWatchIsNotGeneric() throws Exception {
+        String watchId = "my-watch-create-generic-watch-parameters-when-watch-is-not-generic";
+        String instanceId = "instance_id_should_not_create_generic_watch_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         createWatch(DEFAULT_TENANT, watchId, false);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
@@ -122,34 +122,34 @@ public class WatchTemplateTest {
 
             HttpResponse response = client.putJson(path, node.toJsonString());
 
-            log.info("Create watch template response '{}'.", response.getBody());
+            log.info("Create genetic watch response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
         }
     }
 
     @Test
-    public void shouldNotCreateTemplateWhenTenantDoesNotExist() throws Exception {
-        String watchId = "my-watch-do-not-create-template-parameter-when-tenant-does-not-exist";
-        String instanceId = "instance_id_should_create_template_parameters";
+    public void shouldNotCreateInstanceWhenGenericWatchDoesNotExist() throws Exception {
+        String watchId = "my-watch-do-not-create-instance-parameters-when-generic-watch-does-not-exist";
+        String instanceId = "instance_id_should_not_create_generic_watch_parameters";
         String notExistingTenantName = "tenant-does-not-exists";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", notExistingTenantName, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createGenericWatch(DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("id", 258);
 
             HttpResponse response = client.putJson(path, node.toJsonString());
 
-            log.info("Create watch template response '{}'.", response.getBody());
+            log.info("Create generic watch instance response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
         }
     }
 
     @Test
-    public void shouldLoadTemplateParametersWithVariousDataTypes() throws Exception {
-        String watchId = "my-watch-load-template-parameters-with-various-data-types";
+    public void shouldLoadGenericWatchParametersWithVariousDataTypes() throws Exception {
+        String watchId = "my-watch-load-generic-watch-parameters-with-various-data-types";
         String instanceId = "instance_id_should_load_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name", "time", "int", "long", "double", "bool");
+        createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name", "time", "int", "long", "double", "bool");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258, "name","kirk", "time", "2023-05-15T13:07:52.000Z")
                 .with(DocNode.of("int", Integer.MAX_VALUE, "long", Long.MIN_VALUE, "double", Math.PI, "bool", false));
@@ -159,7 +159,7 @@ public class WatchTemplateTest {
 
             response = client.get(path + "/parameters");
 
-            log.info("Get watch template parameters response '{}'.", response.getBody());
+            log.info("Get genetic watch instance parameters response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, containsValue("data.vm_id", 258));
@@ -177,7 +177,7 @@ public class WatchTemplateTest {
         String watchId = "my-watch-should-not-use-nested-value-list";
         String instanceId = "instance_id_should_use_nested_values_in_list";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "list");
+        createGenericWatch(DEFAULT_TENANT, watchId, "list");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             ImmutableMap<String, String> firstMap = ImmutableMap.of("one-key", "one-value", "two-key", "two-value");
             ImmutableMap<String, Integer> secondMap = ImmutableMap.of("three-key", 3, "four-key", 4);
@@ -200,7 +200,7 @@ public class WatchTemplateTest {
         String watchId = "my-watch-should-not-use-nested-parameters";
         String instanceId = "instance_id_should_not_use_map";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "map_parameter");
+        createGenericWatch(DEFAULT_TENANT, watchId, "map_parameter");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("map_parameter", ImmutableMap.of("map", "is", "not", "allowed"));
 
@@ -223,9 +223,9 @@ public class WatchTemplateTest {
         String pathWatch1 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId1, instanceId);
         String pathWatch2 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId2, instanceId);
         String pathWatch3 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId3, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId1, "param");
-        createWatchTemplate(DEFAULT_TENANT, watchId2, "param");
-        createWatchTemplate(DEFAULT_TENANT, watchId3, "param");
+        createGenericWatch(DEFAULT_TENANT, watchId1, "param");
+        createGenericWatch(DEFAULT_TENANT, watchId2, "param");
+        createGenericWatch(DEFAULT_TENANT, watchId3, "param");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("param", "2023-05-15T13:07:52.000Z");
             HttpResponse response = client.putJson(pathWatch1, node.toJsonString());
@@ -249,8 +249,8 @@ public class WatchTemplateTest {
         final String watchIdTwo = "my-watch-own-parameter-copy-two";
         final String pathWatch1 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchIdOne, instanceId);
         final String pathWatch2 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchIdTwo, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchIdOne, "common_parameter_name");
-        createWatchTemplate(DEFAULT_TENANT, watchIdTwo, "common_parameter_name");
+        createGenericWatch(DEFAULT_TENANT, watchIdOne, "common_parameter_name");
+        createGenericWatch(DEFAULT_TENANT, watchIdTwo, "common_parameter_name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("common_parameter_name", "first-value");
             HttpResponse response = client.putJson(pathWatch1, node.toJsonString());
@@ -274,13 +274,13 @@ public class WatchTemplateTest {
         String watchId = "my-watch-to-be-deleted";
         String instanceId = "instance_id_should_use_nested_values_in_map";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "message");
+        createGenericWatch(DEFAULT_TENANT, watchId, "message");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("message", "please do not delete me!" );
             HttpResponse response = client.putJson(path, node.toJsonString());
             log.info("Create watch instance response '{}'.", response.getBody());
             response = client.get(path + "/parameters");
-            log.info("Get watch template parameters response '{}'.", response.getBody());
+            log.info("Get generic watch instance parameters response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
 
             response = client.delete(path);
@@ -296,7 +296,7 @@ public class WatchTemplateTest {
         String watchId = "non-existing-watch-instance-to-be-deleted";
         String instanceId = "instance_id_should_use_nested_values_in_map";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createGenericWatch(DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
 
             HttpResponse response = client.delete(path);
@@ -309,7 +309,7 @@ public class WatchTemplateTest {
     public void shouldReturnValidationErrorWhenWatchInstancesAreCreatedWithEmptyBody() throws Exception {
         String watchId = "watch-with-many-instances-empty-body";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId);
+        createGenericWatch(DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode requestBody = DocNode.EMPTY;
 
@@ -324,7 +324,7 @@ public class WatchTemplateTest {
     public void shouldCreateSingleWatchInstanceWithUsageOfBulkRequest() throws Exception {
         String watchId = "watch-with-many-instances-one-parameter-set";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "param_name");
+        createGenericWatch(DEFAULT_TENANT, watchId, "param_name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             final String instanceId = "instance_id_one";
             DocNode requestBody = DocNode.of(instanceId, DocNode.of("param_name", "param-value"));
@@ -344,7 +344,7 @@ public class WatchTemplateTest {
     public void shouldCreateThreeWatchInstanceWithUsageOfBulkRequest() throws Exception {
         String watchId = "watch-with-many-instances-create-three";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "param_name_1", "param_name_2");
+        createGenericWatch(DEFAULT_TENANT, watchId, "param_name_1", "param_name_2");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             final String instanceIdOne = "instance_id_one";
             final String instanceIdTwo = "instance_id_two";
@@ -380,7 +380,7 @@ public class WatchTemplateTest {
         String watchId = "watch-to-be-updated";
         final String instanceId = "instance_id_one";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "param_name_0");
+        createGenericWatch(DEFAULT_TENANT, watchId, "param_name_0");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode requestBody = DocNode.of("param_name_0", "param-value-0");
             HttpResponse response = client.putJson(path, requestBody);
@@ -403,7 +403,7 @@ public class WatchTemplateTest {
         final String instanceOne = "instance_id_one";
         String instanceTwo = "new_instance_id_two";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "param_name_0");
+        createGenericWatch(DEFAULT_TENANT, watchId, "param_name_0");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode requestBody = DocNode.of("param_name_0", "param-value-0");
             HttpResponse response = client.putJson(path + "/" + instanceOne, requestBody);
@@ -431,7 +431,7 @@ public class WatchTemplateTest {
         String watchId = "watch-for-load-all-instance-test";
         String instanceId = "zero_instance";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id");
+        createGenericWatch(DEFAULT_TENANT, watchId, "vm_id");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode requestBody = DocNode.of("vm_id", "param-value-0");
             client.putJson(path + "/" + instanceId , requestBody);
@@ -463,8 +463,8 @@ public class WatchTemplateTest {
     }
 
     @Test
-    public void shouldNotExecuteWatchTemplate() throws Exception {
-        String watchId = "watch-template-should-not-be-executed";
+    public void shouldNotExecuteGenericWatch() throws Exception {
+        String watchId = "watch-generic-watch-should-not-be-executed";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources(); Client client = cluster.getInternalNodeClient()) {
             final String destinationIndex = "destination-index-for-" + watchId;
@@ -481,8 +481,8 @@ public class WatchTemplateTest {
     }
 
     @Test
-    public void shouldExecuteWatchTemplateInstance() throws Exception {
-        String watchId = "watch-template-instance-should-be-executed";
+    public void shouldExecuteGenericWatchInstance() throws Exception {
+        String watchId = "watch-id-generic-watch-instance-should-be-executed";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
@@ -506,8 +506,8 @@ public class WatchTemplateTest {
     }
 
     @Test
-    public void shouldUseWatchTemplateIdParameters() throws Exception {
-        String watchId = "watch-should-use-watch-template-id-parameter";
+    public void shouldUseGenericWatchInstanceIdParameters() throws Exception {
+        String watchId = "watch-should-use-generic-watch-instance-id-parameters";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         String instanceId = "watch_instance_id";
@@ -558,8 +558,8 @@ public class WatchTemplateTest {
     }
 
     @Test
-    public void shouldUseWatchAnotherTemplateIdParameters() throws Exception {
-        String watchId = "watch-should-use-another-watch-template-id-parameter";
+    public void shouldUseAnotherGenericWatchInstanceIdAsParameters() throws Exception {
+        String watchId = "watch-should-use-another-generic-watch-instance-id-as-parameter";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         String instanceId = "another_watch_instance_id";
@@ -589,7 +589,7 @@ public class WatchTemplateTest {
 
     @Test
     public void shouldUseWatchInstanceParameter() throws Exception {
-        String watchId = "watch-should-use-watch-template-parameter";
+        String watchId = "watch-should-use-generic-watch-instance-parameter";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         String instanceId = "watch_instance_id";
@@ -619,7 +619,7 @@ public class WatchTemplateTest {
 
     @Test
     public void shouldUseAnotherWatchInstanceParameter() throws Exception {
-        String watchId = "watch-should-use-another-watch-template-parameter";
+        String watchId = "watch-should-use-another-genetic-watch-instance-parameter";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         String instanceId = "watch_instance_id";
@@ -649,7 +649,7 @@ public class WatchTemplateTest {
 
     @Test
     public void shouldUseItsOwnInstanceParameterValue() throws Exception {
-        String watchId = "watch-should-use-own-watch-template-parameter-value";
+        String watchId = "watch-should-use-own-generic-watch-instance-parameter-value";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
@@ -704,7 +704,7 @@ public class WatchTemplateTest {
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             String createdDocument = findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString();
-            log.info("Document created by watch template '{}'.", createdDocument);
+            log.info("Document created by generic watch instance '{}'.", createdDocument);
             DocNode firstHit = DocNode.parse(Format.JSON).from(createdDocument);
             assertThat(firstHit.size(), equalTo(3));
             assertThat(firstHit, containsValue("Color", "blue"));
@@ -739,7 +739,7 @@ public class WatchTemplateTest {
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             String createdDocument = findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString();
-            log.info("Document created by watch template '{}'.", createdDocument);
+            log.info("Document created by generic watch instance '{}'.", createdDocument);
             DocNode firstHit = DocNode.parse(Format.JSON).from(createdDocument);
             assertThat(firstHit.size(), equalTo(3));
             assertThat(firstHit, containsValue("Color", "black"));
@@ -760,11 +760,11 @@ public class WatchTemplateTest {
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            DocNode bodyTemplate = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
+            DocNode webhookBody = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
             Watch watch = new WatchBuilder(watchId).instances(true, "color", "shape", "transparency")//
                 .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch").then()//
-                .postWebhook(webhookProvider.getUri()).body(bodyTemplate).throttledFor("1h").name("webhook-action-name")
+                .postWebhook(webhookProvider.getUri()).body(webhookBody).throttledFor("1h").name("webhook-action-name")
                 .build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -775,11 +775,11 @@ public class WatchTemplateTest {
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             Awaitility.await().atMost(3, SECONDS).until(() -> webhookProvider.getRequestCount() > 0);
-            DocNode webhookBody =  webhookProvider.getLastRequestBodyAsDocNode();
-            assertThat(webhookBody.size(), equalTo(3));
-            assertThat(webhookBody, containsValue("Color", "black"));
-            assertThat(webhookBody, containsValue("Shp", "rectangular"));
-            assertThat(webhookBody, containsValue("Opacity", "minimal"));
+            DocNode lastRequestBody =  webhookProvider.getLastRequestBodyAsDocNode();
+            assertThat(lastRequestBody.size(), equalTo(3));
+            assertThat(lastRequestBody, containsValue("Color", "black"));
+            assertThat(lastRequestBody, containsValue("Shp", "rectangular"));
+            assertThat(lastRequestBody, containsValue("Opacity", "minimal"));
         }
     }
 
@@ -795,11 +795,11 @@ public class WatchTemplateTest {
         ){
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            DocNode bodyTemplate = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
+            DocNode webhookBody = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
             Watch watch = new WatchBuilder(watchId).instances(true, "color", "shape", "transparency")//
                 .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
                 .query("{\"match_all\" : {} }").as("testsearch").then()//
-                .postWebhook(webhookProvider.getUri()).body(bodyTemplate).throttledFor("1h").name("webhook-action-name")//
+                .postWebhook(webhookProvider.getUri()).body(webhookBody).throttledFor("1h").name("webhook-action-name")//
                 .build();
             HttpResponse response = restClient.putJson(watchPath, watch);
             log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -810,17 +810,17 @@ public class WatchTemplateTest {
 
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             Awaitility.await().atMost(3, SECONDS).until(() -> webhookProvider.getRequestCount() > 0);
-            DocNode webhookBody =  webhookProvider.getLastRequestBodyAsDocNode();
-            assertThat(webhookBody.size(), equalTo(3));
-            assertThat(webhookBody, containsValue("Color", "green"));
-            assertThat(webhookBody, containsValue("Shp", "square"));
-            assertThat(webhookBody, containsValue("Opacity", "almost full"));
+            DocNode lastRequestBody =  webhookProvider.getLastRequestBodyAsDocNode();
+            assertThat(lastRequestBody.size(), equalTo(3));
+            assertThat(lastRequestBody, containsValue("Color", "green"));
+            assertThat(lastRequestBody, containsValue("Shp", "square"));
+            assertThat(lastRequestBody, containsValue("Opacity", "almost full"));
         }
     }
 
     @Test
-    public void shouldStoreWatchStateForTemplateInstances() throws Exception {
-        String watchId = "watch-template-instance-state-should-be-stored";
+    public void shouldStoreWatchStateForGenericWatchInstances() throws Exception {
+        String watchId = "watch-store-watch-state-for-generic-watch-instance";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         String instanceIdOne = "first_instance_id";
@@ -895,7 +895,7 @@ public class WatchTemplateTest {
 
     @Test
     public void shouldStopExecuteAllWatchInstanceAfterDeletion() throws Exception {
-        String watchId = "watch-should-stop-execution-all-instances-after-template-deletion";
+        String watchId = "watch-should-stop-execution-all-instances-after-generic-watch-deletion";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String instanceIdOne = "watch_instance_id_one";
         String instanceIdTwo = "watch_instance_id_two";
@@ -921,25 +921,25 @@ public class WatchTemplateTest {
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             response = restClient.delete(watchPath);
-            log.info("Watch template deletion status code '{}' and response body '{}'.", response.getStatusCode(), response.getBody());
+            log.info("Generic watch deletion status code '{}' and response body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             Thread.sleep(2000);//let's wait for watch removal from quartz scheduler
-            long numberOfDocumentAfterTemplateDeletion = countDocumentInIndex(client, destinationIndex);
+            long numberOfDocumentAfterGenericWatchDeletion = countDocumentInIndex(client, destinationIndex);
             Thread.sleep(2000);
-            assertThat(countDocumentInIndex(client, destinationIndex), equalTo(numberOfDocumentAfterTemplateDeletion));
+            assertThat(countDocumentInIndex(client, destinationIndex), equalTo(numberOfDocumentAfterGenericWatchDeletion));
         }
     }
 
     @Test
     public void shouldDeleteGenericWatchWithItsInstance() throws Exception {
         String watchId = "my-watch-delete-generic-watch-with-its-instance";
-        String instanceId = "instance_id_should_create_template_parameters";
-        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId, "instance");
+        String instanceId = "instance_id";
+        String watchPath = createGenericWatch(DEFAULT_TENANT, watchId, "instance");
         String instancePath = String.format("%s/instances/%s", watchPath, instanceId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("instance", "to be deleted together with generic watch");
             HttpResponse response = client.putJson(instancePath, node.toJsonString());
-            log.info("Create watch template response '{}'.", response.getBody());
+            log.info("Create generic watch instance response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
 
             response = client.delete(watchPath);
@@ -959,7 +959,7 @@ public class WatchTemplateTest {
     @Test
     public void shouldDeleteGenericWatchWithManyInstances() throws Exception {
         String watchId = "my-watch-delete-generic-watch-with-many-instances";
-        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId, "parameter");
+        String watchPath = createGenericWatch(DEFAULT_TENANT, watchId, "parameter");
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.EMPTY;
@@ -967,7 +967,7 @@ public class WatchTemplateTest {
                 node = node.with(DocNode.of("instance_id_" + i, DocNode.of("parameter", "value")));
             }
             HttpResponse response = client.putJson(parametersPath, node.toJsonString());
-            log.info("Create watch template response '{}'.", response.getBody());
+            log.info("Create generic watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
 
             response = client.delete(watchPath);
@@ -984,7 +984,7 @@ public class WatchTemplateTest {
     @Test
     public void shouldDeleteGenericWatchWithoutInstances() throws Exception {
         String watchId = "my-watch-delete-generic-watch-without-instances";
-        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId);
+        String watchPath = createGenericWatch(DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
 
             HttpResponse response = client.delete(watchPath);
@@ -1036,7 +1036,7 @@ public class WatchTemplateTest {
     @Test
     public void shouldLoadManyInstanceParameters() throws Exception {
         String watchId = "my-watch-should-create-significant-number-of-instances";
-        String watchPath = createWatchTemplate(DEFAULT_TENANT, watchId, "parameter");
+        String watchPath = createGenericWatch(DEFAULT_TENANT, watchId, "parameter");
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             try {
@@ -1048,7 +1048,7 @@ public class WatchTemplateTest {
                     node = node.with(DocNode.of(instanceId, DocNode.of("parameter", "value_" + i)));
                 }
                 HttpResponse response = client.putJson(parametersPath, node.toJsonString());
-                log.info("Create watch template response '{}'.", response.getBody());
+                log.info("Create generic watch instance response '{}'.", response.getBody());
                 assertThat(response.getStatusCode(), equalTo(SC_CREATED));
 
                 response = client.get(parametersPath);
@@ -1283,11 +1283,11 @@ public class WatchTemplateTest {
     }
 
     @Test
-    public void shouldNotCreateTemplateInstanceWithMissingParameters() throws Exception {
-        String watchId = "my-watch-should-not-create-template-instance-with-missing-parameters";
-        String instanceId = "instance_id_should_create_template_parameters";
+    public void shouldNotCreateGenericWatchInstanceWithMissingParameters() throws Exception {
+        String watchId = "my-watch-should-not-create-generic-watch-instance-with-missing-parameters";
+        String instanceId = "instance_id";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
+        createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258);
 
@@ -1301,11 +1301,11 @@ public class WatchTemplateTest {
     }
 
     @Test
-    public void shouldNotCreateTemplateInstanceWithTooManyParameters() throws Exception {
-        String watchId = "my-watch-should-not-create-instance-with-too-many-parameters";
-        String instanceId = "instance_id_should_create_template_parameters";
+    public void shouldNotCreateGenericWatchInstanceWithTooManyParameters() throws Exception {
+        String watchId = "my-watch-should-not-create-generic-watch-instance-with-too-many-parameters";
+        String instanceId = "instance_id";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
+        createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258, "name", "Dave", "additional_param", 1);
 
@@ -1321,9 +1321,9 @@ public class WatchTemplateTest {
     @Test
     public void shouldDetectValidationErrorsDuringUpdate() throws Exception {
         String watchId = "my-watch-should-detect-validation-errors-during-update";
-        String instanceId = "instance_id_should_create_template_parameters";
+        String instanceId = "instance_id";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
+        createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258, "name", "Dave");
             HttpResponse response = client.putJson(path, node.toJsonString());
@@ -1345,7 +1345,7 @@ public class WatchTemplateTest {
         String watchId = "my-watch-should-not-create-instance-with-incorrect-instance-id";
         String instanceId = "1-invalid-id";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
+        createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258, "name", "Dave");
 
@@ -1361,10 +1361,10 @@ public class WatchTemplateTest {
     @Test
     public void shouldDetectValidationErrorsDuringBatchUpdate() throws Exception {
         String watchId = "my-watch-should-detect-validation-errors-during-bulk-update";
-        String instanceId = "instance_id_should_create_template_parameters";
+        String instanceId = "instance_id";
         String singleInstancePatch = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         String allInstancesPatch = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
+        createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode paramersNode = DocNode.of("vm_id", 258, "name", "Dave");
             HttpResponse response = client.putJson(singleInstancePatch, paramersNode.toJsonString());
@@ -1555,14 +1555,14 @@ public class WatchTemplateTest {
         }
     }
 
-    private String createWatchTemplate(String tenant, String watchId, String...parameterNames) throws Exception {
+    private String createGenericWatch(String tenant, String watchId, String...parameterNames) throws Exception {
         return createWatch(tenant, watchId, true, parameterNames);
     }
 
-    private static String createWatch(String tenant, String watchId, boolean template, String...parameterNames) throws Exception {
+    private static String createWatch(String tenant, String watchId, boolean generic, String...parameterNames) throws Exception {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
-            Watch watch = new WatchBuilder(watchId).instances(template, parameterNames).cronTrigger("0 0 0 1 1 ?")//
+            Watch watch = new WatchBuilder(watchId).instances(generic, parameterNames).cronTrigger("0 0 0 1 1 ?")//
                 .search(INDEX_SOURCE).query("{\"match_all\" : {} }").as("testsearch")//
                 .then().index("testsink").throttledFor("1h").name("testsink").build();
             String watchJson = watch.toJson();

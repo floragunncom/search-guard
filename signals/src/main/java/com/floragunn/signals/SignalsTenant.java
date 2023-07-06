@@ -33,9 +33,9 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.signals.actions.watch.template.service.WatchInstanceParameterLoader;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
-import com.floragunn.signals.watch.WatchTemplateInstanceFactory;
+import com.floragunn.signals.actions.watch.generic.service.WatchInstanceParameterLoader;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.watch.GenericWatchInstanceFactory;
 import com.floragunn.signals.watch.common.Ack;
 import com.floragunn.signals.watch.common.InstanceParser;
 import com.floragunn.signals.watch.common.Instances;
@@ -205,17 +205,17 @@ public class SignalsTenant implements Closeable {
                 .maxThreads(settings.getStaticSettings().getMaxThreads())//
                 .threadKeepAlive(settings.getStaticSettings().getThreadKeepAlive())//
                 .threadPriority(settings.getStaticSettings().getThreadPrio())//
-                .jobTemplateInstanceFactory(createWatchTemplateInstanceFactory())
+                .jobGenericWatchInstanceFactory(createGenericWatchInstanceFactory())
                 .build();
         this.scheduler.start();
     }
 
-    private WatchTemplateInstanceFactory createWatchTemplateInstanceFactory() {
+    private GenericWatchInstanceFactory createGenericWatchInstanceFactory() {
         WatchParametersRepository repository = new WatchParametersRepository(PrivilegedConfigClient.adapt(client));
         WatchInstanceParameterLoader watchInstanceParameterLoader = new WatchInstanceParameterLoader(getName(), repository);
         ValidatingThrottlePeriodParser throttlePeriodParser = new ValidatingThrottlePeriodParser(settings);
         WatchInitializationService watchInitService = new WatchInitializationService(accountRegistry, scriptService, throttlePeriodParser);
-        return new WatchTemplateInstanceFactory(watchInstanceParameterLoader, watchInitService);
+        return new GenericWatchInstanceFactory(watchInstanceParameterLoader, watchInitService);
     }
 
     public void pause() throws SchedulerException {

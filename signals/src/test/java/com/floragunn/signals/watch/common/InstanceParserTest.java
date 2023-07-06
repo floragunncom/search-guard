@@ -178,7 +178,7 @@ public class InstanceParserTest {
         assertThat(errorMap, hasKey("instances.1-invalid-parameter-name"));
         List<Map<String, Object>> list = (List<Map<String, Object>>) errorMap.get("instances.1-invalid-parameter-name");
         String errorMessage = (String) list.get(0).get("error");
-        assertThat(errorMessage, equalTo("Instance parameter name is invalid."));
+        assertThat(errorMessage, equalTo("Instance parameter name '1-invalid-parameter-name' is invalid."));
     }
 
     @Test

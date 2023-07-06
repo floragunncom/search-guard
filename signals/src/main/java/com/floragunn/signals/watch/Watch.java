@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.InstanceParser;
 import com.floragunn.signals.watch.common.Instances;
@@ -78,8 +78,9 @@ import static com.floragunn.signals.watch.WatchInstanceIdService.INSTANCE_ID_SEP
 public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     public enum WatchType {
-        // TODO Replace template with generic watch definition
-        SINGLE_INSTANCE(true, false), TEMPLATE(false, true), TEMPLATE_INSTANCE(true, false);
+        SINGLE_INSTANCE(true, false),
+        GENERIC(false, true),
+        GENERIC_INSTANCE(true, false);
 
         private final boolean executable;
         private final boolean containParameters;
@@ -122,7 +123,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     private Meta meta = new Meta();
     private Instances instances;
     private String instanceId;
-    private String templateDefinition;
+    private String genericDefinition;
 
     private com.floragunn.fluent.collections.ImmutableMap<String, Object> instanceParameters;
     private long version;
@@ -149,16 +150,21 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         return instances;
     }
 
-    public String getWatchTemplateId() {
-        return WatchInstanceIdService.INSTANCE.getWatchTemplateId(getId());
+    /**
+     * In case of non-generic watch or generic watch its id is returned.
+     * In case of watch instance id then generic watch id is extracted and instance id is omitted.
+     * @return id of watch or generic watch
+     */
+    public String getGenericWatchIdOrWatchId() {
+        return WatchInstanceIdService.INSTANCE.extractGenericWatchOrWatchId(getId());
     }
 
     public String getInstanceId() {
         return instanceId;
     }
 
-    public String getTemplateDefinition() {
-        return templateDefinition;
+    public String getGenericDefinition() {
+        return genericDefinition;
     }
 
     public com.floragunn.fluent.collections.ImmutableMap<String, Object> getInstanceParameters() {
@@ -167,7 +173,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     private void setInstancesParameters(WatchParametersData instancesParameters) {
         if(instancesParameters != null) {
-            this.instanceId = Objects.requireNonNull(instancesParameters.getInstanceId(), "Watch template instance id is required");
+            this.instanceId = Objects.requireNonNull(instancesParameters.getInstanceId(), "Generic watch instance id is required");
             this.instanceParameters = Objects.requireNonNull(instancesParameters.getParameters(), "Watch parameters are required")//
                 .with("id", instanceId);
         }
@@ -296,7 +302,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     public String getSecureAuthTokenAudience() {
         // TODO This method should ensure backwards compatibility
-        return getWatchTemplateId() + "." + secureHash();
+        return getGenericWatchIdOrWatchId() + "." + secureHash();
     }
 
     private void initAutoResolveActions() {
@@ -469,9 +475,9 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
 
     private WatchType getWatchType() {
         if(instances.isEnabled() && Objects.nonNull(instanceId)) {
-            return WatchType.TEMPLATE_INSTANCE;
+            return WatchType.GENERIC_INSTANCE;
         } else if(instances.isEnabled()) {
-            return WatchType.TEMPLATE;
+            return WatchType.GENERIC;
         } else {
             return WatchType.SINGLE_INSTANCE;
         }
@@ -534,9 +540,9 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             // thies piece of code is executed for:
             // - generic watch
             // - generic watch instance
-            result.templateDefinition = jsonNode.toJsonString();
+            result.genericDefinition = jsonNode.toJsonString();
             result.setInstancesParameters(instanceParameters);
-            if((result.getWatchType() == WatchType.TEMPLATE) && id.contains(INSTANCE_ID_SEPARATOR)) {
+            if((result.getWatchType() == WatchType.GENERIC) && id.contains(INSTANCE_ID_SEPARATOR)) {
                 String message = "Generic watch id cannot contain '" + INSTANCE_ID_SEPARATOR + "' character.";
                 validationErrors.add(new ValidationError("id", message));
             }

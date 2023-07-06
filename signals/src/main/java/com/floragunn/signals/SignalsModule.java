@@ -6,18 +6,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
-import com.floragunn.signals.actions.watch.template.rest.CreateManyWatchInstancesAction;
-import com.floragunn.signals.actions.watch.template.rest.CreateManyWatchInstancesAction.CreateManyWatchInstancesActionHandler;
-import com.floragunn.signals.actions.watch.template.rest.CreateOrUpdateOneWatchInstanceAction;
-import com.floragunn.signals.actions.watch.template.rest.CreateOrUpdateOneWatchInstanceAction.CreateOrUpdateOneWatchInstanceHandler;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertManyGenericWatchInstancesAction;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertManyGenericWatchInstancesAction.UpsertManyGenericWatchInstancesHandler;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertOneGenericWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.UpsertOneGenericWatchInstanceAction.UpsertOneGenericWatchInstanceHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
-import com.floragunn.signals.actions.watch.template.rest.DeleteWatchInstanceAction;
-import com.floragunn.signals.actions.watch.template.rest.DeleteWatchInstanceAction.DeleteWatchInstanceHandler;
-import com.floragunn.signals.actions.watch.template.rest.GetAllWatchInstancesAction;
-import com.floragunn.signals.actions.watch.template.rest.GetAllWatchInstancesAction.GetAllWatchInstancesHandler;
-import com.floragunn.signals.actions.watch.template.rest.GetWatchInstanceParametersAction;
-import com.floragunn.signals.actions.watch.template.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersHandler;
+import com.floragunn.signals.actions.watch.generic.rest.DeleteWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.DeleteWatchInstanceAction.DeleteWatchInstanceHandler;
+import com.floragunn.signals.actions.watch.generic.rest.GetAllWatchInstancesAction;
+import com.floragunn.signals.actions.watch.generic.rest.GetAllWatchInstancesAction.GetAllWatchInstancesHandler;
+import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceParametersAction;
+import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersHandler;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
 import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.elasticsearch.action.ActionRequest;
@@ -134,8 +134,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
-                    new AckAndGetWatchApiAction(settings), CreateOrUpdateOneWatchInstanceAction.REST_API, GetWatchInstanceParametersAction.REST_API,
-                    DeleteWatchInstanceAction.REST_API, CreateManyWatchInstancesAction.REST_API, GetAllWatchInstancesAction.REST_API);
+                    new AckAndGetWatchApiAction(settings), UpsertOneGenericWatchInstanceAction.REST_API, GetWatchInstanceParametersAction.REST_API,
+                    DeleteWatchInstanceAction.REST_API, UpsertManyGenericWatchInstancesAction.REST_API, GetAllWatchInstancesAction.REST_API);
         } else {
             return Collections.emptyList();
         }
@@ -168,10 +168,10 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(SearchWatchStateAction.INSTANCE, TransportSearchWatchStateAction.class),
                     new ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class),
                     new ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
-                    new ActionHandler<>(CreateOrUpdateOneWatchInstanceAction.INSTANCE, CreateOrUpdateOneWatchInstanceHandler.class),
+                    new ActionHandler<>(UpsertOneGenericWatchInstanceAction.INSTANCE, UpsertOneGenericWatchInstanceHandler.class),
                     new ActionHandler<>(GetWatchInstanceParametersAction.INSTANCE, GetWatchInstanceParametersHandler.class),
                     new ActionHandler<>(DeleteWatchInstanceAction.INSTANCE, DeleteWatchInstanceHandler.class),
-                    new ActionHandler<>(CreateManyWatchInstancesAction.INSTANCE, CreateManyWatchInstancesActionHandler.class),
+                    new ActionHandler<>(UpsertManyGenericWatchInstancesAction.INSTANCE, UpsertManyGenericWatchInstancesHandler.class),
                     new ActionHandler<>(GetAllWatchInstancesAction.INSTANCE, GetAllWatchInstancesHandler.class)
             );
         } else {

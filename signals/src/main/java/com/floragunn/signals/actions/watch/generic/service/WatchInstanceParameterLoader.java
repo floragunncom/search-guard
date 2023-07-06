@@ -1,8 +1,8 @@
-package com.floragunn.signals.actions.watch.template.service;
+package com.floragunn.signals.actions.watch.generic.service;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersData;
-import com.floragunn.signals.actions.watch.template.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

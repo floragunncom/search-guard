@@ -1,4 +1,4 @@
-package com.floragunn.signals.actions.watch.template.service.persistence;
+package com.floragunn.signals.actions.watch.generic.service.persistence;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
