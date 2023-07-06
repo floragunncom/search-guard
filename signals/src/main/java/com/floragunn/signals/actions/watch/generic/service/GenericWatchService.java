@@ -155,7 +155,7 @@ public class GenericWatchService {
     }
 
     private static WatchParametersData toWatchParameterData(UpsertOneGenericWatchInstanceRequest request) {
-        return new WatchParametersData(request.getTenantId(), request.getWatchId(), request.getInstanceId(), request.getParameters());
+        return new WatchParametersData(request.getTenantId(), request.getWatchId(), request.getInstanceId(), true, request.getParameters());
     }
 
     public StandardResponse getWatchInstanceParameters(GetWatchInstanceParametersRequest request) {
@@ -240,5 +240,11 @@ public class GenericWatchService {
         Objects.requireNonNull(tenantId, "Tenant id is required");
         Objects.requireNonNull(watchId, "Watch id is required");
         parametersRepository.deleteByWatchId(tenantId, watchId);
+    }
+
+    public StandardResponse activate(String tenantId, String watchId, String instanceId, boolean enable) {
+        parametersRepository.updateEnabledFlag(tenantId, watchId, instanceId, enable);
+        notifier.send();
+        return new StandardResponse(200);
     }
 }

@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import com.floragunn.signals.watch.Watch;
+import com.google.common.base.Strings;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -29,13 +31,16 @@ public class WatchStateApiAction extends SignalsBaseRestHandler implements Tenan
 
     @Override
     public List<Route> routes() {
-        return ImmutableList.of(new Route(GET, "/_signals/watch/{tenant}/{id}/_state"));
+        return ImmutableList.of(new Route(GET, "/_signals/watch/{tenant}/{id}/_state"),
+            new Route(GET, "/_signals/watch/{tenant}/{id}/instances/{instance_id}/_state"));
     }
 
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
-        final String watchId = request.param("id");
+        String id = request.param("id");
+        String instanceId = request.param("instance_id");
+        final String watchId = Strings.isNullOrEmpty(instanceId) ? id : Watch.createInstanceId(id, instanceId);
 
         return channel -> {
 

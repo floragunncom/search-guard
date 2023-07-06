@@ -9,7 +9,9 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Watch> {
 
@@ -34,7 +36,12 @@ public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Wa
                 return ImmutableList.empty();
             }
             log.debug("Watch '{}' has defined '{}' instances.", watch.getId(), parameters.size());
-            return parameters.map(instanceParameters -> createInstanceForParameter(watch, instanceParameters));
+            List<Watch> watchInstances = parameters.stream() //
+                .filter(WatchParametersData::isEnabled) //
+                .map(instanceParameters -> createInstanceForParameter(watch, instanceParameters)) //
+                .collect(Collectors.toList());
+            log.debug("Watch '{}' has defined '{}' enabled instances.", watch.getId(), watchInstances.size());
+            return ImmutableList.of(watchInstances);
         }
         log.debug("Watch '{}' is not generic, instance will not be created", watch.getId());
         return ImmutableList.of(watch);

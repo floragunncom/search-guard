@@ -18,6 +18,9 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.support.WriteRequest;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermQueryBuilder;
@@ -30,6 +33,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_ENABLED;
 import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_TENANT_ID;
 import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_WATCH_ID;
 import static com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames.WATCHES_INSTANCE_PARAMETERS;
@@ -135,5 +139,14 @@ public class WatchParametersRepository {
         } catch (DocumentParseException e) {
             throw new RuntimeException("Database contain watch parameters which are not valid json document", e);
         }
+    }
+
+    public void updateEnabledFlag(String tenantId, String watchId, String instanceId, boolean enable) {
+        String document = WatchParametersData.createId(tenantId, watchId, instanceId);
+        UpdateRequest request = new UpdateRequest(WATCHES_INSTANCE_PARAMETERS, document) //
+            .doc(FIELD_ENABLED, enable) //
+            .setRefreshPolicy(IMMEDIATE);
+        UpdateResponse updateResponse = client.update(request).actionGet();
+        // TODO check status
     }
 }

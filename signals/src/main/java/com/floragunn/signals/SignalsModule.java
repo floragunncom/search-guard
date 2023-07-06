@@ -6,6 +6,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.floragunn.signals.actions.watch.generic.rest.DisableGenericWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.DisableGenericWatchInstanceAction.DisableGenericWatchInstanceHandler;
+import com.floragunn.signals.actions.watch.generic.rest.EnableGenericWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.EnableGenericWatchInstanceAction.EnableGenericWatchInstanceHandler;
 import com.floragunn.signals.actions.watch.generic.rest.UpsertManyGenericWatchInstancesAction;
 import com.floragunn.signals.actions.watch.generic.rest.UpsertManyGenericWatchInstancesAction.UpsertManyGenericWatchInstancesHandler;
 import com.floragunn.signals.actions.watch.generic.rest.UpsertOneGenericWatchInstanceAction;
@@ -135,7 +139,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
                     new AckAndGetWatchApiAction(settings), UpsertOneGenericWatchInstanceAction.REST_API, GetWatchInstanceParametersAction.REST_API,
-                    DeleteWatchInstanceAction.REST_API, UpsertManyGenericWatchInstancesAction.REST_API, GetAllWatchInstancesAction.REST_API);
+                    DeleteWatchInstanceAction.REST_API, UpsertManyGenericWatchInstancesAction.REST_API, GetAllWatchInstancesAction.REST_API,
+                    DisableGenericWatchInstanceAction.REST_API, EnableGenericWatchInstanceAction.REST_API);
         } else {
             return Collections.emptyList();
         }
@@ -172,7 +177,9 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(GetWatchInstanceParametersAction.INSTANCE, GetWatchInstanceParametersHandler.class),
                     new ActionHandler<>(DeleteWatchInstanceAction.INSTANCE, DeleteWatchInstanceHandler.class),
                     new ActionHandler<>(UpsertManyGenericWatchInstancesAction.INSTANCE, UpsertManyGenericWatchInstancesHandler.class),
-                    new ActionHandler<>(GetAllWatchInstancesAction.INSTANCE, GetAllWatchInstancesHandler.class)
+                    new ActionHandler<>(GetAllWatchInstancesAction.INSTANCE, GetAllWatchInstancesHandler.class),
+                    new ActionHandler<>(DisableGenericWatchInstanceAction.INSTANCE, DisableGenericWatchInstanceHandler.class),
+                    new ActionHandler<>(EnableGenericWatchInstanceAction.INSTANCE, EnableGenericWatchInstanceHandler.class)
             );
         } else {
             return Collections.emptyList();

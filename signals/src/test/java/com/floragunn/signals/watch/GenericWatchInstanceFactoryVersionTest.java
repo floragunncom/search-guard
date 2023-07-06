@@ -15,6 +15,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
 
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_ENABLED;
 import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_INSTANCE_ID;
 import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_PARAMETERS;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -202,7 +203,7 @@ public class GenericWatchInstanceFactoryVersionTest {
                 .then().index("testsink").throttledFor("1h").name("testsink").build();
             String watchJson = watch.toJson();
             watch = Watch.parse(initService, "tenant-id", WATCH_ID_1, watchJson, watchVersion, null);
-            DocNode docNode = DocNode.of(FIELD_INSTANCE_ID, "instance-id", FIELD_PARAMETERS, DocNode.EMPTY);
+            DocNode docNode = DocNode.of(FIELD_INSTANCE_ID, "instance-id", FIELD_ENABLED, true, FIELD_PARAMETERS, DocNode.EMPTY);
             WatchParametersData watchParametersData = new WatchParametersData(docNode, parametersVersion);
             when(parameterLoader.findParameters(WATCH_ID_1)).thenReturn(ImmutableList.of(watchParametersData));
             return watch;
