@@ -85,9 +85,9 @@ public class WatchTemplateTest {
         String watchId = "my-watch-create-template-parameters";
         String instanceId = "instance_id_should_create_template_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "id");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode node = DocNode.of("id", 258);
+            DocNode node = DocNode.of("vm_id", 258);
 
             HttpResponse response = client.putJson(path, node.toJsonString());
 
@@ -149,9 +149,9 @@ public class WatchTemplateTest {
         String watchId = "my-watch-load-template-parameters-with-various-data-types";
         String instanceId = "instance_id_should_load_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name", "time", "int", "long", "double", "bool");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name", "time", "int", "long", "double", "bool");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode node = DocNode.of("id", 258, "name","kirk", "time", "2023-05-15T13:07:52.000Z")
+            DocNode node = DocNode.of("vm_id", 258, "name","kirk", "time", "2023-05-15T13:07:52.000Z")
                 .with(DocNode.of("int", Integer.MAX_VALUE, "long", Long.MIN_VALUE, "double", Math.PI, "bool", false));
             HttpResponse response = client.putJson(path, node.toJsonString());
             log.info("Create watch instance response '{}'.", response.getBody());
@@ -162,7 +162,7 @@ public class WatchTemplateTest {
             log.info("Get watch template parameters response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("data.id", 258));
+            assertThat(body, containsValue("data.vm_id", 258));
             assertThat(body, containsValue("data.name", "kirk"));
             assertThat(body, containsValue("data.time", "2023-05-15T13:07:52.000Z"));
             assertThat(body, containsValue("data.int", Integer.MAX_VALUE));
@@ -431,11 +431,11 @@ public class WatchTemplateTest {
         String watchId = "watch-for-load-all-instance-test";
         String instanceId = "zero_instance";
         String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "id");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode requestBody = DocNode.of("id", "param-value-0");
+            DocNode requestBody = DocNode.of("vm_id", "param-value-0");
             client.putJson(path + "/" + instanceId , requestBody);
-            requestBody = DocNode.of("first_instance", DocNode.of("id", 1), "second_instance", DocNode.of("id", 2));
+            requestBody = DocNode.of("first_instance", DocNode.of("vm_id", 1), "second_instance", DocNode.of("vm_id", 2));
             client.putJson(path , requestBody);
 
             HttpResponse response = client.get(path);
@@ -443,9 +443,9 @@ public class WatchTemplateTest {
             log.info("Get all watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("data.zero_instance.id", "param-value-0"));
-            assertThat(body, containsValue("data.first_instance.id", 1));
-            assertThat(body, containsValue("data.second_instance.id", 2));
+            assertThat(body, containsValue("data.zero_instance.vm_id", "param-value-0"));
+            assertThat(body, containsValue("data.first_instance.vm_id", 1));
+            assertThat(body, containsValue("data.second_instance.vm_id", 2));
         }
     }
 
@@ -532,6 +532,28 @@ public class WatchTemplateTest {
             Awaitility.await().atMost(3, SECONDS).until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             DocNode firstHit = DocNode.parse(Format.JSON).from(findAllDocumentSearchHits(client, destinationIndex)[0].getSourceAsString());
             assertThat(firstHit, containsValue("created_by", instanceId));
+        }
+    }
+
+    @Test
+    public void shouldReportErrorWhenWatchParameterNameIsId() throws Exception {
+        String watchId = "watch-id-should-notify-user-that-id-parameter-name-is-reserved";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "id")//
+                .atMsInterval(200).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).throttledFor("1m").name("testsink").build();
+
+            HttpResponse response = restClient.putJson(watchPath, watch);
+
+            log.info("Create generic watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            assertThat(response.getBodyAsDocNode(), containSubstring("error", "Instance parameter name 'id' is invalid"));
         }
     }
 
@@ -1256,7 +1278,7 @@ public class WatchTemplateTest {
             log.info("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containSubstring("error", "'instances.invalid-name': Instance parameter name is invalid."));
+            assertThat(body, containSubstring("error", "Instance parameter name 'invalid-name' is invalid."));
         }
     }
 
@@ -1265,9 +1287,9 @@ public class WatchTemplateTest {
         String watchId = "my-watch-should-not-create-template-instance-with-missing-parameters";
         String instanceId = "instance_id_should_create_template_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode node = DocNode.of("id", 258);
+            DocNode node = DocNode.of("vm_id", 258);
 
             HttpResponse response = client.putJson(path, node.toJsonString());
 
@@ -1283,9 +1305,9 @@ public class WatchTemplateTest {
         String watchId = "my-watch-should-not-create-instance-with-too-many-parameters";
         String instanceId = "instance_id_should_create_template_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode node = DocNode.of("id", 258, "name", "Dave", "additional_param", 1);
+            DocNode node = DocNode.of("vm_id", 258, "name", "Dave", "additional_param", 1);
 
             HttpResponse response = client.putJson(path, node.toJsonString());
 
@@ -1301,13 +1323,13 @@ public class WatchTemplateTest {
         String watchId = "my-watch-should-detect-validation-errors-during-update";
         String instanceId = "instance_id_should_create_template_parameters";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode node = DocNode.of("id", 258, "name", "Dave");
+            DocNode node = DocNode.of("vm_id", 258, "name", "Dave");
             HttpResponse response = client.putJson(path, node.toJsonString());
             log.info("Create correct watch instance response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            node = DocNode.of("id", 258, "name", "Dave", "additional_param","this parameter cause validation error");
+            node = DocNode.of("vm_id", 258, "name", "Dave", "additional_param","this parameter cause validation error");
 
             response = client.putJson(path, node.toJsonString());
 
@@ -1323,9 +1345,9 @@ public class WatchTemplateTest {
         String watchId = "my-watch-should-not-create-instance-with-incorrect-instance-id";
         String instanceId = "1-invalid-id";
         String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode node = DocNode.of("id", 258, "name", "Dave");
+            DocNode node = DocNode.of("vm_id", 258, "name", "Dave");
 
             HttpResponse response = client.putJson(path, node.toJsonString());
 
@@ -1342,13 +1364,13 @@ public class WatchTemplateTest {
         String instanceId = "instance_id_should_create_template_parameters";
         String singleInstancePatch = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
         String allInstancesPatch = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-        createWatchTemplate(DEFAULT_TENANT, watchId, "id", "name");
+        createWatchTemplate(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            DocNode paramersNode = DocNode.of("id", 258, "name", "Dave");
+            DocNode paramersNode = DocNode.of("vm_id", 258, "name", "Dave");
             HttpResponse response = client.putJson(singleInstancePatch, paramersNode.toJsonString());
             log.info("Create correct watch instance response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            paramersNode = DocNode.of("id", 258, "name", "Dave", "additional_param","this parameter cause validation error");
+            paramersNode = DocNode.of("vm_id", 258, "name", "Dave", "additional_param","this parameter cause validation error");
             DocNode instanceNode = DocNode.of(instanceId, paramersNode);
 
             response = client.putJson(allInstancesPatch, instanceNode.toJsonString());

@@ -27,14 +27,18 @@ public class InstanceParser {
                     boolean enabled = instancesNode.getBoolean(Instances.FIELD_ENABLED);
                     ImmutableList<String> params = instancesNode.getListOfStrings(Instances.FIELD_PARAMS);
                     params = params == null ? ImmutableList.empty() : params;
-                    params.stream().filter(name -> !Instances.isValidParameterName(name))
-                        .forEach(invalidName -> validationErrors.add(new ValidationError("instances." + invalidName, "Instance parameter name is invalid.")));
-                    ImmutableList<String> nonNullParamList = params != null ? params : ImmutableList.empty();
-                    if((!nonNullParamList.isEmpty()) && (!enabled)) {
+                    params.stream() //
+                        .filter(name -> !Instances.isValidParameterName(name)) //
+                        .forEach(invalidName -> {
+                            String message = "Instance parameter name '" + invalidName + "' is invalid.";
+                            String path = "instances." + invalidName;
+                            validationErrors.add(new ValidationError(path, message));
+                        });
+                    if((!params.isEmpty()) && (!enabled)) {
                         String message = "Only generic watch is allowed to define instance parameters";
                         validationErrors.add(new ValidationError(FIELD_INSTANCES + "." + Instances.FIELD_ENABLED, message));
                     }
-                    return new Instances(enabled, nonNullParamList);
+                    return new Instances(enabled, params);
                 } else {
                     validationErrors.add(new ValidationError("instances.enabled", "Attribute is missing"));
                     return Instances.EMPTY;

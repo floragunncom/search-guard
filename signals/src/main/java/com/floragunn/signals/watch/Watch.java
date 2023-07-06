@@ -506,7 +506,8 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         return parse(ctx, tenant, id, jsonNode, -1, null);
     }
 
-    public static Watch parse(WatchInitializationService ctx, String tenant, String id, DocNode jsonNode, long version, WatchParametersData instanceParameters)
+    public static Watch parse(WatchInitializationService ctx, String tenant, String id, DocNode jsonNode, long version,
+        WatchParametersData instanceParameters)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);

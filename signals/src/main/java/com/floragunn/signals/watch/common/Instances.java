@@ -16,6 +16,11 @@ public class Instances implements ToXContentObject {
 
     private static final Pattern PARAMETER_NAME_PATTERN = Pattern.compile("[_a-zA-Z][_a-zA-Z0-9]*");
 
+    /**
+     * <code>id</code> parameter is reserved for watch instance id
+     */
+    private static final String RESERVED_PARAMETER_NAME = "id";
+
     public final static String FIELD_ENABLED = "enabled";
     public final static String FIELD_PARAMS = "params";
 
@@ -47,6 +52,9 @@ public class Instances implements ToXContentObject {
 
     public static boolean isValidParameterName(String parameterName) {
         if((parameterName == null) || parameterName.isEmpty()) {
+            return false;
+        }
+        if(RESERVED_PARAMETER_NAME.equalsIgnoreCase(parameterName)) {
             return false;
         }
         return PARAMETER_NAME_PATTERN.matcher(parameterName).matches();

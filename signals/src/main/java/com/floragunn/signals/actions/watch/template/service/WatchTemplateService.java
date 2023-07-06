@@ -137,7 +137,7 @@ public class WatchTemplateService {
             .filter(name -> !predefinedParameters.contains(name)) //
             .collect(Collectors.toList());
         if(!notAllowedParameters.isEmpty()) {
-            String incorrectParameters = notAllowedParameters.stream() //
+            String incorrectParameters = notAllowedParameters.stream() //WaInSe
                 .map(name -> String.format("'%s'", name)) //
                 .collect(Collectors.joining(","));
             String message = "Incorrect parameter names: [" + incorrectParameters + "]. Valid parameter names: [" + requiredParameters + "]";
