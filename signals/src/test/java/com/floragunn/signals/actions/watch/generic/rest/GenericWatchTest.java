@@ -49,6 +49,7 @@ import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDI
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.not;
 
 public class GenericWatchTest {
 
@@ -84,7 +85,7 @@ public class GenericWatchTest {
     public void shouldCreateGenericWatchParameters() throws Exception {
         String watchId = "my-watch-create-generic-watch-parameters";
         String instanceId = "instance_id_should_create_generic_watch_parameters";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "vm_id");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258);
@@ -100,7 +101,7 @@ public class GenericWatchTest {
     public void shouldNotCreateGenericWatchParametersWhenWatchDoesNotExist() throws Exception {
         String watchId = "my-watch-create-generic-watch-parameters-when-watch-does-not-exists";
         String instanceId = "instance_id_should_create_generic_watch_parameters";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("id", 258);
 
@@ -115,7 +116,7 @@ public class GenericWatchTest {
     public void shouldNotCreateGenericWatchParametersWhenWatchIsNotGeneric() throws Exception {
         String watchId = "my-watch-create-generic-watch-parameters-when-watch-is-not-generic";
         String instanceId = "instance_id_should_not_create_generic_watch_parameters";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createWatch(DEFAULT_TENANT, watchId, false);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("id", 258);
@@ -148,7 +149,7 @@ public class GenericWatchTest {
     public void shouldLoadGenericWatchParametersWithVariousDataTypes() throws Exception {
         String watchId = "my-watch-load-generic-watch-parameters-with-various-data-types";
         String instanceId = "instance_id_should_load_parameters";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name", "time", "int", "long", "double", "bool");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258, "name","kirk", "time", "2023-05-15T13:07:52.000Z")
@@ -176,7 +177,7 @@ public class GenericWatchTest {
     public void shouldNotUseNestedValuesInList() throws Exception {
         String watchId = "my-watch-should-not-use-nested-value-list";
         String instanceId = "instance_id_should_use_nested_values_in_list";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "list");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             ImmutableMap<String, String> firstMap = ImmutableMap.of("one-key", "one-value", "two-key", "two-value");
@@ -199,7 +200,7 @@ public class GenericWatchTest {
     public void shouldNotUseNestedParameters() throws Exception {
         String watchId = "my-watch-should-not-use-nested-parameters";
         String instanceId = "instance_id_should_not_use_map";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "map_parameter");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("map_parameter", ImmutableMap.of("map", "is", "not", "allowed"));
@@ -220,9 +221,9 @@ public class GenericWatchTest {
         String watchId1 = "my-watch-parameters-with-same-name-but-various-types-one";
         String watchId2 = "my-watch-parameters-with-same-name-but-various-types-two";
         String watchId3 = "my-watch-parameters-with-same-name-but-various-types-three";
-        String pathWatch1 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId1, instanceId);
-        String pathWatch2 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId2, instanceId);
-        String pathWatch3 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId3, instanceId);
+        String pathWatch1 = instancePath(watchId1, instanceId);
+        String pathWatch2 = instancePath(watchId2, instanceId);
+        String pathWatch3 = instancePath(watchId3, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId1, "param");
         createGenericWatch(DEFAULT_TENANT, watchId2, "param");
         createGenericWatch(DEFAULT_TENANT, watchId3, "param");
@@ -247,8 +248,8 @@ public class GenericWatchTest {
         final String instanceId = "common_parameters";
         final String watchIdOne = "my-watch-own-parameter-copy-one";
         final String watchIdTwo = "my-watch-own-parameter-copy-two";
-        final String pathWatch1 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchIdOne, instanceId);
-        final String pathWatch2 = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchIdTwo, instanceId);
+        final String pathWatch1 = instancePath(watchIdOne, instanceId);
+        final String pathWatch2 = instancePath(watchIdTwo, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchIdOne, "common_parameter_name");
         createGenericWatch(DEFAULT_TENANT, watchIdTwo, "common_parameter_name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
@@ -273,7 +274,7 @@ public class GenericWatchTest {
     public void shouldDeleteWatchInstance() throws Exception {
         String watchId = "my-watch-to-be-deleted";
         String instanceId = "instance_id_should_use_nested_values_in_map";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "message");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("message", "please do not delete me!" );
@@ -295,7 +296,7 @@ public class GenericWatchTest {
     public void shouldNotDeleteWatchInstanceWhichDoesNotExist() throws Exception {
         String watchId = "non-existing-watch-instance-to-be-deleted";
         String instanceId = "instance_id_should_use_nested_values_in_map";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
 
@@ -308,7 +309,7 @@ public class GenericWatchTest {
     @Test
     public void shouldReturnValidationErrorWhenWatchInstancesAreCreatedWithEmptyBody() throws Exception {
         String watchId = "watch-with-many-instances-empty-body";
-        String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String path = allInstancesPath(watchId);
         createGenericWatch(DEFAULT_TENANT, watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode requestBody = DocNode.EMPTY;
@@ -323,7 +324,7 @@ public class GenericWatchTest {
     @Test
     public void shouldCreateSingleWatchInstanceWithUsageOfBulkRequest() throws Exception {
         String watchId = "watch-with-many-instances-one-parameter-set";
-        String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String path = allInstancesPath(watchId);
         createGenericWatch(DEFAULT_TENANT, watchId, "param_name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             final String instanceId = "instance_id_one";
@@ -343,7 +344,7 @@ public class GenericWatchTest {
     @Test
     public void shouldCreateThreeWatchInstanceWithUsageOfBulkRequest() throws Exception {
         String watchId = "watch-with-many-instances-create-three";
-        String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String path = allInstancesPath(watchId);
         createGenericWatch(DEFAULT_TENANT, watchId, "param_name_1", "param_name_2");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             final String instanceIdOne = "instance_id_one";
@@ -379,7 +380,7 @@ public class GenericWatchTest {
     public void shouldUpdateWatchInstance() throws Exception {
         String watchId = "watch-to-be-updated";
         final String instanceId = "instance_id_one";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "param_name_0");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode requestBody = DocNode.of("param_name_0", "param-value-0");
@@ -402,7 +403,7 @@ public class GenericWatchTest {
         String watchId = "watch-to-be-updated-by-bulk-request";
         final String instanceOne = "instance_id_one";
         String instanceTwo = "new_instance_id_two";
-        String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String path = allInstancesPath(watchId);
         createGenericWatch(DEFAULT_TENANT, watchId, "param_name_0");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode requestBody = DocNode.of("param_name_0", "param-value-0");
@@ -430,7 +431,7 @@ public class GenericWatchTest {
     public void shouldLoadExistingWatchInstances() throws Exception {
         String watchId = "watch-for-load-all-instance-test";
         String instanceId = "zero_instance";
-        String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String path = allInstancesPath(watchId);
         createGenericWatch(DEFAULT_TENANT, watchId, "vm_id");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode requestBody = DocNode.of("vm_id", "param-value-0");
@@ -452,7 +453,7 @@ public class GenericWatchTest {
     @Test
     public void shouldReturnNotFoundResponseWhenWatchHasNoInstancesDefined() throws Exception {
         String watchId = "watch-without-defined-instances";
-        String path = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String path = allInstancesPath(watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
 
             HttpResponse response = client.get(path);
@@ -465,7 +466,7 @@ public class GenericWatchTest {
     @Test
     public void shouldNotExecuteGenericWatch() throws Exception {
         String watchId = "watch-generic-watch-should-not-be-executed";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources(); Client client = cluster.getInternalNodeClient()) {
             final String destinationIndex = "destination-index-for-" + watchId;
             client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
@@ -483,8 +484,8 @@ public class GenericWatchTest {
     @Test
     public void shouldExecuteGenericWatchInstance() throws Exception {
         String watchId = "watch-id-generic-watch-instance-should-be-executed";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient()) {
 
@@ -508,8 +509,8 @@ public class GenericWatchTest {
     @Test
     public void shouldUseGenericWatchInstanceIdParameters() throws Exception {
         String watchId = "watch-should-use-generic-watch-instance-id-parameters";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         String instanceId = "watch_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
@@ -538,7 +539,7 @@ public class GenericWatchTest {
     @Test
     public void shouldReportErrorWhenWatchParameterNameIsId() throws Exception {
         String watchId = "watch-id-should-notify-user-that-id-parameter-name-is-reserved";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient()) {
 
@@ -560,8 +561,8 @@ public class GenericWatchTest {
     @Test
     public void shouldUseAnotherGenericWatchInstanceIdAsParameters() throws Exception {
         String watchId = "watch-should-use-another-generic-watch-instance-id-as-parameter";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         String instanceId = "another_watch_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
@@ -590,8 +591,8 @@ public class GenericWatchTest {
     @Test
     public void shouldUseWatchInstanceParameter() throws Exception {
         String watchId = "watch-should-use-generic-watch-instance-parameter";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         String instanceId = "watch_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
@@ -620,8 +621,8 @@ public class GenericWatchTest {
     @Test
     public void shouldUseAnotherWatchInstanceParameter() throws Exception {
         String watchId = "watch-should-use-another-genetic-watch-instance-parameter";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         String instanceId = "watch_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
@@ -650,8 +651,8 @@ public class GenericWatchTest {
     @Test
     public void shouldUseItsOwnInstanceParameterValue() throws Exception {
         String watchId = "watch-should-use-own-generic-watch-instance-parameter-value";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
         ){
@@ -681,9 +682,9 @@ public class GenericWatchTest {
     @Test
     public void shouldUseManyParameters() throws Exception {
         String watchId = "watch-should-use-many-parameters";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         String instanceId = "multiple_parameters_instance";
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String parametersPath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
         ){
@@ -716,9 +717,9 @@ public class GenericWatchTest {
     @Test
     public void shouldUseManyParametersOtherParameterSet() throws Exception {
         String watchId = "watch-should-use-many-parameters-other-parameter-set";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         String instanceId = "multiple_parameters_instance";
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String parametersPath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
         ){
@@ -751,9 +752,9 @@ public class GenericWatchTest {
     @Test
     public void shouldUseInstanceParameterInWebhookAction() throws Exception {
         String watchId = "watch-should-use-instance-parameter-in-webhook-action";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         String instanceId = "multiple_parameters_instance";
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String parametersPath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient();
             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")
@@ -786,9 +787,9 @@ public class GenericWatchTest {
     @Test
     public void shouldUseInstanceParameterInWebhookActionWithAnotherParameters() throws Exception {
         String watchId = "watch-should-use-instance-parameter-in-webhook-action-with-another-parameters";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         String instanceId = "multiple_parameters_instance";
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String parametersPath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient();
             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")
@@ -821,8 +822,8 @@ public class GenericWatchTest {
     @Test
     public void shouldStoreWatchStateForGenericWatchInstances() throws Exception {
         String watchId = "watch-store-watch-state-for-generic-watch-instance";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         String instanceIdOne = "first_instance_id";
         String instanceIdTwo = "second_instance_id";
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
@@ -865,9 +866,9 @@ public class GenericWatchTest {
     @Test
     public void shouldStopExecuteWatchInstanceAfterInstanceDeletion() throws Exception {
         String watchId = "watch-should-not-be-executed-after-deletion";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         String instanceId = "watch_instance_id";
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String parametersPath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
         ){
@@ -896,11 +897,11 @@ public class GenericWatchTest {
     @Test
     public void shouldStopExecuteAllWatchInstanceAfterDeletion() throws Exception {
         String watchId = "watch-should-stop-execution-all-instances-after-generic-watch-deletion";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         String instanceIdOne = "watch_instance_id_one";
         String instanceIdTwo = "watch_instance_id_two";
-        String parametersPathOne = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceIdOne);
-        String parametersPathTwo = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceIdTwo);
+        String parametersPathOne = instancePath(watchId, instanceIdOne);
+        String parametersPathTwo = instancePath(watchId, instanceIdTwo);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient() //
         ){
@@ -960,7 +961,7 @@ public class GenericWatchTest {
     public void shouldDeleteGenericWatchWithManyInstances() throws Exception {
         String watchId = "my-watch-delete-generic-watch-with-many-instances";
         String watchPath = createGenericWatch(DEFAULT_TENANT, watchId, "parameter");
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String parametersPath = allInstancesPath(watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.EMPTY;
             for(int i = 0; i < 100; ++i) {
@@ -1001,7 +1002,7 @@ public class GenericWatchTest {
     public void shouldRunManyWatchInstances() throws Exception {
         String watchId = "my-watch-should-run-many-watch-instances";
         String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String parametersPath = allInstancesPath(watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient()
         ) {
@@ -1037,7 +1038,7 @@ public class GenericWatchTest {
     public void shouldLoadManyInstanceParameters() throws Exception {
         String watchId = "my-watch-should-create-significant-number-of-instances";
         String watchPath = createGenericWatch(DEFAULT_TENANT, watchId, "parameter");
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String parametersPath = allInstancesPath(watchId);
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             try {
                 DocNode node = DocNode.EMPTY;
@@ -1072,7 +1073,7 @@ public class GenericWatchTest {
         String watchId = "my-watch-should-update-instance-parameter-value";
         String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
         String instanceId = "update_my_parameters_id";
-        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String instancePath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN);
             Client client = cluster.getInternalNodeClient()
         ) {
@@ -1112,7 +1113,7 @@ public class GenericWatchTest {
         String watchId = "my-watch-should-update-generic-watch";
         String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
         String instanceId = "update_my_parameters_id";
-        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String instancePath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN);
             Client client = cluster.getInternalNodeClient()
         ) {
@@ -1286,7 +1287,7 @@ public class GenericWatchTest {
     public void shouldNotCreateGenericWatchInstanceWithMissingParameters() throws Exception {
         String watchId = "my-watch-should-not-create-generic-watch-instance-with-missing-parameters";
         String instanceId = "instance_id";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258);
@@ -1304,7 +1305,7 @@ public class GenericWatchTest {
     public void shouldNotCreateGenericWatchInstanceWithTooManyParameters() throws Exception {
         String watchId = "my-watch-should-not-create-generic-watch-instance-with-too-many-parameters";
         String instanceId = "instance_id";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258, "name", "Dave", "additional_param", 1);
@@ -1322,7 +1323,7 @@ public class GenericWatchTest {
     public void shouldDetectValidationErrorsDuringUpdate() throws Exception {
         String watchId = "my-watch-should-detect-validation-errors-during-update";
         String instanceId = "instance_id";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258, "name", "Dave");
@@ -1344,7 +1345,7 @@ public class GenericWatchTest {
     public void shouldDetectInvalidInstanceId() throws Exception {
         String watchId = "my-watch-should-not-create-instance-with-incorrect-instance-id";
         String instanceId = "1-invalid-id";
-        String path = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String path = instancePath(watchId, instanceId);
         createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode node = DocNode.of("vm_id", 258, "name", "Dave");
@@ -1362,8 +1363,8 @@ public class GenericWatchTest {
     public void shouldDetectValidationErrorsDuringBatchUpdate() throws Exception {
         String watchId = "my-watch-should-detect-validation-errors-during-bulk-update";
         String instanceId = "instance_id";
-        String singleInstancePatch = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-        String allInstancesPatch = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String singleInstancePatch = instancePath(watchId, instanceId);
+        String allInstancesPatch = allInstancesPath(watchId);
         createGenericWatch(DEFAULT_TENANT, watchId, "vm_id", "name");
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             DocNode paramersNode = DocNode.of("vm_id", 258, "name", "Dave");
@@ -1558,8 +1559,8 @@ public class GenericWatchTest {
     @Test
     public void shouldNotExecuteInstanceWhenGenericWatchIsInactive() throws Exception {
         String watchId = "watch-id-should-not-execute-instance-when-generic-watch-is-disabled";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient()) {
             final String destinationIndex = "destination-index-for-" + watchId;
@@ -1587,8 +1588,8 @@ public class GenericWatchTest {
     @Test
     public void shouldResumeInstanceExecutionAfterActivationOfGenericWatch() throws Exception {
         String watchId = "watch-id-should-resume-instance-execution-when-generic-watch-is-activated";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient()) {
             final String destinationIndex = "destination-index-for-" + watchId;
@@ -1619,8 +1620,8 @@ public class GenericWatchTest {
     @Test
     public void shouldStopInstanceExecutionAfterDeactivationOfGenericWatch() throws Exception {
         String watchId = "watch-id-should-stop-instance-execution-when-generic-watch-is-de-activated";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-        String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+        String watchPath = watchPath(watchId);
+        String parametersPath = allInstancesPath(watchId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient()) {
             final String destinationIndex = "destination-index-for-" + watchId;
@@ -1640,6 +1641,43 @@ public class GenericWatchTest {
             response = restClient.delete(watchPath + "/_active");
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Thread.sleep(1000);// wait for watch deactivation
+            long previousNumberOfExecution = countDocumentInIndex(client, destinationIndex);
+            Thread.sleep(3000);
+            //make sure that watch is not executed because generic watch is deactivate
+            long currentNumberOfExecution = countDocumentInIndex(client, destinationIndex);
+            assertThat(currentNumberOfExecution, equalTo(previousNumberOfExecution));
+        }
+    }
+
+    @Test
+    public void shouldStopAllInstancesExecutionAfterDeactivationOfGenericWatch() throws Exception {
+        String watchId = "watch-id-should-stop-all-instances-execution-when-generic-watch-is-de-activated";
+        String watchPath = watchPath(watchId);
+        String instancesPath = allInstancesPath(watchId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['created_by':instance.id]")//
+                .throttledFor("1ms").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("instance_id_1", DocNode.of("instance_parameter", 7),
+                "instance_id_2", DocNode.of("instance_parameter", 8),
+                "instance_id_3", DocNode.of("instance_parameter", 9));
+            response = restClient.putJson(instancesPath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+
+            response = restClient.delete(watchPath + "/_active");
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Thread.sleep(1000);// wait till generic watch is disabled
             long previousNumberOfExecution = countDocumentInIndex(client, destinationIndex);
             Thread.sleep(3000);
             //make sure that watch is not executed because generic watch is deactivate
@@ -1651,9 +1689,9 @@ public class GenericWatchTest {
     @Test
     public void shouldDisableWatchInstance() throws Exception {
         String watchId = "watch-id-should-disable-watch-instance";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         String instanceId = "instance_id_to_be_disabled";
-        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String instancePath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient()) {
             final String destinationIndex = "destination-index-for-" + watchId;
@@ -1673,6 +1711,7 @@ public class GenericWatchTest {
             response = restClient.delete(instancePath + "/_active");
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Thread.sleep(1000); // wait for action deactivation
             long previousNumberOfExecution = countDocumentInIndex(client, destinationIndex);
             Thread.sleep(3000);
             //make sure that watch is not executed because generic watch is deactivate
@@ -1682,11 +1721,60 @@ public class GenericWatchTest {
     }
 
     @Test
+    public void shouldStopExecutionOnlyOfDisabledWatchInstance() throws Exception {
+        String watchId = "watch-id-should-stop-execution-only-of-disabled-instance";
+        String watchPath = watchPath(watchId);
+        String instancesPath = allInstancesPath(watchId);
+        String instanceId1 = "instance_id_1";
+        String instanceId2 = "instance_id_2";
+        String instanceId3 = "instance_id_3";
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['created_by':instance.id]")//
+                .throttledFor("1ms").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of(instanceId1, DocNode.of("instance_parameter", 0), instanceId2, DocNode.of("instance_parameter", 1),
+                instanceId3, DocNode.of("instance_parameter", 2));
+            response = restClient.putJson(instancesPath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3) > 0);
+
+            response = restClient.delete(instancePath(watchId, instanceId2) + "/_active");
+
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Thread.sleep(1000);
+            long previousNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
+            long previousNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
+            long previousNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
+            Thread.sleep(3000);
+            //make sure that only disabled watch is not executed
+            long currentNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
+            long currentNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
+            long currentNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
+            assertThat(currentNumberOfExecutionInstance1, greaterThan(previousNumberOfExecutionInstance1)); //is still executed
+            assertThat(currentNumberOfExecutionInstance2, equalTo(previousNumberOfExecutionInstance2)); // is not executed
+            assertThat(currentNumberOfExecutionInstance3, greaterThan(previousNumberOfExecutionInstance3));//is still executed
+        }
+    }
+
+    @Test
     public void shouldNotDisableNonExistingWatchInstance() throws Exception {
         String watchId = "watch-id-should-not-disable-non-existing-watch-instance";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         String instanceId = "instance_non_existing";
-        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String instancePath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient()) {
             final String destinationIndex = "destination-index-for-" + watchId;
@@ -1709,9 +1797,9 @@ public class GenericWatchTest {
     @Test
     public void shouldEnableWatchInstance() throws Exception {
         String watchId = "watch-id-should-resume-instance-execution-when-instance-is-activated";
-        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String watchPath = watchPath(watchId);
         String instanceId = "instance_to_be_disabled_and_enabled";
-        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        String instancePath = instancePath(watchId, instanceId);
         try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
             Client client = cluster.getInternalNodeClient()) {
             final String destinationIndex = "destination-index-for-" + watchId;
@@ -1729,6 +1817,7 @@ public class GenericWatchTest {
                 .until(() -> countDocumentInIndex(client, destinationIndex) > 0);
             response = restClient.delete(instancePath + "/_active");
             assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Thread.sleep(1000);
             long previousCountOfDocuments = countDocumentInIndex(client, destinationIndex);
             Thread.sleep(3000);
             long currentCountOfDocuments = countDocumentInIndex(client, destinationIndex);
@@ -1742,6 +1831,248 @@ public class GenericWatchTest {
         }
     }
 
+    @Test
+    public void shouldAckOnlyOneWatchInstance() throws Exception {
+        String watchId = "watch-id-should-ack-only-one-watch-instance";
+        String watchPath = watchPath(watchId);
+        String instancesPath = allInstancesPath(watchId);
+        String instanceId1 = "instance_id_1";
+        String instanceId2 = "instance_id_2";
+        String instanceId3 = "instance_id_3";
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['created_by':instance.id]")//
+                .throttledFor("1ms").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of(instanceId1, DocNode.of("instance_parameter", 0), instanceId2, DocNode.of("instance_parameter", 1),
+                instanceId3, DocNode.of("instance_parameter", 2));
+            response = restClient.putJson(instancesPath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3) > 0);
+
+            response = restClient.put(instancePath(watchId, instanceId2) + "/_ack");
+
+            log.info("Ack watch instance response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Thread.sleep(1000);
+            long previousNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
+            long previousNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
+            long previousNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
+            Thread.sleep(3000);
+            //make sure that only acked watch action is not executed
+            long currentNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
+            long currentNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
+            long currentNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
+            assertThat(currentNumberOfExecutionInstance1, greaterThan(previousNumberOfExecutionInstance1)); //is still executed
+            assertThat(currentNumberOfExecutionInstance2, equalTo(previousNumberOfExecutionInstance2)); // is not executed because is acked
+            assertThat(currentNumberOfExecutionInstance3, greaterThan(previousNumberOfExecutionInstance3));//is still executed
+            response = restClient.get(instancePath(watchId, instanceId2) + "/_state");
+            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.actions.testsink.last_status.code", "ACKED"));
+        }
+    }
+
+    @Test
+    public void shouldAckOnlyOneWatchInstanceAction() throws Exception {
+        String watchId = "watch-id-should-ack-only-one-watch-instance-action";
+        String watchPath = watchPath(watchId);
+        String instanceId1 = "instance_id_1";
+        String instancePath = instancePath(watchId, instanceId1);
+        String actionName1 = "first-action";
+        String actionName2 = "second-action";
+        String actionName3 = "third-action";
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex1 = "destination-index-for-" + watchId + "-" + actionName1;
+            final String destinationIndex2 = "destination-index-for-" + watchId + "-" + actionName2;
+            final String destinationIndex3 = "destination-index-for-" + watchId + "-" + actionName3;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex1)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex2)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex3)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex1).throttledFor("1ms").name(actionName1) //
+                .and().index(destinationIndex2).throttledFor("1ms").name(actionName2) //
+                .and().index(destinationIndex3).throttledFor("1ms").name(actionName3) //
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("instance_parameter", 0);
+            response = restClient.putJson(instancePath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex1) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex2) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex3) > 0);
+
+            response = restClient.put(instancePath(watchId, instanceId1) + "/_ack/" + actionName2);
+
+            log.info("Ack watch instance action response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Thread.sleep(1000);
+            long previousNumberOfExecutionAction1 = countDocumentInIndex(client, destinationIndex1);
+            long previousNumberOfExecutionAction2 = countDocumentInIndex(client, destinationIndex2);
+            long previousNumberOfExecutionAction3 = countDocumentInIndex(client, destinationIndex3);
+            Thread.sleep(3000);
+            //make sure that only acked watch action is not executed
+            long currentNumberOfExecutionAction1 = countDocumentInIndex(client, destinationIndex1);
+            long currentNumberOfExecutionAction2 = countDocumentInIndex(client, destinationIndex2);
+            long currentNumberOfExecutionAction3 = countDocumentInIndex(client, destinationIndex3);
+            assertThat(currentNumberOfExecutionAction1, greaterThan(previousNumberOfExecutionAction1)); //is still executed
+            assertThat(currentNumberOfExecutionAction2, equalTo(previousNumberOfExecutionAction2)); // is not executed because is acked
+            assertThat(currentNumberOfExecutionAction3, greaterThan(previousNumberOfExecutionAction3));//is still executed
+            response = restClient.get(instancePath(watchId, instanceId1) + "/_state");
+            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.actions." + actionName2 + ".last_status.code", "ACKED"));
+        }
+    }
+
+    @Test
+    public void shouldUnAckOnlyOneWatchInstance() throws Exception {
+        String watchId = "watch-id-should-un-ack-only-one-watch-instance";
+        String watchPath = watchPath(watchId);
+        String instancesPath = allInstancesPath(watchId);
+        String instanceId1 = "instance_id_1";
+        String instanceId2 = "instance_id_2";
+        String instanceId3 = "instance_id_3";
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).transform(null, "['created_by':instance.id]")//
+                .throttledFor("1ms").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of(instanceId1, DocNode.of("instance_parameter", 0), instanceId2, DocNode.of("instance_parameter", 1),
+                instanceId3, DocNode.of("instance_parameter", 2));
+            response = restClient.putJson(instancesPath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3) > 0);
+            response = restClient.put(instancePath(watchId, instanceId2) + "/_ack");
+            log.info("Ack watch instance response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Thread.sleep(1000);
+            long previousNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
+            long previousNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
+            long previousNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
+            Thread.sleep(3000);
+            //make sure that only acked watch action is not executed
+            long currentNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
+            long currentNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
+            long currentNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
+            assertThat(currentNumberOfExecutionInstance1, greaterThan(previousNumberOfExecutionInstance1)); //is still executed
+            assertThat(currentNumberOfExecutionInstance2, equalTo(previousNumberOfExecutionInstance2)); // is not executed because is acked
+            assertThat(currentNumberOfExecutionInstance3, greaterThan(previousNumberOfExecutionInstance3));//is still executed
+            response = restClient.get(instancePath(watchId, instanceId2) + "/_state");
+            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.actions.testsink.last_status.code", "ACKED"));
+
+            response = restClient.delete(instancePath(watchId, instanceId2) + "/_ack");
+
+            log.debug("Un-ack response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2) > currentNumberOfExecutionInstance2);
+            response = restClient.get(instancePath(watchId, instanceId2) + "/_state");
+            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            body = response.getBodyAsDocNode();
+            assertThat(body, not(containsValue("$.actions.testsink.last_status.code", "ACKED")));
+        }
+    }
+
+    @Test
+    public void shouldUnAckOnlyOneWatchInstanceAction() throws Exception {
+        String watchId = "watch-id-should-un-ack-only-one-watch-instance-action";
+        String watchPath = watchPath(watchId);
+        String instanceId = "instance_id";
+        String instancePath = instancePath(watchId, instanceId);
+        String actionName1 = "first-action";
+        String actionName2 = "second-action";
+        String actionName3 = "third-action";
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex1 = "destination-index-for-" + watchId + "-" + actionName1;
+            final String destinationIndex2 = "destination-index-for-" + watchId + "-" + actionName2;
+            final String destinationIndex3 = "destination-index-for-" + watchId + "-" + actionName3;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex1)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex2)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex3)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex1).throttledFor("1ms").name(actionName1) //
+                .and().index(destinationIndex2).throttledFor("1ms").name(actionName2) //
+                .and().index(destinationIndex3).throttledFor("1ms").name(actionName3) //
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("instance_parameter", 0);
+            response = restClient.putJson(instancePath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex1) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex2) > 0);
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex3) > 0);
+            //all action has been executed so far
+            response = restClient.put(instancePath(watchId, instanceId) + "/_ack");
+            log.info("Ack watch instance action response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Thread.sleep(1000);
+            long previousNumberOfExecutionAction1 = countDocumentInIndex(client, destinationIndex1);
+            long previousNumberOfExecutionAction2 = countDocumentInIndex(client, destinationIndex2);
+            long previousNumberOfExecutionAction3 = countDocumentInIndex(client, destinationIndex3);
+            Thread.sleep(3000);
+            //All watch actions are not executed
+            long currentNumberOfExecutionAction1 = countDocumentInIndex(client, destinationIndex1);
+            long currentNumberOfExecutionAction2 = countDocumentInIndex(client, destinationIndex2);
+            long currentNumberOfExecutionAction3 = countDocumentInIndex(client, destinationIndex3);
+            assertThat(currentNumberOfExecutionAction1, equalTo(previousNumberOfExecutionAction1)); //is not executed because is acked
+            assertThat(currentNumberOfExecutionAction2, equalTo(previousNumberOfExecutionAction2)); //is not executed because is acked
+            assertThat(currentNumberOfExecutionAction3, equalTo(previousNumberOfExecutionAction3));//is not executed because is acked
+            response = restClient.delete(instancePath(watchId, instanceId) + "/_ack/" + actionName2);
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex2) > currentNumberOfExecutionAction2);
+            response = restClient.get(instancePath(watchId, instanceId) + "/_state");
+            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.actions." + actionName1 + ".last_status.code", "ACKED"));
+            assertThat(body, not(containsValue("$.actions." + actionName2 + ".last_status.code", "ACKED")));
+            assertThat(body, containsValue("$.actions." + actionName3 + ".last_status.code", "ACKED"));
+        }
+    }
 
     private String createGenericWatch(String tenant, String watchId, String...parameterNames) throws Exception {
         return createWatch(tenant, watchId, true, parameterNames);
@@ -1795,6 +2126,18 @@ public class GenericWatchTest {
         long count = response.getHits().getTotalHits().value;
         log.debug("Number of documents with term '{}' and value '{}' is '{}'.", fieldName, fieldValue, count);
         return count;
+    }
+
+    private static String allInstancesPath(String watchId) {
+        return String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
+    }
+
+    private static String instancePath(String watchId, String instanceId) {
+        return String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+    }
+
+    private static String watchPath(String watchId) {
+        return "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
     }
 
     private static SearchHit[] findAllDocumentSearchHits(Client client, String index) throws ExecutionException, InterruptedException {
