@@ -42,7 +42,7 @@ public class EnableGenericWatchInstanceAction extends Action<EnableGenericWatchI
 
         @Override
         protected CompletableFuture<StandardResponse> doExecute(EnableGenericWatchInstanceRequest request) {
-            return supplyAsync(() -> genericWatchService.activate(request.getTenantId(), request.getWatchId(), request.getInstanceId(), true));
+            return supplyAsync(() -> genericWatchService.switchEnabledFlag(request.getTenantId(), request.getWatchId(), request.getInstanceId(), true));
         }
     }
 

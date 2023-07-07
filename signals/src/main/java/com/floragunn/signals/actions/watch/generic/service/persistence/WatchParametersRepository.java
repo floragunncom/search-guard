@@ -18,9 +18,9 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
+import org.elasticsearch.index.engine.DocumentMissingException;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermQueryBuilder;
@@ -141,12 +141,20 @@ public class WatchParametersRepository {
         }
     }
 
-    public void updateEnabledFlag(String tenantId, String watchId, String instanceId, boolean enable) {
-        String document = WatchParametersData.createId(tenantId, watchId, instanceId);
-        UpdateRequest request = new UpdateRequest(WATCHES_INSTANCE_PARAMETERS, document) //
+    public boolean updateEnabledFlag(String tenantId, String watchId, String instanceId, boolean enable) {
+        String documentId = WatchParametersData.createId(tenantId, watchId, instanceId);
+        UpdateRequest request = new UpdateRequest(WATCHES_INSTANCE_PARAMETERS, documentId) //
             .doc(FIELD_ENABLED, enable) //
             .setRefreshPolicy(IMMEDIATE);
-        UpdateResponse updateResponse = client.update(request).actionGet();
-        // TODO check status
+        try {
+            UpdateResponse updateResponse = client.update(request).actionGet();
+            if (!RestStatus.OK.equals(updateResponse.status())) {
+                throw new RuntimeException("Cannot change enable flag of watch " + documentId);
+            }
+            return true;
+        } catch (DocumentMissingException e) {
+            log.info("Cannot set enabled flag to '{}' for not existing document '{}'", enable, documentId);
+            return false;
+        }
     }
 }

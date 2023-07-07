@@ -1585,7 +1585,7 @@ public class GenericWatchTest {
     }
 
     @Test
-    public void shouldResumeInstanceExecutionWhenGenericAfterActivationOfGenericWatch() throws Exception {
+    public void shouldResumeInstanceExecutionAfterActivationOfGenericWatch() throws Exception {
         String watchId = "watch-id-should-resume-instance-execution-when-generic-watch-is-activated";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
@@ -1617,7 +1617,7 @@ public class GenericWatchTest {
     }
 
     @Test
-    public void shouldStopInstanceExecutionWhenGenericAfterActivationOfGenericWatch() throws Exception {
+    public void shouldStopInstanceExecutionAfterDeactivationOfGenericWatch() throws Exception {
         String watchId = "watch-id-should-stop-instance-execution-when-generic-watch-is-de-activated";
         String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
         String parametersPath = String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
@@ -1645,6 +1645,100 @@ public class GenericWatchTest {
             //make sure that watch is not executed because generic watch is deactivate
             long currentNumberOfExecution = countDocumentInIndex(client, destinationIndex);
             assertThat(currentNumberOfExecution, equalTo(previousNumberOfExecution));
+        }
+    }
+
+    @Test
+    public void shouldDisableWatchInstance() throws Exception {
+        String watchId = "watch-id-should-disable-watch-instance";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String instanceId = "instance_id_to_be_disabled";
+        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).throttledFor("1ms").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("instance_parameter", 7);
+            response = restClient.putJson(instancePath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+
+            response = restClient.delete(instancePath + "/_active");
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            long previousNumberOfExecution = countDocumentInIndex(client, destinationIndex);
+            Thread.sleep(3000);
+            //make sure that watch is not executed because generic watch is deactivate
+            long currentNumberOfExecution = countDocumentInIndex(client, destinationIndex);
+            assertThat(currentNumberOfExecution, equalTo(previousNumberOfExecution));
+        }
+    }
+
+    @Test
+    public void shouldNotDisableNonExistingWatchInstance() throws Exception {
+        String watchId = "watch-id-should-not-disable-non-existing-watch-instance";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String instanceId = "instance_non_existing";
+        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).throttledFor("1ms").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+
+
+            response = restClient.delete(instancePath + "/_active");
+
+            log.info("Disable non existing watch instance response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
+        }
+    }
+
+    @Test
+    public void shouldEnableWatchInstance() throws Exception {
+        String watchId = "watch-id-should-resume-instance-execution-when-instance-is-activated";
+        String watchPath = "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
+        String instanceId = "instance_to_be_disabled_and_enabled";
+        String instancePath = String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).throttledFor("1ms").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("instance_parameter", 7);
+            response = restClient.putJson(instancePath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex) > 0);
+            response = restClient.delete(instancePath + "/_active");
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            long previousCountOfDocuments = countDocumentInIndex(client, destinationIndex);
+            Thread.sleep(3000);
+            long currentCountOfDocuments = countDocumentInIndex(client, destinationIndex);
+            assertThat(currentCountOfDocuments, equalTo(previousCountOfDocuments));
+
+            response = restClient.put(instancePath + "/_active");
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Awaitility.await().atMost(3, SECONDS)
+                .until(() -> countDocumentInIndex(client, destinationIndex) > previousCountOfDocuments);
         }
     }
 

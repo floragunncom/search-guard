@@ -4,7 +4,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.SearchGuardVersion;
 import com.floragunn.searchsupport.action.RestApi;
-import com.floragunn.searchsupport.action.StandardRequests.IdRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.signals.Signals;
@@ -43,7 +42,10 @@ public class DisableGenericWatchInstanceAction extends Action<DisableGenericWatc
 
         @Override
         protected CompletableFuture<StandardResponse> doExecute(DisableGenericWatchInstanceRequest request) {
-            return supplyAsync(() -> genericWatchService.activate(request.getTenantId(), request.getWatchId(), request.getInstanceId(), false));
+            return supplyAsync(() -> genericWatchService.switchEnabledFlag(request.getTenantId(),
+                request.getWatchId(),
+                request.getInstanceId(),
+                false));
         }
     }
 

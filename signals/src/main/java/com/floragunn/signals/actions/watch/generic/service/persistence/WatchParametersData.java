@@ -80,7 +80,7 @@ public class WatchParametersData implements Document<WatchParametersData> {
         Objects.requireNonNull(tenantId, "Tenant id is required");
         Objects.requireNonNull(watchId, "Watch id is required");
         Objects.requireNonNull(instanceId, "Instance id is required.");
-        return String.format("param@%s/%s/%s", tenantId, watchId, instanceId);
+        return String.format("ins@%s/%s/%s", tenantId, watchId, instanceId);
     }
 
     public ImmutableMap<String, Object> getParameters() {

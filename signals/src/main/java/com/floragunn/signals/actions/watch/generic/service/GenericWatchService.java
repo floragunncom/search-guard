@@ -32,6 +32,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.http.HttpStatus.SC_NOT_FOUND;
+import static org.apache.http.HttpStatus.SC_OK;
+
 public class GenericWatchService {
 
     private static final Logger log = LogManager.getLogger(GenericWatchService.class);
@@ -242,9 +245,14 @@ public class GenericWatchService {
         parametersRepository.deleteByWatchId(tenantId, watchId);
     }
 
-    public StandardResponse activate(String tenantId, String watchId, String instanceId, boolean enable) {
-        parametersRepository.updateEnabledFlag(tenantId, watchId, instanceId, enable);
-        notifier.send();
-        return new StandardResponse(200);
+    public StandardResponse switchEnabledFlag(String tenantId, String watchId, String instanceId, boolean enable) {
+        if(parametersRepository.updateEnabledFlag(tenantId, watchId, instanceId, enable)) {
+            notifier.send();
+            log.debug("Watch '{}' instance '{}' defined for tenant '{}' has updated value of flag enabled to '{}'.", watchId,
+                instanceId, tenantId, enable);
+            return new StandardResponse(SC_OK);
+        }
+        return new StandardResponse(SC_NOT_FOUND) //
+            .error("Watch '" + watchId + "' instance '" + instanceId + "' for tenant '" + tenantId + "' does not exist.");
     }
 }
