@@ -18,12 +18,7 @@ import org.apache.logging.log4j.Logger;
 import org.awaitility.Awaitility;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -34,7 +29,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import static com.floragunn.searchguard.test.TestSgConfig.TenantPermission.ALL_TENANTS_AND_ACCESS;
@@ -51,11 +45,9 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.not;
 
-public class GenericWatchTest {
+public class GenericWatchTest extends AbstractGenericWatchTest {
 
     private static final Logger log = LogManager.getLogger(GenericWatchTest.class);
-
-    private static final String DEFAULT_TENANT = "_main";
     private static final String INDEX_SOURCE = "test_source_index";
 
     private final static User USER_ADMIN = new User("admin").roles(new Role("signals_master")//
@@ -71,7 +63,6 @@ public class GenericWatchTest {
 
     @BeforeClass
     public static void setupTestData() {
-
         try (Client client = cluster.getInternalNodeClient()) {
             client.index(new IndexRequest(INDEX_SOURCE).source(XContentType.JSON, "key1", "1", "key2", "2")).actionGet();
             client.index(new IndexRequest(INDEX_SOURCE).setRefreshPolicy(IMMEDIATE).source(XContentType.JSON, "key1", "3", "key2", "4")) //
@@ -1831,318 +1822,8 @@ public class GenericWatchTest {
         }
     }
 
-    @Test
-    public void shouldAckOnlyOneWatchInstance() throws Exception {
-        String watchId = "watch-id-should-ack-only-one-watch-instance";
-        String watchPath = watchPath(watchId);
-        String instancesPath = allInstancesPath(watchId);
-        String instanceId1 = "instance_id_1";
-        String instanceId2 = "instance_id_2";
-        String instanceId3 = "instance_id_3";
-        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()) {
-            final String destinationIndex = "destination-index-for-" + watchId;
-            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
-                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
-                .query("{\"match_all\" : {} }").as("testsearch") //
-                .then().index(destinationIndex).transform(null, "['created_by':instance.id]")//
-                .throttledFor("1ms").name("testsink").build();
-            HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            DocNode node = DocNode.of(instanceId1, DocNode.of("instance_parameter", 0), instanceId2, DocNode.of("instance_parameter", 1),
-                instanceId3, DocNode.of("instance_parameter", 2));
-            response = restClient.putJson(instancesPath, node.toJsonString());
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1) > 0);
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2) > 0);
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3) > 0);
-
-            response = restClient.put(instancePath(watchId, instanceId2) + "/_ack");
-
-            log.info("Ack watch instance response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            Thread.sleep(1000);
-            long previousNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
-            long previousNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
-            long previousNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
-            Thread.sleep(3000);
-            //make sure that only acked watch action is not executed
-            long currentNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
-            long currentNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
-            long currentNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
-            assertThat(currentNumberOfExecutionInstance1, greaterThan(previousNumberOfExecutionInstance1)); //is still executed
-            assertThat(currentNumberOfExecutionInstance2, equalTo(previousNumberOfExecutionInstance2)); // is not executed because is acked
-            assertThat(currentNumberOfExecutionInstance3, greaterThan(previousNumberOfExecutionInstance3));//is still executed
-            response = restClient.get(instancePath(watchId, instanceId2) + "/_state");
-            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("$.actions.testsink.last_status.code", "ACKED"));
-        }
+    @Override
+    protected GenericRestClient getAdminRestClient() {
+        return cluster.getRestClient(USER_ADMIN);
     }
-
-    @Test
-    public void shouldAckOnlyOneWatchInstanceAction() throws Exception {
-        String watchId = "watch-id-should-ack-only-one-watch-instance-action";
-        String watchPath = watchPath(watchId);
-        String instanceId1 = "instance_id_1";
-        String instancePath = instancePath(watchId, instanceId1);
-        String actionName1 = "first-action";
-        String actionName2 = "second-action";
-        String actionName3 = "third-action";
-        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()) {
-            final String destinationIndex1 = "destination-index-for-" + watchId + "-" + actionName1;
-            final String destinationIndex2 = "destination-index-for-" + watchId + "-" + actionName2;
-            final String destinationIndex3 = "destination-index-for-" + watchId + "-" + actionName3;
-            client.admin().indices().create(new CreateIndexRequest(destinationIndex1)).actionGet();
-            client.admin().indices().create(new CreateIndexRequest(destinationIndex2)).actionGet();
-            client.admin().indices().create(new CreateIndexRequest(destinationIndex3)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
-                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
-                .query("{\"match_all\" : {} }").as("testsearch") //
-                .then().index(destinationIndex1).throttledFor("1ms").name(actionName1) //
-                .and().index(destinationIndex2).throttledFor("1ms").name(actionName2) //
-                .and().index(destinationIndex3).throttledFor("1ms").name(actionName3) //
-                .build();
-            HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            DocNode node = DocNode.of("instance_parameter", 0);
-            response = restClient.putJson(instancePath, node.toJsonString());
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentInIndex(client, destinationIndex1) > 0);
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentInIndex(client, destinationIndex2) > 0);
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentInIndex(client, destinationIndex3) > 0);
-
-            response = restClient.put(instancePath(watchId, instanceId1) + "/_ack/" + actionName2);
-
-            log.info("Ack watch instance action response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            Thread.sleep(1000);
-            long previousNumberOfExecutionAction1 = countDocumentInIndex(client, destinationIndex1);
-            long previousNumberOfExecutionAction2 = countDocumentInIndex(client, destinationIndex2);
-            long previousNumberOfExecutionAction3 = countDocumentInIndex(client, destinationIndex3);
-            Thread.sleep(3000);
-            //make sure that only acked watch action is not executed
-            long currentNumberOfExecutionAction1 = countDocumentInIndex(client, destinationIndex1);
-            long currentNumberOfExecutionAction2 = countDocumentInIndex(client, destinationIndex2);
-            long currentNumberOfExecutionAction3 = countDocumentInIndex(client, destinationIndex3);
-            assertThat(currentNumberOfExecutionAction1, greaterThan(previousNumberOfExecutionAction1)); //is still executed
-            assertThat(currentNumberOfExecutionAction2, equalTo(previousNumberOfExecutionAction2)); // is not executed because is acked
-            assertThat(currentNumberOfExecutionAction3, greaterThan(previousNumberOfExecutionAction3));//is still executed
-            response = restClient.get(instancePath(watchId, instanceId1) + "/_state");
-            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("$.actions." + actionName2 + ".last_status.code", "ACKED"));
-        }
-    }
-
-    @Test
-    public void shouldUnAckOnlyOneWatchInstance() throws Exception {
-        String watchId = "watch-id-should-un-ack-only-one-watch-instance";
-        String watchPath = watchPath(watchId);
-        String instancesPath = allInstancesPath(watchId);
-        String instanceId1 = "instance_id_1";
-        String instanceId2 = "instance_id_2";
-        String instanceId3 = "instance_id_3";
-        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()) {
-            final String destinationIndex = "destination-index-for-" + watchId;
-            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
-                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
-                .query("{\"match_all\" : {} }").as("testsearch") //
-                .then().index(destinationIndex).transform(null, "['created_by':instance.id]")//
-                .throttledFor("1ms").name("testsink").build();
-            HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            DocNode node = DocNode.of(instanceId1, DocNode.of("instance_parameter", 0), instanceId2, DocNode.of("instance_parameter", 1),
-                instanceId3, DocNode.of("instance_parameter", 2));
-            response = restClient.putJson(instancesPath, node.toJsonString());
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1) > 0);
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2) > 0);
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3) > 0);
-            response = restClient.put(instancePath(watchId, instanceId2) + "/_ack");
-            log.info("Ack watch instance response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            Thread.sleep(1000);
-            long previousNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
-            long previousNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
-            long previousNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
-            Thread.sleep(3000);
-            //make sure that only acked watch action is not executed
-            long currentNumberOfExecutionInstance1 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId1);
-            long currentNumberOfExecutionInstance2 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2);
-            long currentNumberOfExecutionInstance3 = countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId3);
-            assertThat(currentNumberOfExecutionInstance1, greaterThan(previousNumberOfExecutionInstance1)); //is still executed
-            assertThat(currentNumberOfExecutionInstance2, equalTo(previousNumberOfExecutionInstance2)); // is not executed because is acked
-            assertThat(currentNumberOfExecutionInstance3, greaterThan(previousNumberOfExecutionInstance3));//is still executed
-            response = restClient.get(instancePath(watchId, instanceId2) + "/_state");
-            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("$.actions.testsink.last_status.code", "ACKED"));
-
-            response = restClient.delete(instancePath(watchId, instanceId2) + "/_ack");
-
-            log.debug("Un-ack response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentWithTerm(client, destinationIndex, "created_by.keyword", instanceId2) > currentNumberOfExecutionInstance2);
-            response = restClient.get(instancePath(watchId, instanceId2) + "/_state");
-            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            body = response.getBodyAsDocNode();
-            assertThat(body, not(containsValue("$.actions.testsink.last_status.code", "ACKED")));
-        }
-    }
-
-    @Test
-    public void shouldUnAckOnlyOneWatchInstanceAction() throws Exception {
-        String watchId = "watch-id-should-un-ack-only-one-watch-instance-action";
-        String watchPath = watchPath(watchId);
-        String instanceId = "instance_id";
-        String instancePath = instancePath(watchId, instanceId);
-        String actionName1 = "first-action";
-        String actionName2 = "second-action";
-        String actionName3 = "third-action";
-        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()) {
-            final String destinationIndex1 = "destination-index-for-" + watchId + "-" + actionName1;
-            final String destinationIndex2 = "destination-index-for-" + watchId + "-" + actionName2;
-            final String destinationIndex3 = "destination-index-for-" + watchId + "-" + actionName3;
-            client.admin().indices().create(new CreateIndexRequest(destinationIndex1)).actionGet();
-            client.admin().indices().create(new CreateIndexRequest(destinationIndex2)).actionGet();
-            client.admin().indices().create(new CreateIndexRequest(destinationIndex3)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(true, "instance_parameter")//
-                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
-                .query("{\"match_all\" : {} }").as("testsearch") //
-                .then().index(destinationIndex1).throttledFor("1ms").name(actionName1) //
-                .and().index(destinationIndex2).throttledFor("1ms").name(actionName2) //
-                .and().index(destinationIndex3).throttledFor("1ms").name(actionName3) //
-                .build();
-            HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            DocNode node = DocNode.of("instance_parameter", 0);
-            response = restClient.putJson(instancePath, node.toJsonString());
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentInIndex(client, destinationIndex1) > 0);
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentInIndex(client, destinationIndex2) > 0);
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentInIndex(client, destinationIndex3) > 0);
-            //all action has been executed so far
-            response = restClient.put(instancePath(watchId, instanceId) + "/_ack");
-            log.info("Ack watch instance action response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            Thread.sleep(1000);
-            long previousNumberOfExecutionAction1 = countDocumentInIndex(client, destinationIndex1);
-            long previousNumberOfExecutionAction2 = countDocumentInIndex(client, destinationIndex2);
-            long previousNumberOfExecutionAction3 = countDocumentInIndex(client, destinationIndex3);
-            Thread.sleep(3000);
-            //All watch actions are not executed
-            long currentNumberOfExecutionAction1 = countDocumentInIndex(client, destinationIndex1);
-            long currentNumberOfExecutionAction2 = countDocumentInIndex(client, destinationIndex2);
-            long currentNumberOfExecutionAction3 = countDocumentInIndex(client, destinationIndex3);
-            assertThat(currentNumberOfExecutionAction1, equalTo(previousNumberOfExecutionAction1)); //is not executed because is acked
-            assertThat(currentNumberOfExecutionAction2, equalTo(previousNumberOfExecutionAction2)); //is not executed because is acked
-            assertThat(currentNumberOfExecutionAction3, equalTo(previousNumberOfExecutionAction3));//is not executed because is acked
-            response = restClient.delete(instancePath(watchId, instanceId) + "/_ack/" + actionName2);
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            Awaitility.await().atMost(3, SECONDS)
-                .until(() -> countDocumentInIndex(client, destinationIndex2) > currentNumberOfExecutionAction2);
-            response = restClient.get(instancePath(watchId, instanceId) + "/_state");
-            log.debug("Get watch state response status code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("$.actions." + actionName1 + ".last_status.code", "ACKED"));
-            assertThat(body, not(containsValue("$.actions." + actionName2 + ".last_status.code", "ACKED")));
-            assertThat(body, containsValue("$.actions." + actionName3 + ".last_status.code", "ACKED"));
-        }
-    }
-
-    private String createGenericWatch(String tenant, String watchId, String...parameterNames) throws Exception {
-        return createWatch(tenant, watchId, true, parameterNames);
-    }
-
-    private static String createWatch(String tenant, String watchId, boolean generic, String...parameterNames) throws Exception {
-        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
-        try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
-            Watch watch = new WatchBuilder(watchId).instances(generic, parameterNames).cronTrigger("0 0 0 1 1 ?")//
-                .search(INDEX_SOURCE).query("{\"match_all\" : {} }").as("testsearch")//
-                .then().index("testsink").throttledFor("1h").name("testsink").build();
-            String watchJson = watch.toJson();
-            log.debug("Create watch '{}' with id '{}'.", watchJson, watchId);
-            HttpResponse response = restClient.putJson(watchPath, watchJson);
-            log.debug("Create watch '{}' response status '{}' and body '{}'", watchId, response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            return watchPath;
-        }
-    }
-
-    private long countDocumentInIndex(Client client, String index) throws InterruptedException, ExecutionException {
-        SearchResponse response = findAllDocuments(client, index);
-        long count = response.getHits().getTotalHits().value;
-        log.debug("Number of documents in index '{}' is '{}'", index, count);
-        return count;
-    }
-
-    private static SearchResponse findAllDocuments(Client client, String index) throws InterruptedException, ExecutionException {
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
-        return findDocuments(client, index, searchSourceBuilder);
-    }
-
-    private static SearchResponse findDocuments(Client client, String index, SearchSourceBuilder searchSourceBuilder)
-        throws InterruptedException, ExecutionException {
-        SearchRequest request = new SearchRequest(index);
-        request.source(searchSourceBuilder);
-        return client.search(request).get();
-    }
-
-    private static long countDocumentWithTerm(Client client, String index, String fieldName, String fieldValue)
-        throws ExecutionException, InterruptedException {
-        if(!fieldName.endsWith(".keyword")) {
-            String message = "Term query requires usage of not analyzed fields. Please append '.keyword' to your field name";
-            throw new IllegalArgumentException(message);
-        }
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(QueryBuilders.termQuery(fieldName, fieldValue));
-        SearchResponse response = findDocuments(client, index, searchSourceBuilder);
-        log.debug("Search document with term '{}' value '{}' is '{}'.", fieldName, fieldValue, response);
-        long count = response.getHits().getTotalHits().value;
-        log.debug("Number of documents with term '{}' and value '{}' is '{}'.", fieldName, fieldValue, count);
-        return count;
-    }
-
-    private static String allInstancesPath(String watchId) {
-        return String.format("/_signals/watch/%s/%s/instances", DEFAULT_TENANT, watchId);
-    }
-
-    private static String instancePath(String watchId, String instanceId) {
-        return String.format("/_signals/watch/%s/%s/instances/%s", DEFAULT_TENANT, watchId, instanceId);
-    }
-
-    private static String watchPath(String watchId) {
-        return "/_signals/watch/" + DEFAULT_TENANT + "/" + watchId;
-    }
-
-    private static SearchHit[] findAllDocumentSearchHits(Client client, String index) throws ExecutionException, InterruptedException {
-        SearchResponse response = findAllDocuments(client, index);
-        return response.getHits().getHits();
-    }
-
 }

@@ -43,15 +43,22 @@ public class AckAndGetWatchApiAction extends SignalsBaseRestHandler implements T
 
     @Override
     public List<Route> routes() {
-        return ImmutableList.of(new Route(PUT, "/_signals/watch/{tenant}/{id}/_ack_and_get"), new Route(PUT, "/_signals/watch/{tenant}/{id}/_ack_and_get/{actionId}"),
-            new Route(DELETE, "/_signals/watch/{tenant}/{id}/_ack_and_get"), new Route(DELETE, "/_signals/watch/{tenant}/{id}/_ack_and_get/{actionId}"));
+        return ImmutableList.of(
+            new Route(PUT, "/_signals/watch/{tenant}/{id}/_ack_and_get"),
+            new Route(PUT, "/_signals/watch/{tenant}/{id}/instances/{instance_id}/_ack_and_get"),
+            new Route(PUT, "/_signals/watch/{tenant}/{id}/_ack_and_get/{actionId}"),
+            new Route(PUT, "/_signals/watch/{tenant}/{id}/instances/{instance_id}/_ack_and_get/{actionId}"),
+            new Route(DELETE, "/_signals/watch/{tenant}/{id}/_ack_and_get"),
+            new Route(DELETE, "/_signals/watch/{tenant}/{id}/instances/{instance_id}/_ack_and_get"),
+            new Route(DELETE, "/_signals/watch/{tenant}/{id}/_ack_and_get/{actionId}"),
+            new Route(DELETE, "/_signals/watch/{tenant}/{id}/instances/{instance_id}/_ack_and_get/{actionId}")
+        );
     }
-
-
+    
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
-        final String watchId = request.param("id");
+        final String watchId = watchOrInstanceId(request.param("id"), request.param("instance_id"));;
         final String actionId = request.param("actionId");
 
         return channel -> {
