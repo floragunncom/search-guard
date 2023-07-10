@@ -222,6 +222,7 @@ SGS_KIBANA_SERVER:
     - "*:.kibana-event-log-*"
     - ".fleet-agents"
     - "logs-cloud_security_posture*"
+    - ".internal.alerts-observability.*"
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
