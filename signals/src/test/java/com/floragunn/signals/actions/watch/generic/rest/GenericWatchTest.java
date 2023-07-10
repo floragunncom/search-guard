@@ -43,7 +43,6 @@ import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDI
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.not;
 
 public class GenericWatchTest extends AbstractGenericWatchTest {
 
@@ -149,7 +148,7 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
             log.debug("Create watch instance response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
 
-            response = client.get(path + "/parameters");
+            response = client.get(path);
 
             log.debug("Get genetic watch instance parameters response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -251,11 +250,11 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
             response = client.putJson(pathWatch2, node.toJsonString());
             log.debug("Watch 2 instance parameters response '{}'.", response.getBody());
 
-            response = client.get(pathWatch1 + "/parameters");
+            response = client.get(pathWatch1);
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThat(response.getBodyAsDocNode(), containsValue("data.common_parameter_name", "first-value"));
-            response = client.get(pathWatch2 + "/parameters");
+            response = client.get(pathWatch2);
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThat(response.getBodyAsDocNode(), containsValue("data.common_parameter_name", "second-value"));
         }
@@ -271,14 +270,14 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
             DocNode node = DocNode.of("message", "please do not delete me!" );
             HttpResponse response = client.putJson(path, node.toJsonString());
             log.debug("Create watch instance response '{}'.", response.getBody());
-            response = client.get(path + "/parameters");
-            log.debug("Get generic watch instance parameters response '{}'.", response.getBody());
+            response = client.get(path);
+            log.debug("Get generic watch instance parameters status code '{}'response '{}'.", response.getStatusCode(),  response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
 
             response = client.delete(path);
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            response = client.get(path + "/parameters");
+            response = client.get(path);
             assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
         }
     }
@@ -325,7 +324,7 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
 
             log.debug("Create multiple watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            response = client.get(path + "/" + instanceId + "/parameters");
+            response = client.get(path + "/" + instanceId);
             log.debug("Stored watch instance parameters '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThat(response.getBodyAsDocNode(), containsValue("data.param_name", "param-value"));
@@ -350,17 +349,17 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
 
             log.debug("Create multiple watch instances response '{}'.", response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
-            response = client.get(path + "/" + instanceIdOne + "/parameters");
+            response = client.get(path + "/" + instanceIdOne);
             log.debug("Stored watch instance '{}' parameters '{}'.", instanceIdOne, response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_1", "param-value-1"));
             assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_2", 1));
-            response = client.get(path + "/" + instanceIdTwo + "/parameters");
+            response = client.get(path + "/" + instanceIdTwo);
             log.debug("Stored watch instance '{}' parameters '{}'.", instanceIdTwo, response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_1", "param-value-2"));
             assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_2", 2));
-            response = client.get(path + "/" + instanceIdThree + "/parameters");
+            response = client.get(path + "/" + instanceIdThree);
             log.debug("Stored watch instance '{}' parameters '{}'.", instanceIdThree, response.getBody());
             assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_1", "param-value-3"));
             assertThat(response.getBodyAsDocNode(), containsValue("data.param_name_2", 3));
@@ -383,7 +382,7 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
             response = client.putJson(path, requestBody);
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            response = client.get(path + "/parameters");
+            response = client.get(path);
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, containsValue("data.param_name_0", "param-value-updated"));
         }
@@ -407,11 +406,11 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
             response = client.putJson(path, requestBody);
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            response = client.get(path + "/" + instanceOne + "/parameters");
+            response = client.get(path + "/" + instanceOne);
             log.debug("Watch instance '{}' parameters after update '{}'.", instanceOne, response.getBody());
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, containsValue("data.param_name_0", "param-value-updated"));
-            response = client.get(path + "/" + instanceTwo + "/parameters");
+            response = client.get(path + "/" + instanceTwo);
             log.debug("Watch instance '{}' parameters after update '{}'.", instanceTwo, response.getBody());
             body = response.getBodyAsDocNode();
             assertThat(body, containsValue("data.param_name_0", "param-value-2"));

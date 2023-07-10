@@ -20,8 +20,8 @@ import com.floragunn.signals.actions.watch.generic.rest.DeleteWatchInstanceActio
 import com.floragunn.signals.actions.watch.generic.rest.DeleteWatchInstanceAction.DeleteWatchInstanceHandler;
 import com.floragunn.signals.actions.watch.generic.rest.GetAllWatchInstancesAction;
 import com.floragunn.signals.actions.watch.generic.rest.GetAllWatchInstancesAction.GetAllWatchInstancesHandler;
-import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceParametersAction;
-import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersHandler;
+import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceAction;
+import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceAction.GetWatchInstanceParametersHandler;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
 import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.elasticsearch.action.ActionRequest;
@@ -138,7 +138,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
-                    new AckAndGetWatchApiAction(settings), UpsertOneGenericWatchInstanceAction.REST_API, GetWatchInstanceParametersAction.REST_API,
+                    new AckAndGetWatchApiAction(settings), UpsertOneGenericWatchInstanceAction.REST_API, GetWatchInstanceAction.REST_API,
                     DeleteWatchInstanceAction.REST_API, UpsertManyGenericWatchInstancesAction.REST_API, GetAllWatchInstancesAction.REST_API,
                     DisableGenericWatchInstanceAction.REST_API, EnableGenericWatchInstanceAction.REST_API);
         } else {
@@ -174,7 +174,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class),
                     new ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
                     new ActionHandler<>(UpsertOneGenericWatchInstanceAction.INSTANCE, UpsertOneGenericWatchInstanceHandler.class),
-                    new ActionHandler<>(GetWatchInstanceParametersAction.INSTANCE, GetWatchInstanceParametersHandler.class),
+                    new ActionHandler<>(GetWatchInstanceAction.INSTANCE, GetWatchInstanceParametersHandler.class),
                     new ActionHandler<>(DeleteWatchInstanceAction.INSTANCE, DeleteWatchInstanceHandler.class),
                     new ActionHandler<>(UpsertManyGenericWatchInstancesAction.INSTANCE, UpsertManyGenericWatchInstancesHandler.class),
                     new ActionHandler<>(GetAllWatchInstancesAction.INSTANCE, GetAllWatchInstancesHandler.class),

@@ -15,19 +15,17 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.concurrent.CompletableFuture;
 
-public class GetWatchInstanceParametersAction extends Action<GetWatchInstanceParametersAction.GetWatchInstanceParametersRequest, StandardResponse> {
+public class GetWatchInstanceAction extends Action<GetWatchInstanceAction.GetWatchInstanceParametersRequest, StandardResponse> {
 
-    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/parameters/get";
-    public static final GetWatchInstanceParametersAction INSTANCE = new GetWatchInstanceParametersAction();
+    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/get_one";
+    public static final GetWatchInstanceAction INSTANCE = new GetWatchInstanceAction();
 
     public static final RestApi REST_API = new RestApi().responseHeaders(SearchGuardVersion.header())//
-        //TODO consider changing path to /_signals/watch/{tenant}/{id}/instances/{instance_id}
-        // without `parameters` postfix
-        .handlesGet("/_signals/watch/{tenant}/{id}/instances/{instance_id}/parameters")//
+        .handlesGet("/_signals/watch/{tenant}/{id}/instances/{instance_id}")//
         .with(INSTANCE, (params, body) -> new GetWatchInstanceParametersRequest(params.get("tenant"), params.get("id"), params.get("instance_id")))//
-        .name("GET /_signals/watch/{tenant}/{id}/instances/{instance_id}/parameters");
+        .name("GET /_signals/watch/{tenant}/{id}/instances/{instance_id}");
 
-    public GetWatchInstanceParametersAction() {
+    public GetWatchInstanceAction() {
         super(NAME, GetWatchInstanceParametersRequest::new, StandardResponse::new);
     }
 

@@ -8,7 +8,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
 
-// TODO consider if this class is needed
 public class WatchInstanceParameterLoader {
 
     private static final Logger log = LogManager.getLogger(WatchInstanceParameterLoader.class);

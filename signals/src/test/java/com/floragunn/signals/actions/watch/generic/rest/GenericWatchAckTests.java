@@ -529,7 +529,6 @@ public class GenericWatchAckTests extends AbstractGenericWatchTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("$.acked", 3));
-
             Thread.sleep(1000);
             long previousNumberOfExecutionAction1 = countDocumentInIndex(client, destinationIndex1);
             long previousNumberOfExecutionAction2 = countDocumentInIndex(client, destinationIndex2);
@@ -542,7 +541,9 @@ public class GenericWatchAckTests extends AbstractGenericWatchTest {
             assertThat(currentNumberOfExecutionAction1, equalTo(previousNumberOfExecutionAction1)); //is not executed because is acked
             assertThat(currentNumberOfExecutionAction2, equalTo(previousNumberOfExecutionAction2)); //is not executed because is acked
             assertThat(currentNumberOfExecutionAction3, equalTo(previousNumberOfExecutionAction3));//is not executed because is acked
+
             response = restClient.delete(instancePath(watchId, instanceId) + "/_ack_and_get/" + actionName2); //un-ack action2
+
             log.debug("Un-ack and get response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             body = response.getBodyAsDocNode();

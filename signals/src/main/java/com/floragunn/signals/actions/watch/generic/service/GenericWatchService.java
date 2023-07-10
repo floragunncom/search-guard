@@ -15,7 +15,7 @@ import com.floragunn.signals.actions.watch.generic.rest.UpsertManyGenericWatchIn
 import com.floragunn.signals.actions.watch.generic.rest.UpsertOneGenericWatchInstanceAction.UpsertOneGenericWatchInstanceRequest;
 import com.floragunn.signals.actions.watch.generic.rest.DeleteWatchInstanceAction.DeleteWatchInstanceRequest;
 import com.floragunn.signals.actions.watch.generic.rest.GetAllWatchInstancesAction.GetAllWatchInstancesRequest;
-import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceParametersAction.GetWatchInstanceParametersRequest;
+import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceAction.GetWatchInstanceParametersRequest;
 import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
 import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
 import com.floragunn.signals.watch.common.Instances;
