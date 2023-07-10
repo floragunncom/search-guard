@@ -92,6 +92,7 @@ public class MultitenancyTests {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             Assert.assertEquals(response.getBody(), ".kibana", response.getBodyAsDocNode().get("_index"));
             Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().get("_id"));
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().hasNonNull("_primary_term"));
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana")).actionGet();

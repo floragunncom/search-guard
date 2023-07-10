@@ -247,7 +247,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         SearchRequest searchRequest = new SearchRequest(getRequest.indices());
         BoolQueryBuilder query = QueryBuilders.boolQuery().must(QueryBuilders.idsQuery().addIds(scopedId(getRequest.id(), requestedTenant)))
                 .must(createQueryExtension(requestedTenant, null));
-        searchRequest.source(SearchSourceBuilder.searchSource().query(query));
+        searchRequest.source(SearchSourceBuilder.searchSource().query(query).version(true).seqNoAndPrimaryTerm(true));
 
         nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
             @Override
@@ -314,7 +314,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             query = QueryBuilders.boolQuery().must(mgetQuery).must(createQueryExtension(requestedTenant, null));
         }
 
-        searchRequest.source(SearchSourceBuilder.searchSource().query(query));
+        searchRequest.source(SearchSourceBuilder.searchSource().query(query).version(true).seqNoAndPrimaryTerm(true));
 
         nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
             @Override
