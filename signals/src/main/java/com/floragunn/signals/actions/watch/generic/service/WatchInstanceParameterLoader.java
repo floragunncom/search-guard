@@ -7,6 +7,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
+import java.util.Optional;
 
 public class WatchInstanceParameterLoader {
 
@@ -25,5 +26,11 @@ public class WatchInstanceParameterLoader {
         Objects.requireNonNull(watchId, "Watch id is required");
         log.debug("Loading watch parameters for watch '{}' and tenant '{}'.", watchId, tenantId);
         return repository.findByWatchId(tenantId, watchId);
+    }
+
+    public Optional<WatchParametersData> findOne(String watchId, String instanceId) {
+        Objects.requireNonNull(watchId, "Watch id is required");
+        Objects.requireNonNull(instanceId, "Generic watch instance id is required");
+        return repository.findOneById(tenantId, watchId, instanceId);
     }
 }

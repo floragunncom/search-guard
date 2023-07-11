@@ -156,7 +156,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
      * @return id of watch or generic watch
      */
     public String getGenericWatchIdOrWatchId() {
-        return WatchInstanceIdService.INSTANCE.extractGenericWatchOrWatchId(getId());
+        return WatchInstanceIdService.extractGenericWatchOrWatchId(getId());
     }
 
     public String getInstanceId() {
@@ -180,7 +180,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     }
 
     public static String createInstanceId(String watchId, String instanceId) {
-        return WatchInstanceIdService.INSTANCE.createInstanceId(watchId, instanceId);
+        return WatchInstanceIdService.createInstanceId(watchId, instanceId);
     }
 
 

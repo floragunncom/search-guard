@@ -1,7 +1,9 @@
 package com.floragunn.signals.actions.watch.execute;
 
 import java.io.IOException;
+import java.util.Optional;
 
+import com.floragunn.signals.watch.WatchInstanceIdService;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -63,6 +65,14 @@ public class ExecuteWatchRequest extends ActionRequest {
 
     public String getWatchId() {
         return watchId;
+    }
+
+    public String getWatchIdWithoutInstanceId() {
+        return watchId == null ? null : WatchInstanceIdService.extractGenericWatchOrWatchId(watchId);
+    }
+
+    public Optional<String> getInstanceId() {
+        return WatchInstanceIdService.extractInstanceId(watchId);
     }
 
     public void setWatchId(String watchId) {

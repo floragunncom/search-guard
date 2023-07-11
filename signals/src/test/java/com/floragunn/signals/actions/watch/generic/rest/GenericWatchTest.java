@@ -36,6 +36,7 @@ import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containS
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
+import static org.apache.http.HttpStatus.SC_CONFLICT;
 import static org.apache.http.HttpStatus.SC_CREATED;
 import static org.apache.http.HttpStatus.SC_NOT_FOUND;
 import static org.apache.http.HttpStatus.SC_OK;
@@ -1820,6 +1821,121 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
                 .until(() -> countDocumentInIndex(client, destinationIndex) > previousCountOfDocuments);
         }
     }
+
+    @Test
+    public void shouldNotExecuteGenericWatchAsAnonymousWatch() throws Exception {
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient()) {
+            final String destinationIndex = "destination-index-for-anonymous-watch";
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            Watch watch = new WatchBuilder("anonymous-watch").instances(true, "instance_parameter")//
+                .cronTrigger("* * * * * ?").search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch") //
+                .then().index(destinationIndex).throttledFor("1ms").name("testsink").build();
+            String watchJson = watch.toJson();
+            DocNode executeWatchRequest = DocNode.of("watch", DocNode.parse(Format.JSON).from(watchJson));
+            String executePath = "/_signals/watch/" + DEFAULT_TENANT + "/_execute";
+            String body = executeWatchRequest.toJsonString();
+            log.debug("Execute endpoint will receive the following watch definition '{}'.", body);
+
+            HttpResponse response = restClient.postJson(executePath, body);
+
+            log.debug("Execute watch response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CONFLICT));
+            DocNode responseBody = response.getBodyAsDocNode();
+            assertThat(responseBody, containsValue("$.error", "Generic watch is not executable."));
+        }
+    }
+
+    @Test
+    public void shouldExecuteGenericWatchInstanceViaRestEndpoint() throws Exception {
+        String watchId = "watch-should-execute-generic-watch-instance-via-rest-endpoint";
+        String watchPath = watchPath(watchId);
+        String instanceId = "execute_me_via_rest_api";
+        String instancePath = instancePath(watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")
+        ){
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            DocNode webhookBody = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
+            Watch watch = new WatchBuilder(watchId).instances(true, "color", "shape", "transparency")//
+                .cronTrigger(CRON_ALMOST_NEVER).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch").then()//
+                .postWebhook(webhookProvider.getUri()).body(webhookBody).throttledFor("1h").name("webhook-action-name")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.debug("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("color", "black", "shape", "rectangular", "transparency", "minimal");
+            response = restClient.putJson(instancePath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+
+            response = restClient.post(instancePath + "/_execute");
+
+            log.debug("Execute watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            Awaitility.await().atMost(3, SECONDS).until(() -> webhookProvider.getRequestCount() > 0);
+            DocNode lastRequestBody =  webhookProvider.getLastRequestBodyAsDocNode();
+            assertThat(lastRequestBody.size(), equalTo(3));
+            assertThat(lastRequestBody, containsValue("Color", "black"));
+            assertThat(lastRequestBody, containsValue("Shp", "rectangular"));
+            assertThat(lastRequestBody, containsValue("Opacity", "minimal"));
+        }
+    }
+
+    @Test
+    public void shouldNotExecuteWatchWhichDoesNotExist() throws Exception {
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources()) {
+
+            HttpResponse response = restClient.post(watchPath("does-not-exist") + "/_execute");
+
+            log.debug("Execute non existing watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
+            assertThat(response.getBodyAsDocNode(), containsValue("error", "No watch with id does-not-exist"));
+        }
+    }
+
+    @Test
+    public void shouldNotExecuteGenericWatchInstanceWhichDoesNotExist() throws Exception {
+        String watchId = "watch-should-not-execute-generic-watch-instance-via-rest-if-instance-does-not-exist";
+        String watchPath = watchPath(watchId);
+        String instanceId = "execute_me_via_rest_api";
+        String instanceIdDoesNotExists = "this_instance_does_not_exist";
+        String instancePath = instancePath(watchId, instanceId);
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
+            Client client = cluster.getInternalNodeClient();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")
+        ){
+            final String destinationIndex = "destination-index-for-" + watchId;
+            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
+            DocNode webhookBody = DocNode.of("Color","{{instance.color}}", "Shp", "{{instance.shape}}", "Opacity","{{instance.transparency}}");
+            Watch watch = new WatchBuilder(watchId).instances(true, "color", "shape", "transparency")//
+                .cronTrigger(CRON_ALMOST_NEVER).search(INDEX_SOURCE) //
+                .query("{\"match_all\" : {} }").as("testsearch").then()//
+                .postWebhook(webhookProvider.getUri()).body(webhookBody).throttledFor("1h").name("webhook-action-name")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            log.debug("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+            DocNode node = DocNode.of("color", "black", "shape", "rectangular", "transparency", "minimal");
+            response = restClient.putJson(instancePath, node.toJsonString());
+            assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+
+            response = restClient.post(instancePath(watchId, instanceIdDoesNotExists) + "/_execute");
+
+            log.debug("Execute watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
+            assertThat(response.getBodyAsDocNode(), containSubstring("$.error", "Generic watch instance not found"));
+            assertThat(response.getBodyAsDocNode(), containSubstring("$.error", instanceIdDoesNotExists));
+            assertThat(response.getBodyAsDocNode(), containSubstring("$.error", watchId));
+            Thread.sleep(1000);
+            assertThat(webhookProvider.getRequestCount(), equalTo(0));
+        }
+    }
+
+    //TODO test of execution of single instance watches with '+' sign in watch name
 
     @Override
     protected GenericRestClient getAdminRestClient() {

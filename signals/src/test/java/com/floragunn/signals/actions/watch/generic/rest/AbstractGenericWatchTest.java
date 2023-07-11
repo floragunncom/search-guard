@@ -24,6 +24,7 @@ abstract class AbstractGenericWatchTest {
 
     protected static final String DEFAULT_TENANT = "_main";
     protected static final String INDEX_SOURCE = "test_source_index";
+    protected static final String CRON_ALMOST_NEVER = "0 0 0 1 1 ?";
 
     protected abstract GenericRestClient getAdminRestClient();
 
@@ -34,7 +35,7 @@ abstract class AbstractGenericWatchTest {
     protected String createWatch(String tenant, String watchId, boolean generic, String...parameterNames) throws Exception {
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
         try (GenericRestClient restClient = getAdminRestClient()) {
-            Watch watch = new WatchBuilder(watchId).instances(generic, parameterNames).cronTrigger("0 0 0 1 1 ?")//
+            Watch watch = new WatchBuilder(watchId).instances(generic, parameterNames).cronTrigger(CRON_ALMOST_NEVER)//
                 .search(INDEX_SOURCE).query("{\"match_all\" : {} }").as("testsearch")//
                 .then().index("testsink").throttledFor("1h").name("testsink").build();
             String watchJson = watch.toJson();

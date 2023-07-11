@@ -1,15 +1,14 @@
 package com.floragunn.signals.watch;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Code moved to separate class in order to easily write unit tests
  */
-class WatchInstanceIdService {
+public class WatchInstanceIdService {
 
     static final String INSTANCE_ID_SEPARATOR = "+";
-
-    static final WatchInstanceIdService INSTANCE = new WatchInstanceIdService();
 
     private WatchInstanceIdService(){
 
@@ -27,7 +26,15 @@ class WatchInstanceIdService {
         return watchOrInstanceId;
     }
 
-    public String createInstanceId(String watchId, String instanceId) {
+    public static Optional<String> extractInstanceId(String watchAndInstanceId) {
+        Objects.requireNonNull(watchAndInstanceId, "Watch and instance id is required");
+        return Optional.of(watchAndInstanceId) //
+            .filter(id -> id.contains(INSTANCE_ID_SEPARATOR)) //
+            .map(compoundId -> compoundId.substring(compoundId.indexOf(INSTANCE_ID_SEPARATOR) + 1))
+            .filter(instanceId -> instanceId.length() > 0);
+    }
+
+    public static String createInstanceId(String watchId, String instanceId) {
         Objects.requireNonNull(watchId, "Watch id is required");
         Objects.requireNonNull(instanceId, "Instance id is required");
         return watchId + INSTANCE_ID_SEPARATOR + instanceId;

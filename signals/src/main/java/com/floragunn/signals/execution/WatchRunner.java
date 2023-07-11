@@ -16,6 +16,7 @@
  */
 package com.floragunn.signals.execution;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -31,6 +32,8 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.script.JodaCompatibleZonedDateTime;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.XContentBuilder;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -151,13 +154,18 @@ public class WatchRunner implements Job {
             contextData.setTriggerInfo(new WatchExecutionContextData.TriggerInfo(context.getFireTime(), context.getScheduledFireTime(),
                     context.getPreviousFireTime(), context.getNextFireTime()));
             execute();
-        } catch (WatchExecutionException e) {
+        } catch (WatchExecutionException | NotExecutableWatchException e) {
             log.info("Error while executing " + watch, e);
             throw new JobExecutionException(e);
         }
     }
 
-    public WatchLog execute() throws WatchExecutionException {
+    public WatchLog execute() throws WatchExecutionException, NotExecutableWatchException {
+        if(! watch.isExecutable()) {
+            log.error("Watch '{}' is not executable and should be not scheduled.", watch.getId());
+            String message = "The watch is not executable '" + watch.getId() + "', do you try to execute generic watch?";
+            throw new NotExecutableWatchException(message);
+        }
         try (DiagnosticContext.Handle h = diagnosticContext.pushActionStack("signals_watch:" + watch.getTenant() + "/" + watch.getId())) {
 
             if (log.isInfoEnabled()) {

@@ -1,12 +1,18 @@
 package com.floragunn.signals.actions.watch.execute;
 
 import java.io.IOException;
+import java.util.Optional;
+import java.util.concurrent.CompletionException;
 
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.signals.actions.watch.generic.service.WatchInstanceParameterLoader;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.execution.NotExecutableWatchException;
+import com.floragunn.signals.watch.GenericWatchInstanceFactory;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.Client;
@@ -105,70 +111,60 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         }
     }
 
+    //TODO new code should be used only to executed generic watch instances. Single instance watches should be executed in the old manner
     private void fetchAndExecuteWatch(User user, SignalsTenant signalsTenant, Task task, ExecuteWatchRequest request,
             ActionListener<ExecuteWatchResponse> listener) {
         ThreadContext threadContext = threadPool.getThreadContext();
-
         Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
         Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
 
-        try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-            threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            threadContext.putTransient(ConfigConstants.SG_USER, user);
-            threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
-            threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+        WatchRepository watchRepository = new WatchRepository(signalsTenant, threadPool, client);
+        watchRepository
+            .findWatchOrGenericWatch(user, request.getWatchId(), request.getWatchIdWithoutInstanceId())//
+            .thenAccept(response -> {
+                try {
+                    if (!response.isExists()) {
+                        listener.onResponse(new ExecuteWatchResponse(user != null ? user.getRequestedTenant() : null,
+                            request.getWatchId(), ExecuteWatchResponse.Status.NOT_FOUND, null));
+                        return;
+                    }
 
-            client.prepareGet().setIndex(signalsTenant.getConfigIndexName()).setId(signalsTenant.getWatchIdForConfigIndex(request.getWatchId()))
-                    .execute(new ActionListener<GetResponse>() {
+                    Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())),
+                        signalsTenant.getName(), request.getWatchIdWithoutInstanceId(), response.getSourceAsString(), response.getVersion(), null);
 
-                        @Override
-                        public void onResponse(GetResponse response) {
-
+                    try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+                        threadContext.putTransient(ConfigConstants.SG_USER, user);
+                        threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
+                        threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+                        threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {
                             try {
-                                if (!response.isExists()) {
-                                    listener.onResponse(new ExecuteWatchResponse(user != null ? user.getRequestedTenant() : null,
-                                            request.getWatchId(), ExecuteWatchResponse.Status.NOT_FOUND, null));
-                                    return;
-                                }
-
-                                Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())),
-                                        signalsTenant.getName(), request.getWatchId(), response.getSourceAsString(), response.getVersion(), null);
-                                if(watch.isExecutable()) {
-
-                                    try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-                                        threadContext.putTransient(ConfigConstants.SG_USER, user);
-                                        threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
-                                        threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
-
-                                        listener.onResponse(executeWatch(watch, request, signalsTenant));
-
-                                    }
-                                } else {
-                                    listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                                        Status.NOT_EXECUTABLE_WATCH, null));
-                                }
-
-                            } catch (ConfigValidationException e) {
-                                log.error("Invalid watch definition in fetchAndExecuteWatch(). This should not happen\n"
-                                        + response.getSourceAsString() + "\n" + e.getValidationErrors(), e);
-                                listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
-                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION,
-                                        new BytesArray(e.toJsonString().getBytes(Charsets.UTF_8))));
+                                listener.onResponse(executeWatch(watch, request.getInstanceId().orElse(null), request, signalsTenant));
                             } catch (Exception e) {
                                 listener.onFailure(e);
                             }
-                        }
+                        }));
 
-                        @Override
-                        public void onFailure(Exception e) {
-                            listener.onFailure(e);
-                        }
+                    }
 
-                    });
-
-        } catch (Exception e) {
-            listener.onFailure(e);
-        }
+                } catch (ConfigValidationException e) {
+                    log.error("Invalid watch definition in fetchAndExecuteWatch(). This should not happen\n"
+                        + response.getSourceAsString() + "\n" + e.getValidationErrors(), e);
+                    listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
+                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION,
+                        new BytesArray(e.toJsonString().getBytes(Charsets.UTF_8))));
+                } catch (Exception e) {
+                    listener.onFailure(e);
+                }
+            })
+            .exceptionally(e -> {
+                if((e instanceof CompletionException) && (e.getCause() instanceof Exception)) {
+                    listener.onFailure((Exception) e.getCause());
+                } if(e instanceof Exception) {
+                    listener.onFailure((Exception) e);
+                }
+                listener.onFailure(new RuntimeException("Unexpected exception type", e));
+                return null;
+            });
     }
 
     private void executeAnonymousWatch(User user, SignalsTenant signalsTenant, Task task, ExecuteWatchRequest request,
@@ -180,7 +176,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
             threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {
                 try {
-                    listener.onResponse(executeWatch(watch, request, signalsTenant));
+                    listener.onResponse(executeWatch(watch, null, request, signalsTenant));
                 } catch (Exception e) {
                     listener.onFailure(e);
                 }
@@ -195,7 +191,17 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         }
     }
 
-    private ExecuteWatchResponse executeWatch(Watch watch, ExecuteWatchRequest request, SignalsTenant signalsTenant) {
+    private ExecuteWatchResponse executeWatch(Watch watch, String instanceId, ExecuteWatchRequest request, SignalsTenant signalsTenant) {
+        if((!watch.isExecutable()) && (instanceId != null)) {
+            GenericWatchInstanceFactory genericWatchInstanceFactory = createGenericWatchInstanceFactory(signalsTenant);
+            Optional<Watch> genericWatchInstance = genericWatchInstanceFactory.instantiateOne(watch, instanceId);
+            if(!genericWatchInstance.isPresent()) {
+                ToXContent errorMessage = errorMessage("Generic watch instance with id '" + instanceId + "' not found.");
+                return new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(), Status.INSTANCE_NOT_FOUND,
+                    toBytesReference(errorMessage, ToXContent.EMPTY_PARAMS));
+            }
+            watch = genericWatchInstance.get();
+        }
 
         WatchLogWriter watchLogWriter = null;
         NestedValueMap input = null;
@@ -239,7 +245,27 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
             log.info("Error while manually executing watch", e);
             return new ExecuteWatchResponse(null, request.getWatchId(), Status.ERROR_WHILE_EXECUTING,
                     toBytesReference(e.getWatchLog(), watchLogToXparams));
+        } catch (NotExecutableWatchException e) {
+            return new ExecuteWatchResponse(null, request.getWatchId(), Status.NOT_EXECUTABLE_WATCH,
+                toBytesReference(errorMessage("Provided watch is not executable, is it generic watch definition?"), watchLogToXparams));
         }
+    }
+
+    private GenericWatchInstanceFactory createGenericWatchInstanceFactory(SignalsTenant signalsTenant) {
+        ValidatingThrottlePeriodParser throttlePeriodParser = new ValidatingThrottlePeriodParser(signals.getSignalsSettings());
+        WatchInitializationService initService = new WatchInitializationService(signals.getAccountRegistry(), scriptService, throttlePeriodParser);
+        PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
+        WatchInstanceParameterLoader parameterLoader = new WatchInstanceParameterLoader(signalsTenant.getName(), new WatchParametersRepository(privilegedConfigClient));
+        return new GenericWatchInstanceFactory(parameterLoader, initService);
+    }
+
+    private ToXContent errorMessage(String message) {
+        return (xContentBuilder, params) -> {
+            xContentBuilder.startObject();
+            xContentBuilder.field("error", message);
+            xContentBuilder.endObject();
+            return xContentBuilder;
+        };
     }
 
     private BytesReference toBytesReference(ToXContent toXContent, ToXContent.Params toXparams) {

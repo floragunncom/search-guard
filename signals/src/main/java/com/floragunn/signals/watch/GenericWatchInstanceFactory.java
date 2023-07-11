@@ -11,6 +11,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Watch> {
@@ -45,6 +46,16 @@ public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Wa
         }
         log.debug("Watch '{}' is not generic, instance will not be created", watch.getId());
         return ImmutableList.of(watch);
+    }
+
+    public Optional<Watch> instantiateOne(Watch genericWatch, String instanceId) {
+        Objects.requireNonNull(instanceId, "Watch instance id is required");
+        if(genericWatch.isExecutable()) {
+            throw new IllegalArgumentException("Cannot instantiate non generic watch " + genericWatch.getId());
+        }
+        String watchId = genericWatch.getGenericWatchIdOrWatchId();
+        return parameterLoader.findOne(watchId, instanceId) //
+            .map(instanceParameters -> createInstanceForParameter(genericWatch, instanceParameters));
     }
 
     private Watch createInstanceForParameter(Watch watch, WatchParametersData instanceParameters) {

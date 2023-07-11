@@ -50,14 +50,15 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
     @Override
     public List<Route> routes() {
         return ImmutableList.of(new Route(Method.POST, "/_signals/watch/{tenant}/_execute"),
-                new Route(Method.POST, "/_signals/watch/{tenant}/{id}/_execute"));
+            new Route(Method.POST, "/_signals/watch/{tenant}/{id}/_execute"),
+            new Route(Method.POST, "/_signals/watch/{tenant}/{id}/instances/{instance_id}/_execute"));
     }
 
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         try {
 
-            final String id = request.param("id");
+            final String id = watchOrInstanceId(request.param("id"), request.param("instance_id"));
             request.param("tenant");
 
             final RequestBody requestBody = RequestBody.parse(new WatchInitializationService(null, scriptService, throttlePeriodParser), request.content().utf8ToString());
@@ -88,6 +89,8 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                             channel.sendResponse(new BytesRestResponse(RestStatus.OK, "application/json", response.getResult()));
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.NOT_FOUND) {
                             errorResponse(channel, RestStatus.NOT_FOUND, "No watch with id " + id);
+                        } else if(response.getStatus() == ExecuteWatchResponse.Status.INSTANCE_NOT_FOUND) {
+                            errorResponse(channel, RestStatus.NOT_FOUND, "Generic watch instance not found " + id);
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.TENANT_NOT_FOUND) {
                             errorResponse(channel, RestStatus.NOT_FOUND, "Tenant does not exist");
                         } else if (response.getStatus() == ExecuteWatchResponse.Status.ERROR_WHILE_EXECUTING) {

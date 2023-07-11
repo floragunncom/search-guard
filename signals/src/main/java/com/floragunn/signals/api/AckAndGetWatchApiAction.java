@@ -58,7 +58,7 @@ public class AckAndGetWatchApiAction extends SignalsBaseRestHandler implements T
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
-        final String watchId = watchOrInstanceId(request.param("id"), request.param("instance_id"));;
+        final String watchId = watchOrInstanceId(request.param("id"), request.param("instance_id"));
         final String actionId = request.param("actionId");
 
         return channel -> {

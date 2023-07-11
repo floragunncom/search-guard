@@ -19,7 +19,7 @@ public class InstanceParser {
     }
 
     public Instances parse(ValidatingDocNode node) {
-        Objects.requireNonNull(validationErrors, "Validating json node must not be null to read watch instance parameters.");
+        Objects.requireNonNull(node, "Validating json node must not be null to read watch instance parameters.");
         try {
             if (node.hasNonNull(FIELD_INSTANCES)) {
                 DocNode instancesNode = node.get(FIELD_INSTANCES).asDocNode();
