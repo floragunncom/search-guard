@@ -71,8 +71,9 @@ public class ExecuteWatchRequest extends ActionRequest {
         return watchId == null ? null : WatchInstanceIdService.extractGenericWatchOrWatchId(watchId);
     }
 
-    public Optional<String> getInstanceId() {
-        return WatchInstanceIdService.extractInstanceId(watchId);
+    public Optional<String> getWatchInstanceId() {
+        return Optional.ofNullable(watchId) //
+            .flatMap(id -> WatchInstanceIdService.extractInstanceId(id));
     }
 
     public void setWatchId(String watchId) {

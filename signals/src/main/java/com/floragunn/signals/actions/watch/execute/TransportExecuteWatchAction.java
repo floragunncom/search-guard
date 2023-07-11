@@ -13,6 +13,7 @@ import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParse
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.Client;
@@ -88,7 +89,6 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
     @Override
     protected final void doExecute(Task task, ExecuteWatchRequest request, ActionListener<ExecuteWatchResponse> listener) {
-
         try {
             ThreadContext threadContext = threadPool.getThreadContext();
 
@@ -96,8 +96,21 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
             SignalsTenant signalsTenant = signals.getTenant(user);
 
             if (request.getWatchJson() != null) {
+                log.debug("Execute anonymous watch.");
                 executeAnonymousWatch(user, signalsTenant, task, request, listener);
+            } else if(request.getWatchInstanceId().isPresent()) {
+                // request.getInstanceId() can return non-empty optional for:
+                // - generic watch instance
+                // - single instance watch, when watch id contains substring
+                // com.floragunn.signals.watch.WatchInstanceIdService.INSTANCE_ID_SEPARATOR
+                // Therefore method fetchAndExecuteWatchOrInstance can be used for execution of
+                // - generic watch instance
+                // - single instance watch
+                log.debug("Execute generic watch instance or single instance watch '{}'.", request.getWatchId());
+                fetchAndExecuteWatchOrInstance(user, signalsTenant, request, listener);
             } else if (request.getWatchId() != null) {
+                // preferred method of execution single instance watch which is fully backwards compatible
+                log.debug("Execute single instance watch '{}'.", request.getWatchId());
                 fetchAndExecuteWatch(user, signalsTenant, task, request, listener);
             }
         } catch (NoSuchTenantException e) {
@@ -111,8 +124,68 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         }
     }
 
-    //TODO new code should be used only to executed generic watch instances. Single instance watches should be executed in the old manner
     private void fetchAndExecuteWatch(User user, SignalsTenant signalsTenant, Task task, ExecuteWatchRequest request,
+            ActionListener<ExecuteWatchResponse> listener) {
+        ThreadContext threadContext = threadPool.getThreadContext();
+
+        Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+        Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+
+        try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+            threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+            threadContext.putTransient(ConfigConstants.SG_USER, user);
+            threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
+            threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+            client.prepareGet().setIndex(signalsTenant.getConfigIndexName()).setId(signalsTenant.getWatchIdForConfigIndex(request.getWatchId()))
+                    .execute(new ActionListener<GetResponse>() {
+
+                        @Override
+                        public void onResponse(GetResponse response) {
+
+                            try {
+                                if (!response.isExists()) {
+                                    listener.onResponse(new ExecuteWatchResponse(user != null ? user.getRequestedTenant() : null,
+                                            request.getWatchId(), ExecuteWatchResponse.Status.NOT_FOUND, null));
+                                    return;
+                                }
+
+                                Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())),
+                                    signalsTenant.getName(), request.getWatchId(), response.getSourceAsString(), response.getVersion(), null);
+
+                                try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+                                    threadContext.putTransient(ConfigConstants.SG_USER, user);
+                                    threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
+                                    threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
+
+                                    listener.onResponse(executeWatch(watch, null, request, signalsTenant));
+
+                                }
+
+                            } catch (ConfigValidationException e) {
+                                log.error("Invalid watch definition in fetchAndExecuteWatch(). This should not happen\n"
+                                        + response.getSourceAsString() + "\n" + e.getValidationErrors(), e);
+                                listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(),
+                                        ExecuteWatchResponse.Status.INVALID_WATCH_DEFINITION,
+                                        new BytesArray(e.toJsonString().getBytes(Charsets.UTF_8))));
+                            } catch (Exception e) {
+                                listener.onFailure(e);
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            listener.onFailure(e);
+                        }
+
+                });
+
+        } catch (Exception e) {
+            listener.onFailure(e);
+        }
+    }
+
+    private void fetchAndExecuteWatchOrInstance(User user, SignalsTenant signalsTenant, ExecuteWatchRequest request,
             ActionListener<ExecuteWatchResponse> listener) {
         ThreadContext threadContext = threadPool.getThreadContext();
         Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
@@ -138,7 +211,8 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                         threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
                         threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {
                             try {
-                                listener.onResponse(executeWatch(watch, request.getInstanceId().orElse(null), request, signalsTenant));
+                                String watchInstanceId = request.getWatchInstanceId().orElse(null);
+                                listener.onResponse(executeWatch(watch, watchInstanceId, request, signalsTenant));
                             } catch (Exception e) {
                                 listener.onFailure(e);
                             }
