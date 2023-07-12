@@ -2033,6 +2033,22 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
         }
     }
 
+    @Test
+    public void shouldReportErrorWhenExecuteWatchRequestDoesNotContainWatchDefinitionOrWatchId() throws Exception {
+        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources()){
+            String executeWatchPath = "/_signals/watch/" + DEFAULT_TENANT + "/_execute";
+
+            HttpResponse response = restClient.postJson(executeWatchPath, DocNode.EMPTY.toJsonString());
+
+            log.debug("Execute watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
+            DocNode body = response.getBodyAsDocNode();
+            String expectedErrorMessage = "The request body does not contain 'watch' attribute. Path param 'watch_id' is also missing. " +
+                "Please provide one of these parameters.";
+            assertThat(response.getBodyAsDocNode(), containsValue("$.error", expectedErrorMessage));
+        }
+    }
+
     @Override
     protected GenericRestClient getAdminRestClient() {
         return cluster.getRestClient(USER_ADMIN);

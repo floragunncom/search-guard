@@ -106,6 +106,10 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
                         } if(response.getStatus() == ExecuteWatchResponse.Status.NOT_EXECUTABLE_WATCH) {
                             String error = "Generic watch is not executable.";
                             errorResponse(channel, RestStatus.CONFLICT, error);
+                        } if(response.getStatus() == ExecuteWatchResponse.Status.MISSING_WATCH) {
+                            String error = "The request body does not contain 'watch' attribute. Path param 'watch_id' is also missing. " +
+                                "Please provide one of these parameters.";
+                            errorResponse(channel, RestStatus.BAD_REQUEST, error);
                         } else {
                             errorResponse(channel, RestStatus.INTERNAL_SERVER_ERROR, "Internal Server Error");
                         }

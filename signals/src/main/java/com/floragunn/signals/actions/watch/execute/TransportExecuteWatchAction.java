@@ -112,6 +112,9 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                 // preferred method of execution single instance watch which is fully backwards compatible
                 log.debug("Execute single instance watch '{}'.", request.getWatchId());
                 fetchAndExecuteWatch(user, signalsTenant, task, request, listener);
+            } else {
+                listener.onResponse(new ExecuteWatchResponse(signalsTenant.getName(), request.getWatchId(), Status.MISSING_WATCH, null));
+                return;
             }
         } catch (NoSuchTenantException e) {
             listener.onResponse(new ExecuteWatchResponse(e.getTenant(), request.getWatchId(), ExecuteWatchResponse.Status.TENANT_NOT_FOUND, null));
