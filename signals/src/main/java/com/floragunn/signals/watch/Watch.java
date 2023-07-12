@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.InstanceParser;
 import com.floragunn.signals.watch.common.Instances;
@@ -171,7 +171,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         return instanceParameters == null ? com.floragunn.fluent.collections.ImmutableMap.empty() : instanceParameters;
     }
 
-    private void setInstancesParameters(WatchParametersData instancesParameters) {
+    private void setInstancesParameters(WatchInstanceData instancesParameters) {
         if(instancesParameters != null) {
             this.instanceId = Objects.requireNonNull(instancesParameters.getInstanceId(), "Generic watch instance id is required");
             this.instanceParameters = Objects.requireNonNull(instancesParameters.getParameters(), "Watch parameters are required")//
@@ -494,7 +494,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         return getWatchType().hasParameters();
     }
 
-    public static Watch parse(WatchInitializationService ctx, String tenant, String id, String json, long version, WatchParametersData instanceParameters) throws ConfigValidationException {
+    public static Watch parse(WatchInitializationService ctx, String tenant, String id, String json, long version, WatchInstanceData instanceParameters) throws ConfigValidationException {
         return parse(ctx, tenant, id, DocNode.parse(Format.JSON).from(json), version, instanceParameters);
     }
 
@@ -515,7 +515,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     }
 
     public static Watch parse(WatchInitializationService ctx, String tenant, String id, DocNode jsonNode, long version,
-        WatchParametersData instanceParameters)
+        WatchInstanceData instanceParameters)
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);

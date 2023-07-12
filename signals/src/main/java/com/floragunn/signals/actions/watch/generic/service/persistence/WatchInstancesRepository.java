@@ -33,28 +33,28 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
-import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_ENABLED;
-import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_TENANT_ID;
-import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_WATCH_ID;
-import static com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames.WATCHES_INSTANCE_PARAMETERS;
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData.FIELD_ENABLED;
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData.FIELD_TENANT_ID;
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData.FIELD_WATCH_ID;
+import static com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames.WATCHES_INSTANCES;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 
-public class WatchParametersRepository {
+public class WatchInstancesRepository {
 
-    private static final Logger log = LogManager.getLogger(WatchParametersRepository.class);
+    private static final Logger log = LogManager.getLogger(WatchInstancesRepository.class);
     public static final int WATCH_PARAMETER_DATA_PAGE_SIZE = 100;
 
     private final PrivilegedConfigClient client;
 
-    public WatchParametersRepository(PrivilegedConfigClient client) {
+    public WatchInstancesRepository(PrivilegedConfigClient client) {
         this.client = Objects.requireNonNull(client, "Client is required.");
     }
 
-    public void store(WatchParametersData...data) throws ConfigValidationException {
+    public void store(WatchInstanceData...data) throws ConfigValidationException {
         Objects.requireNonNull(data, "Watch parameters data is required.");
-        BulkRequest bulkRequest = new BulkRequest(WATCHES_INSTANCE_PARAMETERS).setRefreshPolicy(IMMEDIATE);
+        BulkRequest bulkRequest = new BulkRequest(WATCHES_INSTANCES).setRefreshPolicy(IMMEDIATE);
         Arrays.stream(data)//
-            .map(watchParameters -> new IndexRequest(WATCHES_INSTANCE_PARAMETERS).id(watchParameters.getId())//
+            .map(watchParameters -> new IndexRequest(WATCHES_INSTANCES).id(watchParameters.getId())//
                 .source(watchParameters.toJsonString(), XContentType.JSON)) //
             .forEach(bulkRequest::add);
         BulkResponse bulkItemResponses = client.bulk(bulkRequest).actionGet();
@@ -63,22 +63,22 @@ public class WatchParametersRepository {
         }
     }
 
-    public Optional<WatchParametersData> findOneById(String tenantId, String watchId, String instanceId) {
-        String parametersId = WatchParametersData.createId(tenantId, watchId, instanceId);
-        GetResponse response = client.get(new GetRequest(WATCHES_INSTANCE_PARAMETERS, parametersId)).actionGet();
-        return getResponseToWatchParametersData(response);
+    public Optional<WatchInstanceData> findOneById(String tenantId, String watchId, String instanceId) {
+        String parametersId = WatchInstanceData.createId(tenantId, watchId, instanceId);
+        GetResponse response = client.get(new GetRequest(WATCHES_INSTANCES, parametersId)).actionGet();
+        return getResponseToWatchInstanceData(response);
     }
 
-    public ImmutableList<WatchParametersData> findByWatchId(String tenantId, String watchId) {
+    public ImmutableList<WatchInstanceData> findByWatchId(String tenantId, String watchId) {
         Objects.requireNonNull(tenantId, "Tenant id is required");
         Objects.requireNonNull(watchId, "Watch id is required");
         BoolQueryBuilder boolQuery = parametersByTenantIdAndWatchIdQuery(tenantId, watchId);
-        SearchRequest request = new SearchRequest(WATCHES_INSTANCE_PARAMETERS);
+        SearchRequest request = new SearchRequest(WATCHES_INSTANCES);
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource().query(boolQuery).version(true);
         sourceBuilder.size(WATCH_PARAMETER_DATA_PAGE_SIZE);
         request.source(sourceBuilder);
         SearchScroller searchScroller = new SearchScroller(client);
-        ImmutableList<WatchParametersData> result = searchScroller.scrollAndLoadAll(request, this::searchHitToWatchParameterData);
+        ImmutableList<WatchInstanceData> result = searchScroller.scrollAndLoadAll(request, this::searchHitToWatchInstanceData);
         log.info("Found '{}' watch instances for generic watch '{}' and tenant '{}'", result.size(), watchId, tenantId);
         return result;
     }
@@ -92,8 +92,8 @@ public class WatchParametersRepository {
     }
 
     public boolean delete(String tenantId, String watchId, String instanceId) {
-        String parametersId = WatchParametersData.createId(tenantId, watchId, instanceId);
-        DeleteResponse response = client.delete(new DeleteRequest(WATCHES_INSTANCE_PARAMETERS, parametersId).setRefreshPolicy(IMMEDIATE))//
+        String parametersId = WatchInstanceData.createId(tenantId, watchId, instanceId);
+        DeleteResponse response = client.delete(new DeleteRequest(WATCHES_INSTANCES, parametersId).setRefreshPolicy(IMMEDIATE))//
             .actionGet();
         return response.status() == RestStatus.OK;
     }
@@ -101,7 +101,7 @@ public class WatchParametersRepository {
     public void deleteByWatchId(String tenantId, String watchId) {
         Objects.requireNonNull(tenantId, "Tenant id is required");
         Objects.requireNonNull(watchId, "Watch id is required");
-        ImmutableList<WatchParametersData> parametersForDeletion = findByWatchId(tenantId, watchId);
+        ImmutableList<WatchInstanceData> parametersForDeletion = findByWatchId(tenantId, watchId);
         if (parametersForDeletion.isEmpty()) {
             log.debug("Nothing to delete, parameters for watch '{}' defined for tenant '{}' does not exist.", watchId, tenantId);
             return;
@@ -115,35 +115,35 @@ public class WatchParametersRepository {
         log.debug("Deleted '{}' instance parameters", parametersForDeletion.size());
     }
 
-    private BulkResponse delete(ImmutableList<WatchParametersData> parametersToBeDeleted) {
-        BulkRequest bulkDeleteRequest = new BulkRequest(WATCHES_INSTANCE_PARAMETERS).setRefreshPolicy(IMMEDIATE);
-        parametersToBeDeleted.map(WatchParametersData::getId) //
-            .map(documentId -> new DeleteRequest(WATCHES_INSTANCE_PARAMETERS).id(documentId)) //
+    private BulkResponse delete(ImmutableList<WatchInstanceData> parametersToBeDeleted) {
+        BulkRequest bulkDeleteRequest = new BulkRequest(WATCHES_INSTANCES).setRefreshPolicy(IMMEDIATE);
+        parametersToBeDeleted.map(WatchInstanceData::getId) //
+            .map(documentId -> new DeleteRequest(WATCHES_INSTANCES).id(documentId)) //
             .forEach(bulkDeleteRequest::add);
         return client.bulk(bulkDeleteRequest).actionGet();
     }
 
-    private Optional<WatchParametersData> getResponseToWatchParametersData(GetResponse response) {
+    private Optional<WatchInstanceData> getResponseToWatchInstanceData(GetResponse response) {
         return Optional.ofNullable(response) //
             .filter(GetResponse::isExists) //
-            .map(existingResponse -> documentToWatchParameterData(existingResponse.getSourceAsString(), existingResponse.getVersion()));
+            .map(existingResponse -> documentToWatchInstanceData(existingResponse.getSourceAsString(), existingResponse.getVersion()));
     }
 
-    private WatchParametersData searchHitToWatchParameterData(SearchHit searchHit) {
-        return documentToWatchParameterData(searchHit.getSourceAsString(), searchHit.getVersion());
+    private WatchInstanceData searchHitToWatchInstanceData(SearchHit searchHit) {
+        return documentToWatchInstanceData(searchHit.getSourceAsString(), searchHit.getVersion());
     }
 
-    private static WatchParametersData documentToWatchParameterData(String jsonDocument, long version) {
+    private static WatchInstanceData documentToWatchInstanceData(String jsonDocument, long version) {
         try {
-            return new WatchParametersData(DocNode.parse(Format.JSON).from(jsonDocument), version);
+            return new WatchInstanceData(DocNode.parse(Format.JSON).from(jsonDocument), version);
         } catch (DocumentParseException e) {
             throw new RuntimeException("Database contain watch parameters which are not valid json document", e);
         }
     }
 
     public boolean updateEnabledFlag(String tenantId, String watchId, String instanceId, boolean enable) {
-        String documentId = WatchParametersData.createId(tenantId, watchId, instanceId);
-        UpdateRequest request = new UpdateRequest(WATCHES_INSTANCE_PARAMETERS, documentId) //
+        String documentId = WatchInstanceData.createId(tenantId, watchId, instanceId);
+        UpdateRequest request = new UpdateRequest(WATCHES_INSTANCES, documentId) //
             .doc(FIELD_ENABLED, enable) //
             .setRefreshPolicy(IMMEDIATE);
         try {

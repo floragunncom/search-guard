@@ -16,8 +16,8 @@ import com.floragunn.signals.actions.watch.generic.rest.UpsertOneGenericWatchIns
 import com.floragunn.signals.actions.watch.generic.rest.DeleteWatchInstanceAction.DeleteWatchInstanceRequest;
 import com.floragunn.signals.actions.watch.generic.rest.GetAllWatchInstancesAction.GetAllWatchInstancesRequest;
 import com.floragunn.signals.actions.watch.generic.rest.GetWatchInstanceAction.GetWatchInstanceParametersRequest;
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstancesRepository;
 import com.floragunn.signals.watch.common.Instances;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -43,13 +43,13 @@ public class GenericWatchService {
         Date.class);
 
     private final Signals signals;
-    private final WatchParametersRepository parametersRepository;
+    private final WatchInstancesRepository instancesRepository;
     private final SchedulerConfigUpdateNotifier notifier;
 
 
-    GenericWatchService(Signals signals, WatchParametersRepository parametersRepository, SchedulerConfigUpdateNotifier notifier) {
+    GenericWatchService(Signals signals, WatchInstancesRepository instancesRepository, SchedulerConfigUpdateNotifier notifier) {
         this.signals = Objects.requireNonNull(signals, "Signals module is required");
-        this.parametersRepository = Objects.requireNonNull(parametersRepository);
+        this.instancesRepository = Objects.requireNonNull(instancesRepository);
         this.notifier = Objects.requireNonNull(notifier, "Scheduler config update notifier is required.");
     }
 
@@ -58,10 +58,10 @@ public class GenericWatchService {
         Instances instances = instanceConfiguration(request.getTenantId(), request.getWatchId());
         if(instances.isEnabled()) {
             validateParameters(instances, request.getInstanceId(), request.getParameters());
-            int responseCode = parametersRepository.findOneById(request.getTenantId(), request.getWatchId(), request.getInstanceId()) //
+            int responseCode = instancesRepository.findOneById(request.getTenantId(), request.getWatchId(), request.getInstanceId()) //
                 .map(ignore -> 200) //
                 .orElse(201); //
-            parametersRepository.store(toWatchParameterData(request));
+            instancesRepository.store(toWatchInstanceData(request));
             notifier.send();
             return new StandardResponse(responseCode);
         } else {
@@ -157,20 +157,20 @@ public class GenericWatchService {
         return ImmutableList.empty();
     }
 
-    private static WatchParametersData toWatchParameterData(UpsertOneGenericWatchInstanceRequest request) {
-        return new WatchParametersData(request.getTenantId(), request.getWatchId(), request.getInstanceId(), true, request.getParameters());
+    private static WatchInstanceData toWatchInstanceData(UpsertOneGenericWatchInstanceRequest request) {
+        return new WatchInstanceData(request.getTenantId(), request.getWatchId(), request.getInstanceId(), true, request.getParameters());
     }
 
     public StandardResponse getWatchInstanceParameters(GetWatchInstanceParametersRequest request) {
         Objects.requireNonNull(request, "Get generic watch parameters request is required");
-        return parametersRepository.findOneById(request.getTenantId(), request.getWatchId(), request.getInstanceId())//
+        return instancesRepository.findOneById(request.getTenantId(), request.getWatchId(), request.getInstanceId())//
             .map(watchParameters -> new StandardResponse(200).data(watchParameters.getParameters()))//
             .orElseGet(() -> new StandardResponse(404));
     }
 
     public StandardResponse deleteWatchInstance(DeleteWatchInstanceRequest request) {
         Objects.requireNonNull(request, "Delete watch instance request is required");
-        boolean deleted = parametersRepository.delete(request.getTenantId(), request.getWatchId(), request.getInstanceId());
+        boolean deleted = instancesRepository.delete(request.getTenantId(), request.getWatchId(), request.getInstanceId());
         if(deleted) {
             notifier.send();
             return new StandardResponse(200);
@@ -186,9 +186,9 @@ public class GenericWatchService {
             validateManyInstancesParameters(request, instances);
             Set<String> existingInstanceIds = findUpdatedWatchesIds(request);
             boolean update = !existingInstanceIds.isEmpty();
-            WatchParametersData[] watchParametersData = request.toCreateOneWatchInstanceRequest().stream()//
-                .map(GenericWatchService::toWatchParameterData).toArray(WatchParametersData[]::new);
-            parametersRepository.store(watchParametersData);
+            WatchInstanceData[] watchInstanceData = request.toCreateOneWatchInstanceRequest().stream()//
+                .map(GenericWatchService::toWatchInstanceData).toArray(WatchInstanceData[]::new);
+            instancesRepository.store(watchInstanceData);
             notifier.send();
             return new StandardResponse(update ? 200 : 201);
         } else {
@@ -208,9 +208,9 @@ public class GenericWatchService {
     }
 
     private ImmutableSet<String> findUpdatedWatchesIds(UpsertManyGenericWatchInstancesRequest request) {
-        Set<String> existingInstanceIds = parametersRepository.findByWatchId(request.getTenantId(), request.getWatchId())//
+        Set<String> existingInstanceIds = instancesRepository.findByWatchId(request.getTenantId(), request.getWatchId())//
                 .stream()//
-                .map(WatchParametersData::getInstanceId)//
+                .map(WatchInstanceData::getInstanceId)//
                 .collect(Collectors.toSet());
         existingInstanceIds.retainAll(request.instanceIds());
         return ImmutableSet.of(existingInstanceIds);
@@ -218,10 +218,10 @@ public class GenericWatchService {
 
     public StandardResponse findAllInstances(GetAllWatchInstancesRequest request) {
         Objects.requireNonNull(request, "Request is required");
-        Map<String, ImmutableMap<String, Object>> watchInstances = parametersRepository //
+        Map<String, ImmutableMap<String, Object>> watchInstances = instancesRepository //
             .findByWatchId(request.getTenantId(), request.getWatchId())//
             .stream()//
-            .collect(Collectors.toMap(WatchParametersData::getInstanceId, WatchParametersData::getParameters));
+            .collect(Collectors.toMap(WatchInstanceData::getInstanceId, WatchInstanceData::getParameters));
         if(watchInstances.isEmpty()) {
             return new StandardResponse(404);
         }
@@ -242,11 +242,11 @@ public class GenericWatchService {
     public void deleteAllInstanceParameters(String tenantId, String watchId) {
         Objects.requireNonNull(tenantId, "Tenant id is required");
         Objects.requireNonNull(watchId, "Watch id is required");
-        parametersRepository.deleteByWatchId(tenantId, watchId);
+        instancesRepository.deleteByWatchId(tenantId, watchId);
     }
 
     public StandardResponse switchEnabledFlag(String tenantId, String watchId, String instanceId, boolean enable) {
-        if(parametersRepository.updateEnabledFlag(tenantId, watchId, instanceId, enable)) {
+        if(instancesRepository.updateEnabledFlag(tenantId, watchId, instanceId, enable)) {
             notifier.send();
             log.debug("Watch '{}' instance '{}' defined for tenant '{}' has updated value of flag enabled to '{}'.", watchId,
                 instanceId, tenantId, enable);

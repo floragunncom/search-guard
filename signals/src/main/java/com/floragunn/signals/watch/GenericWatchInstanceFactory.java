@@ -3,8 +3,8 @@ package com.floragunn.signals.watch;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactory;
-import com.floragunn.signals.actions.watch.generic.service.WatchInstanceParameterLoader;
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
+import com.floragunn.signals.actions.watch.generic.service.WatchInstancesLoader;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,11 +18,11 @@ public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Wa
 
     private static final Logger log = LogManager.getLogger(GenericWatchInstanceFactory.class);
 
-    private final WatchInstanceParameterLoader parameterLoader;
+    private final WatchInstancesLoader instancesLoader;
     private final WatchInitializationService initializationService;
 
-    public GenericWatchInstanceFactory(WatchInstanceParameterLoader parameterLoader, WatchInitializationService initializationService) {
-        this.parameterLoader = Objects.requireNonNull(parameterLoader, "Parameter loader is required");
+    public GenericWatchInstanceFactory(WatchInstancesLoader instancesLoader, WatchInitializationService initializationService) {
+        this.instancesLoader = Objects.requireNonNull(instancesLoader, "Parameter loader is required");
         this.initializationService = Objects.requireNonNull(initializationService, "Watch initialization service is required");
     }
 
@@ -31,14 +31,14 @@ public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Wa
         Objects.requireNonNull(watch, "Watch is required");
         log.debug("Try to create watch instances for '{}'.", watch.getId());
         if(watch.hasParameters()) {
-            ImmutableList<WatchParametersData> parameters = parameterLoader.findParameters(watch.getId());
+            ImmutableList<WatchInstanceData> parameters = instancesLoader.findInstances(watch.getId());
             if(parameters.isEmpty()) {
                 log.debug("Generic watch '{}' has no defined parameters, therefore instances will be not created.", watch.getId());
                 return ImmutableList.empty();
             }
             log.debug("Watch '{}' has defined '{}' instances.", watch.getId(), parameters.size());
             List<Watch> watchInstances = parameters.stream() //
-                .filter(WatchParametersData::isEnabled) //
+                .filter(WatchInstanceData::isEnabled) //
                 .map(instanceParameters -> createInstanceForParameter(watch, instanceParameters)) //
                 .collect(Collectors.toList());
             log.debug("Watch '{}' has defined '{}' enabled instances.", watch.getId(), watchInstances.size());
@@ -54,11 +54,11 @@ public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Wa
             throw new IllegalArgumentException("Cannot instantiate non generic watch " + genericWatch.getId());
         }
         String watchId = genericWatch.getGenericWatchIdOrWatchId();
-        return parameterLoader.findOne(watchId, instanceId) //
+        return instancesLoader.findOne(watchId, instanceId) //
             .map(instanceParameters -> createInstanceForParameter(genericWatch, instanceParameters));
     }
 
-    private Watch createInstanceForParameter(Watch watch, WatchParametersData instanceParameters) {
+    private Watch createInstanceForParameter(Watch watch, WatchInstanceData instanceParameters) {
         String genericDefinition = watch.getGenericDefinition();
         String id = Watch.createInstanceId(watch.getId(), instanceParameters.getInstanceId());
         try {

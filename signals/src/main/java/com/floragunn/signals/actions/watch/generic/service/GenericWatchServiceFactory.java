@@ -2,7 +2,7 @@ package com.floragunn.signals.actions.watch.generic.service;
 
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.signals.Signals;
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstancesRepository;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -21,7 +21,7 @@ public class GenericWatchServiceFactory {
     }
 
     public GenericWatchService create() {
-        WatchParametersRepository repository = new WatchParametersRepository(client);
+        WatchInstancesRepository repository = new WatchInstancesRepository(client);
         SchedulerConfigUpdateNotifier notifier = new SchedulerConfigUpdateNotifier(client, threadPool, signals);
         return new GenericWatchService(signals, repository, notifier);
     }

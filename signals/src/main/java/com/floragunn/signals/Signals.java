@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -152,7 +152,7 @@ public class Signals extends AbstractLifecycleComponent {
         IndexNames indexNames = signalsSettings.getStaticSettings().getIndexNames();
 
         String[] allIndexes = new String[] { indexNames.getWatches(), indexNames.getWatchesState(), indexNames.getWatchesTriggerState(),
-                indexNames.getAccounts(), indexNames.getSettings(),  IndexNames.WATCHES_INSTANCE_PARAMETERS};
+                indexNames.getAccounts(), indexNames.getSettings(),  IndexNames.WATCHES_INSTANCES };
 
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping(), 2)
                 .mappingUpdate(0, Watch.getIndexMappingUpdate()).dependsOnIndices(allIndexes).onIndexReady(this::init)));
@@ -161,8 +161,8 @@ public class Signals extends AbstractLifecycleComponent {
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getAccounts())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getSettings())));
-        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(IndexNames.WATCHES_INSTANCE_PARAMETERS).mapping(
-            WatchParametersData.MAPPINGS)));
+        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(IndexNames.WATCHES_INSTANCES).mapping(
+            WatchInstanceData.MAPPINGS)));
 
     }
 

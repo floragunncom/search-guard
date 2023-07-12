@@ -10,7 +10,7 @@ import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.MockWebserviceProvider;
 import com.floragunn.signals.SignalsModule;
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstancesRepository;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -1008,7 +1008,7 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             List<String> nameParameterValues = new ArrayList<>();
             DocNode node = DocNode.EMPTY;
-            for(int i = 0; i < (WatchParametersRepository.WATCH_PARAMETER_DATA_PAGE_SIZE + 5); ++i) {
+            for(int i = 0; i < (WatchInstancesRepository.WATCH_PARAMETER_DATA_PAGE_SIZE + 5); ++i) {
                 String name = "my_name_is_" + i;
                 nameParameterValues.add(name);
                 node = node.with(DocNode.of("instance_id_" + i, DocNode.of("name", name)));
@@ -1033,7 +1033,7 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
             try {
                 DocNode node = DocNode.EMPTY;
-                final int numberOfInstances = WatchParametersRepository.WATCH_PARAMETER_DATA_PAGE_SIZE * 2;
+                final int numberOfInstances = WatchInstancesRepository.WATCH_PARAMETER_DATA_PAGE_SIZE * 2;
                 Function<Integer, String> createInstanceId = i -> "instance_id_" + i;
                 for (int i = 0; i < numberOfInstances; ++i) {
                     String instanceId = createInstanceId.apply(i);

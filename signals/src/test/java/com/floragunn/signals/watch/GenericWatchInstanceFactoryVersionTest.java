@@ -3,8 +3,8 @@ package com.floragunn.signals.watch;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.signals.actions.watch.generic.service.WatchInstanceParameterLoader;
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData;
+import com.floragunn.signals.actions.watch.generic.service.WatchInstancesLoader;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import org.junit.Before;
@@ -15,9 +15,9 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
 
-import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_ENABLED;
-import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_INSTANCE_ID;
-import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersData.FIELD_PARAMETERS;
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData.FIELD_ENABLED;
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData.FIELD_INSTANCE_ID;
+import static com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData.FIELD_PARAMETERS;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -30,7 +30,7 @@ public class GenericWatchInstanceFactoryVersionTest {
 
     public static final String WATCH_ID_1 = "watch-id-00001";
     @Mock
-    private WatchInstanceParameterLoader parameterLoader;
+    private WatchInstancesLoader instancesLoader;
 
     @Mock
     private WatchInitializationService initService;
@@ -42,7 +42,7 @@ public class GenericWatchInstanceFactoryVersionTest {
     @Before
     public void before() {
         when(initService.getThrottlePeriodParser()).thenReturn(throttlePeriodParser);
-        this.genericWatchInstanceFactory = new GenericWatchInstanceFactory(parameterLoader, initService);
+        this.genericWatchInstanceFactory = new GenericWatchInstanceFactory(instancesLoader, initService);
     }
 
     @Test
@@ -204,8 +204,8 @@ public class GenericWatchInstanceFactoryVersionTest {
             String watchJson = watch.toJson();
             watch = Watch.parse(initService, "tenant-id", WATCH_ID_1, watchJson, watchVersion, null);
             DocNode docNode = DocNode.of(FIELD_INSTANCE_ID, "instance-id", FIELD_ENABLED, true, FIELD_PARAMETERS, DocNode.EMPTY);
-            WatchParametersData watchParametersData = new WatchParametersData(docNode, parametersVersion);
-            when(parameterLoader.findParameters(WATCH_ID_1)).thenReturn(ImmutableList.of(watchParametersData));
+            WatchInstanceData watchInstanceData = new WatchInstanceData(docNode, parametersVersion);
+            when(instancesLoader.findInstances(WATCH_ID_1)).thenReturn(ImmutableList.of(watchInstanceData));
             return watch;
         } catch ( ConfigValidationException | IOException e) {
             throw new RuntimeException("Cannot create watch or instance parameters.", e);

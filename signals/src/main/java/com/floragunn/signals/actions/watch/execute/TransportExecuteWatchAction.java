@@ -5,8 +5,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletionException;
 
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.signals.actions.watch.generic.service.WatchInstanceParameterLoader;
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.generic.service.WatchInstancesLoader;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstancesRepository;
 import com.floragunn.signals.execution.NotExecutableWatchException;
 import com.floragunn.signals.watch.GenericWatchInstanceFactory;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -332,8 +332,8 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         ValidatingThrottlePeriodParser throttlePeriodParser = new ValidatingThrottlePeriodParser(signals.getSignalsSettings());
         WatchInitializationService initService = new WatchInitializationService(signals.getAccountRegistry(), scriptService, throttlePeriodParser);
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-        WatchInstanceParameterLoader parameterLoader = new WatchInstanceParameterLoader(signalsTenant.getName(), new WatchParametersRepository(privilegedConfigClient));
-        return new GenericWatchInstanceFactory(parameterLoader, initService);
+        WatchInstancesLoader instancesLoader = new WatchInstancesLoader(signalsTenant.getName(), new WatchInstancesRepository(privilegedConfigClient));
+        return new GenericWatchInstanceFactory(instancesLoader, initService);
     }
 
     private ToXContent errorMessage(String message) {

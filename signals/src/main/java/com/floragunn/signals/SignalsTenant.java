@@ -33,8 +33,8 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import com.floragunn.signals.actions.watch.generic.service.WatchInstanceParameterLoader;
-import com.floragunn.signals.actions.watch.generic.service.persistence.WatchParametersRepository;
+import com.floragunn.signals.actions.watch.generic.service.WatchInstancesLoader;
+import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstancesRepository;
 import com.floragunn.signals.watch.GenericWatchInstanceFactory;
 import com.floragunn.signals.watch.common.Ack;
 import com.floragunn.signals.watch.common.InstanceParser;
@@ -211,11 +211,11 @@ public class SignalsTenant implements Closeable {
     }
 
     private GenericWatchInstanceFactory createGenericWatchInstanceFactory() {
-        WatchParametersRepository repository = new WatchParametersRepository(PrivilegedConfigClient.adapt(client));
-        WatchInstanceParameterLoader watchInstanceParameterLoader = new WatchInstanceParameterLoader(getName(), repository);
+        WatchInstancesRepository repository = new WatchInstancesRepository(PrivilegedConfigClient.adapt(client));
+        WatchInstancesLoader watchInstancesLoader = new WatchInstancesLoader(getName(), repository);
         ValidatingThrottlePeriodParser throttlePeriodParser = new ValidatingThrottlePeriodParser(settings);
         WatchInitializationService watchInitService = new WatchInitializationService(accountRegistry, scriptService, throttlePeriodParser);
-        return new GenericWatchInstanceFactory(watchInstanceParameterLoader, watchInitService);
+        return new GenericWatchInstanceFactory(watchInstancesLoader, watchInitService);
     }
 
     public void pause() throws SchedulerException {

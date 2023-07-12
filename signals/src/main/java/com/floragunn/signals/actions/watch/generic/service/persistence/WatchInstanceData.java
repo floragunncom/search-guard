@@ -10,7 +10,7 @@ import com.floragunn.searchsupport.indices.IndexMapping.KeywordProperty;
 
 import java.util.Objects;
 
-public class WatchParametersData implements Document<WatchParametersData> {
+public class WatchInstanceData implements Document<WatchInstanceData> {
     public static final String FIELD_TENANT_ID = "tenant_id";
     public static final String FIELD_WATCH_ID = "watch_id";
     public static final String FIELD_INSTANCE_ID = "instance_id";
@@ -32,11 +32,11 @@ public class WatchParametersData implements Document<WatchParametersData> {
     private final long version;
     private final ImmutableMap<String, Object> parameters;
 
-    public WatchParametersData(String tenantId, String watchId, String instanceId, boolean enabled, ImmutableMap<String, Object> parameters) {
+    public WatchInstanceData(String tenantId, String watchId, String instanceId, boolean enabled, ImmutableMap<String, Object> parameters) {
         this(tenantId, watchId, instanceId, enabled, parameters, -1);
     }
 
-    private WatchParametersData(String tenantId, String watchId, String instanceId, boolean enabled, ImmutableMap<String, Object> parameters, long version) {
+    private WatchInstanceData(String tenantId, String watchId, String instanceId, boolean enabled, ImmutableMap<String, Object> parameters, long version) {
         this.tenantId = Objects.requireNonNull(tenantId);
         this.watchId = watchId;
         this.instanceId = instanceId;
@@ -45,7 +45,7 @@ public class WatchParametersData implements Document<WatchParametersData> {
         this.version = version;
     }
 
-    public WatchParametersData(DocNode node, long version) {
+    public WatchInstanceData(DocNode node, long version) {
         this.tenantId = node.getAsString(FIELD_TENANT_ID);
         this.watchId = node.getAsString(FIELD_WATCH_ID);
         this.instanceId = node.getAsString(FIELD_INSTANCE_ID);
@@ -101,6 +101,6 @@ public class WatchParametersData implements Document<WatchParametersData> {
 
     @Override
     public String toString() {
-        return "WatchParametersData{" + "tenantId='" + tenantId + '\'' + ", watchId='" + watchId + '\'' + ", instanceId='" + instanceId + '\'' + ", version=" + version + '}';
+        return "WatchInstanceData{" + "tenantId='" + tenantId + '\'' + ", watchId='" + watchId + '\'' + ", instanceId='" + instanceId + '\'' + ", version=" + version + '}';
     }
 }

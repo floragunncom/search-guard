@@ -537,7 +537,7 @@ public class SignalsSettings {
 
         public static class IndexNames {
 
-            public static final String WATCHES_INSTANCE_PARAMETERS = ".signals_watches_instance_parameters";
+            public static final String WATCHES_INSTANCES = ".signals_watch_instances";
 
             public static StaticSettings.Attribute<String> WATCHES =  StaticSettings.Attribute.define("signals.index_names.watches").withDefault(".signals_watches").asString();
             public static StaticSettings.Attribute<String> WATCHES_STATE =  StaticSettings.Attribute.define("signals.index_names.watches_state").withDefault(".signals_watches_state").asString();
