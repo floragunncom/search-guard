@@ -335,7 +335,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             builder.field("_tenant", tenant);
         }
 
-        if(instances != null) {
+        if((instances != null) && (instances.isEnabled())) {
             builder.field(InstanceParser.FIELD_INSTANCES, instances);
         }
 

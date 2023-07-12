@@ -1524,30 +1524,6 @@ public class GenericWatchTest extends AbstractGenericWatchTest {
     }
 
     @Test
-    public void shouldReportValidationErrorWhenNonGenericWatchDefinesInstanceParameters() throws Exception {
-        String watchId = "watch-id-non-generic-watch-with-instance-parameters";
-        String watchPath = String.format("/_signals/watch/%s/%s", DEFAULT_TENANT, watchId);
-        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN).trackResources();
-            Client client = cluster.getInternalNodeClient()
-        ) {
-            final String destinationIndex = "destination-index-for-" + watchId;
-            client.admin().indices().create(new CreateIndexRequest(destinationIndex)).actionGet();
-            Watch watch = new WatchBuilder(watchId).instances(false, "params_are_not_allowed_for_non_generic_watch") //
-                .atMsInterval(Long.MAX_VALUE).search(INDEX_SOURCE) //
-                .query("{\"match_all\" : {} }").as("testsearch") //
-                .then().index(destinationIndex).transform(null, "['name':instance.name, 'watch':instance.id]")//
-                .name("testsink").throttledFor("10h").build();
-
-            HttpResponse response = restClient.putJson(watchPath, watch);
-
-            log.debug("Create watch response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_BAD_REQUEST));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containSubstring("error", "Watch is invalid: 'instances.enabled': Only generic watch is allowed to define instance parameters"));
-        }
-    }
-
-    @Test
     public void shouldNotExecuteInstanceWhenGenericWatchIsInactive() throws Exception {
         String watchId = "watch-id-should-not-execute-instance-when-generic-watch-is-disabled";
         String watchPath = watchPath(watchId);

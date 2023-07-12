@@ -101,6 +101,7 @@ public class WatchInstanceData implements Document<WatchInstanceData> {
 
     @Override
     public String toString() {
-        return "WatchInstanceData{" + "tenantId='" + tenantId + '\'' + ", watchId='" + watchId + '\'' + ", instanceId='" + instanceId + '\'' + ", version=" + version + '}';
+        return "WatchInstanceData{" + "tenantId='" + tenantId + '\'' + ", watchId='" + watchId + '\'' + ", instanceId='" + instanceId + '\''
+            + ", version=" + version + '}';
     }
 }
