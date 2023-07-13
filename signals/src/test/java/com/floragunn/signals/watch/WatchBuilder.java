@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import com.jayway.jsonpath.JsonPath;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.SimpleScheduleBuilder;
@@ -419,6 +420,7 @@ public class WatchBuilder {
         private final URI uri;
         private Auth auth;
         private String body;
+        private JsonPath jsonBodyFrom;
         private Map<String, String> headers = new HashMap<>();
         private HttpProxyConfig proxy;
 
@@ -442,8 +444,28 @@ public class WatchBuilder {
             return this;
         }
 
+        public WebhookActionBuilder body(String body) {
+            if (this.jsonBodyFrom != null) {
+                throw new IllegalStateException("body and jsonBodyFrom cannot be populated at the same time");
+            }
+            this.body = body;
+            return this;
+        }
+
+        public WebhookActionBuilder jsonBodyFrom(String jsonBodyFrom) {
+            return this.jsonBodyFrom(JsonPath.compile(jsonBodyFrom));
+        }
+
+        public WebhookActionBuilder jsonBodyFrom(JsonPath jsonBodyFrom) {
+            if (this.body != null) {
+                throw new IllegalStateException("body and jsonBodyFrom cannot be populated at the same time");
+            }
+            this.jsonBodyFrom = jsonBodyFrom;
+            return this;
+        }
+
         protected ActionHandler finish() {
-            return new WebhookAction(new HttpRequestConfig(method, uri, null, null, body, headers, auth, null),
+            return new WebhookAction(new HttpRequestConfig(method, uri, null, null, body, jsonBodyFrom, headers, auth, null),
                     new HttpClientConfig(null, null, null, proxy));
         }
     }

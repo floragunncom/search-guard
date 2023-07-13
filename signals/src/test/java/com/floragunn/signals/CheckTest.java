@@ -279,7 +279,7 @@ public class CheckTest {
             webserviceProvider.setResponseContentType("text/json");
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
-                    null, null, null, null, null);
+                    null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
@@ -307,7 +307,7 @@ public class CheckTest {
             webserviceProvider.setResponseContentType("text/json; charset=utf-8");
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
-                    null, null, null, null, null);
+                    null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
@@ -337,7 +337,7 @@ public class CheckTest {
             webserviceProvider.setResponseContentType("text/plain");
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
-                    null, null, null, null, null);
+                    null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
@@ -363,7 +363,7 @@ public class CheckTest {
             webserviceProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
-                    null, null, null, null, null);
+                    null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
@@ -403,7 +403,7 @@ public class CheckTest {
             webserviceProvider.setResponseContentType("application/vnd.floragunnmegapearls");
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
-                    null, null, null, null, "application/x-yaml");
+                    null, null, null, null, null, "application/x-yaml");
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
@@ -427,7 +427,7 @@ public class CheckTest {
             webserviceProvider.setResponseDelayMs(3330);
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
-                    null, null, null, null, null);
+                    null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(1, 1, null, null));
