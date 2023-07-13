@@ -7,6 +7,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import com.floragunn.codova.documents.DocWriter;
+import com.jayway.jsonpath.JsonPath;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.elasticsearch.action.get.GetRequest;
@@ -219,7 +221,7 @@ public class ActionTest {
 
             Map<String, String> headers = ImmutableMap.of("signals", "{{data.signalsHeader}}", "anotherHeader", "another header value");
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", headers, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, headers, null, null);
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
@@ -238,6 +240,60 @@ public class ActionTest {
     }
 
     @Test
+    public void testWebhookAction_withJsonBodyFromRuntimeDataPath() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", ImmutableMap.of("test", "stuff"));
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                    "/{{data.path}}", null, null, JsonPath.compile("data.body"), null, null, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
+
+            webhookAction.execute(ctx);
+
+            Assert.assertEquals(DocWriter.json().writeAsString(runtimeData.get("body")), webhookProvider.getLastRequestBody());
+        }
+    }
+
+
+    @Test
+    public void testWebhookAction_withJsonBodyFromRuntimeDataPath_givenPathDoesNotExists() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", ImmutableMap.of("test", "stuff"));
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                    "/{{data.path}}", null, null, JsonPath.compile("data.body.fake"), null, null, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
+
+            webhookAction.execute(ctx);
+
+            Assert.fail();
+        } catch (ActionExecutionException e) {
+            e.printStackTrace();
+            Assert.assertTrue(e.getCause().getMessage().contains("Failed to read body from runtime data using JSON Path: $['data']['body']['fake']"));
+        }
+    }
+
+    @Test
     public void testWebhookActionWithTlsCustomTrustStore() throws Exception {
 
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
@@ -250,7 +306,7 @@ public class ActionTest {
                     ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
@@ -282,7 +338,7 @@ public class ActionTest {
                     ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
@@ -310,7 +366,7 @@ public class ActionTest {
                     ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
 
@@ -349,7 +405,7 @@ public class ActionTest {
                     ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
             TlsConfig tlsConfig = new TlsConfig();
             tlsConfig.setInlineTruststorePem(ROOT_CA_CERT);
@@ -384,7 +440,7 @@ public class ActionTest {
                     ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
             HttpClientConfig httpClientConfig = new HttpClientConfig(1, 1, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
@@ -1087,7 +1143,7 @@ public class ActionTest {
                 runtimeData.put("x", "y");
 
                 HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                        "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                        "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
                 httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
@@ -1162,7 +1218,7 @@ public class ActionTest {
                 runtimeData.put("body", "stuff");
                 runtimeData.put("x", "y");
                 HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                        "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                        "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
                 httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));
@@ -1237,7 +1293,7 @@ public class ActionTest {
                 runtimeData.put("x", "y");
 
                 HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                        "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                        "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
                 httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null));

@@ -5,12 +5,15 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Base64;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
@@ -20,6 +23,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,6 +44,7 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 
 public class HttpRequestConfig extends WatchElement implements ToXContentObject {
     private static final Logger log = LogManager.getLogger(HttpRequestConfig.class);
+    private static final Configuration jsonPathConfig = BasicJsonPathDefaultConfiguration.defaultConfiguration();
 
     private Method method;
     private String accept;
@@ -47,6 +52,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
     private String path;
     private String queryParams;
     private String body;
+    private JsonPath jsonBodyFrom;
     private Map<String, String> headers;
     private Auth auth;
     private TemplateScript.Factory pathTemplateScriptFactory;
@@ -54,15 +60,19 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
     private TemplateScript.Factory bodyTemplateScriptFactory;
     private Map<String, TemplateScript.Factory> headerTemplateScriptFactories;
 
-    public HttpRequestConfig(Method method, URI uri, String path, String queryParams, String body, Map<String, String> headers, Auth auth,
+    public HttpRequestConfig(Method method, URI uri, String path, String queryParams, String body, JsonPath jsonBodyFrom, Map<String, String> headers, Auth auth,
             String accept) {
         super();
+        if (body != null && jsonBodyFrom != null) {
+            throw new IllegalStateException("body and jsonBodyFrom fields are mutually exclusive");
+        }
         this.method = method;
         this.uri = uri;
         this.path = path;
         this.queryParams = queryParams;
         this.body = body;
-        this.headers = headers;
+        this.jsonBodyFrom = jsonBodyFrom;
+        this.headers = headers == null? new HashMap<>() : headers;
         this.auth = auth;
         this.accept = accept;
     }
@@ -88,7 +98,21 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
     }
 
     public void setBody(String body) {
+        if (this.jsonBodyFrom != null) {
+            throw new IllegalStateException("body and jsonBodyFrom cannot be populated at the same time");
+        }
         this.body = body;
+    }
+
+    public JsonPath getJsonBodyFrom() {
+        return jsonBodyFrom;
+    }
+
+    public void setJsonBodyFrom(JsonPath jsonBodyFrom) {
+        if (this.body != null) {
+            throw new IllegalStateException("body and jsonBodyFrom cannot be populated at the same time");
+        }
+        this.jsonBodyFrom = jsonBodyFrom;
     }
 
     public Map<String, String> getHeaders() {
@@ -96,7 +120,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
     }
 
     public void setHeaders(Map<String, String> headers) {
-        this.headers = headers;
+        this.headers = headers == null? new HashMap<>() : headers;
     }
 
     public void compileScripts(WatchInitializationService watchInitializationService) throws ConfigValidationException {
@@ -105,8 +129,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         this.bodyTemplateScriptFactory = watchInitializationService.compileTemplate("body", this.body, validationErrors);
         this.pathTemplateScriptFactory = watchInitializationService.compileTemplate("path", this.path, validationErrors);
         this.queryParamsTemplateScriptFactory = watchInitializationService.compileTemplate("query_params", this.queryParams, validationErrors);
-        this.headerTemplateScriptFactories = Optional.ofNullable(getHeaders())
-                .orElseGet(Collections::emptyMap)
+        this.headerTemplateScriptFactories = getHeaders()
                 .entrySet()
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> watchInitializationService.compileTemplate("headers." + entry.getKey(), entry.getValue(), validationErrors)));
@@ -138,7 +161,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         String body = null;
 
         if (result instanceof HttpEntityEnclosingRequestBase) {
-            body = getRenderedBody(ctx);
+            body = prepareBody(ctx);
             ((HttpEntityEnclosingRequestBase) result).setEntity(new StringEntity(body));
         }
 
@@ -159,8 +182,8 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         String receivedContentType = response.getEntity().getContentType().getValue();
         String accept = this.accept;
 
-        if (accept == null && this.headers != null && this.headers.containsKey("Accept")) {
-            accept = this.headers.get("Accept");
+        if (accept == null && this.headers.containsKey(HttpHeaders.ACCEPT)) {
+            accept = this.headers.get(HttpHeaders.ACCEPT);
         }
 
         if (accept != null) {
@@ -232,14 +255,31 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         }
     }
 
-    private String getRenderedBody(WatchExecutionContext ctx) {
-        if (this.body == null) {
+    private String prepareBody(WatchExecutionContext ctx) throws WatchExecutionException {
+        if (this.body != null) {
+            return getRenderedBody(ctx);
+        } else if (this.jsonBodyFrom != null) {
+            return getBodyByJsonPath(ctx);
+        } else {
             return "";
         }
+    }
 
+    private String getRenderedBody(WatchExecutionContext ctx) {
         Map<String, Object> runtimeData = ctx.getTemplateScriptParamsAsMap();
 
         return this.bodyTemplateScriptFactory.newInstance(runtimeData).execute();
+    }
+
+    private String getBodyByJsonPath(WatchExecutionContext ctx) throws WatchExecutionException {
+        Map<String, Object> runtimeData = ctx.getTemplateScriptParamsAsMap();
+
+        try {
+            Object runtimeDataObject = jsonBodyFrom.read(runtimeData, jsonPathConfig);
+            return jsonPathConfig.jsonProvider().toJson(runtimeDataObject);
+        } catch (Exception e) {
+            throw new WatchExecutionException("Failed to read body from runtime data using JSON Path: " + jsonBodyFrom.getPath(), e, null);
+        }
     }
 
     private Map<String, String> getRenderedHeaders(WatchExecutionContext ctx) {
@@ -261,7 +301,11 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
 
         builder.field("body", body);
 
-        if (headers != null) {
+        if (jsonBodyFrom != null) {
+            builder.field("json_body_from", jsonBodyFrom.getPath());
+        }
+
+        if (!headers.isEmpty()) {
             builder.field("headers", headers);
         }
 
@@ -304,22 +348,41 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         Method method = vJsonNode.get("method").withDefault(Method.POST).asEnum(Method.class);
         URI uri = vJsonNode.get("url").required().asURI();
         String body = vJsonNode.get("body").asString();
+        JsonPath jsonBodyFrom = vJsonNode.get("json_body_from").asJsonPath();
         String path = vJsonNode.get("path").asString();
         String queryParams = vJsonNode.get("query_params").asString();
         String accept = vJsonNode.get("accept").asString();
         Map<String, String> headers = extractHeadersFromDocNode(vJsonNode, validationErrors);
         Auth auth = vJsonNode.get("auth").by(Auth::create);
 
+        if (vJsonNode.hasNonNull("json_body_from")) {
+            if (vJsonNode.hasNonNull("body")) {
+                Stream.of("body", "json_body_from").forEach(attribute -> validationErrors.add(new ValidationError(
+                        attribute, "Both body and json_body_from are set. These are mutually exclusive."
+                )));
+            }
+
+            String actualContentType = headers.get(HttpHeaders.CONTENT_TYPE);
+            if (actualContentType != null && !ContentType.APPLICATION_JSON.getMimeType().equalsIgnoreCase(actualContentType)) {
+                validationErrors.add(new ValidationError(
+                        "headers." + HttpHeaders.CONTENT_TYPE,
+                        String.format("Content type header should be set to %s when json_body_from is used.", ContentType.APPLICATION_JSON.getMimeType())
+                ));
+            } else {
+                headers.put(HttpHeaders.CONTENT_TYPE, ContentType.APPLICATION_JSON.getMimeType());
+            }
+        }
+
         vJsonNode.checkForUnusedAttributes();
 
         validationErrors.throwExceptionForPresentErrors();
 
-        return new HttpRequestConfig(method, uri, path, queryParams, body, headers, auth, accept);
+        return new HttpRequestConfig(method, uri, path, queryParams, body, jsonBodyFrom, headers, auth, accept);
     }
 
     private static Map<String, String> extractHeadersFromDocNode(ValidatingDocNode vJsonNode, ValidationErrors validationErrors) {
         if (!vJsonNode.hasNonNull("headers")) {
-            return null;
+            return new HashMap<>();
         }
         return vJsonNode.getAsDocNode("headers").keySet().stream()
                 .collect(Collectors.toMap(key -> key, key -> {

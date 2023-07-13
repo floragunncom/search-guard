@@ -211,7 +211,7 @@ public class ActionConverter {
         EmailAction.Attachment attachment = new EmailAction.Attachment();
         attachment.setType(EmailAction.Attachment.AttachmentType.REQUEST);
         attachment.setRequestConfig(
-                new HttpRequestConfig(HttpRequestConfig.Method.GET, URI.create(url.toString()), null, null, null, null, null, null));
+                new HttpRequestConfig(HttpRequestConfig.Method.GET, URI.create(url.toString()), null, null, null, null, null, null, null));
         return attachment;
     }
 

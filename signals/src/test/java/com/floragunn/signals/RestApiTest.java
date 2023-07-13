@@ -34,7 +34,11 @@ import java.util.stream.Stream;
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
+import com.floragunn.codova.documents.Format;
+import org.apache.http.Header;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
+import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -544,6 +548,102 @@ public class RestApiTest {
     }
 
     @Test
+    public void testPutInvalidWatch_invalidHttpRequestBodyConfig_bothBodyAndJsonBodyFromAreSet() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_invalid_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
+            DocNode watch = DocNode.of("actions", Collections.singletonList(
+                    DocNode.of("type", "webhook", "name", "webhook_with_two_request_bodies",
+                            "request", DocNode.of("method", "POST", "url", "https://my.test.web.hook/endpoint", "body", "first_body", "json_body_from", "second.body")
+                    )
+            ));
+            System.out.println(watch.toJsonString());
+            HttpResponse response = restClient.putJson(watchPath, watch.toJsonString());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+
+            DocNode parsedResponse = DocNode.parse(Format.getByContentType(response.getContentType())).from(response.getBody());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), 2, parsedResponse.getAsNode("detail").size());
+            Assert.assertEquals(response.getBody(),
+            "Both body and json_body_from are set. These are mutually exclusive.",
+                    parsedResponse.findSingleNodeByJsonPath("detail['actions[webhook_with_two_request_bodies].request.body'][0]").getAsString("error")
+            );
+            Assert.assertEquals(response.getBody(),
+            "Both body and json_body_from are set. These are mutually exclusive.",
+                    parsedResponse.findSingleNodeByJsonPath("detail['actions[webhook_with_two_request_bodies].request.json_body_from'][0]").getAsString("error")
+            );
+        }
+    }
+
+    @Test
+    public void testPutInvalidWatch_httpRequestContentTypeAppXml_whenJsonBodyFromIsSet() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_invalid_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
+            DocNode watch = DocNode.of("actions", Collections.singletonList(
+                    DocNode.of("type", "webhook", "name", "json_body_from_and_wrong_content_type",
+                            "request", DocNode.of("method", "POST", "url", "https://my.test.web.hook/endpoint", "json_body_from", "data.test", "headers", DocNode.of("Content-Type", "application/xml"))
+                    )
+            ));
+
+            HttpResponse response = restClient.putJson(watchPath, watch.toJsonString());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+
+            DocNode parsedResponse = DocNode.parse(Format.getByContentType(response.getContentType())).from(response.getBody());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), 1, parsedResponse.getAsNode("detail").size());
+            Assert.assertEquals(response.getBody(),
+            "Content type header should be set to application/json when json_body_from is used.",
+                    parsedResponse.findSingleNodeByJsonPath("detail['actions[json_body_from_and_wrong_content_type].request.headers.Content-Type'][0]").getAsString("error")
+            );
+        }
+    }
+
+    @Test
+    public void testPutWatch_bodyFromRuntimeDataPath_contentTypeShouldDefaultToAppJson() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "put_watch_with_body_from_runtime_data_default_content_type_header";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            try {
+                Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?")
+                        .put("{\"test\": \"test\"}").as("teststatic")
+                        .then()
+                        .postWebhook(webhookProvider.getUri())
+                        .jsonBodyFrom("data.teststatic.test")
+                        .name("webhook_with_default_content_type").build();
+                HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                Thread.sleep(3000);
+                Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+                Header header = webhookProvider.getLastRequestHeader(HttpHeaders.CONTENT_TYPE);
+                Assert.assertNotNull("content type header should be present", header);
+                Assert.assertEquals("content type header should contain " + ContentType.APPLICATION_JSON.getMimeType(), ContentType.APPLICATION_JSON.getMimeType(), header.getValue());
+                Assert.assertEquals("webhook request body should match", "\"test\"", webhookProvider.getLastRequestBody());
+            } finally {
+                restClient.delete(watchPath);
+            }
+        }
+    }
+
+    @Test
     public void testPutWatchUnauthorized() throws Exception {
 
         String tenant = "_main";
@@ -787,7 +887,6 @@ public class RestApiTest {
                 restClient.delete(watchPath);
             }
         }
-
     }
 
     @Test
@@ -2097,7 +2196,7 @@ public class RestApiTest {
                 try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
                     HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                            "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null);
+                            "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null, null);
 
                     httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
 
