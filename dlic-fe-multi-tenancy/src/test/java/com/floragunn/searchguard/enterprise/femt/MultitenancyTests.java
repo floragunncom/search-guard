@@ -93,6 +93,42 @@ public class MultitenancyTests {
             Assert.assertEquals(response.getBody(), ".kibana", response.getBodyAsDocNode().get("_index"));
             Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().get("_id"));
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().hasNonNull("_primary_term"));
+            
+            
+            
+        } finally {
+            try (Client tc = cluster.getInternalNodeClient()) {
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana")).actionGet();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+    
+
+    @Test
+    public void testMt_search() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee"); GenericRestClient adminClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
+
+            GenericRestClient.HttpResponse response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "blafasel"));
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+
+            response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "business_intelligence"));
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+
+            response = client.putJson(".kibana/_doc/5.6.0?pretty&refresh", body, new BasicHeader("sgtenant", "human_resources"));
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), ".kibana", response.getBodyAsDocNode().get("_index"));
+            Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().get("_id"));
+
+            
+            response = client.get(".kibana/_search", new BasicHeader("sgtenant", "human_resources"));
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), 1, response.getBodyAsDocNode().getAsNode("hits", "hits").toList().size());
+            Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().getAsNode("hits", "hits").toListOfNodes().get(0).get("_id"));
+            
+            
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana")).actionGet();

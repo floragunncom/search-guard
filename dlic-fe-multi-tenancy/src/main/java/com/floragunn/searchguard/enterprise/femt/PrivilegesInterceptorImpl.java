@@ -53,6 +53,7 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchResponseSections;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -65,6 +66,7 @@ import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -216,6 +218,10 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             queryBuilder.must(searchRequest.source().query());
         }
 
+        if (log.isTraceEnabled()) {
+            log.trace("handling search request: {}", queryBuilder);
+        }
+        
         searchRequest.source().query(queryBuilder);
 
         nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
@@ -227,9 +233,9 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                     @SuppressWarnings("unchecked")
                     ActionListener<SearchResponse> searchListener = (ActionListener<SearchResponse>) listener;
 
-                    searchListener.onResponse(response);
+                    searchListener.onResponse(unscopeIds(response));
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    listener.onFailure(e);
                 }
             }
 
@@ -241,7 +247,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         return SyncAuthorizationFilter.Result.INTERCEPTED;
     }
-
+    
     private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, GetRequest getRequest,
             StoredContext ctx, ActionListener<?> listener) {
         SearchRequest searchRequest = new SearchRequest(getRequest.indices());
@@ -521,6 +527,32 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                 hit.getSourceRef(), documentFields, metadataFields);
     }
 
+    private SearchResponse unscopeIds(SearchResponse searchResponse) {
+        SearchResponseSections originalSections = searchResponse.getInternalResponse();
+        SearchHits originalSearchHits = originalSections.hits();
+        SearchHit [] originalSearchHitArray = originalSearchHits.getHits();
+        SearchHit [] rewrittenSearchHitArray = new  SearchHit [originalSearchHitArray.length];
+        
+        for (int i = 0; i < originalSearchHitArray.length; i++) {
+            rewrittenSearchHitArray[i] = new SearchHit(originalSearchHitArray[i].docId(), unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
+            rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
+            rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
+            rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());
+            rewrittenSearchHitArray[i].setSeqNo(originalSearchHitArray[i].getSeqNo());
+            rewrittenSearchHitArray[i].setRank(originalSearchHitArray[i].getRank());
+            rewrittenSearchHitArray[i].shard(originalSearchHitArray[i].getShard());
+        }
+        
+        SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());        
+        SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, originalSections.aggregations(), originalSections.suggest(),
+                originalSections.timedOut(), originalSections.terminatedEarly(), null, originalSections.getNumReducePhases());
+        
+        return new SearchResponse(rewrittenSections, searchResponse.getScrollId(), searchResponse.getTotalShards(),
+                searchResponse.getSuccessfulShards(), searchResponse.getSkippedShards(), searchResponse.getTook().millis(),
+                searchResponse.getShardFailures(), searchResponse.getClusters(), searchResponse.pointInTimeId());
+        
+    }
+    
     private BoolQueryBuilder createQueryExtension(String requestedTenant, String localClusterAlias) {
         BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery().minimumShouldMatch(1);
 
