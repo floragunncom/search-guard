@@ -2,6 +2,7 @@ package com.floragunn.signals.watch;
 
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchsupport.jobs.cluster.CurrentNodeJobSelector;
 import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactory;
 import com.floragunn.signals.actions.watch.generic.service.WatchInstancesLoader;
 import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstanceData;
@@ -21,9 +22,14 @@ public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Wa
     private final WatchInstancesLoader instancesLoader;
     private final WatchInitializationService initializationService;
 
-    public GenericWatchInstanceFactory(WatchInstancesLoader instancesLoader, WatchInitializationService initializationService) {
+    private final CurrentNodeJobSelector currentNodeJobSelector;
+
+    public GenericWatchInstanceFactory(WatchInstancesLoader instancesLoader, WatchInitializationService initializationService,
+        CurrentNodeJobSelector currentNodeJobSelector) {
         this.instancesLoader = Objects.requireNonNull(instancesLoader, "Parameter loader is required");
         this.initializationService = Objects.requireNonNull(initializationService, "Watch initialization service is required");
+        this.currentNodeJobSelector = Objects.requireNonNull(currentNodeJobSelector, "Job distributor is required");
+        log.info("Generic watch instance factory created with usage of current node job selector '{}'", currentNodeJobSelector);
     }
 
     @Override
@@ -40,6 +46,8 @@ public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Wa
             List<Watch> watchInstances = parameters.stream() //
                 .filter(WatchInstanceData::isEnabled) //
                 .map(instanceParameters -> createInstanceForParameter(watch, instanceParameters)) //
+                // decide if job instance should be executed on current node
+                .filter(currentNodeJobSelector::isJobSelected)
                 .collect(Collectors.toList());
             log.debug("Watch '{}' has defined '{}' enabled instances.", watch.getId(), watchInstances.size());
             return ImmutableList.of(watchInstances);

@@ -33,6 +33,8 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchsupport.jobs.cluster.CurrentNodeJobSelector;
+import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactory;
 import com.floragunn.signals.actions.watch.generic.service.WatchInstancesLoader;
 import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstancesRepository;
 import com.floragunn.signals.watch.GenericWatchInstanceFactory;
@@ -205,17 +207,17 @@ public class SignalsTenant implements Closeable {
                 .maxThreads(settings.getStaticSettings().getMaxThreads())//
                 .threadKeepAlive(settings.getStaticSettings().getThreadKeepAlive())//
                 .threadPriority(settings.getStaticSettings().getThreadPrio())//
-                .jobGenericWatchInstanceFactory(createGenericWatchInstanceFactory())
+                .jobGenericWatchInstanceFactory(this::createGenericWatchInstanceFactory)
                 .build();
         this.scheduler.start();
     }
 
-    private GenericWatchInstanceFactory createGenericWatchInstanceFactory() {
+    private GenericJobInstanceFactory<Watch> createGenericWatchInstanceFactory(CurrentNodeJobSelector currentNodeJobSelector) {
         WatchInstancesRepository repository = new WatchInstancesRepository(PrivilegedConfigClient.adapt(client));
         WatchInstancesLoader watchInstancesLoader = new WatchInstancesLoader(getName(), repository);
         ValidatingThrottlePeriodParser throttlePeriodParser = new ValidatingThrottlePeriodParser(settings);
         WatchInitializationService watchInitService = new WatchInitializationService(accountRegistry, scriptService, throttlePeriodParser);
-        return new GenericWatchInstanceFactory(watchInstancesLoader, watchInitService);
+        return new GenericWatchInstanceFactory(watchInstancesLoader, watchInitService, currentNodeJobSelector);
     }
 
     public void pause() throws SchedulerException {

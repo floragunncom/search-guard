@@ -490,6 +490,11 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         return getWatchType().isExecutable();
     }
 
+    @Override
+    public boolean isGenericJobConfig() {
+        return getWatchType() == WatchType.GENERIC;
+    }
+
     public boolean hasParameters() {
         return getWatchType().hasParameters();
     }

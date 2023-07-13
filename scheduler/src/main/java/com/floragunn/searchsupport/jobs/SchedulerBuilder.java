@@ -17,7 +17,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchsupport.jobs.cluster.CurrentNodeJobSelector;
 import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactory;
+import com.floragunn.searchsupport.jobs.config.GenericJobInstanceFactoryProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
@@ -67,6 +69,8 @@ import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
 import com.floragunn.searchsupport.jobs.core.QuartzSchedulerWithCustomizableThreadGroup;
 import com.floragunn.searchsupport.jobs.execution.AuthorizingJobDecorator;
 
+import static com.floragunn.searchsupport.jobs.cluster.CurrentNodeJobSelector.EXECUTE_ON_ALL_NODES;
+
 public class SchedulerBuilder<JobType extends JobConfig> {
     private final static Logger log = LogManager.getLogger(SchedulerBuilder.class);
 
@@ -99,7 +103,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
     private List<JobConfigListener<JobType>> jobConfigListeners = new ArrayList<>();
     private Duration threadKeepAlive = Duration.ofHours(1);
 
-    private GenericJobInstanceFactory<JobType> genericJobInstanceFactory = job -> ImmutableList.of(job);
+    private GenericJobInstanceFactoryProvider<JobType> genericJobInstanceFactory = distributor -> job -> ImmutableList.of(job);
 
     public SchedulerBuilder<JobType> name(String name) {
         this.name = name;
@@ -127,8 +131,8 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         return this;
     }
 
-    public SchedulerBuilder<JobType> jobGenericWatchInstanceFactory(GenericJobInstanceFactory<JobType> factory) {
-        this.genericJobInstanceFactory = Objects.requireNonNull(factory, "Generic job instance factory is required");
+    public SchedulerBuilder<JobType> jobGenericWatchInstanceFactory(GenericJobInstanceFactoryProvider<JobType> factoryProvider) {
+        this.genericJobInstanceFactory = Objects.requireNonNull(factoryProvider, "Generic job instance factory provider is required");
         return this;
     }
 
@@ -229,8 +233,9 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         }
 
         if (this.jobStore == null) {
+            CurrentNodeJobSelector currentNodeJobSelector = jobDistributor != null ? jobDistributor : EXECUTE_ON_ALL_NODES;
             this.jobStore = new IndexJobStateStore<>(name, stateIndex, stateIndexIdPrefix, nodeId, client, jobConfigSource, jobConfigFactory,
-                    clusterService, jobConfigListeners, genericJobInstanceFactory);
+                    clusterService, jobConfigListeners, genericJobInstanceFactory.provide(currentNodeJobSelector));
         }
 
         if (this.jobStore instanceof DistributedJobStore && this.jobDistributor != null) {

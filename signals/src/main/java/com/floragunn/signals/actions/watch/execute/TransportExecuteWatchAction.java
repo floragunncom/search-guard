@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletionException;
 
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.jobs.cluster.CurrentNodeJobSelector;
 import com.floragunn.signals.actions.watch.generic.service.WatchInstancesLoader;
 import com.floragunn.signals.actions.watch.generic.service.persistence.WatchInstancesRepository;
 import com.floragunn.signals.execution.NotExecutableWatchException;
@@ -333,7 +334,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         WatchInitializationService initService = new WatchInitializationService(signals.getAccountRegistry(), scriptService, throttlePeriodParser);
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
         WatchInstancesLoader instancesLoader = new WatchInstancesLoader(signalsTenant.getName(), new WatchInstancesRepository(privilegedConfigClient));
-        return new GenericWatchInstanceFactory(instancesLoader, initService);
+        return new GenericWatchInstanceFactory(instancesLoader, initService, CurrentNodeJobSelector.EXECUTE_ON_ALL_NODES);
     }
 
     private ToXContent errorMessage(String message) {
