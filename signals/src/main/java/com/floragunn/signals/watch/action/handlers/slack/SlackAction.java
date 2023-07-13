@@ -1,5 +1,8 @@
 package com.floragunn.signals.watch.action.handlers.slack;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
@@ -148,14 +151,20 @@ public class SlackAction extends ActionHandler {
         }
 
         if (attachments != null) {
-            document.put("attachments", attachments);
+			DocNode from = null;
+			try {
+				from = DocNode.parse(Format.JSON).from(attachments);
+			} catch (DocumentParseException e) {
+				e.printStackTrace();
+			}
+			document.put("attachments", from);
         }
 
         if (icon != null) {
             document.put("icon_emoji", icon);
         }
 
-        return DocWriter.json().writeAsString(document);
+		return DocWriter.json().writeAsString(document);
     }
 
     @Override
