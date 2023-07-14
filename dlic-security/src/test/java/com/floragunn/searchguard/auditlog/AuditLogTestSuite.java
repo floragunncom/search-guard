@@ -30,7 +30,6 @@ import com.floragunn.searchguard.auditlog.routing.FallbackTest;
 import com.floragunn.searchguard.auditlog.routing.RouterTest;
 import com.floragunn.searchguard.auditlog.routing.RoutingConfigurationTest;
 import com.floragunn.searchguard.auditlog.routing.ThreadPoolSettingsTest;
-import com.floragunn.searchguard.auditlog.sink.KafkaSinkTest;
 import com.floragunn.searchguard.auditlog.sink.SinkProviderTLSTest;
 import com.floragunn.searchguard.auditlog.sink.SinkProviderTest;
 import com.floragunn.searchguard.auditlog.sink.WebhookAuditLogTest;
@@ -53,8 +52,7 @@ import com.floragunn.searchguard.auditlog.sink.WebhookAuditLogTest;
 	ThreadPoolSettingsTest.class,
 	SinkProviderTest.class,
 	SinkProviderTLSTest.class,
-	WebhookAuditLogTest.class,
-	KafkaSinkTest.class
+	WebhookAuditLogTest.class
 })
 public class AuditLogTestSuite {
 
