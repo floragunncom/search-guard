@@ -1,5 +1,7 @@
 package com.floragunn.signals.watch.action.handlers.slack;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
@@ -155,11 +157,11 @@ public class SlackAction extends ActionHandler {
             }
 
             if (blocks != null) {
-                document.put("blocks", blocks);
+                document.putIfAbsent("blocks", DefaultObjectMapper.readTree(blocks));
             }
 
             if (attachments != null) {
-                document.put("attachments", attachments);
+                document.putIfAbsent("attachments", DefaultObjectMapper.readTree(attachments));
             }
 
             if (icon != null) {
@@ -167,7 +169,7 @@ public class SlackAction extends ActionHandler {
             }
 
             return DefaultObjectMapper.writeValueAsString(document, false);
-        } catch (JsonProcessingException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
