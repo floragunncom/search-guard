@@ -254,13 +254,10 @@ public class GenericWatchInstanceFactoryTest {
     @Test
     public void shouldCreateOnlyInstancesWhichShouldBeExecutedOnCurrentNode() {
         ImmutableSet<String> localInstances = ImmutableSet.of(INSTANCE_ID_1, INSTANCE_ID_2, INSTANCE_ID_4);
-        when(currentNodeJobSelector.isJobSelected(any(JobConfig.class))).then(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                Watch watch = invocation.getArgument(0);
-                String instanceId = watch.getInstanceId();
-                return localInstances.contains(instanceId);
-            }
+        when(currentNodeJobSelector.isJobSelected(any(JobConfig.class))).then(invocation -> {
+            Watch watch = invocation.getArgument(0);
+            String instanceId = watch.getInstanceId();
+            return localInstances.contains(instanceId);
         });
         Watch watch = watchWithVersion(0);
         WatchInstanceData watchInstanceData1 = watchInstanceData(INSTANCE_ID_1, 0);

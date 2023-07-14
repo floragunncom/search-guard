@@ -68,6 +68,7 @@ public class GenericWatchInstanceFactory implements GenericJobInstanceFactory<Wa
 
     private Watch createInstanceForParameter(Watch watch, WatchInstanceData instanceParameters) {
         String genericDefinition = watch.getGenericDefinition();
+        // TODO this field should be always not null for generic watch. Add some validation for this, possibly in the Watch class
         String id = Watch.createInstanceId(watch.getId(), instanceParameters.getInstanceId());
         try {
             long version = computeVersion(watch.getVersion(), instanceParameters.getVersion());
