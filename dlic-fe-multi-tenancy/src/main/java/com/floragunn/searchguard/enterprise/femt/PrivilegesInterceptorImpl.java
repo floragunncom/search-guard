@@ -28,9 +28,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.UnparsedDocument;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
@@ -54,6 +59,7 @@ import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchResponseSections;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -65,6 +71,7 @@ import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.seqno.SequenceNumbers;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -86,6 +93,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
     private static final String USER_TENANT = "__user__";
     private static final String SG_FILTER_LEVEL_FEMT_DONE = ConfigConstants.SG_CONFIG_PREFIX + "filter_level_femt_done";
+    public static final String SG_TENANT_FIELD = "sg_tenant";
 
     private final Action KIBANA_ALL_SAVED_OBJECTS_WRITE;
     private final Action KIBANA_ALL_SAVED_OBJECTS_READ;
@@ -156,6 +164,10 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             log.debug("IndexInfo: " + kibanaIndexInfo);
         }
 
+        if("indices:admin/mapping/put".equals(context.getAction().name())) {
+            return extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener);
+        }
+
         String requestedTenant = user.getRequestedTenant();
 
         if (requestedTenant == null || requestedTenant.length() == 0) {
@@ -175,6 +187,48 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             // TODO
             log.error(e, e);
             return SyncAuthorizationFilter.Result.DENIED;
+        }
+    }
+
+    private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
+        ActionListener<AcknowledgedResponse> listener) {
+        UnparsedDocument<?> mappings = UnparsedDocument.from(request.source(), Format.JSON);
+        try (StoredContext ctx = threadContext.newStoredContext()){
+            DocNode docNode = mappings.parseAsDocNode();
+            DocNode propertiesDocNode = docNode.getAsNode("properties");
+            if(propertiesDocNode != null) {
+                if (propertiesDocNode.hasNonNull(SG_TENANT_FIELD)) {
+                    return Result.OK;
+                } else {
+                    propertiesDocNode = propertiesDocNode.with("sg_tenant", DocNode.of("type", "keyword"));
+                    docNode = docNode.with("properties", propertiesDocNode);
+                    if(log.isDebugEnabled()) {
+                        log.debug("Mappings extended with multi tenancy '{}'", docNode.toJsonString());
+                    }
+                    PutMappingRequest extendedRequest = new PutMappingRequest(request.indices())
+                        .source(docNode)
+                        .origin(request.origin())
+                        .writeIndexOnly(request.writeIndexOnly())
+                        .masterNodeTimeout(request.masterNodeTimeout())
+                        .timeout(request.timeout())
+                        .indicesOptions(request.indicesOptions());
+                    if(request.getConcreteIndex() != null) {
+                        extendedRequest.setConcreteIndex(request.getConcreteIndex());
+                    }
+                    threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
+                    nodeClient.admin().indices().putMapping(request, listener);
+                    return SyncAuthorizationFilter.Result.INTERCEPTED;
+//                    return Result.OK;
+                }
+            } else {
+                // request without properties...
+                // or maybe exception here?
+                return Result.OK;
+            }
+        } catch (DocumentParseException e) {
+            String message = "Cannot extend index mapping with information related to multi tenancy";
+            listener.onFailure(new ElasticsearchStatusException(message, RestStatus.INTERNAL_SERVER_ERROR, e));
+            return SyncAuthorizationFilter.Result.INTERCEPTED;
         }
     }
 
