@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -91,9 +92,12 @@ import com.floragunn.searchguard.user.User;
 
 public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
+    private static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX = "_reindex_temp";
+
     private static final String USER_TENANT = "__user__";
     private static final String SG_FILTER_LEVEL_FEMT_DONE = ConfigConstants.SG_CONFIG_PREFIX + "filter_level_femt_done";
     public static final String SG_TENANT_FIELD = "sg_tenant";
+    public static final String TENAND_SEPARATOR_IN_ID = "__sg_ten__";
 
     private final Action KIBANA_ALL_SAVED_OBJECTS_WRITE;
     private final Action KIBANA_ALL_SAVED_OBJECTS_READ;
@@ -117,7 +121,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.kibanaIndexName = config.getIndex();
         this.kibanaIndexNamePrefix = this.kibanaIndexName + "_";
         this.versionedKibanaIndexPattern = Pattern.compile(
-                "(" + Pattern.quote(this.kibanaIndexName) + toPatternFragment(indexSubNames) + ")" + "(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)?");
+                "(" + Pattern.quote(this.kibanaIndexName) + toPatternFragment(indexSubNames) + ")" + "(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)?" + "(" + Pattern.quote(TEMP_MIGRATION_INDEX_NAME_POSTFIX) + ")?");
 
         this.tenantNames = tenantNames.with(Tenant.GLOBAL_TENANT_ID);
         this.KIBANA_ALL_SAVED_OBJECTS_WRITE = actions.get("kibana:saved_objects/_/write");
@@ -125,11 +129,13 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.threadContext = threadContext;
         this.nodeClient = nodeClient;
         this.tenantAuthorization = tenantAuthorization;
+        log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
     @Override
     public SyncAuthorizationFilter.Result apply(PrivilegesEvaluationContext context, ActionListener<?> listener) {
         if (!enabled) {
+            log.trace("PrivilegesInterceptorImpl is disabled");
             return SyncAuthorizationFilter.Result.OK;
         }
 
@@ -144,28 +150,42 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         User user = context.getUser();
         ResolvedIndices requestedResolved = context.getRequestInfo().getResolvedIndices();
 
-        if (user.getName().equals(kibanaServerUsername)) {
-            return SyncAuthorizationFilter.Result.OK;
-        }
-
         if (log.isDebugEnabled()) {
             log.debug("apply(" + context.getAction() + ", " + user + ")\nrequestedResolved: " + requestedResolved + "\nrequestedTenant: "
                     + user.getRequestedTenant());
         }
 
-        IndexInfo kibanaIndexInfo = checkForExclusivelyUsedKibanaIndexOrAlias((ActionRequest) context.getRequest(), requestedResolved);
+        List<IndexInfo> kibanaIndicesInfo = checkForExclusivelyUsedKibanaIndexOrAlias((ActionRequest) context.getRequest(), requestedResolved);
 
-        if (kibanaIndexInfo == null) {
+        if (kibanaIndicesInfo.isEmpty()) {
             // This is not about the .kibana index: Nothing to do here, get out early!
             return SyncAuthorizationFilter.Result.OK;
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("IndexInfo: " + kibanaIndexInfo);
+            log.debug("IndexInfo: " + kibanaIndicesInfo);
         }
 
+        if(isTempMigrationIndex(kibanaIndicesInfo) && (context.getRequest() instanceof BulkRequest)){
+            log.debug("Temporary index '{}' used during migration detected.", kibanaIndicesInfo);
+            return handleDataMigration(context, (BulkRequest) context.getRequest(), (ActionListener<BulkResponse>) listener);
+        }
+
+        if(kibanaIndicesInfo.size() != 1) {
+            // only case handled for multiple index is data migration which should be done so far
+            return SyncAuthorizationFilter.Result.OK;
+        }
+
+        IndexInfo kibanaIndexInfo = kibanaIndicesInfo.get(0);
+
         if("indices:admin/mapping/put".equals(context.getAction().name())) {
+            log.debug("Migration of mappings detected for index '{}'", kibanaIndexInfo.originalName);
             return extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener);
+        }
+
+        if (user.getName().equals(kibanaServerUsername)) {
+            log.trace("Filtering of action '{}' will be not performed because request was send by user '{}'", context.getAction().name(), user.getName());
+            return SyncAuthorizationFilter.Result.OK;
         }
 
         String requestedTenant = user.getRequestedTenant();
@@ -190,13 +210,51 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         }
     }
 
+    private Result handleDataMigration(PrivilegesEvaluationContext context, BulkRequest bulkRequest, ActionListener<BulkResponse> listener) {
+        String actionName = context.getAction().name();
+        log.info("Action '{}' invoked during index migration, request class '{}'.", actionName, context.getRequest().getClass());
+        boolean requestExtended = false;
+        for (DocWriteRequest<?> item : bulkRequest.requests()) {
+            if(item instanceof IndexRequest) {
+                IndexRequest indexRequest = (IndexRequest) item;
+                IndexInfo indexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(indexRequest.index());
+                if((indexInfo != null) && isTempMigrationIndex(Collections.singletonList(indexInfo))) {
+                    Map<String, Object> source = indexRequest.sourceAsMap();
+                    if(isScopedId(indexRequest.id()) && (!source.containsKey(SG_TENANT_FIELD))) {
+                        String tenantName = extractTenantFromId(indexRequest.id());
+                        log.info("Adding field '{}' to document '{}' from index '{}' with value '{}'.", SG_TENANT_FIELD, indexRequest.id(), indexRequest.index(), tenantName);
+                        source.put(SG_TENANT_FIELD, tenantName);
+                        indexRequest.source(source);
+                        requestExtended = true;
+                    }}
+            }
+        }
+        if(requestExtended) {
+            try (StoredContext ctx = threadContext.newStoredContext()) {
+                threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, bulkRequest.toString());
+                nodeClient.bulk(bulkRequest, listener);
+                return Result.INTERCEPTED;
+            }
+        }
+        return Result.OK;
+    }
+
+    private boolean isTempMigrationIndex(List<IndexInfo> indices) {
+        return indices.stream()
+            .map(info -> info.originalName)
+            .filter(indexName -> indexName.endsWith(TEMP_MIGRATION_INDEX_NAME_POSTFIX))
+            .count() > 0;
+    }
+
     private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
         ActionListener<AcknowledgedResponse> listener) {
-        UnparsedDocument<?> mappings = UnparsedDocument.from(request.source(), Format.JSON);
+        String source = request.source();
+        log.trace("Mappings for index '{}' will be extended to support multitenancy, current mappings '{}'", request.indices(), source);
+        UnparsedDocument<?> mappings = UnparsedDocument.from(source, Format.JSON);
         try (StoredContext ctx = threadContext.newStoredContext()){
             DocNode docNode = mappings.parseAsDocNode();
-            DocNode propertiesDocNode = docNode.getAsNode("properties");
-            if(propertiesDocNode != null) {
+            if(docNode.hasNonNull("properties")) {
+                DocNode propertiesDocNode = docNode.getAsNode("properties");
                 if (propertiesDocNode.hasNonNull(SG_TENANT_FIELD)) {
                     return Result.OK;
                 } else {
@@ -215,14 +273,11 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                     if(request.getConcreteIndex() != null) {
                         extendedRequest.setConcreteIndex(request.getConcreteIndex());
                     }
-                    threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
-                    nodeClient.admin().indices().putMapping(request, listener);
+                    threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, extendedRequest.toString());
+                    nodeClient.admin().indices().putMapping(extendedRequest, listener);
                     return SyncAuthorizationFilter.Result.INTERCEPTED;
-//                    return Result.OK;
                 }
             } else {
-                // request without properties...
-                // or maybe exception here?
                 return Result.OK;
             }
         } catch (DocumentParseException e) {
@@ -517,17 +572,32 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     }
 
     private String scopedId(String id, String tenant) {
-        return id + "__sg_ten__" + tenant;
+        return id + TENAND_SEPARATOR_IN_ID + tenant;
     }
 
     private String unscopedId(String id) {
-        int i = id.indexOf("__sg_ten__");
+        int i = id.indexOf(TENAND_SEPARATOR_IN_ID);
 
         if (i != -1) {
             return id.substring(0, i);
         } else {
             return id;
         }
+    }
+
+    public String extractTenantFromId(String id) {
+        if(isScopedId(id)) {
+            return id.substring(id.indexOf(TENAND_SEPARATOR_IN_ID) + TENAND_SEPARATOR_IN_ID.length());
+        } else {
+            return null;
+        }
+    }
+
+    public boolean isScopedId(String id) {
+        if(id == null) {
+            return false;
+        }
+        return id.contains(TENAND_SEPARATOR_IN_ID) && (!id.endsWith(TENAND_SEPARATOR_IN_ID));
     }
 
     private GetResult searchHitToGetResult(SearchHit hit) {
@@ -647,18 +717,15 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         return true;
     }
 
-    private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(ActionRequest request, ResolvedIndices requestedResolved) {
+    private List<IndexInfo> checkForExclusivelyUsedKibanaIndexOrAlias(ActionRequest request, ResolvedIndices requestedResolved) {
         if (requestedResolved.isLocalAll()) {
-            return null;
+            return Collections.emptyList();
         }
-
-        Set<String> indices = getIndices(request);
-
-        if (indices.size() == 1) {
-            return checkForExclusivelyUsedKibanaIndexOrAlias(indices.iterator().next());
-        } else {
-            return null;
-        }
+        return getIndices(request)//
+            .stream() //
+            .map(indexName -> checkForExclusivelyUsedKibanaIndexOrAlias(indexName)) //
+            .filter(Objects::nonNull) //
+            .collect(Collectors.toList());
     }
 
     private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(String aliasOrIndex) {
