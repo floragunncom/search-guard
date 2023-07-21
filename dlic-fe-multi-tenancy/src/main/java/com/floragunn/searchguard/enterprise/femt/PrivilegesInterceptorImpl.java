@@ -23,6 +23,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -33,6 +34,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
+import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -43,6 +45,8 @@ import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -183,12 +187,18 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             return extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener);
         }
 
+        if("indices:admin/create".equals(context.getAction().name())) {
+            return extendIndexMappingWithMultiTenancyData((CreateIndexRequest) context.getRequest(), (ActionListener<CreateIndexResponse>)listener);
+        }
+
         if (user.getName().equals(kibanaServerUsername)) {
             log.trace("Filtering of action '{}' will be not performed because request was send by user '{}'", context.getAction().name(), user.getName());
             return SyncAuthorizationFilter.Result.OK;
         }
 
         String requestedTenant = user.getRequestedTenant();
+
+        log.trace("User's '{}' requested tenant is '{}'", user.getName(), requestedTenant);
 
         if (requestedTenant == null || requestedTenant.length() == 0) {
             //requestedTenant = Tenant.GLOBAL_TENANT_ID;
@@ -246,37 +256,33 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             .count() > 0;
     }
 
+    private Optional<DocNode> extendMappingsWithMultitenancy(String sourceMappings) throws DocumentParseException {
+        UnparsedDocument<?> mappings = UnparsedDocument.from(sourceMappings, Format.JSON);
+        DocNode node = mappings.parseAsDocNode();
+        return extendMappingsWithMultitenancy(node);
+    }
+
+    private static Optional<DocNode> extendMappingsWithMultitenancy(DocNode node) {
+        return Optional.of(node) //
+            .filter(docNode -> docNode.hasNonNull("properties")) //
+            .map(propertiesDocNode -> propertiesDocNode.getAsNode("properties")) //
+            .filter(propertiesDocNode -> !propertiesDocNode.hasNonNull(SG_TENANT_FIELD)) //
+            .map(propertiesDocNode -> propertiesDocNode.with("sg_tenant", DocNode.of("type", "keyword"))) //
+            .map(propertiesDocNode -> node.with("properties", propertiesDocNode));
+    }
+
     private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
         ActionListener<AcknowledgedResponse> listener) {
         String source = request.source();
         log.trace("Mappings for index '{}' will be extended to support multitenancy, current mappings '{}'", request.indices(), source);
-        UnparsedDocument<?> mappings = UnparsedDocument.from(source, Format.JSON);
         try (StoredContext ctx = threadContext.newStoredContext()){
-            DocNode docNode = mappings.parseAsDocNode();
-            if(docNode.hasNonNull("properties")) {
-                DocNode propertiesDocNode = docNode.getAsNode("properties");
-                if (propertiesDocNode.hasNonNull(SG_TENANT_FIELD)) {
-                    return Result.OK;
-                } else {
-                    propertiesDocNode = propertiesDocNode.with("sg_tenant", DocNode.of("type", "keyword"));
-                    docNode = docNode.with("properties", propertiesDocNode);
-                    if(log.isDebugEnabled()) {
-                        log.debug("Mappings extended with multi tenancy '{}'", docNode.toJsonString());
-                    }
-                    PutMappingRequest extendedRequest = new PutMappingRequest(request.indices())
-                        .source(docNode)
-                        .origin(request.origin())
-                        .writeIndexOnly(request.writeIndexOnly())
-                        .masterNodeTimeout(request.masterNodeTimeout())
-                        .timeout(request.timeout())
-                        .indicesOptions(request.indicesOptions());
-                    if(request.getConcreteIndex() != null) {
-                        extendedRequest.setConcreteIndex(request.getConcreteIndex());
-                    }
-                    threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, extendedRequest.toString());
-                    nodeClient.admin().indices().putMapping(extendedRequest, listener);
-                    return SyncAuthorizationFilter.Result.INTERCEPTED;
-                }
+            Optional<PutMappingRequest> newRequest =  extendMappingsWithMultitenancy(source)
+                .map(docNode -> createExtendedPutMappingRequest(request, docNode));
+            if(newRequest.isPresent()) {
+                PutMappingRequest putMappingRequest = newRequest.get();
+                threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, putMappingRequest.toString());
+                nodeClient.admin().indices().putMapping(putMappingRequest, listener);
+                return SyncAuthorizationFilter.Result.INTERCEPTED;
             } else {
                 return Result.OK;
             }
@@ -285,6 +291,51 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             listener.onFailure(new ElasticsearchStatusException(message, RestStatus.INTERNAL_SERVER_ERROR, e));
             return SyncAuthorizationFilter.Result.INTERCEPTED;
         }
+    }
+
+    private PutMappingRequest createExtendedPutMappingRequest(PutMappingRequest request, DocNode docNode) {
+        log.debug("Update mapping request intercepted, new mappings '{}'", docNode.toJsonString());
+        PutMappingRequest extendedRequest = new PutMappingRequest(request.indices())
+            .source(docNode)
+            .origin(request.origin())
+            .writeIndexOnly(request.writeIndexOnly())
+            .masterNodeTimeout(request.masterNodeTimeout())
+            .timeout(request.timeout())
+            .indicesOptions(request.indicesOptions());
+        if(request.getConcreteIndex() != null) {
+            extendedRequest.setConcreteIndex(request.getConcreteIndex());
+        }
+        return extendedRequest;
+    }
+
+    private Result extendIndexMappingWithMultiTenancyData(CreateIndexRequest request, ActionListener<CreateIndexResponse> listener) {
+        String sourceMappings = request.mappings();
+        if(Strings.isNullOrEmpty(sourceMappings)) {
+            return Result.OK;
+        }
+        try (StoredContext ctx = threadContext.newStoredContext()){
+            UnparsedDocument<?> mappings = UnparsedDocument.from(sourceMappings, Format.JSON);
+            DocNode requestSource = mappings.parseAsDocNode();
+            if(requestSource.hasNonNull("_doc")) {
+                Optional<String> newMappings = extendMappingsWithMultitenancy(requestSource.getAsNode("_doc"))
+                    .map(updatedMappings -> requestSource.with("_doc", updatedMappings))
+                    .map(DocNode::toJsonString);
+                if (newMappings.isPresent()) {
+                    String extendedMappings = newMappings.get();
+                    log.debug("Mappings extended during index creation '{}'", extendedMappings);
+                    request.mapping(extendedMappings);
+                    threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
+                    nodeClient.admin().indices().create(request, listener);
+                    return SyncAuthorizationFilter.Result.INTERCEPTED;
+                }
+            }
+        } catch (DocumentParseException e) {
+            String message = "Cannot extend index mapping with information related to multi tenancy during index creation";
+            listener.onFailure(new ElasticsearchStatusException(message, RestStatus.INTERNAL_SERVER_ERROR, e));
+            return SyncAuthorizationFilter.Result.INTERCEPTED;
+        }
+        //TODO return SyncAuthorizationFilter.Result.INTERCEPTED
+        return Result.OK;
     }
 
     private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, ActionListener<?> listener) {
@@ -485,20 +536,9 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                 indexRequest.id(newId);
 
                 Map<String, Object> source = indexRequest.sourceAsMap();
-                Object namespaces = source.get("namespaces");
-                Collection<Object> newNamespaces;
-
-                if (namespaces == null) {
-                    newNamespaces = Arrays.asList("_sg_ten_" + requestedTenant);
-                } else if (namespaces instanceof Collection) {
-                    newNamespaces = new LinkedHashSet<Object>((Collection<?>) namespaces);
-                    newNamespaces.add("_sg_ten_" + requestedTenant);
-                } else {
-                    newNamespaces = Arrays.asList(namespaces, "_sg_ten_" + requestedTenant);
-                }
 
                 Map<String, Object> newSource = new LinkedHashMap<>(source);
-                newSource.put("namespaces", newNamespaces);
+                newSource.put(SG_TENANT_FIELD, requestedTenant);
 
                 indexRequest.source(newSource, indexRequest.getContentType());
             } else if (item instanceof DeleteRequest) {
@@ -681,7 +721,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery().minimumShouldMatch(1);
 
         // TODO better tenant id
-        queryBuilder.should(QueryBuilders.termQuery("namespaces", "_sg_ten_" + requestedTenant));
+        queryBuilder.should(QueryBuilders.termQuery(SG_TENANT_FIELD, requestedTenant));
 
         return queryBuilder;
     }
