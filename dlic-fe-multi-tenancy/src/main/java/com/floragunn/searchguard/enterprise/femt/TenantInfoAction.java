@@ -85,12 +85,17 @@ public class TenantInfoAction extends BaseRestHandler {
                         builder.startObject();
 
                         final SortedMap<String, IndexAbstraction> lookup = clusterService.state().getMetadata().getIndicesLookup();
-                        for (final String indexOrAlias : lookup.keySet()) {
-                            final String tenant = tenantNameForIndex(indexOrAlias);
-                            if (tenant != null) {
-                                builder.field(indexOrAlias, tenant);
-                            }
-                        }
+                        // TODO add real implementation which loads information about tenants
+                        builder.field("non_existing_tenant_related_index_0", "admintenant");
+                        builder.field("non_existing_tenant_related_index_1", "admin_tenant");
+                        builder.field("non_existing_tenant_related_index_2", "hr_tenant");
+                        builder.field("non_existing_tenant_related_index_3", "r_and_d_tenant");
+//                        for (final String indexOrAlias : lookup.keySet()) {
+//                            final String tenant = tenantNameForIndex(indexOrAlias);
+//                            if (tenant != null) {
+//                                builder.field(indexOrAlias, tenant);
+//                            }
+//                        }
 
                         builder.endObject();
 
