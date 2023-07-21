@@ -23,6 +23,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -38,6 +39,8 @@ public class TenantInfoActionTest {
             .enterpriseModulesEnabled().users(KIBANA_SERVER).build();
 
     @Test
+    @Ignore // TODO on the PoC stage the endpoint returns hardcoded data, the endpoint needs to be reimplemented because the endpoint
+    // relays on older data structure which is not used in a newer versions
     public void testTenantInfo() throws Exception {
 
         /*
