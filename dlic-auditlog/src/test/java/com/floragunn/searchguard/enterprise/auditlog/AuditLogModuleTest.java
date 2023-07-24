@@ -29,6 +29,7 @@ public class AuditLogModuleTest {
         assertThat(auditLogModule.getAuditLog(), nullValue());
         assertThat(auditLogModule.getDirectoryReaderWrappersForAllOperations(), empty());
         assertThat(auditLogModule.getIndexOperationListeners(), empty());
+        assertThat(auditLogModule.getActionFilters(), empty());
     }
 
     @Test
@@ -42,6 +43,7 @@ public class AuditLogModuleTest {
         assertThat(auditLogModule.getAuditLog(), notNullValue());
         assertThat(auditLogModule.getDirectoryReaderWrappersForAllOperations(), hasSize(1));
         assertThat(auditLogModule.getIndexOperationListeners(), hasSize(1));
+        assertThat(auditLogModule.getActionFilters(), hasSize(1));
     }
 
     private BaseDependencies buildBaseDependencies(Settings settings) {

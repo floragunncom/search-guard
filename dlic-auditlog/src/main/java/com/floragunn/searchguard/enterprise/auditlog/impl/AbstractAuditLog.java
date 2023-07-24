@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -39,7 +40,9 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
+import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -60,6 +63,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
@@ -853,6 +857,156 @@ public abstract class AbstractAuditLog implements AuditLog {
         save(msg);
     }
 
+    @Override
+    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate) {
+        if (currentTemplate == null) {
+            log.error("Unable to log putted composable index template. Current index template is null.");
+            return;
+        }
+
+        if (complianceConfig == null) {
+            return;
+        }
+
+        Category category = Category.COMPLIANCE_INDEX_TEMPLATE_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkComplianceFilter(category, effectiveUser, getOrigin())) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), null);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndexTemplates(new String[] { templateName });
+        msg.addResolvedIndexTemplates(new String[] { templateName });
+        msg.addComplianceIndexTemplateVersion(currentTemplate.version());
+        msg.addComplianceOperation(originalTemplate == null ? Operation.CREATE : Operation.UPDATE);
+
+        if (complianceConfig.logDiffsForWrite() && originalTemplate != null) {
+            try {
+                String originalSource = XContentHelper.convertToJson(
+                        XContentHelper.toXContent(originalTemplate, XContentType.JSON, false),
+                        false, XContentType.JSON
+                );
+                String currentSource = XContentHelper.convertToJson(
+                        XContentHelper.toXContent(currentTemplate, XContentType.JSON, false),
+                        false, XContentType.JSON
+                );
+
+                DocNode originalDocument = DocNode.parse(Format.JSON).from(originalSource);
+                DocNode currentDocument = DocNode.parse(Format.JSON).from(currentSource);
+
+                JsonPatch diff = JsonPatch.fromDiff(originalDocument, currentDocument);
+
+                msg.addComplianceWriteDiffSource(diff.isEmpty() ? "" : diff.toJsonString());
+            } catch (Exception e) {
+                log.error("Unable to generate diff for {}", msg.toPrettyString(), e);
+            }
+        }
+
+        if (!complianceConfig.logWriteMetadataOnly()) {
+            try {
+                msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, XContentHelper.toXContent(currentTemplate, XContentType.JSON, false)));
+            } catch (Exception e) {
+                log.error("Unable to parse current composable index template source", e);
+            }
+        }
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate) {
+        if (currentTemplate == null) {
+            log.error("Unable to log putted legacy index template. Current index template is null.");
+            return;
+        }
+
+        if (complianceConfig == null) {
+            return;
+        }
+
+        Category category = Category.COMPLIANCE_INDEX_TEMPLATE_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkComplianceFilter(category, effectiveUser, getOrigin())) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), null);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndexTemplates(new String[] { templateName });
+        msg.addResolvedIndexTemplates(new String[] { templateName });
+        msg.addComplianceIndexTemplateVersion(currentTemplate.getVersion() != null? Long.valueOf(currentTemplate.getVersion()) : null);
+        msg.addComplianceOperation(originalTemplate == null ? Operation.CREATE : Operation.UPDATE);
+
+        if (complianceConfig.logDiffsForWrite() && originalTemplate != null) {
+            DocNode originalDocument;
+            DocNode currentDocument;
+            try {
+                try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
+                    builder.startObject();
+                    IndexTemplateMetadata.Builder.toXContent(originalTemplate, builder, ToXContent.EMPTY_PARAMS);
+                    builder.endObject();
+
+                    originalDocument = DocNode.parse(Format.JSON).from(Strings.toString(builder));
+                }
+                try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
+                    builder.startObject();
+                    IndexTemplateMetadata.Builder.toXContent(currentTemplate, builder, ToXContent.EMPTY_PARAMS);
+                    builder.endObject();
+
+                    currentDocument = DocNode.parse(Format.JSON).from(Strings.toString(builder));
+                }
+
+                JsonPatch diff = JsonPatch.fromDiff(originalDocument, currentDocument);
+                msg.addComplianceWriteDiffSource(diff.isEmpty() ? "" : diff.toJsonString());
+            } catch (Exception e) {
+                log.error("Unable to generate diff for {}", msg.toPrettyString(), e);
+            }
+        }
+
+        if (!complianceConfig.logWriteMetadataOnly()) {
+            try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
+                builder.startObject();
+                IndexTemplateMetadata.Builder.toXContent(currentTemplate, builder, ToXContent.EMPTY_PARAMS);
+                builder.endObject();
+                msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, BytesReference.bytes(builder)));
+            } catch (Exception e) {
+                log.error("Unable to parse current legacy index template source", e);
+            }
+        }
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames) {
+        UserInformation effectiveUser = getUser();
+
+        Category category = Category.COMPLIANCE_INDEX_TEMPLATE_WRITE;
+
+        if (!checkComplianceFilter(category, effectiveUser, getOrigin())) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), null);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndexTemplates(templateNames.toArray(new String[] {}));
+        msg.addResolvedIndexTemplates(resolvedTemplateNames.toArray(new String[] {}));
+        msg.addComplianceOperation(Operation.DELETE);
+
+        save(msg);
+    }
+
     private Origin getOrigin() {
         String origin = threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
 
@@ -969,7 +1123,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         }
 
-        if (category == Category.COMPLIANCE_DOC_WRITE || category == Category.COMPLIANCE_INTERNAL_CONFIG_WRITE) {
+        if (category == Category.COMPLIANCE_DOC_WRITE || category == Category.COMPLIANCE_INTERNAL_CONFIG_WRITE || category == Category.COMPLIANCE_INDEX_TEMPLATE_WRITE) {
             if (effectiveUser != null && effectiveUser.getName() != null && ignoredComplianceUsersForWrite.matches(effectiveUser.getName())) {
 
                 if (log.isTraceEnabled()) {

@@ -19,8 +19,12 @@ package com.floragunn.searchguard.auditlog;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
@@ -127,6 +131,21 @@ public class NullAuditLog implements AuditLog {
 
     @Override
     public void logExternalConfig(Settings settings, Environment environment) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames) {
         //noop, intentionally left empty
     }
 

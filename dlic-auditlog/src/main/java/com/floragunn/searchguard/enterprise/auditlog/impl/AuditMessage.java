@@ -85,8 +85,10 @@ public final class AuditMessage {
     //public static final String TYPES = "audit_trace_doc_types";
     //public static final String SOURCE = "audit_trace_doc_source";
     public static final String INDICES = "audit_trace_indices";
+    public static final String INDEX_TEMPLATES = "audit_trace_index_templates";
     public static final String SHARD_ID = "audit_trace_shard_id";
     public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
+    public static final String RESOLVED_INDEX_TEMPLATES = "audit_trace_resolved_index_templates";
 
     public static final String EXCEPTION = "audit_request_exception_stacktrace";
     public static final String IS_ADMIN_DN = "audit_request_effective_user_is_admin";
@@ -107,6 +109,7 @@ public final class AuditMessage {
 
     public static final String COMPLIANCE_OPERATION = "audit_compliance_operation";
     public static final String COMPLIANCE_DOC_VERSION = "audit_compliance_doc_version";
+    public static final String COMPLIANCE_INDEX_TEMPLATE_VERSION = "audit_compliance_index_template_version";
 
     private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
     private final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
@@ -371,6 +374,24 @@ public final class AuditMessage {
         auditInfo.put(COMPLIANCE_DOC_VERSION, version);
     }
 
+    public void addIndexTemplates(String[] indexTemplates) {
+        if (indexTemplates != null && indexTemplates.length > 0) {
+            auditInfo.put(INDEX_TEMPLATES, indexTemplates);
+        }
+    }
+
+    public void addResolvedIndexTemplates(String[] resolvedIndexTemplates) {
+        if (resolvedIndexTemplates != null && resolvedIndexTemplates.length > 0) {
+            auditInfo.put(RESOLVED_INDEX_TEMPLATES, resolvedIndexTemplates);
+        }
+    }
+
+    public void addComplianceIndexTemplateVersion(Long version) {
+        if (version != null) {
+            auditInfo.put(COMPLIANCE_INDEX_TEMPLATE_VERSION, version);
+        }
+    }
+
     public Map<String, Object> getAsMap() {
         return new HashMap<>(this.auditInfo);
     }
@@ -458,7 +479,7 @@ public final class AuditMessage {
     public enum Category {
         BAD_HEADERS, FAILED_LOGIN, BLOCKED_IP, BLOCKED_USER, MISSING_PRIVILEGES, SG_INDEX_ATTEMPT, SSL_EXCEPTION, AUTHENTICATED, GRANTED_PRIVILEGES,
         COMPLIANCE_DOC_READ, COMPLIANCE_DOC_WRITE, COMPLIANCE_EXTERNAL_CONFIG, COMPLIANCE_INTERNAL_CONFIG_READ, COMPLIANCE_INTERNAL_CONFIG_WRITE,
-        COMPLIANCE_IMMUTABLE_INDEX_ATTEMPT
+        COMPLIANCE_IMMUTABLE_INDEX_ATTEMPT, COMPLIANCE_INDEX_TEMPLATE_WRITE
     }
 
 }

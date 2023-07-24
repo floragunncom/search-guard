@@ -36,6 +36,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -82,6 +83,7 @@ public class SearchGuardModulesRegistry {
     private List<ComponentStateProvider> componentStateProviders = new ArrayList<>();
     private ImmutableList<SearchOperationListener> searchOperationListeners;
     private ImmutableList<IndexingOperationListener> indexOperationListeners;
+    private ImmutableList<ActionFilter> actionFilters;
     private ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters;
     private ImmutableList<Function<String, Predicate<String>>> fieldFilters;
     private ImmutableList<QueryCacheWeightProvider> queryCacheWeightProviders;
@@ -258,6 +260,23 @@ public class SearchGuardModulesRegistry {
             }
 
             this.indexOperationListeners = result;
+        }
+
+        return result;
+    }
+
+    public ImmutableList<ActionFilter> getActionFilters() {
+
+        ImmutableList<ActionFilter> result = this.actionFilters;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getActionFilters());
+            }
+
+            this.actionFilters = result;
         }
 
         return result;
