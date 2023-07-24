@@ -683,6 +683,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             if (actionTraceFilter != null) {
                 filters.add(actionTraceFilter);
             }
+            filters.addAll(moduleRegistry.getActionFilters());
         }
         return filters;
     }
