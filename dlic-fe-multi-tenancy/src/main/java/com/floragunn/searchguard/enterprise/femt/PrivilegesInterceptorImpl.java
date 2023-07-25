@@ -201,13 +201,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             //requestedTenant = Tenant.GLOBAL_TENANT_ID;
             return SyncAuthorizationFilter.Result.OK;
         }
-
-        // TODO do we need auth token stuff here?
-        if(user.getName().equals(kibanaServerUsername) && (context.getRequest() instanceof BulkRequest)) {
-            // without this condition test com.floragunn.searchguard.enterprise.femt.MultiTenancyMigrationTest.shouldUpdateSpace
-            // works only in 2 % of cases
-            return SyncAuthorizationFilter.Result.OK;
-        }
         try {
             if (user.getName().equals(kibanaServerUsername) || isTenantAllowed(context, (ActionRequest) context.getRequest(), context.getAction(), requestedTenant)) {
                 return handle(context, requestedTenant, listener);
@@ -345,7 +338,8 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         if (request instanceof IndexRequest  || request instanceof DeleteRequest) {
             // These are converted into BulkRequests and handled then
-            return SyncAuthorizationFilter.Result.OK;
+            log.debug("Index or delete request, return PASS_ON_FAST_LANE");
+            return Result.PASS_ON_FAST_LANE;
         }
 
         try (StoredContext ctx = threadContext.newStoredContext()) {
@@ -388,6 +382,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
             @Override
             public void onFailure(Exception e) {
+                log.debug("Interception of update request failed", e);
                 listener.onFailure(e);
             }
         });
@@ -577,6 +572,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         nodeClient.bulk(bulkRequest, new ActionListener<BulkResponse>() {
             @Override
             public void onResponse(BulkResponse response) {
+                log.debug("Process bulk response {}", response);
                 try {
                     ctx.restore();
 
@@ -593,18 +589,25 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                             DocWriteResponse newDocWriteResponse = null;
 
                             if (docWriteResponse instanceof IndexResponse) {
+                                log.debug("Rewriting index response");
                                 newDocWriteResponse = new IndexResponse(docWriteResponse.getShardId(), unscopedId(docWriteResponse.getId()),
                                         docWriteResponse.getSeqNo(), docWriteResponse.getPrimaryTerm(), docWriteResponse.getVersion(),
                                         docWriteResponse.getResult() == DocWriteResponse.Result.CREATED);
                             } else if (docWriteResponse instanceof DeleteResponse) {
-                                newDocWriteResponse = new DeleteResponse(docWriteResponse.getShardId(), unscopedId(docWriteResponse.getId()),
-                                        docWriteResponse.getSeqNo(), docWriteResponse.getPrimaryTerm(), docWriteResponse.getVersion(),
-                                        docWriteResponse.getResult() == DocWriteResponse.Result.DELETED);
+                                log.debug("Rewriting delete response");
+                                newDocWriteResponse = new DeleteResponse(docWriteResponse.getShardId(),
+                                    unscopedId(docWriteResponse.getId()),
+                                    docWriteResponse.getSeqNo(),
+                                    docWriteResponse.getPrimaryTerm(),
+                                    docWriteResponse.getVersion(),
+                                    docWriteResponse.getResult() == DocWriteResponse.Result.DELETED);
                             } else if (docWriteResponse instanceof UpdateResponse) {
                                 newDocWriteResponse = handleUpdateResponse(docWriteResponse);
                             } else {
+                                log.debug("Bulk response '{}' will be not modified", docWriteResponse);
                                 newDocWriteResponse = docWriteResponse;
                             }
+                            newDocWriteResponse.setShardInfo(docWriteResponse.getShardInfo());
 
                             newItems[i] = BulkItemResponse.success(item.getItemId(), item.getOpType(), newDocWriteResponse);
                         }
@@ -614,6 +617,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                     ActionListener<BulkResponse> bulkListener = (ActionListener<BulkResponse>) listener;
                     BulkResponse bulkResponse = new BulkResponse(newItems, response.getIngestTookInMillis());
                     bulkListener.onResponse(bulkResponse);
+                    log.debug("Bulk request handled without errors");
                 } catch (Exception e) {
                     log.error("Error during handling bulk request response", e);
                     listener.onFailure(e);
@@ -630,12 +634,16 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     }
 
     private UpdateResponse handleUpdateResponse(DocWriteResponse docWriteResponse) {
-        return new UpdateResponse(docWriteResponse.getShardId(),
+        log.debug("Rewriting update response");
+        UpdateResponse updateResponse = new UpdateResponse(
+            docWriteResponse.getShardId(),
             unscopedId(docWriteResponse.getId()),
             docWriteResponse.getSeqNo(),
             docWriteResponse.getPrimaryTerm(),
             docWriteResponse.getVersion(),
             docWriteResponse.getResult());
+        updateResponse.setShardInfo(docWriteResponse.getShardInfo());
+        return updateResponse;
     }
 
     private SyncAuthorizationFilter.Result handle(ClusterSearchShardsRequest request, StoredContext ctx, ActionListener<?> listener) {
