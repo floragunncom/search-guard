@@ -269,6 +269,7 @@ public class MultiTenancyMigrationTest {
         }
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
         try (GenericRestClient client = cluster.getRestClient("tenantmaster", "tenantmaster", tenantHeader)) {
+            log.debug("Try to delete space space:admin_space_3");
 
             HttpResponse response = client.delete("/.kibana_8.8.0/_doc/space:admin_space_3");
 
