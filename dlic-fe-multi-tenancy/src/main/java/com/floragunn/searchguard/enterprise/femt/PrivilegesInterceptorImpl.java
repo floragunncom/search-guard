@@ -203,11 +203,11 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         }
 
         // TODO do we need auth token stuff here?
-//        if(user.getName().equals(kibanaServerUsername) && (context.getRequest() instanceof BulkRequest)) {
-//            // without this condition test com.floragunn.searchguard.enterprise.femt.MultiTenancyMigrationTest.shouldUpdateSpace
-//            // works only in 2 % of cases
-//            return SyncAuthorizationFilter.Result.OK;
-//        }
+        if(user.getName().equals(kibanaServerUsername) && (context.getRequest() instanceof BulkRequest)) {
+            // without this condition test com.floragunn.searchguard.enterprise.femt.MultiTenancyMigrationTest.shouldUpdateSpace
+            // works only in 2 % of cases
+            return SyncAuthorizationFilter.Result.OK;
+        }
         try {
             if (user.getName().equals(kibanaServerUsername) || isTenantAllowed(context, (ActionRequest) context.getRequest(), context.getAction(), requestedTenant)) {
                 return handle(context, requestedTenant, listener);
@@ -342,11 +342,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, ActionListener<?> listener) {
 
         Object request = context.getRequest();
-        if(request instanceof UpdateRequest) {
-            String done = threadContext.getHeader(SG_FILTER_LEVEL_FEMT_DONE);
-            log.debug("Update request detected, return PASS_ON_FAST_LANE, FEMT done value '{}'", done);
-            return Result.PASS_ON_FAST_LANE;
-        }
 
         if (request instanceof IndexRequest  || request instanceof DeleteRequest) {
             // These are converted into BulkRequests and handled then
