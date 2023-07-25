@@ -505,4 +505,16 @@ sg_tenant_user_attrs:
   - tenant_patterns:
     - "business_intelligence"
     allowed_actions:
-    - "SGS_KIBANA_ALL_READ"    
+    - "SGS_KIBANA_ALL_READ"
+TENANT_MASTER_ROLE:
+  description: ""
+  index_permissions: []
+  tenant_permissions:
+    - allowed_actions:
+        - "SGS_KIBANA_ALL_WRITE"
+      tenant_patterns:
+        - "admin_tenant"
+  cluster_permissions:
+    - "SGS_CLUSTER_ALL"
+  exclude_cluster_permissions: []
+  exclude_index_permissions: []

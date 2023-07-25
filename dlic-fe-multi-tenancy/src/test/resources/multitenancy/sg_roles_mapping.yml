@@ -160,3 +160,6 @@ sg_kibana4_testindex:
   - "test"
   and_backend_roles: []
   description: "Migrated from v6"
+SGS_KIBANA_SERVER:
+  users:
+    - "kibanaserver"
