@@ -19,7 +19,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -170,6 +169,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             log.debug("IndexInfo: " + kibanaIndicesInfo);
         }
 
+        // TODO check if user is allowed to perform the request
         if(isTempMigrationIndex(kibanaIndicesInfo) && (context.getRequest() instanceof BulkRequest)){
             log.debug("Temporary index '{}' used during migration detected.", kibanaIndicesInfo);
             return handleDataMigration(context, (BulkRequest) context.getRequest(), (ActionListener<BulkResponse>) listener);
@@ -182,18 +182,15 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         IndexInfo kibanaIndexInfo = kibanaIndicesInfo.get(0);
 
+        // TODO check if user is allowed to perform the request
         if("indices:admin/mapping/put".equals(context.getAction().name())) {
             log.debug("Migration of mappings detected for index '{}'", kibanaIndexInfo.originalName);
             return extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener);
         }
 
+        // TODO check if user is allowed to perform the request
         if("indices:admin/create".equals(context.getAction().name())) {
             return extendIndexMappingWithMultiTenancyData((CreateIndexRequest) context.getRequest(), (ActionListener<CreateIndexResponse>)listener);
-        }
-
-        if (user.getName().equals(kibanaServerUsername)) {
-            log.trace("Filtering of action '{}' will be not performed because request was send by user '{}'", context.getAction().name(), user.getName());
-            return SyncAuthorizationFilter.Result.OK;
         }
 
         String requestedTenant = user.getRequestedTenant();
@@ -206,9 +203,13 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         }
 
         // TODO do we need auth token stuff here?
-
+        if(user.getName().equals(kibanaServerUsername) && (context.getRequest() instanceof BulkRequest)) {
+            // without this condition test com.floragunn.searchguard.enterprise.femt.MultiTenancyMigrationTest.shouldUpdateSpace
+            // works only in 2 % of cases
+            return SyncAuthorizationFilter.Result.OK;
+        }
         try {
-            if (isTenantAllowed(context, (ActionRequest) context.getRequest(), context.getAction(), requestedTenant)) {
+            if (user.getName().equals(kibanaServerUsername) || isTenantAllowed(context, (ActionRequest) context.getRequest(), context.getAction(), requestedTenant)) {
                 return handle(context, requestedTenant, listener);
             } else {
                 return SyncAuthorizationFilter.Result.DENIED;
@@ -342,7 +343,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         Object request = context.getRequest();
 
-        if (request instanceof IndexRequest || request instanceof UpdateRequest || request instanceof DeleteRequest) {
+        if (request instanceof IndexRequest  || request instanceof DeleteRequest) {
             // These are converted into BulkRequests and handled then
             return SyncAuthorizationFilter.Result.OK;
         }
@@ -361,13 +362,36 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                 return handle((ClusterSearchShardsRequest) request, ctx, listener);
             } else if (request instanceof BulkRequest) {
                 return handle(context, requestedTenant, (BulkRequest) request, ctx, listener);
-            } else {
+            } else if (request instanceof UpdateRequest) {
+                return handle(requestedTenant, (UpdateRequest) request, ctx, (ActionListener<UpdateResponse>) listener);
+            }
+            else {
                 if (log.isTraceEnabled()) {
                     log.trace("Not giving {} special treatment for FEMT", request);
                 }
                 return SyncAuthorizationFilter.Result.OK;
             }
         }
+    }
+
+    private Result handle(String requestedTenant, UpdateRequest request, StoredContext ctx, ActionListener<UpdateResponse> listener) {
+        String newId = scopeIdIfNeeded(request.id(), requestedTenant);
+        request.id(newId);
+        nodeClient.update(request, new ActionListener<>() {
+
+            @Override
+            public void onResponse(UpdateResponse updateResponse) {
+                ctx.restore();
+                // TODO is try catch needed here to invoke handleUpdateResponse
+                listener.onResponse(handleUpdateResponse(updateResponse));
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                listener.onFailure(e);
+            }
+        });
+        return Result.INTERCEPTED;
     }
 
     private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, SearchRequest searchRequest,
@@ -527,7 +551,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                     newId = null;
                 }
             } else {
-                newId = scopedId(id, requestedTenant);
+                newId = scopeIdIfNeeded(id, requestedTenant);
             }
 
             if (item instanceof IndexRequest) {
@@ -577,9 +601,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                                         docWriteResponse.getSeqNo(), docWriteResponse.getPrimaryTerm(), docWriteResponse.getVersion(),
                                         docWriteResponse.getResult() == DocWriteResponse.Result.DELETED);
                             } else if (docWriteResponse instanceof UpdateResponse) {
-                                newDocWriteResponse = new UpdateResponse(docWriteResponse.getShardId(), unscopedId(docWriteResponse.getId()),
-                                        docWriteResponse.getSeqNo(), docWriteResponse.getPrimaryTerm(), docWriteResponse.getVersion(),
-                                        docWriteResponse.getResult());
+                                newDocWriteResponse = handleUpdateResponse(docWriteResponse);
                             } else {
                                 newDocWriteResponse = docWriteResponse;
                             }
@@ -590,8 +612,10 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
                     @SuppressWarnings("unchecked")
                     ActionListener<BulkResponse> bulkListener = (ActionListener<BulkResponse>) listener;
-                    bulkListener.onResponse(new BulkResponse(newItems, response.getIngestTookInMillis()));
+                    BulkResponse bulkResponse = new BulkResponse(newItems, response.getIngestTookInMillis());
+                    bulkListener.onResponse(bulkResponse);
                 } catch (Exception e) {
+                    log.error("Error during handling bulk request response", e);
                     listener.onFailure(e);
                 }
             }
@@ -605,6 +629,15 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         return SyncAuthorizationFilter.Result.INTERCEPTED;
     }
 
+    private UpdateResponse handleUpdateResponse(DocWriteResponse docWriteResponse) {
+        return new UpdateResponse(docWriteResponse.getShardId(),
+            unscopedId(docWriteResponse.getId()),
+            docWriteResponse.getSeqNo(),
+            docWriteResponse.getPrimaryTerm(),
+            docWriteResponse.getVersion(),
+            docWriteResponse.getResult());
+    }
+
     private SyncAuthorizationFilter.Result handle(ClusterSearchShardsRequest request, StoredContext ctx, ActionListener<?> listener) {
         listener.onFailure(new ElasticsearchSecurityException(
                 "Filter-level MT via cross cluster search is not available for scrolling and minimize_roundtrips=true"));
@@ -613,6 +646,13 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
     private String scopedId(String id, String tenant) {
         return id + TENAND_SEPARATOR_IN_ID + tenant;
+    }
+
+    private String scopeIdIfNeeded(String id, String tenant) {
+        if(id.contains(TENAND_SEPARATOR_IN_ID)) {
+            return id;
+        }
+        return scopedId(id, tenant);
     }
 
     private String unscopedId(String id) {

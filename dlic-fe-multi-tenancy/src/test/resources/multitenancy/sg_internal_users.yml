@@ -143,3 +143,9 @@ kibanaro:
   description: "Migrated from v6"
 kibanaserver:
   hash: "$2a$12$4AcgAt3xwOWadA5s5blL6ev39OXDNhmOesEoo33eZtrq2N0YrU3H."
+tenantmaster:
+  search_guard_roles:
+    - "TENANT_MASTER_ROLE"
+  backend_roles: []
+  attributes: {}
+  hash: "$2y$12$uFPWiAgebRObYHVuQaq8NuMNd9H1VSr3W61nx8TZDVT8Sj9ufI7bO"

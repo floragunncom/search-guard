@@ -4,11 +4,14 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
+
+import java.util.Collections;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
@@ -190,6 +193,87 @@ public class MultiTenancyMigrationTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, containsValue("$['.kibana_8.8.0_001'].mappings.properties.sg_tenant.type", "keyword"));
+        }
+    }
+
+    @Test
+    public void shouldUpdateSpace() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+            createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
+            String bulkRequestWithVariousIndices = """
+                {"index":{"_id":"space:admin_space_3__sg_ten__admin_tenant","_index":".kibana_8.8.0_reindex_temp"}}
+                {"doc":{"space":{"name":"admin_space_3","description":"3rd spaces of admin, so dark red that almost black, description updated","initials":"a3","color":"#440505","disabledFeatures":[],"imageUrl":""},"updated_at":"2023-07-24T08:16:09.347Z"}}
+                
+                """;
+            HttpResponse response = client.postJson("/.kibana_8.8.0_reindex_temp/_bulk?require_alias=false&wait_for_active_shards=all&refresh=true&filter_path=items.*.error", bulkRequestWithVariousIndices);
+            log.info("Bulk index response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            response = client.get("/.kibana_8.8.0_reindex_temp/_search");
+            log.info("Search response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.hits.hits[0]._id", "space:admin_space_3__sg_ten__admin_tenant"));
+            assertThat(body, containsValue("$.hits.hits[0]._source.sg_tenant", "admin_tenant"));
+            DocNode createAlias = DocNode.of("actions", Collections.singletonList(DocNode.of("add", DocNode.of("index", ".kibana_8.8.0_reindex_temp", "alias", ".kibana_8.8.0"))));
+            response = client.postJson("/_aliases", createAlias.toJsonString());
+            log.debug("Create alias response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+        }
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            String updateBody = """
+                {
+                	"doc": {
+                		"space": {
+                			"name": "admin_space_3",
+                			"description": "3rd spaces of admin, so dark red that almost black, description updated",
+                			"initials": "a3",
+                			"color": "#440505",
+                			"disabledFeatures": [],
+                			"imageUrl": ""
+                		},
+                		"updated_at": "2023-07-24T08:16:09.347Z"
+                	}
+                }
+                """;
+
+            HttpResponse response = client.postJson("/.kibana_8.8.0/_update/space:admin_space_3", updateBody);
+
+            log.debug("Update space response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+        }
+    }
+
+    @Test
+    public void shouldDeleteSpace() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+            createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
+            String bulkRequestWithVariousIndices = """
+                {"index":{"_id":"space:admin_space_3__sg_ten__admin_tenant","_index":".kibana_8.8.0_reindex_temp"}}
+                {"doc":{"space":{"name":"admin_space_3","description":"3rd spaces of admin, so dark red that almost black, description updated","initials":"a3","color":"#440505","disabledFeatures":[],"imageUrl":""},"updated_at":"2023-07-24T08:16:09.347Z"}}
+                
+                """;
+            HttpResponse response = client.postJson("/.kibana_8.8.0_reindex_temp/_bulk?require_alias=false&wait_for_active_shards=all&refresh=true&filter_path=items.*.error", bulkRequestWithVariousIndices);
+            log.info("Bulk index response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            response = client.get("/.kibana_8.8.0_reindex_temp/_search");
+            log.info("Search response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.hits.hits[0]._id", "space:admin_space_3__sg_ten__admin_tenant"));
+            assertThat(body, containsValue("$.hits.hits[0]._source.sg_tenant", "admin_tenant"));
+            DocNode createAlias = DocNode.of("actions", Collections.singletonList(DocNode.of("add", DocNode.of("index", ".kibana_8.8.0_reindex_temp", "alias", ".kibana_8.8.0"))));
+            response = client.postJson("/_aliases", createAlias.toJsonString());
+            log.debug("Create alias response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+        }
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient client = cluster.getRestClient("tenantmaster", "tenantmaster", tenantHeader)) {
+
+            HttpResponse response = client.delete("/.kibana_8.8.0/_doc/space:admin_space_3");
+
+            log.debug("Delete space response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
         }
     }
 
