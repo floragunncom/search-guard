@@ -131,10 +131,7 @@ import org.elasticsearch.action.ingest.DeletePipelineAction;
 import org.elasticsearch.action.ingest.GetPipelineAction;
 import org.elasticsearch.action.ingest.PutPipelineAction;
 import org.elasticsearch.action.ingest.SimulatePipelineAction;
-import org.elasticsearch.action.search.ClearScrollAction;
-import org.elasticsearch.action.search.MultiSearchAction;
-import org.elasticsearch.action.search.SearchAction;
-import org.elasticsearch.action.search.SearchScrollAction;
+import org.elasticsearch.action.search.*;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.action.termvectors.TermVectorsAction;
 import org.elasticsearch.action.update.UpdateAction;
@@ -208,6 +205,8 @@ public class Actions {
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.UPDATE, "indices:data/write/index");
 
         index(ClusterSearchShardsAction.INSTANCE) //
+                .requiresAdditionalPrivileges(always(), "indices:data/read/search");
+        index(SearchShardsAction.INSTANCE) //
                 .requiresAdditionalPrivileges(always(), "indices:data/read/search");
 
         cluster(MultiGetAction.INSTANCE);
