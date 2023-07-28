@@ -229,6 +229,7 @@ SGS_KIBANA_SERVER:
     allowed_actions:
     - "indices:admin/aliases*"
     - "indices:data/read/close_point_in_time"
+    - "indices:data/read/open_point_in_time"
     - "indices:admin/mappings/get"
     - "indices:monitor/settings/get"
     - "indices:monitor/stats"
