@@ -32,6 +32,7 @@ public class SgAwarePluginsService extends PluginsService {
         super(settings, null, null, null);
 
         loadSearchGuardPlugin(settings);
+        loadMainRestPlugin();
         loadPainlessPluginIfAvailable();
 
         for(Class<? extends Plugin> plugin: Stream.concat(STANDARD_PLUGINS.stream(), additionalPlugins.stream()).toList()) {
@@ -45,6 +46,15 @@ public class SgAwarePluginsService extends PluginsService {
 
     private void loadSearchGuardPlugin(Settings settings) {
         loadedPlugins.add(createLoadedPlugin(new SearchGuardPlugin(settings, null)));
+    }
+
+    private void loadMainRestPlugin() {
+        try {
+            Class<? extends Plugin> mainRestPlugin = (Class<? extends Plugin>) Class.forName("org.elasticsearch.rest.root.MainRestPlugin");
+            loadedPlugins.add(createLoadedPlugin(mainRestPlugin));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void loadPainlessPluginIfAvailable() {
