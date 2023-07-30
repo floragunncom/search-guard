@@ -36,10 +36,10 @@
 		<netty-native.version>2.0.25.Final</netty-native.version>
 		<bc.version>1.70</bc.version>
 		<log4j.version>2.17.1</log4j.version>
-		<guava.version>30.0-jre</guava.version>
+		<guava.version>32.0.1-jre</guava.version>
 		<commons.cli.version>1.4</commons.cli.version>
 		<jackson-databind.version>2.14.2</jackson-databind.version>
-	    <cxf.version>3.4.10</cxf.version>
+	    <cxf.version>4.0.2</cxf.version>
 		<http.commons.version>4.5.13</http.commons.version>
 		<quartz.version>2.3.2</quartz.version>
 		<simplemail.version>5.2.1</simplemail.version>
