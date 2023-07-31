@@ -36,6 +36,7 @@ import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchShardsResponse;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
@@ -301,7 +302,7 @@ public class SearchGuardInterceptor {
 
             contextToRestore.restore();
 
-            if (response instanceof ClusterSearchShardsResponse) {           
+            if (response instanceof ClusterSearchShardsResponse || response instanceof SearchShardsResponse) {
                 if (flsResponseHeader != null && !flsResponseHeader.isEmpty()) {
                     threadContext.putTransient(ConfigConstants.SG_FLS_FIELDS_CCS, flsResponseHeader.get(0));
                 }
