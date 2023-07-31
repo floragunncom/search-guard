@@ -246,7 +246,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return FeMultiTenancyConfigApi.ACTION_HANDLERS;
+        return (List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>>) FeMultiTenancyConfigApi.ACTION_HANDLERS;
     }
 
     @Override
