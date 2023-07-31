@@ -417,7 +417,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 log.debug("Resolved indices were empty. Forcing empty result succeed");
                 return PrivilegesEvaluationResult.OK;
             } else {
-                log.debug("Resolved indices were empty. Forcing empty result failed for " + action0 + " (" + request.getClass().getName() + ")");
+                log.debug("Resolved indices were empty. Forcing empty result failed for {} ({})", action0, request.getClass().getName());
                 return PrivilegesEvaluationResult.INSUFFICIENT;
             }
         }
