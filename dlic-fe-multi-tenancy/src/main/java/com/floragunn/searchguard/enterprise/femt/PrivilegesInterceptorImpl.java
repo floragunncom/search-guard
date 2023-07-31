@@ -175,16 +175,12 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             return handleDataMigration(context, (BulkRequest) context.getRequest(), (ActionListener<BulkResponse>) listener);
         }
 
-        if(kibanaIndicesInfo.size() != 1) {
-            // only case handled for multiple index is data migration which should be done so far
-            return SyncAuthorizationFilter.Result.OK;
-        }
-
-        IndexInfo kibanaIndexInfo = kibanaIndicesInfo.get(0);
-
         // TODO check if user is allowed to perform the request
         if("indices:admin/mapping/put".equals(context.getAction().name())) {
-            log.debug("Migration of mappings detected for index '{}'", kibanaIndexInfo.originalName);
+            if(log.isDebugEnabled()) {
+                String indicesNames = kibanaIndicesInfo.stream().map(indexInfo -> indexInfo.originalName).collect(Collectors.joining(", "));
+                log.debug("Migration of mappings detected for index '{}'", indicesNames);
+            }
             return extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener);
         }
 
@@ -658,7 +654,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
     private String scopeIdIfNeeded(String id, String tenant) {
         if(id.contains(TENAND_SEPARATOR_IN_ID)) {
-            return id;
+            return scopedId(unscopedId(id), tenant);
         }
         return scopedId(id, tenant);
     }
@@ -809,11 +805,18 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         if (requestedResolved.isLocalAll()) {
             return Collections.emptyList();
         }
-        return getIndices(request)//
+        Set<String> allQueryIndices = getIndices(request);
+        List<IndexInfo> multiTenancyRelatedIndices = allQueryIndices//
             .stream() //
             .map(indexName -> checkForExclusivelyUsedKibanaIndexOrAlias(indexName)) //
             .filter(Objects::nonNull) //
             .collect(Collectors.toList());
+        if((multiTenancyRelatedIndices.size() > 0) && (allQueryIndices.size() != multiTenancyRelatedIndices.size())) {
+            // TODO this case is not handled correctly
+            String indicesNames = String.join(", ", allQueryIndices);
+            log.error("Request '{}' is related to multi-tenancy request and some other indices '{}'", request.getClass(), indicesNames);
+        }
+        return multiTenancyRelatedIndices;
     }
 
     private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(String aliasOrIndex) {

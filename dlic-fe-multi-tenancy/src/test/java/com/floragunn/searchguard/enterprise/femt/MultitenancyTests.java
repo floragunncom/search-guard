@@ -22,38 +22,26 @@ import co.elastic.clients.elasticsearch.core.GetResponse;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import co.elastic.clients.elasticsearch.core.MgetRequest;
 import co.elastic.clients.elasticsearch.core.MgetResponse;
-import co.elastic.clients.elasticsearch.core.MsearchRequest;
 import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
-import co.elastic.clients.elasticsearch.core.msearch.RequestItem;
 import co.elastic.clients.elasticsearch.indices.UpdateAliasesResponse;
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.MultiGetItemResponse;
-import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.get.MultiGetRequest.Item;
-import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.xcontent.XContentType;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -71,7 +59,8 @@ public class MultitenancyTests {
     @Test
     public void testMt() throws Exception {
 
-        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee"); GenericRestClient adminClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee");
+            GenericRestClient adminClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
 
             GenericRestClient.HttpResponse response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "blafasel"));
@@ -228,7 +217,7 @@ public class MultitenancyTests {
     public void testKibanaAlias() throws Exception {
         try {
             try (Client tc = cluster.getInternalNodeClient()) {
-                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"namespaces\": [\"_sg_ten_human_resources\"]}";
+                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
 
                 tc.admin().indices().create(new CreateIndexRequest(".kibana_8.8.0_001").alias(new Alias(".kibana"))
                         .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0))).actionGet();
@@ -244,8 +233,10 @@ public class MultitenancyTests {
             }
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
-                tc.admin().indices().delete(new DeleteIndexRequest(".kibana-6")).actionGet();
+                tc.admin().indices().prepareAliases().removeAlias(".kibana_8.8.0_001", ".kibana").get();
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_8.8.0_001")).actionGet();
             } catch (Exception ignored) {
+                Assert.fail("Unexpected exception " + ignored);
             }
         }
     }
@@ -290,7 +281,7 @@ public class MultitenancyTests {
         try {
 
             try (Client tc = cluster.getInternalNodeClient()) {
-                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"namespaces\": [\"_sg_ten_kibana_7_12_alias_test\"]}";
+                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"kibana_7_12_alias_test\"}";
 
                 tc.admin().indices()
                         .create(new CreateIndexRequest(".kibana_7.12.0_001")
@@ -358,7 +349,7 @@ public class MultitenancyTests {
     @Test
     public void testMgetWithKibanaAlias() throws Exception {
         String indexName = ".kibana";
-        String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"namespaces\": [\"_sg_ten_human_resources\"]}";
+        String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
 
         try (Client client = cluster.getInternalNodeClient();
                 RestHighLevelClient restClient = cluster.getRestHighLevelClient("hr_employee", "hr_employee", "human_resources")) {
@@ -371,12 +362,15 @@ public class MultitenancyTests {
             multiGetRequest.index(".kibana");
 
             for (int i = 0; i < 100; i++) {
-                client.index(new IndexRequest(indexName).id("d" + i).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(testDoc, XContentType.JSON))
+                String id = "d" + i;
+                String idInTenantScope = id + "__sg_ten__human_resources";
+                client.index(new IndexRequest(indexName).id(idInTenantScope).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(testDoc, XContentType.JSON))
                         .actionGet();
-                multiGetRequest.ids("d" + i);
+                multiGetRequest.ids(id);
             }
 
             MgetResponse<Map> response = restClient.getJavaClient().mget(multiGetRequest.build(), Map.class);
+            Assert.assertFalse(response.docs().isEmpty());
 
             for (MultiGetResponseItem<Map> item : response.docs()) {
                 if (item.result() == null || item.isFailure()) {
