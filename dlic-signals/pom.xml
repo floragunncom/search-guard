@@ -71,12 +71,6 @@
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
-        <!--    needed because maven does not get the transitive test-scoped dependencies automatically. Maven only resolves the compile-time dependencies, so you'll have to add all the other required test-scoped dependencies by hand.  -->
-        <dependency>
-            <groupId>io.github.hakky54</groupId>
-            <artifactId>sslcontext-kickstart-for-pem</artifactId>
-            <scope>test</scope>
-        </dependency>
 
         <dependency>
             <groupId>com.floragunn</groupId>

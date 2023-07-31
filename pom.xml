@@ -277,11 +277,6 @@
 			</dependency>
 
 			<dependency>
-				<groupId>io.github.hakky54</groupId>
-				<artifactId>sslcontext-kickstart-for-pem</artifactId>
-				<version>7.0.2</version>
-			</dependency>
-			<dependency>
 				<groupId>org.bouncycastle</groupId>
 				<artifactId>bcprov-jdk15on</artifactId>
 				<version>${bc.version}</version>

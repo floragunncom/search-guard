@@ -195,11 +195,6 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<dependency>
-			<groupId>io.github.hakky54</groupId>
-			<artifactId>sslcontext-kickstart-for-pem</artifactId>
-			<scope>test</scope>
-		</dependency>
 
 		<dependency>
 			<groupId>commons-validator</groupId>
