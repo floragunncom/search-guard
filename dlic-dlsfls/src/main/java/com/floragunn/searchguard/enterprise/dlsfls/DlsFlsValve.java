@@ -43,11 +43,11 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.sampler.DiversifiedAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.SignificantTermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+import org.elasticsearch.search.aggregations.metrics.CardinalityAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -70,6 +70,7 @@ import static org.elasticsearch.rest.RestStatus.INTERNAL_SERVER_ERROR;
 
 public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvider {
     private static final String MAP_EXECUTION_HINT = "map";
+    private static final String DIRECT_EXECUTION_HINT = "direct";
     private static final Logger log = LogManager.getLogger(DlsFlsValve.class);
 
     private final Client nodeClient;
@@ -182,12 +183,12 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                     }
                 }
 
-                //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
-                //need to switch off global ordinals because field masking can break ordering
-                //https://www.elastic.co/guide/en/elasticsearch/reference/master/eager-global-ordinals.html#_avoiding_global_ordinal_loading
                 if (hasFieldMasking) {
                     if (searchRequest.source() != null && searchRequest.source().aggregations() != null) {
                         for (AggregationBuilder aggregationBuilder : searchRequest.source().aggregations().getAggregatorFactories()) {
+                            //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
+                            //need to switch off global ordinals because field masking can break ordering
+                            //https://www.elastic.co/guide/en/elasticsearch/reference/master/eager-global-ordinals.html#_avoiding_global_ordinal_loading
                             if (aggregationBuilder instanceof TermsAggregationBuilder) {
                                 ((TermsAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
                             }
@@ -198,6 +199,11 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
 
                             if (aggregationBuilder instanceof DiversifiedAggregationBuilder) {
                                 ((DiversifiedAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
+                            }
+
+                            //force direct execution mode in case of cardinality aggregation
+                            if (aggregationBuilder instanceof CardinalityAggregationBuilder) {
+                                ((CardinalityAggregationBuilder) aggregationBuilder).executionHint(DIRECT_EXECUTION_HINT);
                             }
                         }
                     }
