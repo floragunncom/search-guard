@@ -196,6 +196,7 @@
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
 			<scope>test</scope>
+			<version>5.4.0</version>			
 		</dependency>		
 
 	</dependencies>
