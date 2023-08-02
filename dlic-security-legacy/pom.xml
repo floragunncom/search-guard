@@ -23,12 +23,10 @@
 	<properties>
 		<jjwt.version>0.10.5</jjwt.version>
 		<ldaptive.version>1.2.3</ldaptive.version>
-
 		<unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
 	</properties>
 
 	<dependencies>
-		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-flx-security</artifactId>
@@ -59,13 +57,7 @@
 			<scope>provided</scope>
 		</dependency>
 		
-		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch</artifactId>
-			<scope>provided</scope>				
-		</dependency>		
-		
-		<!-- Security Test -->
+	
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-flx-security</artifactId>
@@ -98,29 +90,7 @@
 			<artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
 			<scope>test</scope>
 		</dependency>
-		
-		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-slf4j-impl</artifactId>
-			<version>${log4j.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-core</artifactId>
-				</exclusion>				
-			</exclusions>
-		</dependency>
-		
-	<dependency>
-		<groupId>org.apache.logging.log4j</groupId>
-		<artifactId>log4j-core</artifactId>
-		<scope>provided</scope>
-	</dependency>		
-
+	
 		<dependency>
 			<groupId>org.ldaptive</groupId>
 			<artifactId>ldaptive</artifactId>
@@ -149,21 +119,6 @@
 			</exclusions>
 		</dependency>
 
-		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>elasticsearch-rest-high-level-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.elasticsearch</groupId>
-					<artifactId>elasticsearch</artifactId>
-				</exclusion>				
-			</exclusions>
-		</dependency>
 
 		<dependency>
     		<groupId>org.elasticsearch.client</groupId>
@@ -291,11 +246,6 @@
  			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcpkix-jdk15on</artifactId>
  		</dependency>
-		<dependency>
-			<groupId>commons-collections</groupId>
-			<artifactId>commons-collections</artifactId>
-			<version>3.2.2</version>
-		</dependency>
 
 		<dependency>
 			<groupId>commons-codec</groupId>
@@ -303,14 +253,8 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-		</dependency>
-
-		<dependency>
 			<groupId>com.jayway.jsonpath</groupId>
 			<artifactId>json-path</artifactId>
-			<version>2.5.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>net.minidev</groupId>
@@ -330,51 +274,9 @@
 			<version>${unboundid-ldapsdk.version}</version>
 		</dependency>
 
-		<!-- Only test scoped dependencies hereafter -->
-
-		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-all</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
-			<artifactId>reindex-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.elasticsearch</groupId>
-					<artifactId>elasticsearch-ssl-config</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch-ssl-config</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
-			<artifactId>percolator-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
-		</dependency>
-
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
-			<version>${mockito.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -384,13 +286,6 @@
 			<version>2.5</version>
 			<scope>test</scope>
 		</dependency>
-
-		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<scope>test</scope>
-		</dependency>
-
 
 		<dependency>
 			<groupId>com.browserup</groupId>

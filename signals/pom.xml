@@ -15,30 +15,6 @@
 
 	<dependencies>
 	
-	
-	<!-- provided scoped deps -->
-
-	<dependency>
-		<groupId>org.elasticsearch</groupId>
-		<artifactId>elasticsearch</artifactId>
-		<scope>provided</scope>
-	</dependency>
-
-	<dependency>
-		<groupId>com.fasterxml.jackson.core</groupId>
-		<artifactId>jackson-databind</artifactId>
-		<version>${jackson.version}</version>
-		<scope>test</scope>
-		<exclusions>
-			<exclusion>
-				<artifactId>jackson-core</artifactId>
-				<groupId>com.fasterxml.jackson.core</groupId>
-			</exclusion>
-		</exclusions>
-	</dependency>
-		
-
-		<!-- Scheduler -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-flx-scheduler</artifactId>
@@ -58,7 +34,6 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-flx-security</artifactId>
@@ -70,13 +45,7 @@
 			<artifactId>search-guard-flx-ssl</artifactId>
 			<scope>provided</scope>
 		</dependency>		
-		
-		<dependency>
-			<groupId>com.floragunn</groupId>
-			<artifactId>codova</artifactId>
-		</dependency>		
 
-		<!-- Security Test -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-flx-security</artifactId>
@@ -89,12 +58,6 @@
 			<artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
 			<scope>test</scope>
 		</dependency>		
-		
-		<dependency>
-			<groupId>org.elasticsearch.plugin</groupId>
-			<artifactId>lang-mustache-client</artifactId>
-			<scope>provided</scope>
-		</dependency>
 
 		<dependency>
     		<groupId>org.elasticsearch.plugin</groupId>
@@ -110,13 +73,7 @@
 		<dependency>
 			<groupId>org.simplejavamail</groupId>
 			<artifactId>simple-java-mail</artifactId>
-			<version>${simplemail.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-all</artifactId>
-			<scope>test</scope>
+			<version>5.2.1</version>
 		</dependency>
 
 		<dependency>
@@ -139,7 +96,6 @@
 		<dependency>
 			<groupId>com.github.stephenc.jcip</groupId>
 			<artifactId>jcip-annotations</artifactId>
-			<version>1.0-1</version>
 			<scope>test</scope>
 		</dependency>		
 		
@@ -181,7 +137,6 @@
 		<dependency>
 			<groupId>org.elasticsearch.painless</groupId>
 			<artifactId>lang-painless</artifactId>
-			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 

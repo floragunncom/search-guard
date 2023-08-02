@@ -26,36 +26,6 @@
 
     <dependencies>
 
-        <!-- provided scoped deps -->
-
-        <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-
-        <dependency>
-            <groupId>org.elasticsearch.plugin</groupId>
-            <artifactId>lang-mustache-client</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.version}</version>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>jackson-core</artifactId>
-                    <groupId>com.fasterxml.jackson.core</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-
-        <!-- Signals -->
         <dependency>
             <groupId>com.floragunn</groupId>
             <artifactId>search-guard-flx-signals</artifactId>
@@ -63,7 +33,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Signals Test -->
         <dependency>
             <groupId>com.floragunn</groupId>
             <artifactId>search-guard-flx-signals</artifactId>
@@ -72,12 +41,6 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>com.floragunn</groupId>
-            <artifactId>codova</artifactId>
-        </dependency>
-
-        <!-- Security -->
         <dependency>
             <groupId>com.floragunn</groupId>
             <artifactId>search-guard-flx-security</artifactId>
@@ -90,14 +53,12 @@
             <scope>test</scope>
         </dependency>
         
-        <!-- Security Enterprise -->
         <dependency>
             <groupId>com.floragunn</groupId>
             <artifactId>dlic-search-guard-flx-security</artifactId>
             <scope>provided</scope>
         </dependency>
 
-        <!-- Security Test -->
         <dependency>
             <groupId>com.floragunn</groupId>
             <artifactId>search-guard-flx-security</artifactId>
@@ -105,7 +66,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Scheduler -->
         <dependency>
             <groupId>com.floragunn</groupId>
             <artifactId>search-guard-flx-scheduler</artifactId>
@@ -116,12 +76,6 @@
             <groupId>com.floragunn</groupId>
             <artifactId>search-guard-flx-support</artifactId>
             <scope>provided</scope>
-        </dependency>
-
-        <!-- Guava -->
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
         </dependency>
 
         <dependency>

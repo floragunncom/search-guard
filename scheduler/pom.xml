@@ -24,22 +24,6 @@
 
 	<dependencies>
 
-
-	<!-- provided scoped deps -->
-
-	<dependency>
-		<groupId>org.elasticsearch</groupId>
-		<artifactId>elasticsearch</artifactId>
-		<scope>provided</scope>
-	</dependency>
-
-	<dependency>
-		<groupId>org.elasticsearch.plugin</groupId>
-		<artifactId>lang-mustache-client</artifactId>
-		<scope>provided</scope>
-	</dependency>
-		
-		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-flx-security</artifactId>
@@ -60,12 +44,6 @@
 
 		<dependency>
 			<groupId>com.floragunn</groupId>
-			<artifactId>codova</artifactId>
-		</dependency>
-
-		<!-- Security Test -->
-		<dependency>
-			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-flx-security</artifactId>
 			<classifier>tests</classifier>
 			<scope>test</scope>
@@ -78,20 +56,6 @@
 			<scope>test</scope>
 		</dependency>
 
-
-		<!-- HTTP client -->
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpcore</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<!-- Quartz -->
 		<dependency>
 			<groupId>org.quartz-scheduler</groupId>
 			<artifactId>quartz</artifactId>
@@ -100,7 +64,6 @@
 		<dependency>
 			<groupId>com.github.stephenc.jcip</groupId>
 			<artifactId>jcip-annotations</artifactId>
-			<version>1.0-1</version>
 			<scope>test</scope>
 		</dependency>
 
