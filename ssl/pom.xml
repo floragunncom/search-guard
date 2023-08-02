@@ -23,7 +23,6 @@
 	<name>Search Guard FLX: SSL</name>
 
 	<dependencies>
-		<!-- Netty 4 transport -->
 		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
 			<artifactId>transport-netty4-client</artifactId>
@@ -48,13 +47,6 @@
 			</exclusions>
 		</dependency>
 
-		<!-- Guava -->
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-		</dependency>
-
-		<!-- Bouncycastle -->
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcpg-jdk15on</artifactId>
@@ -69,7 +61,6 @@
 			<artifactId>bcprov-jdk15on</artifactId>
 		</dependency>
 
-		<!-- provided scoped deps -->
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
@@ -108,7 +99,6 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Only test scoped dependencies hereafter -->
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
@@ -116,21 +106,8 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-all</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
 			<artifactId>reindex-client</artifactId>
-			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -157,22 +134,14 @@
 		</dependency>
 
 		<dependency>
-			<groupId>commons-validator</groupId>
-			<artifactId>commons-validator</artifactId>
-			<version>1.7</version>
-		</dependency>
-
-		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch-ssl-config</artifactId>
-			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
 			<artifactId>percolator-client</artifactId>
-			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -185,22 +154,19 @@
 		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
 			<artifactId>parent-join-client</artifactId>
-			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
 			<artifactId>aggs-matrix-stats-client</artifactId>
-			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 		
 		<dependency>
 			<groupId>com.github.stephenc.jcip</groupId>
 			<artifactId>jcip-annotations</artifactId>
-			<version>1.0-1</version>
-			<scope>test</scope>
+			<scope>test</scope> 
 		</dependency>
 	</dependencies>
 </project>

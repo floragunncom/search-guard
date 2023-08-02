@@ -209,7 +209,6 @@
 				<dependency>
 					<groupId>com.floragunn.dependencies.org.opensaml</groupId>
 					<artifactId>opensaml-xmlsec-impl-patched</artifactId>
-					<version>${opensaml.patch.version}</version>
 				</dependency>
 				
 				<!-- DLIC -->

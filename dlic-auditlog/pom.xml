@@ -24,7 +24,6 @@
 	</properties>
 
 	<dependencies>
-		<!-- Security -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-flx-security</artifactId>
@@ -54,7 +53,6 @@
 			<artifactId>codova</artifactId>
 		</dependency>
 		
-		<!-- provided scoped deps -->
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
@@ -74,7 +72,6 @@
 			</exclusions>
 		</dependency>
 
-		<!-- Security Test -->
 		<dependency>
 			<groupId>com.floragunn</groupId>
 			<artifactId>search-guard-flx-security</artifactId>
@@ -117,18 +114,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient-cache</artifactId>
-			<version>${http.commons.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpcore</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
 			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>elasticsearch-rest-high-level-client</artifactId>
 			<version>${elasticsearch.version}</version>
@@ -164,72 +149,8 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.flipkart.zjsonpatch</groupId>
-			<artifactId>zjsonpatch</artifactId>
-			<version>0.4.14</version>
-			<exclusions>
-				<exclusion>
-					<artifactId>jackson-core</artifactId>
-					<groupId>com.fasterxml.jackson.core</groupId>
-				</exclusion>
-				<exclusion>
-					<artifactId>jackson-databind</artifactId>
-					<groupId>com.fasterxml.jackson.core</groupId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-	
-
-		<dependency>
-			<groupId>commons-collections</groupId>
-			<artifactId>commons-collections</artifactId>
-			<version>3.2.2</version>
-		</dependency>
-
-		<dependency>
-			<groupId>commons-codec</groupId>
-			<artifactId>commons-codec</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.jayway.jsonpath</groupId>
-			<artifactId>json-path</artifactId>
-			<version>2.5.0</version>
-			<exclusions>
-				<exclusion>
-					<groupId>net.minidev</groupId>
-					<artifactId>json-smart</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.ow2.asm</groupId>
-					<artifactId>asm</artifactId>
-				</exclusion>				
-			</exclusions>			
-		</dependency>
-
-		<!-- Only test scoped dependencies hereafter -->
-
-		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-all</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
 			<artifactId>reindex-client</artifactId>
-			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -242,28 +163,12 @@
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch-ssl-config</artifactId>
-			<version>${elasticsearch.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.elasticsearch.plugin</groupId>
 			<artifactId>percolator-client</artifactId>
-			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<version>${mockito.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>javax.servlet</groupId>
-			<artifactId>servlet-api</artifactId>
-			<version>2.5</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -272,34 +177,12 @@
 			<artifactId>commons-io</artifactId>
 			<scope>test</scope>
 		</dependency>
-
-		<dependency>
-			<groupId>com.browserup</groupId>
-			<artifactId>browserup-proxy-core</artifactId>
-			<version>2.1.2</version>
-			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>xyz.rogfam</groupId>
-					<artifactId>littleproxy</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>	
 		
 		<dependency>
-   			<groupId>xyz.rogfam</groupId>
-    		<artifactId>littleproxy</artifactId>
-    		<version>2.0.5</version>
-    		<scope>test</scope>
-		</dependency>	
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<scope>test</scope>
+		</dependency>		
 		
 	</dependencies>
 </project>
