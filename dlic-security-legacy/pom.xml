@@ -16,29 +16,49 @@
   <packaging>jar</packaging>
   <name>Search Guard FLX: Legacy Security (Enterprise)</name>
 
+  <properties>
+    <jjwt.version>0.10.5</jjwt.version>
+    <ldaptive.version>1.2.3</ldaptive.version>
+    <unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
+  </properties>
+
   <dependencies>
+    <dependency>
+      <groupId>com.floragunn.dependencies.org.opensaml</groupId>
+      <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+    </dependency>
 
     <dependency>
-      <groupId>com.floragunn.org.opensaml</groupId>
-      <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+      <groupId>com.jayway.jsonpath</groupId>
+      <artifactId>json-path</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>net.minidev</groupId>
+          <artifactId>json-smart</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.ow2.asm</groupId>
+          <artifactId>asm</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.onelogin</groupId>
       <artifactId>java-saml</artifactId>
       <version>2.9.0</version>
+
       <exclusions>
         <exclusion>
           <groupId>org.codehaus.woodstox</groupId>
           <artifactId>woodstox-core-asl</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-api</artifactId>
+          <groupId>joda-time</groupId>
+          <artifactId>joda-time</artifactId>
         </exclusion>
         <exclusion>
-          <!-- Exclusion because the dependent version has vulnerable dependencies. 
-					Replaced by explicit dependency just below. -->
+          <!-- Exclusion because the dependent version has vulnerable dependencies. Replaced by explicit dependency just below.  -->
           <groupId>org.apache.santuario</groupId>
           <artifactId>xmlsec</artifactId>
         </exclusion>
@@ -48,12 +68,18 @@
     <dependency>
       <groupId>com.unboundid</groupId>
       <artifactId>unboundid-ldapsdk</artifactId>
-      <version>5.1.4</version>
+      <version>${unboundid-ldapsdk.version}</version>
     </dependency>
+
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-api</artifactId>
-      <scope>compile</scope>
+      <version>${jjwt.version}</version>
     </dependency>
 
     <dependency>
@@ -62,23 +88,84 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.cxf</groupId>
+      <artifactId>cxf-rt-rs-security-jose</artifactId>
+      <version>${cxf.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.glassfish.jaxb</groupId>
+          <artifactId>jaxb-runtime</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>jakarta.xml.bind</groupId>
+          <artifactId>jakarta.xml.bind-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.woodstox</groupId>
+          <artifactId>woodstox-core</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient-cache</artifactId>
+      <version>${http.commons.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpcore</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <!-- Replacement dependency for com.onelogin:java-saml (see above) -->
       <groupId>org.apache.santuario</groupId>
       <artifactId>xmlsec</artifactId>
       <version>2.3.3</version>
     </dependency>
-
     <dependency>
       <!-- Replacement for bcprov-jdk18on (see above)  -->
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcpkix-jdk15on</artifactId>
     </dependency>
+    <dependency>
+      <!-- Replacement for bcprov-jdk18on (see above)  -->
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk15on</artifactId>
+    </dependency>
 
+    <dependency>
+      <groupId>org.elasticsearch.client</groupId>
+      <artifactId>elasticsearch-rest-client</artifactId>
+      <version>${elasticsearch.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ldaptive</groupId>
+      <artifactId>ldaptive</artifactId>
+      <version>${ldaptive.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-cli</groupId>
+          <artifactId>commons-cli</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <dependency>
       <groupId>org.opensaml</groupId>
       <artifactId>opensaml-saml-impl</artifactId>
-      <version>4.3.0</version>
+      <version>${opensaml.version}</version>
       <exclusions>
+        <exclusion>
+          <groupId>org.springframework</groupId>
+          <artifactId>spring-jcl</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>commons-collections</groupId>
           <artifactId>commons-collections</artifactId>
@@ -86,18 +173,6 @@
         <exclusion>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.bouncycastle</groupId>
-          <artifactId>bcprov-jdk15on</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.springframework</groupId>
-          <artifactId>spring-jcl</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.opensaml</groupId>
@@ -109,11 +184,17 @@
           <artifactId>bcprov-jdk18on</artifactId>
         </exclusion>
         <exclusion>
-          <!--  bcpkix-jdk18on 1.73 is not compatible with the ES security manager. Thus, we include jdk15on below -->
+          <!--  bcpkix-jdk18on< 1.73 is not compatible with the ES security manager. Thus, we include jdk15on below -->
           <groupId>org.bouncycastle</groupId>
           <artifactId>bcpkix-jdk18on</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -149,19 +230,29 @@
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
       <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>co.elastic.clients</groupId>
-      <artifactId>elasticsearch-java</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>com.browserup</groupId>
       <artifactId>browserup-proxy-core</artifactId>
+      <version>2.1.2</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>xyz.rogfam</groupId>
+          <artifactId>littleproxy</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -177,20 +268,23 @@
     </dependency>
 
     <dependency>
-      <groupId>io.github.hakky54</groupId>
-      <artifactId>sslcontext-kickstart-for-pem</artifactId>
+      <groupId>javax.servlet</groupId>
+      <artifactId>servlet-api</artifactId>
+      <version>2.5</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>servlet-api</artifactId>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.4.0</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>xyz.rogfam</groupId>
       <artifactId>littleproxy</artifactId>
+      <version>2.0.5</version>
       <scope>test</scope>
     </dependency>
 

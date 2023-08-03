@@ -16,6 +16,8 @@
   <packaging>jar</packaging>
   <name>Search Guard FLX: Frontend Multi-Tenancy (Enterprise)</name>
 
+  <properties></properties>
+
   <dependencies>
     <dependency>
       <groupId>com.floragunn</groupId>
@@ -36,20 +38,14 @@
     </dependency>
 
     <dependency>
-      <groupId>co.elastic.clients</groupId>
-      <artifactId>elasticsearch-java</artifactId>
+      <groupId>com.floragunn</groupId>
+      <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-security-legacy</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>io.github.hakky54</groupId>
-      <artifactId>sslcontext-kickstart-for-pem</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -66,5 +62,6 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+
   </dependencies>
 </project>

@@ -13,10 +13,16 @@
   <name>Search Guard FLX: Signals</name>
 
   <dependencies>
+
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.simplejavamail</groupId>
       <artifactId>simple-java-mail</artifactId>
-      <scope>compile</scope>
+      <version>5.2.1</version>
     </dependency>
 
     <dependency>
@@ -52,7 +58,22 @@
     <dependency>
       <groupId>com.browserup</groupId>
       <artifactId>browserup-proxy-core</artifactId>
+      <version>2.1.2</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>xyz.rogfam</groupId>
+          <artifactId>littleproxy</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -74,15 +95,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.github.hakky54</groupId>
-      <artifactId>sslcontext-kickstart-for-pem</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.antlr</groupId>
       <artifactId>antlr4-runtime</artifactId>
-      <version>${org_antlr.version}</version>
+      <version>4.11.1</version>
       <scope>test</scope>
     </dependency>
 
@@ -90,45 +105,43 @@
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>lang-painless</artifactId>
-      <version>${elasticsearch.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm</artifactId>
-      <version>${org_ow2_asm.version}</version>
+      <version>7.2</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm-analysis</artifactId>
-      <version>${org_ow2_asm.version}</version>
+      <version>7.2</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm-commons</artifactId>
-      <version>${org_ow2_asm.version}</version>
+      <version>7.2</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm-tree</artifactId>
-      <version>${org_ow2_asm.version}</version>
+      <version>7.2</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm-util</artifactId>
-      <version>${org_ow2_asm.version}</version>
+      <version>7.2</version>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-api-mockito2</artifactId>
@@ -144,6 +157,7 @@
     <dependency>
       <groupId>xyz.rogfam</groupId>
       <artifactId>littleproxy</artifactId>
+      <version>2.0.5</version>
       <scope>test</scope>
     </dependency>
 
