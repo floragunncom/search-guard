@@ -15,6 +15,7 @@ import java.util.Collections;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
 import static org.apache.http.HttpStatus.SC_CREATED;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -36,6 +37,7 @@ public class MultiTenancyMigrationTest {
             client.delete(".kibana_8.8.0_reindex_temp");
             client.delete(".kibana_analytics_8.8.0_reindex_temp");
             client.delete(".kibana_do_not_update_my_documents_8.8.0_reindex_temp");
+            client.delete(".kibana_8.8.0");
         }
     }
 
@@ -245,6 +247,148 @@ public class MultiTenancyMigrationTest {
     }
 
     @Test
+    public void shouldHandleMgetWhenAllDocumentsAreFound() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            createSpace(client, indexName, "space_2");
+            String mgetBody = """
+                {
+                	"docs": [
+                		{
+                			"_index": ".kibana_8.8.0",
+                			"_id": "space_1"
+                		},
+                		{
+                			"_index": ".kibana_8.8.0",
+                			"_id": "space_2"
+                		}
+                	]
+                }
+                """;
+
+            HttpResponse response = client.postJson("/_mget", mgetBody);
+
+            log.debug("Mget response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, docNodeSizeEqualTo("$.docs", 2));
+            assertThat(body, containsValue("$.docs[0]._index", indexName));
+            assertThat(body, containsValue("$.docs[0]._id", "space_1"));
+            assertThat(body, containsFieldPointedByJsonPath("$.docs[0]", "_version"));
+            assertThat(body, containsFieldPointedByJsonPath("$.docs[0]", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$.docs[0]", "_primary_term"));
+            assertThat(body, containsValue("$.docs[0].found", true));
+            assertThat(body, containsValue("$.docs[0]._source.initials", "sg"));
+            assertThat(body, containsValue("$.docs[0]._source.name", "name_space_1"));
+            assertThat(body, containsValue("$.docs[0]._source.description", "description_space_1"));
+            assertThat(body, containsValue("$.docs[1]._index", indexName));
+            assertThat(body, containsValue("$.docs[1]._id", "space_2"));
+            assertThat(body, containsFieldPointedByJsonPath("$.docs[1]", "_version"));
+            assertThat(body, containsFieldPointedByJsonPath("$.docs[1]", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$.docs[1]", "_primary_term"));
+            assertThat(body, containsValue("$.docs[1].found", true));
+            assertThat(body, containsValue("$.docs[1]._source.initials", "sg"));
+            assertThat(body, containsValue("$.docs[1]._source.name", "name_space_2"));
+            assertThat(body, containsValue("$.docs[1]._source.description", "description_space_2"));
+        }
+    }
+
+    @Test
+    public void shouldHandleMgetWhenSomeDocumentsAreFound() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String mgetBody = """
+                {
+                	"docs": [
+                		{
+                			"_index": ".kibana_8.8.0",
+                			"_id": "space_1"
+                		},
+                		{
+                			"_index": ".kibana_8.8.0",
+                			"_id": "space_2"
+                		}
+                	]
+                }
+                """;
+
+            HttpResponse response = client.postJson("/_mget", mgetBody);
+
+            log.debug("Mget response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, docNodeSizeEqualTo("$.docs", 2));
+            assertThat(body, containsValue("$.docs[0]._index", indexName));
+            assertThat(body, containsValue("$.docs[0]._id", "space_1"));
+            assertThat(body, containsFieldPointedByJsonPath("$.docs[0]", "_version"));
+            assertThat(body, containsFieldPointedByJsonPath("$.docs[0]", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$.docs[0]", "_primary_term"));
+            assertThat(body, containsValue("$.docs[0].found", true));
+            assertThat(body, containsValue("$.docs[0]._source.initials", "sg"));
+            assertThat(body, containsValue("$.docs[0]._source.name", "name_space_1"));
+            assertThat(body, containsValue("$.docs[0]._source.description", "description_space_1"));
+            assertThat(body, containsValue("$.docs[1]._index", indexName));
+            assertThat(body, containsValue("$.docs[1]._id", "space_2"));
+            assertThat(body, containsValue("$.docs[1].found", false));
+        }
+
+    }
+
+
+    @Test
+    public void shouldHandleMgetWhenAllDocumentsAreNotFound() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            String mgetBody = """
+                {
+                	"docs": [
+                		{
+                			"_index": ".kibana_8.8.0",
+                			"_id": "space_1"
+                		},
+                		{
+                			"_index": ".kibana_8.8.0",
+                			"_id": "space_2"
+                		}
+                	]
+                }
+                """;
+
+            HttpResponse response = client.postJson("/_mget", mgetBody);
+
+            log.debug("Mget response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, docNodeSizeEqualTo("$.docs", 2));
+            assertThat(body, containsValue("$.docs[0]._index", indexName));
+            assertThat(body, containsValue("$.docs[0]._id", "space_1"));
+            assertThat(body, containsValue("$.docs[0].found", false));
+            assertThat(body, containsValue("$.docs[1]._index", indexName));
+            assertThat(body, containsValue("$.docs[1]._id", "space_2"));
+            assertThat(body, containsValue("$.docs[1].found", false));
+        }
+    }
+
+    private void createSpace(GenericRestClient client, String indexName, String spaceId) throws Exception {
+        DocNode spaceNode = DocNode.of("name", "name_" + spaceId, "description", "description_" + spaceId, "initials", "sg");
+        String path = "/" + indexName + "/_doc/" + spaceId + "?refresh=true";
+        HttpResponse response = client.postJson(path, spaceNode.toJsonString());
+        log.debug("Create space with id '{}' response status '{}' and body '{}'", spaceId, response.getStatusCode(), response.getBody());
+        assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+    }
+
+    @Test
     public void shouldDeleteSpace() throws Exception {
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
             createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
@@ -277,6 +421,8 @@ public class MultiTenancyMigrationTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
         }
     }
+
+    // TODO add index related to multi-index search
 
     private static void createIndexWithInitialMappings(GenericRestClient client, String indexName) throws Exception {
         String path = "/" + indexName + "?wait_for_active_shards=all&timeout=60s";

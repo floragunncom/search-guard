@@ -68,6 +68,7 @@ import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -347,7 +348,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             } else if (request instanceof GetRequest) {
                 return handle(context, requestedTenant, (GetRequest) request, ctx, listener);
             } else if (request instanceof MultiGetRequest) {
-                return handle(context, requestedTenant, (MultiGetRequest) request, ctx, listener);
+                return handle(context, requestedTenant, (MultiGetRequest) request, ctx, (ActionListener<MultiGetResponse>) listener);
             } else if (request instanceof ClusterSearchShardsRequest) {
                 return handle((ClusterSearchShardsRequest) request, ctx, listener);
             } else if (request instanceof BulkRequest) {
@@ -466,65 +467,65 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     }
 
     private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, MultiGetRequest multiGetRequest,
-            StoredContext ctx, ActionListener<?> listener) {
+            StoredContext ctx, ActionListener<MultiGetResponse> listener) {
+        MultiGetRequest interceptedRequest = new MultiGetRequest() //
+            .preference(multiGetRequest.preference()) //
+            .realtime(multiGetRequest.realtime()) //
+            .refresh(multiGetRequest.refresh());
+        interceptedRequest.setForceSyntheticSource(multiGetRequest.isForceSyntheticSource());
 
-        Map<String, Set<String>> idsGroupedByIndex = multiGetRequest.getItems().stream()
-                .collect(Collectors.groupingBy((item) -> item.index(), Collectors.mapping((item) -> item.id(), Collectors.toSet())));
-        Set<String> indices = idsGroupedByIndex.keySet();
-        SearchRequest searchRequest = new SearchRequest(indices.toArray(new String[indices.size()]));
+        multiGetRequest.getItems() //
+            .stream() //
+            .map(item -> addTenantScopeToMultiGetItem(item, requestedTenant)) //
+            .forEach(interceptedRequest::add);
 
-        BoolQueryBuilder query;
-
-        if (indices.size() == 1) {
-            Set<String> ids = idsGroupedByIndex.get(indices.iterator().next()).stream().map((id) -> scopedId(id, requestedTenant))
-                    .collect(Collectors.toSet());
-            query = QueryBuilders.boolQuery().must(QueryBuilders.idsQuery().addIds(ids.toArray(new String[ids.size()])))
-                    .must(createQueryExtension(requestedTenant, null));
-        } else {
-            BoolQueryBuilder mgetQuery = QueryBuilders.boolQuery().minimumShouldMatch(1);
-
-            for (Map.Entry<String, Set<String>> entry : idsGroupedByIndex.entrySet()) {
-                Set<String> ids = entry.getValue().stream().map((id) -> scopedId(id, requestedTenant)).collect(Collectors.toSet());
-
-                BoolQueryBuilder indexQuery = QueryBuilders.boolQuery().must(QueryBuilders.termQuery("_index", entry.getKey()))
-                        .must(QueryBuilders.idsQuery().addIds(ids.toArray(new String[entry.getValue().size()])));
-
-                mgetQuery.should(indexQuery);
-            }
-
-            query = QueryBuilders.boolQuery().must(mgetQuery).must(createQueryExtension(requestedTenant, null));
-        }
-
-        searchRequest.source(SearchSourceBuilder.searchSource().query(query).version(true).seqNoAndPrimaryTerm(true));
-
-        nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
+        nodeClient.multiGet(interceptedRequest, new ActionListener<>() {
             @Override
-            public void onResponse(SearchResponse response) {
-                try {
-
-                    ctx.restore();
-
-                    List<MultiGetItemResponse> itemResponses = new ArrayList<>(response.getHits().getHits().length);
-
-                    for (SearchHit hit : response.getHits().getHits()) {
-                        itemResponses.add(new MultiGetItemResponse(new GetResponse(searchHitToGetResult(hit)), null));
-                    }
-
-                    @SuppressWarnings("unchecked")
-                    ActionListener<MultiGetResponse> multiGetListener = (ActionListener<MultiGetResponse>) listener;
-                    multiGetListener.onResponse(new MultiGetResponse(itemResponses.toArray(new MultiGetItemResponse[itemResponses.size()])));
-                } catch (Exception e) {
-                    listener.onFailure(e);
-                }
+            public void onResponse(MultiGetResponse multiGetItemResponses) {
+                MultiGetItemResponse[] items = Arrays.stream(multiGetItemResponses.getResponses()) //
+                    .map(PrivilegesInterceptorImpl.this::unscopeIdInMultiGetResponseItem)
+                    .toArray(size -> new MultiGetItemResponse[size]);
+                MultiGetResponse response = new MultiGetResponse(items);
+                listener.onResponse(response);
             }
 
             @Override
             public void onFailure(Exception e) {
+                log.debug("MultiGet response failure during multi tenancy interception", e);
                 listener.onFailure(e);
             }
         });
 
         return SyncAuthorizationFilter.Result.INTERCEPTED;
+    }
+
+    private MultiGetItemResponse unscopeIdInMultiGetResponseItem(MultiGetItemResponse multiGetItemResponse) {
+        GetResponse successResponse = Optional.ofNullable(multiGetItemResponse.getResponse()) //
+            .map(response -> new GetResult(response.getIndex(),
+                unscopedId(response.getId()),
+                response.getSeqNo(),
+                response.getPrimaryTerm(),
+                response.getVersion(),
+                response.isExists(),
+                response.getSourceAsBytesRef(),
+                response.getFields(),
+                null)) //
+            .map(GetResponse::new)
+            .orElse(null);
+
+        MultiGetResponse.Failure failure = Optional.ofNullable(multiGetItemResponse.getFailure()) //
+            .map(fault -> new MultiGetResponse.Failure(fault.getIndex(), unscopedId(fault.getId()), fault.getFailure())) //
+            .orElse(null);
+        return new MultiGetItemResponse(successResponse, failure);
+    }
+
+    private MultiGetRequest.Item addTenantScopeToMultiGetItem(MultiGetRequest.Item item, String tenant) {
+        return new MultiGetRequest.Item(item.index(), scopedId(item.id(), tenant)) //
+            .routing(item.routing()) //
+            .storedFields(item.storedFields()) //
+            .version(item.version()) //
+            .versionType(item.versionType()) //
+            .fetchSourceContext(item.fetchSourceContext());
     }
 
     private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, BulkRequest bulkRequest,
@@ -813,6 +814,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             .collect(Collectors.toList());
         if((multiTenancyRelatedIndices.size() > 0) && (allQueryIndices.size() != multiTenancyRelatedIndices.size())) {
             // TODO this case is not handled correctly
+            // TODO return empty list
             String indicesNames = String.join(", ", allQueryIndices);
             log.error("Request '{}' is related to multi-tenancy request and some other indices '{}'", request.getClass(), indicesNames);
         }
