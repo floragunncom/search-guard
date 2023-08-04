@@ -17,6 +17,7 @@
 
 package com.floragunn.searchsupport.indices;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,11 +48,20 @@ public class IndexMapping implements Document<IndexMapping> {
         private boolean enabled;
         private boolean dynamic;
 
+        /**
+         * Add support for multi fields, so that it is possible to index one fields a few times with a usage of various data types.
+         * Most common use case is to index String with the following types <code>text</code> and <code>keyword</code>.
+         *
+         * @see TextWithKeywordProperty
+         */
+        private final List<Property> fields;
+
         Property(String name, String type) {
             this.name = name;
             this.type = type;
             this.enabled = true;
             this.dynamic = false;
+            this.fields = new ArrayList<>();
         }
 
         Property(String name, String type, boolean enabled, boolean dynamic) {
@@ -59,11 +69,24 @@ public class IndexMapping implements Document<IndexMapping> {
             this.type = type;
             this.enabled = enabled;
             this.dynamic = dynamic;
+            this.fields = new ArrayList<>();
         }
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.ofNonNull("type", type, "enabled", enabled ? null : Boolean.FALSE, "dynamic", dynamic ? Boolean.TRUE : null);
+            Map<String, Object> fieldsMappings = new LinkedHashMap<>();
+
+            for (Property property : fields) {
+                fieldsMappings.put(property.name, property.toBasicObject());
+            }
+            ImmutableMap<String, Object> mappingsMap = ImmutableMap.ofNonNull("type", type, "enabled", //
+                enabled ? null : Boolean.FALSE, "dynamic", dynamic ? Boolean.TRUE : null);
+            return fieldsMappings.isEmpty() ? mappingsMap : mappingsMap.with("fields", fieldsMappings);
+        }
+
+        public Property withField(Property field) {
+            fields.add(field);
+            return this;
         }
 
     }
@@ -82,6 +105,38 @@ public class IndexMapping implements Document<IndexMapping> {
     public static class KeywordProperty extends Property {
         public KeywordProperty(String name) {
             super(name, "keyword");
+        }
+    }
+
+    public static class TextProperty extends Property {
+
+        public TextProperty(String name) {
+            super(name, "text");
+        }
+    }
+
+    public static class LongProperty extends Property {
+        public LongProperty(String name) {
+            super(name, "long");
+        }
+    }
+
+    /**
+     * Fields which is indexed twice using the following data types text, keyword. Such field can be used to perform full text search just
+     * with field name and match query. When the postfix <code>.keyword</code> is appended to the field name then it is possible to search
+     * for the field exact value with terms query.
+     */
+    public static class TextWithKeywordProperty extends Property {
+        public TextWithKeywordProperty(String name) {
+            super(name, "text");
+            withField(new KeywordProperty("keyword"));
+        }
+    }
+
+    public static class DateProperty extends Property {
+
+        public DateProperty(String name) {
+            super(name, "date");
         }
     }
 

@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -47,6 +48,9 @@ import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
 import net.jcip.annotations.NotThreadSafe;
+import org.mockito.Mockito;
+
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 
 /**
  * Integration tests for signals.all_tenants_active_by_default: false
@@ -102,7 +106,9 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             Thread.sleep(2000);
 

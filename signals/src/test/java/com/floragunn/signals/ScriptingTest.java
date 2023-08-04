@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
@@ -31,7 +32,9 @@ import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
 import net.jcip.annotations.NotThreadSafe;
+import org.mockito.Mockito;
 
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
@@ -55,7 +58,8 @@ public class ScriptingTest {
     public static void setupDependencies() {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
-        watchInitService = new WatchInitializationService(null, scriptService, null);
+        watchInitService = new WatchInitializationService(null, scriptService, Mockito.mock(TrustManagerRegistry.class),
+            null, STRICT);
         signalsModule = cluster.getInjectable(SignalsModule.class);
     }
 
@@ -87,7 +91,8 @@ public class ScriptingTest {
                 new WatchInfo("test_id", "test_tenant"), new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
 
         WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
-                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null, null, null);
+                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null, null, null,
+                Mockito.mock(TrustManagerRegistry.class));
 
         SignalsObjectFunctionScript script = factory.newInstance(new HashMap<String, Object>(), ctx);
 
@@ -109,7 +114,8 @@ public class ScriptingTest {
                 new WatchInfo("test_id", "test_tenant"), new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
 
         WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
-                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null, null, null);
+                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null, null, null,
+                Mockito.mock(TrustManagerRegistry.class));
 
         SignalsObjectFunctionScript script = factory.newInstance(new HashMap<String, Object>(), ctx);
 

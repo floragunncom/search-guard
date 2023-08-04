@@ -13,10 +13,15 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TimeZone;
 
 import com.jayway.jsonpath.JsonPath;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
+import com.floragunn.signals.watch.common.TlsConfig;
+import com.google.common.base.Strings;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.mockito.Mockito;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.TimeOfDay;
@@ -58,6 +63,8 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.severity.SeverityLevel;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 import com.floragunn.signals.watch.severity.SeverityMapping.Element;
+
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 
 // TODO split triggers and inputs into sep builders
 public class WatchBuilder {
@@ -269,9 +276,10 @@ public class WatchBuilder {
             for (int i = 0; i < properties.length; i += 2) {
                 propertyMap.put(Path.parse(String.valueOf(properties[i])), properties[i + 1]);
             }
-
-            ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(new WatchInitializationService(null, null, null),
-                    DocNode.parse(Format.JSON).from(propertyMap.toJsonString()));
+            WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+                Mockito.mock(TrustManagerRegistry.class), null, STRICT);
+            ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(
+                watchInitService, DocNode.parse(Format.JSON).from(propertyMap.toJsonString()));
 
             return new GenericActionBuilder(this, actionHandler);
         }
@@ -424,6 +432,10 @@ public class WatchBuilder {
         private Map<String, String> headers = new HashMap<>();
         private HttpProxyConfig proxy;
 
+        private TrustManagerRegistry trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
+
+        private String truststoreId;
+
         WebhookActionBuilder(BaseActionBuilder parent, HttpRequestConfig.Method method, String uri) throws URISyntaxException {
             super(parent);
             this.method = method;
@@ -464,9 +476,25 @@ public class WatchBuilder {
             return this;
         }
 
+        public WebhookActionBuilder trustManagerRegistry(TrustManagerRegistry trustManagerRegistry) {
+            this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry, "Truststore pem provider is required");
+            return this;
+        }
+
+        public WebhookActionBuilder truststoreId(String truststoreId) {
+            this.truststoreId = truststoreId;
+            return this;
+        }
+
         protected ActionHandler finish() {
+            boolean tlsIsRequired = ! Strings.isNullOrEmpty(this.truststoreId);
+            TlsConfig tlsConfig = null;
+            if(tlsIsRequired) {
+                tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+                tlsConfig.setTruststoreId(truststoreId);
+            }
             return new WebhookAction(new HttpRequestConfig(method, uri, null, null, body, jsonBodyFrom, headers, auth, null),
-                    new HttpClientConfig(null, null, null, proxy));
+                    new HttpClientConfig(null, null, tlsConfig, proxy));
         }
     }
 

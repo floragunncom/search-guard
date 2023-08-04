@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.Client;
@@ -98,7 +99,8 @@ public class WatchRunner implements Job {
     public WatchRunner(Watch watch, Client client, AccountRegistry accountRegistry, ScriptService scriptService, WatchLogWriter watchLogWriter,
             WatchStateWriter<?> watchStateWriter, DiagnosticContext diagnosticContext, WatchState watchState,
             ExecutionEnvironment executionEnvironment, SimulationMode simulationMode, NamedXContentRegistry xContentRegistry,
-            SignalsSettings signalsSettings, String nodeName, GotoCheckSelector checkSelector, NestedValueMap input) {
+            SignalsSettings signalsSettings, String nodeName, GotoCheckSelector checkSelector, NestedValueMap input,
+            TrustManagerRegistry trustManagerRegistry) {
         this.watch = watch;
         this.client = client;
         this.scriptService = scriptService;
@@ -111,7 +113,8 @@ public class WatchRunner implements Job {
         this.ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment,
                 ActionInvocationType.ALERT, this.contextData, watchState != null ? watchState.getLastExecutionContextData() : null, simulationMode,
                 new HttpEndpointWhitelist(signalsSettings.getDynamicSettings().getAllowedHttpEndpoints()),
-                signalsSettings.getDynamicSettings().getHttpProxyConfig(), signalsSettings.getDynamicSettings().getFrontendBaseUrl(), null);
+                signalsSettings.getDynamicSettings().getHttpProxyConfig(), signalsSettings.getDynamicSettings().getFrontendBaseUrl(), null,
+                trustManagerRegistry);
         this.watchLog.setWatchId(watch.getId());
         this.watchLog.setWatchVersion(watch.getVersion());
         this.signalsSettings = signalsSettings;
