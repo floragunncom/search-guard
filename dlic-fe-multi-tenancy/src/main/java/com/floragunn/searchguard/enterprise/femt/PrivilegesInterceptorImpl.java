@@ -580,7 +580,17 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                         BulkItemResponse item = items[i];
 
                         if (item.getFailure() != null) {
-                            newItems[i] = BulkItemResponse.failure(item.getItemId(), item.getOpType(), item.getFailure());
+                            BulkItemResponse.Failure failure = item.getFailure();
+                            BulkItemResponse.Failure interceptedFailure = failure;
+                            // TODO is any simpler method to replace in failure?
+                            if(failure.isAborted()) {
+                                interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), unscopedId(failure.getId()), failure.getCause(), true);
+                            } else if ((failure.getSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) || (failure.getTerm() != SequenceNumbers.UNASSIGNED_PRIMARY_TERM)) {
+                                interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), unscopedId(failure.getId()), failure.getCause(), failure.getSeqNo(), failure.getTerm());
+                            } else {
+                                interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), unscopedId(failure.getId()), failure.getCause(), failure.getStatus());
+                            }
+                            newItems[i] = BulkItemResponse.failure(item.getItemId(), item.getOpType(), interceptedFailure);
                         } else {
                             DocWriteResponse docWriteResponse = item.getResponse();
                             DocWriteResponse newDocWriteResponse = null;
