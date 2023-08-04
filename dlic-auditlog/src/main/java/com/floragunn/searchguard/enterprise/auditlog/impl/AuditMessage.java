@@ -14,6 +14,9 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.searchguard.auditlog.AuditLog.Operation;
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.user.UserInformation;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -26,7 +29,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.http.client.utils.URIBuilder;
 import org.elasticsearch.ExceptionsHelper;
@@ -44,10 +46,6 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import com.floragunn.searchguard.auditlog.AuditLog.Operation;
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.user.UserInformation;
 
 public final class AuditMessage {
 
@@ -115,7 +113,8 @@ public final class AuditMessage {
     private final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
     private final Category msgCategory;
 
-    public AuditMessage(final Category msgCategory, final ClusterState clusterState, final Origin origin, final Origin layer) {
+    public AuditMessage(final Category msgCategory, final ClusterState clusterState,
+        final Origin origin, final Origin layer) {
         this.msgCategory = Objects.requireNonNull(msgCategory);
         final String currentTime = currentTime();
         auditInfo.put(FORMAT_VERSION, 4);
@@ -394,6 +393,11 @@ public final class AuditMessage {
 
     public Map<String, Object> getAsMap() {
         return new HashMap<>(this.auditInfo);
+    }
+    
+    public AuditMessage without(List<String> disabledFields) {
+        disabledFields.forEach(auditInfo.keySet()::remove);
+        return this;
     }
 
     public String getInitiatingUser() {

@@ -113,6 +113,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     private final boolean excludeSensitiveHeaders;
     private final boolean logEnvVars;
     private AuditLogConfig complianceConfig;
+    private final List<String> disabledFields;
 
     private final Pattern searchguardIndexPattern;
     protected final ConfigurationRepository configurationRepository;
@@ -239,7 +240,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             try {
                 AuditMessage.Category.valueOf(event.toUpperCase());
             } catch (Exception iae) {
-                log.error("Unkown category {}, please check searchguard.audit.config.disabled_categories settings", event);
+                log.error("Unknown category {}, please check searchguard.audit.config.disabled_categories settings", event);
             }
         }
 
@@ -248,11 +249,13 @@ public abstract class AbstractAuditLog implements AuditLog {
             try {
                 AuditMessage.Category.valueOf(event.toUpperCase());
             } catch (Exception iae) {
-                log.error("Unkown category {}, please check searchguard.audit.config.disabled_categories settings", event);
+                log.error("Unknown category {}, please check searchguard.audit.config.disabled_categories settings", event);
             }
         }
 
         this.excludeSensitiveHeaders = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_EXCLUDE_SENSITIVE_HEADERS, true);
+
+        this.disabledFields = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS);
 
         if (validationErrors.size() != 0) {
             log.error("The audit log configuration contains errors:\n" + validationErrors);
@@ -277,7 +280,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -305,7 +308,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
 
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -323,7 +326,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -350,7 +353,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
 
-        save(msg);
+        save(msg.without(disabledFields));
 
     }
 
@@ -368,7 +371,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -395,7 +398,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addInitiatingUser(initiatingUser);
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -417,7 +420,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         msg.addEffectiveUser(effectiveUser);
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -434,7 +437,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -452,7 +455,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -469,7 +472,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -494,7 +497,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         msg.addEffectiveUser(getUser());
 
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -508,7 +511,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -532,7 +535,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         msg.addEffectiveUser(getUser());
 
-        save(msg);
+        save(msg.without(disabledFields));
 
     }
 
@@ -549,7 +552,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -566,7 +569,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -584,7 +587,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, t);
 
         for (AuditMessage msg : msgs) {
-            save(msg);
+            save(msg.without(disabledFields));
         }
     }
 
@@ -610,7 +613,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         msg.addException(t);
         msg.addEffectiveUser(getUser());
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -673,7 +676,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 log.error("Unable to generate request body for {} and {}", msg.toPrettyString(), fieldNameValues, e);
             }
 
-            save(msg);
+            save(msg.without(disabledFields));
         }
 
     }
@@ -777,7 +780,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         }
 
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -799,7 +802,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addShardId(shardId);
         msg.addComplianceDocVersion(result.getVersion());
         msg.addComplianceOperation(Operation.DELETE);
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -854,7 +857,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         msg.addFileInfos(paths);
 
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -915,7 +918,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         }
 
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -983,7 +986,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         }
 
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     @Override
@@ -1004,7 +1007,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addResolvedIndexTemplates(resolvedTemplateNames.toArray(new String[] {}));
         msg.addComplianceOperation(Operation.DELETE);
 
-        save(msg);
+        save(msg.without(disabledFields));
     }
 
     private Origin getOrigin() {
