@@ -66,6 +66,7 @@ public final class AuditMessage {
     public static final String NODE_HOST_ADDRESS = "audit_node_host_address";
     public static final String NODE_HOST_NAME = "audit_node_host_name";
     public static final String NODE_NAME = "audit_node_name";
+    public static final String NODE_VERSION = "audit_node_elasticsearch_version";
 
     public static final String ORIGIN = "audit_request_origin";
     public static final String REMOTE_ADDRESS = "audit_request_remote_address";
@@ -129,6 +130,7 @@ public final class AuditMessage {
             auditInfo.put(NODE_ID, localNode.getId());
             auditInfo.put(NODE_HOST_NAME, localNode.getHostName());
             auditInfo.put(NODE_NAME, localNode.getName());
+            auditInfo.put(NODE_VERSION, localNode.getVersion());
         }
 
         if (origin != null) {

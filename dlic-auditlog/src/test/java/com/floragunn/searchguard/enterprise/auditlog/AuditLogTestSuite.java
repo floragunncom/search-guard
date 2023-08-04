@@ -14,16 +14,17 @@
 
 package com.floragunn.searchguard.enterprise.auditlog;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
-
-import com.floragunn.searchguard.enterprise.auditlog.compliance.ComplianceAuditlogTest;
-import com.floragunn.searchguard.enterprise.auditlog.compliance.RestApiComplianceAuditlogTest;
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessageTest;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditlogTest;
 import com.floragunn.searchguard.enterprise.auditlog.impl.DelegateTest;
 import com.floragunn.searchguard.enterprise.auditlog.impl.DisabledCategoriesTest;
 import com.floragunn.searchguard.enterprise.auditlog.impl.IgnoreAuditUsersTest;
 import com.floragunn.searchguard.enterprise.auditlog.impl.TracingTests;
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
+
+import com.floragunn.searchguard.enterprise.auditlog.compliance.ComplianceAuditlogTest;
+import com.floragunn.searchguard.enterprise.auditlog.compliance.RestApiComplianceAuditlogTest;
 import com.floragunn.searchguard.enterprise.auditlog.integration.BasicAuditlogTest;
 import com.floragunn.searchguard.enterprise.auditlog.integration.SSLAuditlogTest;
 import com.floragunn.searchguard.enterprise.auditlog.routing.FallbackTest;
@@ -52,7 +53,8 @@ import com.floragunn.searchguard.enterprise.auditlog.sink.WebhookAuditLogTest;
 	ThreadPoolSettingsTest.class,
 	SinkProviderTest.class,
 	SinkProviderTLSTest.class,
-	WebhookAuditLogTest.class
+	WebhookAuditLogTest.class,
+	AuditMessageTest.class
 })
 public class AuditLogTestSuite {
 

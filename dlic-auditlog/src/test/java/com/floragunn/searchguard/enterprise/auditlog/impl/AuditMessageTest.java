@@ -3,9 +3,12 @@ package com.floragunn.searchguard.enterprise.auditlog.impl;
 import static com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.CATEGORY;
 import static com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.FORMAT_VERSION;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Mockito.when;
 
 import com.floragunn.codova.documents.DocNode;
@@ -41,6 +44,7 @@ public class AuditMessageTest {
     private final String localNodeName = "test-local-node";
     private final String localNodeHostAddress = "127.0.0.1";
     private final String localNodeHostName = "test-local-node-host";
+    private final Version localNodeVersion = Version.V_7_17_11;
 
     @Before
     public void setUp() {
@@ -49,9 +53,59 @@ public class AuditMessageTest {
         when(localNode.getName()).thenReturn(localNodeName);
         when(localNode.getHostAddress()).thenReturn(localNodeHostAddress);
         when(localNode.getHostName()).thenReturn(localNodeHostName);
-        when(localNode.getVersion()).thenReturn(Version.V_7_17_11);
+        when(localNode.getVersion()).thenReturn(localNodeVersion);
         DiscoveryNodes discoveryNodes = DiscoveryNodes.builder().add(localNode).localNodeId(localNodeId).build();
         when(clusterState.nodes()).thenReturn(discoveryNodes);
+    }
+
+    @Test
+    public void initialize_commonAttributesShouldBeSet_allConstructorParamsAreProvided() {
+        AuditMessage.Category category = AuditMessage.Category.FAILED_LOGIN;
+        AuditLog.Origin origin = AuditLog.Origin.REST;
+        AuditLog.Origin requestLayer = AuditLog.Origin.TRANSPORT;
+
+        AuditMessage auditMessage = new AuditMessage(category, clusterState, origin, requestLayer);
+
+        assertThat(auditMessage.getAsMap().get(AuditMessage.FORMAT_VERSION), notNullValue());
+        assertThat(auditMessage.getAsMap().get(AuditMessage.CATEGORY), equalTo(category));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+        assertThat(auditMessage.getAsMap().get(AuditMessage.CLUSTER_NAME), equalTo(clusterName));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.NODE_HOST_ADDRESS), equalTo(localNodeHostAddress));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.NODE_ID), equalTo(localNodeId));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.NODE_HOST_NAME), equalTo(localNodeHostName));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.NODE_NAME), equalTo(localNodeName));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.NODE_VERSION), equalTo(localNodeVersion));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.ORIGIN), equalTo(origin));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.REQUEST_LAYER), equalTo(requestLayer));
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void initialize_shouldThrowException_categoryIsNull() {
+        AuditLog.Origin origin = AuditLog.Origin.REST;
+        AuditLog.Origin requestLayer = AuditLog.Origin.TRANSPORT;
+
+        new AuditMessage(null, clusterState, origin, requestLayer);
+    }
+
+    @Test
+    public void initialize_commonAttributesShouldBeSet_allParamsExceptCategoryAreNull() {
+        AuditMessage.Category category = AuditMessage.Category.FAILED_LOGIN;
+        AuditLog.Origin origin = AuditLog.Origin.REST;
+        AuditLog.Origin requestLayer = AuditLog.Origin.LOCAL;
+
+        AuditMessage auditMessage = new AuditMessage(category, null, origin, requestLayer);
+
+        assertThat(auditMessage.getAsMap().get(AuditMessage.FORMAT_VERSION), notNullValue());
+        assertThat(auditMessage.getAsMap().get(AuditMessage.CATEGORY), equalTo(category));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+        assertThat(auditMessage.getAsMap(), not(hasKey(AuditMessage.CLUSTER_NAME)));
+        assertThat(auditMessage.getAsMap(), not(hasKey(AuditMessage.NODE_HOST_ADDRESS)));
+        assertThat(auditMessage.getAsMap(), not(hasKey(AuditMessage.NODE_ID)));
+        assertThat(auditMessage.getAsMap(), not(hasKey(AuditMessage.NODE_HOST_NAME)));
+        assertThat(auditMessage.getAsMap(), not(hasKey(AuditMessage.NODE_NAME)));
+        assertThat(auditMessage.getAsMap(), not(hasKey(AuditMessage.NODE_VERSION)));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.ORIGIN), equalTo(origin));
+        assertThat(auditMessage.getAsMap().get(AuditMessage.REQUEST_LAYER), equalTo(requestLayer));
     }
 
     @Test
