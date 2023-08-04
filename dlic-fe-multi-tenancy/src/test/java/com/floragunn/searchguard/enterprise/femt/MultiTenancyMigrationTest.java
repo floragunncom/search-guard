@@ -11,6 +11,7 @@ import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Collections;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
@@ -380,6 +381,34 @@ public class MultiTenancyMigrationTest {
         }
     }
 
+    @Test
+    public void shouldHandleMgetWhenIndexDoesNotExist() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            String mgetBody = """
+                {
+                	"docs": [
+                		{
+                			"_index": ".kibana_8.8.0",
+                			"_id": "space_1"
+                		}
+                	]
+                }
+                """;
+
+            HttpResponse response = client.postJson("/_mget", mgetBody);
+
+            log.debug("Mget response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, docNodeSizeEqualTo("$.docs", 1));
+            assertThat(body, containsValue("$.docs[0]._index", indexName));
+            assertThat(body, containsValue("$.docs[0]._id", "space_1"));
+            assertThat(body, containsValue("$.docs[0].error.type", "index_not_found_exception"));
+        }
+    }
+
     private void createSpace(GenericRestClient client, String indexName, String spaceId) throws Exception {
         DocNode spaceNode = DocNode.of("name", "name_" + spaceId, "description", "description_" + spaceId, "initials", "sg");
         String path = "/" + indexName + "/_doc/" + spaceId + "?refresh=true";
@@ -419,6 +448,113 @@ public class MultiTenancyMigrationTest {
 
             log.debug("Delete space response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
+        }
+    }
+
+    @Test
+    public void shouldUnscopeIdsInBulkDeleteErrorResponses() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, ".kibana_8.8.0");
+            String bulkBody = """
+                {"delete": {"_index": ".kibana_8.8.0","_id": "not_existing_document"}}
+                
+                """;
+
+            HttpResponse response = client.postJson("/_bulk", bulkBody);
+
+            log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.errors", false));
+            assertThat(body, docNodeSizeEqualTo("$.items", 1));
+            assertThat(body, containsValue("$.items[0].delete._index", indexName));
+            assertThat(body, containsValue("$.items[0].delete._id", "not_existing_document"));
+            assertThat(body, containsValue("$.items[0].delete.result", "not_found"));
+        }
+    }
+
+    @Test
+    public void shouldUnscopeIdsInBulkDeleteErrorResponsesWhenSeriousErrorOccurs() throws Exception {
+        // the index in fact does not exist, what is considered as serious error
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            String bulkBody = """
+                {"delete": {"_index": ".kibana_8.8.0","_id": "not_existing_document"}}
+                
+                """;
+
+            HttpResponse response = client.postJson("/_bulk", bulkBody);
+
+            log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.errors", true));
+            assertThat(body, docNodeSizeEqualTo("$.items", 1));
+            assertThat(body, containsValue("$.items[0].delete._index", indexName));
+            assertThat(body, containsValue("$.items[0].delete._id", "not_existing_document"));
+            assertThat(body, containsValue("$.items[0].delete.status", 404));
+            assertThat(body, containsValue("$.items[0].delete.error.type", "index_not_found_exception"));
+            assertThat(body, containsValue("$.items[0].delete.error['resource.id']", indexName));
+        }
+    }
+
+    @Test
+    public void shouldUnscopeIdsInBulkUpdateErrorResponses() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, ".kibana_8.8.0");
+            String bulkBody = """
+                {"update": {"_index": ".kibana_8.8.0","_id": "not_existing_document"}}
+                {"doc":{"no":"1"}}
+                
+                """;
+
+            HttpResponse response = client.postJson("/_bulk", bulkBody);
+
+            log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.errors", true));
+            assertThat(body, docNodeSizeEqualTo("$.items", 1));
+            assertThat(body, containsValue("$.items[0].update._index", indexName));
+            assertThat(body, containsValue("$.items[0].update.status", 404));
+            assertThat(body, containsValue("$.items[0].update.error.type", "document_missing_exception"));
+            assertThat(body, containsValue("$.items[0].update._id", "not_existing_document"));
+        }
+    }
+
+    @Test
+    public void shouldUnscopeIdsInBulkCreateErrorResponses() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, ".kibana_8.8.0");
+            createSpace(client, indexName, "space_id");
+            String bulkBody = """
+                {"create": {"_index": ".kibana_8.8.0","_id": "space_id"}}
+                {"doc":{"no":"1"}}
+                
+                """;
+
+            HttpResponse response = client.postJson("/_bulk", bulkBody);
+
+            log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.errors", true));
+            assertThat(body, docNodeSizeEqualTo("$.items", 1));
+            assertThat(body, containsValue("$.items[0].create._index", indexName));
+            assertThat(body, containsValue("$.items[0].create.status", 409));
+            assertThat(body, containsValue("$.items[0].create.error.type", "version_conflict_engine_exception"));
+            assertThat(body, containsValue("$.items[0].create._id", "space_id"));
         }
     }
 
