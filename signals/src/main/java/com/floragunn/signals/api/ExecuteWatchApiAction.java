@@ -35,6 +35,8 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
+import static com.floragunn.signals.watch.common.ValidationLevel.LENIENT;
+
 public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
 
     private final Logger log = LogManager.getLogger(this.getClass());
@@ -59,8 +61,9 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
 
             final String id = request.param("id");
             request.param("tenant");
-
-            final RequestBody requestBody = RequestBody.parse(new WatchInitializationService(null, scriptService, throttlePeriodParser), request.content().utf8ToString());
+            WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
+                null, throttlePeriodParser, LENIENT);
+            final RequestBody requestBody = RequestBody.parse(watchInitializationService, request.content().utf8ToString());
 
             if (log.isDebugEnabled()) {
                 log.debug("Execute watch " + id + ":\n" + requestBody);

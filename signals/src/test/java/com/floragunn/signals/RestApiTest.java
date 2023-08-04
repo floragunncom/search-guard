@@ -37,6 +37,8 @@ import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParse
 import com.floragunn.codova.documents.Format;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
+import com.floragunn.searchguard.test.TestSgConfig.User;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.http.HttpStatus;
 import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
@@ -68,6 +70,7 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.quartz.TimeOfDay;
 
 import com.browserup.bup.BrowserUpProxy;
@@ -102,10 +105,17 @@ import com.icegreen.greenmail.util.ServerSetup;
 
 import net.jcip.annotations.NotThreadSafe;
 
+import static com.floragunn.searchguard.test.TestSgConfig.Role.ALL_ACCESS;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+
 @NotThreadSafe
 public class RestApiTest {
     private static final Logger log = LogManager.getLogger(RestApiTest.class);
     public static final String USERNAME_UHURA = "uhura";
+    public static final String UPLOADED_TRUSTSTORE_ID = "uploaded-truststore-id";
 
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
@@ -117,11 +127,13 @@ public class RestApiTest {
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
+    private static User USER_CERTIFICATE = new User("certificate-user").roles(ALL_ACCESS);
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
-                    "signals.watch_log.sync_indexing", true)
+                    "signals.watch_log.sync_indexing", true).user(USER_CERTIFICATE)
             .dependsOn(javaSecurity).enableModule(SignalsModule.class).enterpriseModulesEnabled().build();
 
     @BeforeClass
@@ -134,6 +146,7 @@ public class RestApiTest {
                     .actionGet();
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
                     .actionGet();
+
         }
     }
 
@@ -187,7 +200,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 
@@ -269,7 +284,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, testSink, 1);
 
@@ -349,7 +366,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             log.info("Created watch; as it should find one doc in " + testSource + ", it should go to severity ERROR and write exactly one doc to "
                     + testSink);
@@ -418,7 +437,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch_with_dash", 1);
 
@@ -451,7 +472,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             Assert.assertTrue(response.getBody(), watch.getSchedule().getTriggers().isEmpty());
         }
@@ -475,7 +498,9 @@ public class RestApiTest {
 
             Assert.assertFalse(response.getBody(), response.getBody().contains("auth_token"));
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", watchId, response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", watchId, response.getBody(), -1);
 
             Assert.assertNull(response.getBody(), watch.getAuthToken());
         }
@@ -731,6 +756,81 @@ public class RestApiTest {
     }
 
     @Test
+    public void testWebhookTruststore() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "webhook-with-truststore";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            webhookProvider.uploadMockServerCertificateAsTruststore(cluster, USER_CERTIFICATE, UPLOADED_TRUSTSTORE_ID);
+            Watch watch = new WatchBuilder("tls-webhook-test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                .postWebhook(webhookProvider.getUri()).truststoreId(UPLOADED_TRUSTSTORE_ID).throttledFor("0")
+                .name("testhook").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(600);
+
+            Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+        }
+    }
+
+    @Test
+    public void testWebhookTruststoreFailureWithoutCorrectTruststore() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "webhook-missing-truststore-configuration";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest("testsink-" + watchId)).actionGet();
+
+            Watch watch = new WatchBuilder("tls-webhook-test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                .postWebhook(webhookProvider.getUri()).throttledFor("0")
+                .name("testhook").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(600);
+
+            // Request are not sent because webhookProvider provided uses untrusted certificate so that SearchGuard is not able to
+            // establish connection with webhookProvider
+            Assert.assertTrue(webhookProvider.getRequestCount() == 0);
+        }
+    }
+
+    @Test
+    public void shouldNotCreateWatchWhenWatchContainsIncorrectTruststoreId() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "webhook-incorrect-truststore-id";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest("testsink-" + watchId)).actionGet();
+
+            Watch watch = new WatchBuilder("tls-webhook-test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                .postWebhook(webhookProvider.getUri()).truststoreId("not-existing-truststore-id").throttledFor("0")
+                .name("testhook").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+
+        }
+    }
+
+    @Test
     public void testHttpDefaultProxy() throws Exception {
 
         String tenant = "_main";
@@ -940,7 +1040,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
 
@@ -971,7 +1073,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
 
@@ -1073,6 +1177,32 @@ public class RestApiTest {
             response = restClient.postJson(watchPath + "/_execute", "{}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+        }
+    }
+
+    @Test
+    public void testExecuteWatchByIdWhichUsesUploadedTruststore() throws Exception {
+        String tenant = "_main";
+        String watchId = "tls_execution_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/tls_endpoint", true, false)) {
+            webhookProvider.uploadMockServerCertificateAsTruststore(cluster, USER_CERTIFICATE, UPLOADED_TRUSTSTORE_ID);
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("0 0 */1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                .postWebhook(webhookProvider.getUri()).truststoreId(UPLOADED_TRUSTSTORE_ID).throttledFor("0").name("send-http-request")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = restClient.postJson(watchPath + "/_execute", "{}");
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("status.code", "ACTION_EXECUTED"));
+            assertThat(webhookProvider.getRequestCount(), greaterThan(0));
         }
     }
 
@@ -2198,7 +2328,8 @@ public class RestApiTest {
                     HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                             "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null, null);
 
-                    httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, throttlePeriodParser));
+                    httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                        Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT));
 
                     EmailAccount destination = new EmailAccount();
                     destination.setHost("localhost");
@@ -3193,7 +3324,9 @@ public class RestApiTest {
 
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-        return Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService, throttlePeriodParser), "test", id, response.getBody(), -1);
+        WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+            Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+        return Watch.parseFromElasticDocument(initService, "test", id, response.getBody(), -1);
     }
 
     private HttpResponse awaitRestGet(String request, GenericRestClient restClient) throws Exception {

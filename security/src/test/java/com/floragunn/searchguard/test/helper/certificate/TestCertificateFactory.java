@@ -81,6 +81,16 @@ public class TestCertificateFactory {
     }
 
     public CertificateWithKeyPair createCaCertificate(String dn, int validityDays) {
+        Date validityStartDate = new Date(System.currentTimeMillis());
+        Date validityEndDate = getEndDate(validityStartDate, validityDays);
+        return getCertificateWithKeyPair(dn, validityStartDate, validityEndDate);
+    }
+
+    public CertificateWithKeyPair createCaCertificate(String dn, Date validityStartDate, Date validityEndDate) {
+        return getCertificateWithKeyPair(dn, validityStartDate, validityEndDate);
+    }
+
+    private CertificateWithKeyPair getCertificateWithKeyPair(String dn, Date validityStartDate, Date validityEndDate) {
         try {
             KeyPair keyPair = asymmetricCryptographyAlgorithm.generateKeyPair();
             X500Name subjectName = DnGenerator.rootDn.apply(dn);
@@ -88,10 +98,9 @@ public class TestCertificateFactory {
             ContentSigner contentSigner = new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName()).setProvider(
                     securityProvider).build(keyPair.getPrivate());
 
-            Date validityStartDate = new Date(System.currentTimeMillis());
-            Date validityEndDate = getEndDate(validityStartDate, validityDays);
-            X509CertificateHolder x509CertificateHolder = new X509v3CertificateBuilder(subjectName, BigInteger.valueOf(1), validityStartDate,
-                    validityEndDate, subjectName, SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded())).addExtension(
+            X509CertificateHolder x509CertificateHolder = new X509v3CertificateBuilder(subjectName, BigInteger.valueOf(1),
+                validityStartDate,
+                validityEndDate, subjectName, SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded())).addExtension(
                             Extension.basicConstraints, true, new BasicConstraints(true)) // Mark this as root CA
                     .addExtension(Extension.authorityKeyIdentifier, false, extUtils.createAuthorityKeyIdentifier(keyPair.getPublic()))
                     .addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(keyPair.getPublic()))
@@ -102,7 +111,6 @@ public class TestCertificateFactory {
             log.error("Error while generating CA certificate", e);
             throw new RuntimeException("Error while generating CA certificate", e);
         }
-
     }
 
     public CertificateWithKeyPair createClientCertificate(String dn, int validityDays, X509CertificateHolder signingCertificate,

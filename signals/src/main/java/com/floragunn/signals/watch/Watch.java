@@ -661,7 +661,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             }
 
             String watchId = getWatchId(id);
-
+            log.debug("Parse watch with id '{}' and watch initialization service '{}'", id, initContext);
             return Watch.parse(initContext, tenant, watchId, jsonNode, version);
         }
 

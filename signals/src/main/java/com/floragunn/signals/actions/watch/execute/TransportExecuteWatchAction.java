@@ -51,6 +51,8 @@ import com.floragunn.signals.watch.result.WatchLogIndexWriter;
 import com.floragunn.signals.watch.result.WatchLogWriter;
 import com.google.common.base.Charsets;
 
+import static com.floragunn.signals.watch.common.ValidationLevel.LENIENT;
+
 public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteWatchRequest, ExecuteWatchResponse> {
 
     private static final Logger log = LogManager.getLogger(TransportExecuteWatchAction.class);
@@ -130,9 +132,10 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                             request.getWatchId(), ExecuteWatchResponse.Status.NOT_FOUND, null));
                                     return;
                                 }
-
-                                Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())),
-                                        signalsTenant.getName(), request.getWatchId(), response.getSourceAsString(), response.getVersion());
+                                WatchInitializationService initService = new WatchInitializationService(signals.getAccountRegistry(), scriptService,
+                                    signals.getTruststoreRegistry(), new ValidatingThrottlePeriodParser(signals.getSignalsSettings()), LENIENT);
+                                Watch watch = Watch.parse(initService, signalsTenant.getName(), request.getWatchId(),//
+                                    response.getSourceAsString(), response.getVersion());
 
                                 try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
                                     threadContext.putTransient(ConfigConstants.SG_USER, user);
@@ -170,7 +173,9 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
             ActionListener<ExecuteWatchResponse> listener) {
 
         try {
-            Watch watch = Watch.parse(new WatchInitializationService(signals.getAccountRegistry(), scriptService, new ValidatingThrottlePeriodParser(signals.getSignalsSettings())), signalsTenant.getName(),
+            WatchInitializationService initService = new WatchInitializationService(signals.getAccountRegistry(), scriptService,
+                signals.getTruststoreRegistry(), new ValidatingThrottlePeriodParser(signals.getSignalsSettings()), LENIENT);
+            Watch watch = Watch.parse(initService, signalsTenant.getName(),
                     "__inline_watch", request.getWatchJson(), -1);
 
             threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {
@@ -223,7 +228,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         WatchRunner watchRunner = new WatchRunner(watch, client, signals.getAccountRegistry(), scriptService, watchLogWriter, null, diagnosticContext,
                 null, ExecutionEnvironment.TEST, request.getSimulationMode(), xContentRegistry, signals.getSignalsSettings(),
-                clusterService.getNodeName(), checkSelector, input);
+                clusterService.getNodeName(), checkSelector, input, signals.getTruststoreRegistry());
 
         try {
             WatchLog watchLog = watchRunner.execute();

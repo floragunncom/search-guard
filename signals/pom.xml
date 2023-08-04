@@ -170,6 +170,12 @@
     		<version>2.0.5</version>
     		<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.awaitility</groupId>
+			<artifactId>awaitility</artifactId>
+			<version>4.2.0</version>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- ##### start painless plugin ##### -->
 		<dependency>

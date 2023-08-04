@@ -28,6 +28,8 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.support.PemKeyReader;
 
+import static com.floragunn.signals.CertificatesParser.parseCertificates;
+
 public class TlsClientAuthConfig implements ToXContentObject {
     private String inlineAuthCertsPem;
     private Collection<? extends Certificate> inlineAuthCerts;
@@ -61,7 +63,7 @@ public class TlsClientAuthConfig implements ToXContentObject {
 
     private void init(ValidationErrors validationErrors) {
         try {
-            this.inlineAuthCerts = TlsConfig.parseCertificates(this.inlineAuthCertsPem);
+            this.inlineAuthCerts = parseCertificates(this.inlineAuthCertsPem);
         } catch (ConfigValidationException e) {
             validationErrors.add("certificate", e);
         }

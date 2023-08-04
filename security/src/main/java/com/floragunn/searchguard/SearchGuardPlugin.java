@@ -110,7 +110,6 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.SearchGuardModule.QueryCacheWeightProvider;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;

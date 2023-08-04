@@ -23,6 +23,7 @@ import static java.util.Collections.emptyList;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Function;
@@ -149,6 +150,17 @@ public class TestCertificates {
             return ca(dn, certificatesDefaults.validityDays, null);
         }
 
+        public TestCertificatesBuilder ca(String dn, Date validityStartDate, Date validityEndDate) {
+            if (caCertificate != null) {
+                log.error("CA certificate already generated. CA certificate can be generated only once");
+                throw new RuntimeException("CA certificate already generated. CA certificate can be generated only once");
+            }
+            CertificateWithKeyPair certificateWithKeyPair = testCertificateFactory.createCaCertificate(dn, validityStartDate, validityEndDate);
+            this.caCertificate = new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(), null,
+                    CertificateType.ca, resources);
+            return this;
+        }
+
         public TestCertificatesBuilder ca(String dn, int validityDays, String privateKeyPassword) {
             if (caCertificate != null) {
                 log.error("CA certificate already generated. CA certificate can be generated only once");
@@ -156,7 +168,7 @@ public class TestCertificates {
             }
             CertificateWithKeyPair certificateWithKeyPair = testCertificateFactory.createCaCertificate(dn, validityDays);
             this.caCertificate = new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(), privateKeyPassword,
-                    CertificateType.ca, resources);
+                CertificateType.ca, resources);
             return this;
         }
 
