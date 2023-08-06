@@ -32,6 +32,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.authtoken.AuthTokenService;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
 
 public class TransportPushAuthTokenUpdateAction extends
         TransportNodesAction<PushAuthTokenUpdateRequest, PushAuthTokenUpdateResponse, TransportPushAuthTokenUpdateAction.NodeRequest, PushAuthTokenUpdateNodeResponse> {
@@ -47,7 +48,7 @@ public class TransportPushAuthTokenUpdateAction extends
         this.authTokenService = authTokenService;
     }
 
-    public static class NodeRequest extends BaseNodesRequest {
+    public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
         PushAuthTokenUpdateRequest request;
 

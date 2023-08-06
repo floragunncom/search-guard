@@ -77,6 +77,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.SearchGuardPlugin.ProtectedIndices;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
 import com.floragunn.searchguard.SearchGuardVersion;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.cstate.ComponentState;
@@ -741,7 +742,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             }
         }
 
-        public static class NodeRequest extends BaseNodesRequest {
+        public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
             public NodeRequest(StreamInput in) throws IOException {
                 super(in);

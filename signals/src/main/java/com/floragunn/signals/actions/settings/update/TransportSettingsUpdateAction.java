@@ -21,6 +21,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
 import com.floragunn.signals.Signals;
 
 public class TransportSettingsUpdateAction extends
@@ -67,7 +68,7 @@ public class TransportSettingsUpdateAction extends
         }
     }
 
-    public static class NodeRequest extends BaseNodesRequest {
+    public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
         SettingsUpdateRequest request;
 

@@ -41,6 +41,7 @@ import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
 
 public class TransportConfigUpdateAction
 extends
@@ -65,7 +66,7 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
         this.configurationRepository = configurationRepository;
     }
 
-    public static class NodeConfigUpdateRequest extends BaseNodesRequest {
+    public static class NodeConfigUpdateRequest extends BaseNodesRequest<NodeRequest> {
 
         ConfigUpdateRequest request;
         

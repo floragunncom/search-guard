@@ -27,6 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.cert.ocsp.Req;
@@ -396,7 +398,7 @@ public class SearchGuardCapabilities {
             }
         }
 
-        public static class NodeRequest extends BaseNodesRequest {
+        public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
             private Request request;
 

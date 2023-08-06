@@ -39,6 +39,8 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
+
 public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpdateAction.Response> {
 
     public static final PushSessionTokenUpdateAction INSTANCE = new PushSessionTokenUpdateAction();
@@ -129,7 +131,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         }
     }
 
-    public static class NodeRequest extends BaseNodesRequest {
+    public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
         Request request;
 

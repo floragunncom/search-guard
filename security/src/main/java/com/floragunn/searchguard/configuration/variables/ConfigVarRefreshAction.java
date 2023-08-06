@@ -151,7 +151,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
             }
         }
 
-        public static class NodeRequest extends BaseNodesRequest {
+        public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
             Request request;
 

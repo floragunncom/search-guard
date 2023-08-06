@@ -39,6 +39,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.NoSuchActionException;
@@ -142,7 +143,7 @@ public class TransportAckWatchAction
         }
     }
 
-    public static class NodeRequest extends BaseNodesRequest {
+    public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
         AckWatchRequest request;
 

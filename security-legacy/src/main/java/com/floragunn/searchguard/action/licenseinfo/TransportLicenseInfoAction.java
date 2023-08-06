@@ -36,6 +36,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
 import com.floragunn.searchguard.license.LicenseRepository;
 import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -60,7 +61,7 @@ public class TransportLicenseInfoAction extends
         this.settings = settings;
     }
 
-    public static class NodeLicenseRequest extends BaseNodesRequest {
+    public static class NodeLicenseRequest extends BaseNodesRequest<NodeRequest> {
 
         LicenseInfoRequest request;
 

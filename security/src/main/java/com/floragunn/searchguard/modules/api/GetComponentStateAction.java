@@ -64,6 +64,7 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.PartsStats;
 import com.floragunn.searchsupport.cstate.metrics.Measurement;
@@ -119,7 +120,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         }
     }
 
-    public static class NodeRequest extends BaseNodesRequest {
+    public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
         Request request;
 

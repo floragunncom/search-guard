@@ -25,6 +25,8 @@ import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
 import org.quartz.impl.DirectSchedulerFactory;
 
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.TransportAction.NodeRequest;
+
 public class TransportCheckForExecutingTriggerAction extends
         TransportNodesAction<CheckForExecutingTriggerRequest, CheckForExecutingTriggerResponse, TransportCheckForExecutingTriggerAction.NodeRequest, TransportCheckForExecutingTriggerAction.NodeResponse> {
 
@@ -85,7 +87,7 @@ public class TransportCheckForExecutingTriggerAction extends
         }
     }
 
-    public static class NodeRequest extends BaseNodesRequest {
+    public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
         CheckForExecutingTriggerRequest request;
 
