@@ -87,7 +87,7 @@ public class CreateOrReplaceTruststoreAction extends
         }
     }
 
-    public static class CreateOrReplaceTruststoreRequest extends Request {
+    public static class CreateOrReplaceTruststoreRequest extends Action.Request {
         private final static String ENCAPSULATION_BOUNDARY_END = "-----END CERTIFICATE-----";
         public static final String FIELD_NAME = "name";
         public static final String FIELD_PEM = "pem";
