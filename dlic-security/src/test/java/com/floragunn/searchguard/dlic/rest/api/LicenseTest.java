@@ -25,8 +25,7 @@ import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
@@ -166,16 +165,13 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(response.getBody(), statusCode, response.getStatusCode());
         response = rh.executeGetRequest("/_searchguard/config");
 		
-		JsonNode jsonNode = response.toJsonNode();
-		
-		Assert.assertEquals(licenseKey, jsonNode.path("license_key").path("content").path("key").textValue());
-        
+        DocNode jsonNode = response.toDocNode();		
+        Assert.assertEquals(licenseKey, jsonNode.getAsNode("license_key", "content", "key").toString());        
 	}
 	
 	protected final Map<?, ?> getCurrentLicense() throws Exception {
 		HttpResponse response = rh.executeGetRequest("_searchguard/api/license");
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		return (Map<?, ?>)DefaultObjectMapper.objectMapper.readValue(response.getBody(), Map.class).get("sg_license");
-	}
-
+        return (Map<?, ?>) response.toDocNode().get("sg_license");
+    }
 }

@@ -23,9 +23,8 @@ import java.util.Collection;
 import org.apache.http.Header;
 import org.elasticsearch.common.settings.Settings;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.enterprise.auditlog.routing.AuditMessageRouter;
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
@@ -93,11 +92,11 @@ public abstract class AbstractAuditlogiUnitTest extends SingleClusterTest {
         }
         
         try {
-            JsonNode node = DefaultObjectMapper.objectMapper.readTree(json);
+            DocNode node = DocNode.parse(Format.JSON).from(json);
             
-            if(node.get("audit_request_body") != null) {
-                //System.out.println("    Check audit_request_body for validity: "+node.get("audit_request_body").asText());
-                DefaultObjectMapper.objectMapper.readTree(node.get("audit_request_body").asText());
+            if (node.get("audit_request_body") != null) {
+                // Check audit_request_body for validity
+                DocNode.parse(Format.JSON).from(node.getAsString("audit_request_body"));
             }
             
             return true;

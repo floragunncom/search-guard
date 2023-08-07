@@ -28,13 +28,10 @@ import org.quartz.TimeOfDay;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
@@ -77,7 +74,6 @@ public class WatchBuilder {
     SeverityMapping severityMapping;
     DurationExpression throttlePeriod;
 
-    final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private boolean active = true;
 
     public WatchBuilder(String name) {
@@ -591,20 +587,20 @@ public class WatchBuilder {
         private String[] indices;
         private String body;
         private String query;
-        private ObjectNode bodyNode = WatchBuilder.OBJECT_MAPPER.createObjectNode();
-
+        private DocNode bodyNode = DocNode.EMPTY;
+        
         SearchBuilder(WatchBuilder parent, String... indices) {
             this.parent = parent;
             this.indices = indices;
         }
 
         public SearchBuilder attr(String key, String value) {
-            bodyNode.put(key, value);
+            bodyNode = bodyNode.with(key, value);
             return this;
         }
 
         public SearchBuilder attr(String key, int value) {
-            bodyNode.put(key, value);
+            bodyNode = bodyNode.with(key, value);
             return this;
         }
 
@@ -613,7 +609,7 @@ public class WatchBuilder {
             return this;
         }
 
-        public WatchBuilder as(String name) throws JsonProcessingException, IOException {
+        public WatchBuilder as(String name) throws DocumentParseException, IOException {
 
             if (body == null) {
                 body = buildBody();
@@ -626,12 +622,8 @@ public class WatchBuilder {
             return parent;
         }
 
-        private String buildBody() throws JsonProcessingException, IOException {
-            JsonNode jsonNode = WatchBuilder.OBJECT_MAPPER.readTree(this.query);
-
-            bodyNode.set("query", jsonNode);
-
-            return WatchBuilder.OBJECT_MAPPER.writeValueAsString(bodyNode);
+        private String buildBody() throws DocumentParseException, IOException {
+            return DocNode.of("query", DocNode.parse(Format.JSON).from(this.query)).toString();
         }
     }
 
@@ -650,10 +642,9 @@ public class WatchBuilder {
             return this;
         }
 
-        public WatchBuilder as(String name) throws JsonProcessingException, IOException {
+        public WatchBuilder as(String name) throws DocumentParseException, IOException {
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> map = WatchBuilder.OBJECT_MAPPER.convertValue(WatchBuilder.OBJECT_MAPPER.readTree(this.data), Map.class);
+            Map<String, Object> map = DocNode.parse(Format.JSON).from(this.data).toMap();
 
             StaticInput simpleInput = new StaticInput(this.name != null ? this.name : name, name, map);
 
@@ -673,7 +664,7 @@ public class WatchBuilder {
             this.script = script;
         }
 
-        public WatchBuilder as(String name) throws JsonProcessingException, IOException {
+        public WatchBuilder as(String name) throws DocumentParseException, IOException {
 
             Transform transform = new Transform(name, name, script, "painless", Collections.emptyMap());
 

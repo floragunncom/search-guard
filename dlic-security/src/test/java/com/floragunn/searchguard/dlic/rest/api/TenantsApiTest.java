@@ -33,12 +33,12 @@ public class TenantsApiTest extends AbstractRestApiUnitTest {
 
 		HttpResponse response = rh.executeGetRequest("/_searchguard/api/tenants", new Header[0]);
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		Assert.assertEquals(response.getBody(), "mytenantdesc", SgJsonNode.fromJson(response.getBody()).getDotted("mytenant.description").asString());
-
+        Assert.assertEquals(response.getBody(), "mytenantdesc", response.toDocNode().get("mytenant", "description").toString());
+        
 		response = rh.executeGetRequest("/_searchguard/api/tenants/mytenant", new Header[0]);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertEquals(response.getBody(), "mytenantdesc", SgJsonNode.fromJson(response.getBody()).getDotted("mytenant.description").asString());
-
+        Assert.assertEquals(response.getBody(), "mytenantdesc", response.toDocNode().get("mytenant", "description").toString());
+        
         response = rh.executeGetRequest("/_searchguard/api/tenants/mynewtenant", new Header[0]);
         Assert.assertEquals(HttpStatus.SC_NOT_FOUND, response.getStatusCode());
         
@@ -47,8 +47,8 @@ public class TenantsApiTest extends AbstractRestApiUnitTest {
         
         response = rh.executeGetRequest("/_searchguard/api/tenants", new Header[0]);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertEquals(response.getBody(), "mytenantdesc", SgJsonNode.fromJson(response.getBody()).getDotted("mytenant.description").asString());
-        Assert.assertEquals(response.getBody(), "mynewtenantdesc", SgJsonNode.fromJson(response.getBody()).getDotted("mynewtenant.description").asString());
+        Assert.assertEquals(response.getBody(), "mytenantdesc", response.toDocNode().get("mytenant", "description").toString());
+        Assert.assertEquals(response.getBody(), "mynewtenantdesc", response.toDocNode().get("mynewtenant", "description").toString());
 
         response = rh.executePutRequest("/_searchguard/api/tenants/mynewtenant2", "{}", new Header[0]);
         Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());

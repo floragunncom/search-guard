@@ -20,8 +20,7 @@ import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 
 public class GetConfigurationApiTest extends AbstractRestApiUnitTest {
@@ -57,8 +56,9 @@ public class GetConfigurationApiTest extends AbstractRestApiUnitTest {
 		// roles
 		response = rh.executeGetRequest("_searchguard/api/roles");
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		JsonNode jnode = DefaultObjectMapper.readTree(response.getBody());
-		Assert.assertEquals(jnode.get("sg_all_access").get("cluster_permissions").get(0).asText(), "cluster:*");
+        DocNode jnode = response.toDocNode();
+        Assert.assertEquals(jnode.getAsNode("sg_all_access").getAsListOfNodes("cluster_permissions").get(0).toString(), "cluster:*");
+
 		Assert.assertNull(settings.get("_sg_meta.type"));
 
 		// roles

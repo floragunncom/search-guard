@@ -25,21 +25,15 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class FrontendConfigIntegrationTests {
 
-    //@ClassRule
-    //public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config_legacy").build();
-
     @Test
     public void testLegacy() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config_legacy").start()) {
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
                 GenericRestClient.HttpResponse response = restClient.get("/_searchguard/auth/config");
 
-                //System.out.println(response.getBody());
-
                 Assert.assertTrue(response.getBody(),
-                        response.toJsonNode().path("auth_methods").isArray() && response.toJsonNode().path("auth_methods").size() == 1);
-                Assert.assertEquals(response.getBody(), "basic", response.toJsonNode().path("auth_methods").path(0).path("method").asText());
-                Assert.assertTrue(response.getBody(), response.toJsonNode().path("auth_methods").path(0).path("id").isMissingNode());
+                        response.getBodyAsDocNode().getAsNode("auth_methods").isList() && response.getBodyAsDocNode().getAsListOfNodes("auth_methods").size() == 1);
+                Assert.assertEquals(response.getBody(), "basic", response.getBodyAsDocNode().findSingleValueByJsonPath("auth_methods[0].method", String.class));
             }
         }
     }

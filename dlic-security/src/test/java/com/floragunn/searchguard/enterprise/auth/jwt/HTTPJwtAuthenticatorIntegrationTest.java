@@ -1,5 +1,16 @@
 package com.floragunn.searchguard.enterprise.auth.jwt;
 
+import static com.floragunn.searchguard.test.TestSgConfig.Role.ALL_ACCESS;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
+import org.apache.http.Header;
+import org.apache.http.message.BasicHeader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.ClassRule;
+import org.junit.Test;
+
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.enterprise.auth.oidc.TestJwk;
 import com.floragunn.searchguard.enterprise.auth.oidc.TestJwts;
@@ -15,21 +26,6 @@ import com.floragunn.searchguard.test.TestSgConfig.JwtDomain;
 import com.floragunn.searchguard.test.TestSgConfig.Signing;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import org.apache.http.Header;
-import org.apache.http.message.BasicHeader;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-
-import java.io.IOException;
-
-import static com.floragunn.searchguard.test.TestSgConfig.Role.ALL_ACCESS;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 
 /**
  * Created based on legacy test <code>com.floragunn.dlic.auth.http.jwt.HTTPJwtAuthenticatorIntegrationTest</code>.
@@ -62,7 +58,7 @@ public class HTTPJwtAuthenticatorIntegrationTest {
 
             log.info("POST /_searchguard/auth/session response '{}'.", response.getBody());
             assertThat(response.getBody(), response.getStatusCode(), equalTo(201));
-            String token = response.toJsonNode().path("token").textValue();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
             try (GenericRestClient tokenClient = cluster.getRestClient(tokenAuth)) {
                 response = tokenClient.get("/_searchguard/authinfo");

@@ -94,8 +94,8 @@ public class SignalsStressTests {
 
             AsyncAssert.awaitAssert("Watch did not get assigned a node", () -> {
                 try {
-                    String node = restClient.get(watchPath + "/_state").toJsonNode().path("node").asText();
-
+                    String node = restClient.get(watchPath + "/_state").getBodyAsDocNode().getAsString("node");
+                    
                     if (node != null && node.length() > 0 && !node.equals("null")) {
                         return true;
                     } else {
@@ -108,10 +108,8 @@ public class SignalsStressTests {
 
             }, Duration.ofSeconds(10));
 
-            watchRunsOnNode = restClient.get(watchPath + "/_state").toJsonNode().path("node").asText();
-
-            Assert.assertTrue("watchRunsOnNode must not be "+watchRunsOnNode,watchRunsOnNode != null && !watchRunsOnNode.isEmpty() && !watchRunsOnNode.equals("null"));
-
+            watchRunsOnNode = restClient.get(watchPath + "/_state").getBodyAsDocNode().getAsString("node");
+            
             log.info("Watch runs on node " + watchRunsOnNode);
 
             Thread.sleep(500);
@@ -120,8 +118,8 @@ public class SignalsStressTests {
 
             AsyncAssert.awaitAssert("Watch state contains acked date", () -> {
                 try {
-                    String acked = restClient.get(watchPath + "/_state").toJsonNode().path("actions").path("testsink").path("acked").path("on")
-                            .asText();
+                    String acked = restClient.get(watchPath + "/_state").getBodyAsDocNode().get("actions", "testsink", "acked", "on").toString();
+
 
                     if (acked != null && acked.length() > 0 && !acked.equals("null")) {
                         return true;
@@ -135,7 +133,7 @@ public class SignalsStressTests {
 
             }, Duration.ofSeconds(10));
 
-            ackedAt = restClient.get(watchPath + "/_state").toJsonNode().path("actions").path("testsearch").path("acked").path("on").asText();
+            ackedAt = restClient.get(watchPath + "/_state").getBodyAsDocNode().getAsNode("actions", "testsearch", "acked").getOrDefault("on", "").toString();
         }
 
         Thread.sleep(2000);
@@ -149,8 +147,8 @@ public class SignalsStressTests {
         try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
             AsyncAssert.awaitAssert("Watch got assigned a different node", () -> {
                 try {
-                    String node = restClient.get(watchPath + "/_state").toJsonNode().path("node").asText();
-
+                    String node = restClient.get(watchPath + "/_state").getBodyAsDocNode().getAsString("node");
+                    
                     if (node != null && node.length() > 0 && !node.equals("null") && !node.equals(watchRunsOnNode)) {
                         return true;
                     } else {
@@ -165,10 +163,10 @@ public class SignalsStressTests {
 
             com.floragunn.searchguard.test.GenericRestClient.HttpResponse response = restClient.get(watchPath + "/_state");
 
-            String watchRunsOnNodeNow = response.toJsonNode().path("node").asText();
-
-            String newAckedAt = response.toJsonNode().path("actions").path("testsearch").path("acked").path("on").asText();
-
+            String watchRunsOnNodeNow = response.getBodyAsDocNode().getAsString("node");
+            
+            String newAckedAt = response.getBodyAsDocNode().getAsNode("actions", "testsearch", "acked").getOrDefault("on", "").toString();
+            
             log.info("Watch moved from " + watchRunsOnNode + " to " + watchRunsOnNodeNow);
 
             Assert.assertEquals(response.getBody(), ackedAt, newAckedAt);

@@ -60,7 +60,7 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -82,9 +82,9 @@ public class SearchGuardInterceptorIntegrationTests {
                 GenericRestClient restClient = cluster.getRestClient("header_test_user", "secret")) {
 
             GenericRestClient.HttpResponse httpResponse = restClient.get("/_header_test", new BasicHeader("test_header_name", "test_header_value"));
-            JsonNode headers = httpResponse.toJsonNode().get("headers");
+            DocNode headers = httpResponse.getBodyAsDocNode().getAsNode("headers");
 
-            Assert.assertEquals("test_header_value", headers.get("test_header_name").textValue());
+            Assert.assertEquals("test_header_value", headers.get("test_header_name"));
         }
     }
 
