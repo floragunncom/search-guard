@@ -20,7 +20,6 @@ import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
@@ -170,7 +169,7 @@ public class RoleBasedAccessTest extends AbstractRestApiUnitTest {
 		// Worf, has access to roles API, get captains role
 		response = rh.executeGetRequest("/_searchguard/api/roles/sg_role_starfleet_captains", encodeBasicHeader("worf", "worf"));
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		Assert.assertEquals(new SgJsonNode(DefaultObjectMapper.readTree(response.getBody())).getDotted("sg_role_starfleet_captains.cluster_permissions").get(0).asString(), "cluster:monitor*");
+        Assert.assertEquals(response.toDocNode().getAsNode("sg_role_starfleet_captains").getAsListOfNodes("cluster_permissions").get(0).toString(), "cluster:monitor*");
 
 		// Worf, has access to roles API, able to delete 
 		response = rh.executeDeleteRequest("/_searchguard/api/roles/sg_role_starfleet_captains", encodeBasicHeader("worf", "worf"));
@@ -206,7 +205,8 @@ public class RoleBasedAccessTest extends AbstractRestApiUnitTest {
 		// starfleet role present again
 		response = rh.executeGetRequest("/_searchguard/api/roles/sg_role_starfleet_captains", encodeBasicHeader("worf", "worf"));
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		Assert.assertEquals(new SgJsonNode(DefaultObjectMapper.readTree(response.getBody())).getDotted("sg_role_starfleet_captains.index_permissions").get(0).get("allowed_actions").get(0).asString(), "blafasel");
+        Assert.assertEquals(response.toDocNode().getAsNode("sg_role_starfleet_captains").getAsListOfNodes("index_permissions").get(0)
+                .getAsListOfNodes("allowed_actions").get(0).toString(), "blafasel");
 
 		// Try the same, but now with admin certificate
 		rh.sendHTTPClientCertificate = true;

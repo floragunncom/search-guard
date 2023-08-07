@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.authtoken;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 
@@ -37,11 +36,11 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
@@ -140,7 +139,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(token);
             Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
 
@@ -202,7 +201,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
 
             Assert.assertNotNull(token);
             Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
@@ -272,7 +271,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(403, response.getStatusCode());
             Assert.assertEquals("Cannot create token. Token limit per user exceeded. Max number of allowed tokens is 10",
-                    response.toJsonNode().at("/error/root_cause/0/reason").textValue());
+                    response.getBodyAsDocNode().findSingleNodeByJsonPath("error.root_cause[0].reason").toString());
         }
     }
 
@@ -291,7 +290,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(token);
 
             try (GenericRestClient tokenAuthRestClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
@@ -326,7 +325,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(token);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("picard", "picard")) {
@@ -378,7 +377,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(token);
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
@@ -422,8 +421,8 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
-            String id = response.toJsonNode().get("id").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
+            String id = response.getBodyAsDocNode().getAsString("id");
 
             Assert.assertNotNull(token);
             Assert.assertNotNull(id);
@@ -489,8 +488,8 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
-            String id = response.toJsonNode().get("id").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
+            String id = response.getBodyAsDocNode().getAsString("id");
 
             Assert.assertNotNull(token);
             Assert.assertNotNull(id);
@@ -553,7 +552,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String picardsTokenId = response.toJsonNode().get("id").textValue();
+            String picardsTokenId = response.getBodyAsDocNode().getAsString("token");
 
             response = restClient.get("/_searchguard/authtoken/_search");
 
@@ -576,18 +575,18 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
-            JsonNode jsonNode = response.toJsonNode();
+            DocNode jsonNode = response.getBodyAsDocNode();
 
-            Assert.assertEquals(response.getBody(), 2, jsonNode.at("/hits/total/value").intValue());
-            Assert.assertEquals(response.getBody(), "spock", jsonNode.at("/hits/hits/0/_source/user_name").textValue());
-            Assert.assertEquals(response.getBody(), "spock", jsonNode.at("/hits/hits/1/_source/user_name").textValue());
+            Assert.assertEquals(response.getBody(), 2, jsonNode.getAsNode("hits", "total", "value").toNumber());
+            Assert.assertEquals(response.getBody(), "spock", jsonNode.findSingleNodeByJsonPath("hits.hits[0]._source.user_name").toString());
+            Assert.assertEquals(response.getBody(), "spock", jsonNode.findSingleNodeByJsonPath("hits.hits[1]._source.user_name").toString());
 
-            String id = jsonNode.at("/hits/hits/0/_id").textValue();
-            String tokenName = jsonNode.at("/hits/hits/0/_source/token_name").textValue();
+            String id = jsonNode.getAsNode("hits").getAsListOfNodes("hits").get(0).getAsString("_id");
+            String tokenName = jsonNode.getAsNode("hits").getAsListOfNodes("hits").get(0).getAsNode("_source").getAsString("token_name");
 
             response = restClient.get("/_searchguard/authtoken/" + id);
 
-            Assert.assertEquals(response.getBody(), tokenName, response.toJsonNode().get("token_name").textValue());
+            Assert.assertEquals(response.getBody(), tokenName, response.getBodyAsDocNode().getAsString("token_name"));
 
             response = restClient.get("/_searchguard/authtoken/" + picardsTokenId);
 
@@ -595,9 +594,9 @@ public class AuthTokenIntegrationTest {
 
             response = admindRestClient.postJson("/_searchguard/authtoken/_search", searchRequest);
 
-            jsonNode = response.toJsonNode();
+            jsonNode = response.getBodyAsDocNode();
 
-            Assert.assertEquals(response.getBody(), 3, jsonNode.at("/hits/total/value").intValue());
+            Assert.assertEquals(response.getBody(), 3, jsonNode.get("hits", "total", "value"));
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"spock\""));
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"picard\""));
         }
@@ -670,7 +669,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(token);
             Assert.assertEquals("A256KW", getJwtHeaderValue(token, "alg"));
             Assert.assertEquals("A256CBC-HS512", getJwtHeaderValue(token, "enc"));
@@ -783,7 +782,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(token);
             Assert.assertEquals("ES256", getJwtHeaderValue(token, "alg"));
             Assert.assertTrue(getJwtPayload(token), getJwtPayload(token).contains("spock"));
@@ -836,7 +835,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(token);
 
             response = restClient.get("_searchguard/api/roles");
@@ -861,7 +860,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(token);
 
             response = restClient.get("_searchguard/api/roles");
@@ -887,7 +886,7 @@ public class AuthTokenIntegrationTest {
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
-            String token = response.toJsonNode().get("token").asText();
+            String token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(token);
 
             response = restClient.get("_searchguard/api/roles");
@@ -908,7 +907,7 @@ public class AuthTokenIntegrationTest {
             HttpResponse response = restClient.get("/_searchguard/authtoken/_info");
 
             Assert.assertEquals(200, response.getStatusCode());
-            Assert.assertTrue(response.getBody(), response.toJsonNode().get("enabled").asBoolean());
+            Assert.assertEquals(response.getBody(), Boolean.TRUE, response.getBodyAsDocNode().get("enabled"));
         }
     }
     
@@ -927,11 +926,10 @@ public class AuthTokenIntegrationTest {
         }
     }
 
-    private static String getJwtHeaderValue(String jwt, String headerName) throws IOException {
+    private static String getJwtHeaderValue(String jwt, String headerName) throws DocumentParseException {
         int p = jwt.indexOf('.');
         String headerBase4 = jwt.substring(0, p);
-        JsonNode jsonNode = DefaultObjectMapper.readTree(new String(BaseEncoding.base64Url().decode(headerBase4)));
-        return jsonNode.get(headerName).textValue();
+        return DocNode.parse(Format.JSON).from(new String(BaseEncoding.base64Url().decode(headerBase4))).getAsString(headerName);
     }
 
     private static String getJwtPayload(String jwt) {

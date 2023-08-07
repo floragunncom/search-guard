@@ -51,7 +51,6 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 
 public class RestAuthenticationIntegrationTests {
@@ -330,8 +329,7 @@ public class RestAuthenticationIntegrationTests {
     public void authDomainInfo() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(ALL_ACCESS)) {
             HttpResponse response = restClient.get("/_searchguard/authinfo");
-            Assert.assertTrue(response.getBody(),
-                    response.toJsonNode().path("user").asText().startsWith("User all_access <basic/internal_users_db>"));
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsString("user").startsWith("User all_access <basic/internal_users_db>"));
         }
     }
 

@@ -35,12 +35,13 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.ExecutionEnvironment;
@@ -987,8 +988,8 @@ public class ActionTest {
                     "\t\t}\n" +
                     "\t]";
 
-            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
-
+            List blocks = DocNode.parse(Format.JSON).from(blocksRawJson).toList();
+            
             SlackActionConf c = new SlackActionConf();
             c.setAccount("test_destination");
             c.setChannel("test_channel");
@@ -1038,8 +1039,8 @@ public class ActionTest {
                     "\t\t}\n" +
                     "\t]";
 
-            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
-
+            List blocks = DocNode.parse(Format.JSON).from(blocksRawJson).toList();
+            
             SlackActionConf c = new SlackActionConf();
             c.setAccount("test_destination");
             c.setChannel("test_channel");
@@ -1088,8 +1089,8 @@ public class ActionTest {
                     "\t\t}\n" +
                     "\t]";
 
-            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
-
+            List blocks = DocNode.parse(Format.JSON).from(blocksRawJson).toList();
+            
             SlackActionConf c = new SlackActionConf();
             c.setAccount("test_destination");
             c.setChannel("test_channel");
@@ -1173,8 +1174,8 @@ public class ActionTest {
                     "      }\n" +
                     "  ]";
 
-            List attachments = DefaultObjectMapper.readValue(attachmentRawJson, List.class);
-
+            List attachments = DocNode.parse(Format.JSON).from(attachmentRawJson).toList();
+            
             SlackActionConf c = new SlackActionConf();
             c.setAccount("test_destination");
             c.setChannel("test_channel");

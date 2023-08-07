@@ -287,7 +287,7 @@ public class LdapIntegrationTest {
     public void testAuthDomainInfo() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(KARLOTTA)) {
             HttpResponse response = restClient.get("/_searchguard/authinfo");
-            Assert.assertTrue(response.getBody(), response.toJsonNode().path("user").asText().startsWith("User karlotta <basic/ldap>"));
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsString("user").startsWith("User karlotta <basic/ldap>"));
         }
     }
 

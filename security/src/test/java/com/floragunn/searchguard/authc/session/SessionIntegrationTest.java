@@ -64,8 +64,7 @@ public class SessionIntegrationTest {
             System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
-
-            token = response.toJsonNode().path("token").asText();
+            token = response.getBodyAsDocNode().getAsString("token");
 
             Assert.assertNotNull(response.getBody(), token);
         }
@@ -74,8 +73,7 @@ public class SessionIntegrationTest {
             HttpResponse response = restClient.get("/_searchguard/authinfo");
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-
-            Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
+            Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.getBodyAsDocNode().getAsString("user_name"));
         }
     }
     
@@ -90,8 +88,8 @@ public class SessionIntegrationTest {
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
-            token = response.toJsonNode().path("token").asText();
-
+            token = response.getBodyAsDocNode().getAsString("token");
+            
             Assert.assertNotNull(response.getBody(), token);
         }
 
@@ -99,8 +97,7 @@ public class SessionIntegrationTest {
             HttpResponse response = restClient.get("/_searchguard/authinfo");
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-
-            Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
+            Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.getBodyAsDocNode().get("user_name"));
         }
     }
     
@@ -137,21 +134,17 @@ public class SessionIntegrationTest {
 
         try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             HttpResponse response = restClient.get("/_searchguard/auth/config?config_id=test_fe");
-            System.out.println(response.getBody());
-            Assert.assertEquals(response.getBody(), "test", response.toJsonNode().path("auth_methods").path(0).path("method").asText());
-            Assert.assertEquals(response.getBody(), 1, response.toJsonNode().path("auth_methods").size());
+            Assert.assertEquals(response.getBody(), "test", response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).get("method"));
+            Assert.assertEquals(response.getBody(), 1, response.getBodyAsDocNode().getAsListOfNodes("auth_methods").size());
         }
 
         try (GenericRestClient restClient = cluster.getRestClient()) {
             HttpResponse response = restClient.postJson("/_searchguard/auth/session",
                     testAuthRequest("test_user", "config_id", "test_fe", "roles", "backend_role_all_access"));
 
-            System.out.println(response.getBody());
-
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
-            token = response.toJsonNode().path("token").asText();
-
+            token = response.getBodyAsDocNode().getAsString("token");
             Assert.assertNotNull(response.getBody(), token);
         }
 
@@ -159,9 +152,9 @@ public class SessionIntegrationTest {
             HttpResponse response = restClient.get("/_searchguard/authinfo");
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-
-            Assert.assertEquals(response.getBody(), "test_user", response.toJsonNode().path("user_name").textValue());
-            Assert.assertEquals(response.getBody(), "backend_role_all_access", response.toJsonNode().path("backend_roles").path(0).textValue());
+            Assert.assertEquals(response.getBody(), "test_user", response.getBodyAsDocNode().get("user_name"));
+            Assert.assertEquals(response.getBody(), "backend_role_all_access",
+                    response.getBodyAsDocNode().getAsListOfNodes("backend_roles").get(0).toString());
         }
     }
 
@@ -180,7 +173,7 @@ public class SessionIntegrationTest {
         try (GenericRestClient restClient = cluster.getRestClient()) {
             HttpResponse response = restClient.postJson("/_searchguard/auth/session", basicAuthRequest(NO_ROLES_USER));
             Assert.assertEquals(response.getBody(), 403, response.getStatusCode());
-            Assert.assertEquals("The user 'no_roles_user' is not allowed to log in.", response.toJsonNode().path("error").textValue());
+            Assert.assertEquals("The user 'no_roles_user' is not allowed to log in.", response.getBodyAsDocNode().get("error"));
         }
     }
     
@@ -202,9 +195,8 @@ public class SessionIntegrationTest {
 
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
                 HttpResponse response = restClient.get("/_searchguard/auth/config");
-                System.out.println(response.getBody());
-                Assert.assertEquals(response.getBody(), "basic", response.toJsonNode().path("auth_methods").path(0).path("method").asText());
-                Assert.assertEquals(response.getBody(), 1, response.toJsonNode().path("auth_methods").size());
+                Assert.assertEquals(response.getBody(), "basic", response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).get("method"));
+                Assert.assertEquals(response.getBody(), 1, response.getBodyAsDocNode().getAsListOfNodes("auth_methods").size());
             }
 
             try (GenericRestClient restClient = cluster.getRestClient()) {
@@ -214,8 +206,7 @@ public class SessionIntegrationTest {
 
                 Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
-                token = response.toJsonNode().path("token").asText();
-
+                token = response.getBodyAsDocNode().getAsString("token");
                 Assert.assertNotNull(response.getBody(), token);
             }
 
@@ -223,8 +214,7 @@ public class SessionIntegrationTest {
                 HttpResponse response = restClient.get("/_searchguard/authinfo");
 
                 Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-
-                Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
+                Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.getBodyAsDocNode().get("user_name"));
             }
         }
     }

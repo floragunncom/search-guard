@@ -97,11 +97,9 @@ public class SamlAuthenticatorIntegrationTest {
 
             HttpResponse response = client.get("/_searchguard/auth/config?next_url=/abc/def&frontend_base_url=" + FRONTEND_BASE_URL);
 
-            System.out.println(response.getBody());
-
-            String ssoLocation = response.toJsonNode().path("auth_methods").path(0).path("sso_location").textValue();
-            String ssoContext = response.toJsonNode().path("auth_methods").path(0).path("sso_context").textValue();
-            String id = response.toJsonNode().path("auth_methods").path(0).path("id").textValue();
+            String ssoLocation = response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("sso_location");
+            String ssoContext = response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("sso_context");
+            String id = response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("id");
 
             Assert.assertNotNull(response.getBody(), ssoLocation);
 
@@ -114,7 +112,7 @@ public class SamlAuthenticatorIntegrationTest {
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
-            String token = response.toJsonNode().path("token").textValue();
+            String token = response.getBodyAsDocNode().getAsString("token");
 
             Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
 
@@ -124,7 +122,7 @@ public class SamlAuthenticatorIntegrationTest {
 
                 System.out.println(response.getBody());
 
-                String logoutAddress = response.toJsonNode().path("sso_logout_url").textValue();
+                String logoutAddress = response.getBodyAsDocNode().getAsString("sso_logout_url");
 
                 Assert.assertNotNull(logoutAddress);
             }
@@ -140,9 +138,9 @@ public class SamlAuthenticatorIntegrationTest {
 
             System.out.println(response.getBody());
 
-            String ssoLocation = response.toJsonNode().path("auth_methods").path(0).path("sso_location").textValue();
-            String ssoContext = response.toJsonNode().path("auth_methods").path(0).path("sso_context").textValue();
-            String id = response.toJsonNode().path("auth_methods").path(0).path("id").textValue();
+            String ssoLocation = response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("sso_location");
+            String ssoContext = response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("sso_context");
+            String id = response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("id");
 
             Assert.assertNotNull(response.getBody(), ssoLocation);
 
@@ -165,7 +163,7 @@ public class SamlAuthenticatorIntegrationTest {
                     .get("/_searchguard/auth/config?config_id=invalid&next_url=/abc/def&frontend_base_url=" + FRONTEND_BASE_URL);
 
             Assert.assertEquals(response.getBody(), "Could not find entity descriptor for invalid",
-                    response.toJsonNode().path("auth_methods").path(0).path("message_body").textValue());
+                    response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("message_body"));
         }
     }
 

@@ -77,8 +77,8 @@ public class SessionLongRunningIntegrationTest {
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
-            token = response.toJsonNode().path("token").asText();
-        }
+            token = response.getBodyAsDocNode().getAsString("token");
+         }
 
         for (int i = 0; i < 10; i++) {
             Thread.sleep(cluster.getRandom().nextInt((int) TIMEOUT.toMillis() - 2000) + 100);
@@ -87,8 +87,7 @@ public class SessionLongRunningIntegrationTest {
                 HttpResponse response = restClient.get("/_searchguard/authinfo");
 
                 Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-
-                Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
+                Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.getBodyAsDocNode().getAsString("user_name"));
             }
         }
 
@@ -120,7 +119,7 @@ public class SessionLongRunningIntegrationTest {
 
                     Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
-                    String token = response.toJsonNode().path("token").asText();
+                    String token = response.getBodyAsDocNode().getAsString("token");
                     Instant timeout = Instant.now().plus(TIMEOUT.toMillis());
                     log.info("### Created new session " + getSessionId(token) + " :\n" + response.getBody());
 
@@ -165,8 +164,7 @@ public class SessionLongRunningIntegrationTest {
 
                     Assert.assertEquals("Session was expired " + Instant.now() + " while it was expected to expire at " + sessionTimeout, 200,
                             response.getStatusCode());
-                    Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.toJsonNode().path("user_name").textValue());
-
+                    Assert.assertEquals(response.getBody(), BASIC_USER.getName(), response.getBodyAsDocNode().getAsString("user_name"));
                     sessionTimeout = Instant.now().plus(TIMEOUT.toMillis());
                     sessionTokenToTimeoutMap.put(sessionToken, sessionTimeout);
                     scheduleRandomAccess(sessionToken, sessionTimeout, scheduledAccess);

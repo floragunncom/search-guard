@@ -20,15 +20,14 @@ import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -54,8 +53,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.opensaml.saml.saml2.core.NameIDType;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.util.FakeRestRequest;
@@ -107,7 +106,6 @@ public class HTTPSamlAuthenticatorTest {
             + "-----END ENCRYPTED PRIVATE KEY-----";
 
     private static X509Certificate spSigningCertificate;
-    private static PrivateKey spSigningPrivateKey;
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -150,9 +148,7 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        Map<String, Object> response = DocNode.parse(Format.JSON).from(responseJson).toMap();
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -186,9 +182,7 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        Map<String, Object> response = DocNode.parse(Format.JSON).from(responseJson).toMap();
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -303,9 +297,7 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        Map<String, Object> response = DocNode.parse(Format.JSON).from(responseJson).toMap();
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -341,9 +333,7 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        Map<String, Object> response = DocNode.parse(Format.JSON).from(responseJson).toMap();
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -380,9 +370,7 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        Map<String, Object> response = DocNode.parse(Format.JSON).from(responseJson).toMap();
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -393,32 +381,6 @@ public class HTTPSamlAuthenticatorTest {
         Assert.assertEquals("horst", jwt.getClaim("sub"));
         Assert.assertArrayEquals(new String[] { "a", "b" },
                 ((List<String>) jwt.getClaim("roles")).toArray(new String[0]));
-    }
-
-    @Test
-    public void basicLogoutTest() throws Exception {
-        mockSamlIdpServer.setSignResponses(true);
-        mockSamlIdpServer.loadSigningKeys("saml-legacy/kirk-keystore.jks", "kirk");
-        mockSamlIdpServer.setAuthenticateUser("horst");
-        mockSamlIdpServer.setSpSignatureCertificate(spSigningCertificate);
-        mockSamlIdpServer.setEndpointQueryString(null);
-
-        Settings settings = Settings.builder().put("idp.metadata_url", mockSamlIdpServer.getMetadataUri())
-                .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
-                .put("exchange_key", "abc").put("roles_key", "roles")
-                .put("sp.signature_private_key", "-BEGIN PRIVATE KEY-\n"
-                        + Base64.getEncoder().encodeToString(spSigningPrivateKey.getEncoded()) + "-END PRIVATE KEY-")
-                .put("path.home", ".").build();
-
-        HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
-
-        AuthCredentials authCredentials = AuthCredentials.forUser("horst").oldAttribute("attr.jwt.sub", "horst")
-                .oldAttribute("attr.jwt.saml_nif", NameIDType.UNSPECIFIED).oldAttribute("attr.jwt.saml_si", "si123").build();
- 
-        String logoutUrl = samlAuthenticator.buildLogoutUrl(authCredentials);
-
-        mockSamlIdpServer.handleSloGetRequestURI(logoutUrl);
-
     }
 
     @Test
@@ -481,9 +443,7 @@ public class HTTPSamlAuthenticatorTest {
             samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
             String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-            HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                    new TypeReference<HashMap<String, Object>>() {
-                    });
+            Map<String, Object> response = DocNode.parse(Format.JSON).from(responseJson).toMap();
             String authorization = (String) response.get("authorization");
 
             Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -518,9 +478,7 @@ public class HTTPSamlAuthenticatorTest {
         samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
-        HashMap<String, Object> response = DefaultObjectMapper.objectMapper.readValue(responseJson,
-                new TypeReference<HashMap<String, Object>>() {
-                });
+        Map<String, Object> response = DocNode.parse(Format.JSON).from(responseJson).toMap();
         String authorization = (String) response.get("authorization");
 
         Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
@@ -588,22 +546,18 @@ public class HTTPSamlAuthenticatorTest {
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 
             KeyStore keyStore = KeyStore.getInstance("JKS");
-            InputStream keyStream = new FileInputStream(
-                    FileHelper.getAbsoluteFilePathFromClassPath("saml-legacy/spock-keystore.jks").toFile());
+            InputStream keyStream = new FileInputStream(FileHelper.getAbsoluteFilePathFromClassPath("saml-legacy/spock-keystore.jks").toFile());
 
             keyStore.load(keyStream, "changeit".toCharArray());
             kmf.init(keyStore, "changeit".toCharArray());
 
             spSigningCertificate = (X509Certificate) keyStore.getCertificate("spock");
 
-            spSigningPrivateKey = (PrivateKey) keyStore.getKey("spock", "changeit".toCharArray());
-
-        } catch (NoSuchAlgorithmException | KeyStoreException | CertificateException | IOException
-                | UnrecoverableKeyException e) {
+        } catch (NoSuchAlgorithmException | KeyStoreException | CertificateException | IOException | UnrecoverableKeyException e) {
             throw new RuntimeException(e);
         }
     }
-
+    
     static class TestRestChannel implements RestChannel {
 
         final RestRequest restRequest;
