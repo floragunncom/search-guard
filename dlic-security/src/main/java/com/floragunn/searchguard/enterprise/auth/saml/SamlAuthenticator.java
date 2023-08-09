@@ -35,7 +35,6 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.opensaml.core.config.InitializationException;
 import org.opensaml.core.config.InitializationService;
-import org.opensaml.core.xml.io.UnmarshallingException;
 import org.opensaml.saml.metadata.resolver.MetadataResolver;
 
 import com.floragunn.codova.config.net.TLSConfig;
@@ -55,7 +54,6 @@ import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
@@ -74,7 +72,7 @@ import net.shibboleth.utilities.java.support.component.ComponentInitializationEx
 import net.shibboleth.utilities.java.support.component.DestructableComponent;
 import net.shibboleth.utilities.java.support.resolver.ResolverException;
 
-public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable {
+public class SamlAuthenticator implements ApiAuthenticationFrontend, AutoCloseable {
     private static final String SSO_CONTEXT_PREFIX = "saml_request_id:";
     protected final static Logger log = LogManager.getLogger(SamlAuthenticator.class);
     private static boolean openSamlInitialized = false;
@@ -116,7 +114,9 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
 
         TLSConfig tlsConfig = vNode.get("idp.tls").by((Parser<TLSConfig, Parser.Context>) TLSConfig::parse);
 
-        if (idpMetadataUrl != null) {
+        if (!context.isExternalResourceCreationEnabled()) {
+            this.metadataResolver = null;
+        } else if (idpMetadataUrl != null) {
             try {
                 SamlHTTPMetadataResolver metadataResolver = PrivilegedCode.execute(() -> new SamlHTTPMetadataResolver(idpMetadataUrl, tlsConfig), ResolverException.class);
 
@@ -424,7 +424,7 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, Destroyable
     }
 
     @Override
-    public void destroy() {
+    public void close() {
         if (this.metadataResolver instanceof DestructableComponent) {
             ((DestructableComponent) this.metadataResolver).destroy();
         }

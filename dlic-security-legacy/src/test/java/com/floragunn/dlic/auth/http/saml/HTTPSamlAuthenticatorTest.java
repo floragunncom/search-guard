@@ -171,26 +171,24 @@ public class HTTPSamlAuthenticatorTest {
                 .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
                 .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
 
-        HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
+        try (HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null)) {
+            String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
 
-        String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
+            RestRequest tokenRestRequest = buildTokenExchangeRestRequest(encodedSamlResponse, null, "/searchguard/saml/acs/idpinitiated");
+            TestRestChannel tokenRestChannel = new TestRestChannel(tokenRestRequest);
 
-        RestRequest tokenRestRequest = buildTokenExchangeRestRequest(encodedSamlResponse, null,
-                "/searchguard/saml/acs/idpinitiated");
-        TestRestChannel tokenRestChannel = new TestRestChannel(tokenRestRequest);
-
-        samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
+            samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
         String responseJson = new String(BytesReference.toBytes(tokenRestChannel.response.content()));
         Map<String, Object> response = DocNode.parse(Format.JSON).from(responseJson).toMap();
         String authorization = (String) response.get("authorization");
+            Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
 
-        Assert.assertNotNull("Expected authorization attribute in JSON: " + responseJson, authorization);
+            JwsJwtCompactConsumer jwtConsumer = new JwsJwtCompactConsumer(authorization.replaceAll("\\s*bearer\\s*", ""));
+            JwtToken jwt = jwtConsumer.getJwtToken();
 
-        JwsJwtCompactConsumer jwtConsumer = new JwsJwtCompactConsumer(authorization.replaceAll("\\s*bearer\\s*", ""));
-        JwtToken jwt = jwtConsumer.getJwtToken();
-
-        Assert.assertEquals("horst", jwt.getClaim("sub"));
+            Assert.assertEquals("horst", jwt.getClaim("sub"));
+        }
     }
 
     @Test
@@ -205,20 +203,19 @@ public class HTTPSamlAuthenticatorTest {
                 .put("kibana_url", "http://wherever").put("idp.entity_id", mockSamlIdpServer.getIdpEntityId())
                 .put("exchange_key", "abc").put("roles_key", "roles").put("path.home", ".").build();
 
-        HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
+        try (HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null)) {
+            String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
 
-        String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
+            AuthenticateHeaders authenticateHeaders = new AuthenticateHeaders("http://wherever/searchguard/saml/acs/", "wrong_request_id");
 
-        AuthenticateHeaders authenticateHeaders = new AuthenticateHeaders("http://wherever/searchguard/saml/acs/",
-                "wrong_request_id");
+            RestRequest tokenRestRequest = buildTokenExchangeRestRequest(encodedSamlResponse, authenticateHeaders,
+                    "/searchguard/saml/acs/idpinitiated");
+            TestRestChannel tokenRestChannel = new TestRestChannel(tokenRestRequest);
 
-        RestRequest tokenRestRequest = buildTokenExchangeRestRequest(encodedSamlResponse, authenticateHeaders,
-                "/searchguard/saml/acs/idpinitiated");
-        TestRestChannel tokenRestChannel = new TestRestChannel(tokenRestRequest);
+            samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
 
-        samlAuthenticator.reRequestAuthentication(tokenRestChannel, null);
-
-        Assert.assertEquals(RestStatus.UNAUTHORIZED, tokenRestChannel.response.status());
+            Assert.assertEquals(RestStatus.UNAUTHORIZED, tokenRestChannel.response.status());
+        }
     }
 
     @Test
@@ -396,14 +393,14 @@ public class HTTPSamlAuthenticatorTest {
                 .put("exchange_key", "abc").put("roles_key", "roles").put("sp.signature_private_key", SPOCK_KEY)
                 .put("sp.signature_private_key_password", "changeit").put("path.home", ".").build();
 
-        HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null);
+        try (HTTPSamlAuthenticator samlAuthenticator = new HTTPSamlAuthenticator(settings, null)) {
+            AuthCredentials authCredentials = AuthCredentials.forUser("horst").oldAttribute("attr.jwt.sub", "horst")
+                    .oldAttribute("attr.jwt.saml_nif", NameIDType.UNSPECIFIED).oldAttribute("attr.jwt.saml_si", "si123").build();
 
-        AuthCredentials authCredentials = AuthCredentials.forUser("horst").oldAttribute("attr.jwt.sub", "horst")
-                .oldAttribute("attr.jwt.saml_nif", NameIDType.UNSPECIFIED).oldAttribute("attr.jwt.saml_si", "si123").build();
+            String logoutUrl = samlAuthenticator.buildLogoutUrl(authCredentials);
 
-        String logoutUrl = samlAuthenticator.buildLogoutUrl(authCredentials);
-
-        mockSamlIdpServer.handleSloGetRequestURI(logoutUrl);
+            mockSamlIdpServer.handleSloGetRequestURI(logoutUrl);
+        }
 
     }
     

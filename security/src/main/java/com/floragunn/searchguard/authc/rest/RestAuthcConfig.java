@@ -36,11 +36,12 @@ import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.base.IPAddressAcceptanceRules;
 import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.support.IPAddressCollection;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Destroyable {
+public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, AutoCloseable {
 
     public static final Metadata<RestAuthcConfig> META = Metadata.create(RestAuthcConfig.class, "sg_authc",
             "Authentication configuration for the REST API", (n, c) -> parse(n, (ConfigurationRepository.Context) c).get(),
@@ -49,6 +50,7 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
             Attribute.optional("network", Object.class, "Network-specific configuration."),
             Attribute.optional("user_cache", Object.class, "User cache configuration."));
 
+    private final Logger log = LogManager.getLogger(RestAuthcConfig.class);
     private final DocNode source;
     private final ImmutableList<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains;
     private final Network network;
@@ -208,10 +210,14 @@ public class RestAuthcConfig implements PatchableDocument<RestAuthcConfig>, Dest
     }
 
     @Override
-    public void destroy() {
+    public void close() {
         for (AuthenticationDomain<?> authenticationDomain : this.authenticationDomains) {
-            if (authenticationDomain instanceof Destroyable) {
-                ((Destroyable) authenticationDomain).destroy();
+            try {
+                if (authenticationDomain instanceof AutoCloseable) {
+                    ((AutoCloseable) authenticationDomain).close();
+                }
+            } catch (Exception e) {
+                log.warn("Error while closing auth domain {}", authenticationDomain, e);
             }
         }
 

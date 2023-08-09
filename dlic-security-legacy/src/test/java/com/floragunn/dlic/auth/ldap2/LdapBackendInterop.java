@@ -50,6 +50,7 @@ public class LdapBackendInterop {
         return Settings.builder();
     }
 
+    @SuppressWarnings("resource")
     @Test
     public void testLdapAuthorizationInterop() throws Exception {
 

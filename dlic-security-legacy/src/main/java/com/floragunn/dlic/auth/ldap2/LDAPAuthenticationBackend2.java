@@ -40,7 +40,6 @@ import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.legacy.LegacyAuthenticationBackend;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -50,7 +49,7 @@ import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 
-public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, Destroyable {
+public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, AutoCloseable {
 
     protected static final Logger log = LogManager.getLogger(LDAPAuthenticationBackend2.class);
 
@@ -189,11 +188,11 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
             }
         }
     }
-    
-  
+
+
 
     @Override
-    public void destroy() {
+    public void close() {
         if (this.lcm != null) {
             try {
                 this.lcm.close();
@@ -264,6 +263,6 @@ public class LDAPAuthenticationBackend2 implements LegacyAuthenticationBackend, 
         public Factory<LegacyAuthenticationBackend> getFactory() {
             return LegacyComponentFactory.adapt(LDAPAuthenticationBackend2::new);
         }
-    };    
+    };
 
 }

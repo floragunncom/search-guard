@@ -41,6 +41,7 @@ import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 
+@SuppressWarnings("resource")
 @RunWith(Parameterized.class)
 public class LdapBackendTestOldStyleConfig2 {
 

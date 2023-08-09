@@ -39,15 +39,17 @@ import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.AuthenticationFrontend;
 import com.floragunn.searchguard.authc.base.StandardAuthenticationDomain;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfig>, Destroyable {
+public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfig>, AutoCloseable {
 
     public static final FrontendAuthenticationDomain DEFAULT_BASIC_AUTHC = new FrontendAuthenticationDomain("basic", "Login",
             "If you have forgotten your username or password, please ask your system administrator");
     public static final FrontendAuthcConfig BASIC = new FrontendAuthcConfig(Collections.singletonList(DEFAULT_BASIC_AUTHC));
 
+    private final Logger log = LogManager.getLogger(FrontendAuthcConfig.class);
     private ImmutableList<FrontendAuthenticationDomain> authDomains;
     private LoginPage loginPage;
     private boolean debug;
@@ -312,10 +314,14 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
     }
 
     @Override
-    public void destroy() {
+    public void close()  {
         for (FrontendAuthenticationDomain authenticator : this.authDomains) {
-            if (authenticator.getAuthenticationDomain() instanceof Destroyable) {
-                ((Destroyable) authenticator.getAuthenticationDomain()).destroy();
+            try {
+                if (authenticator.getAuthenticationDomain() instanceof AutoCloseable) {
+                    ((AutoCloseable) authenticator.getAuthenticationDomain()).close();
+                }
+            } catch (Exception e) {
+                log.warn("Error while closing auth domain {}", authenticator.getAuthenticationDomain(), e);
             }
         }
 

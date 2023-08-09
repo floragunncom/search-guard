@@ -55,14 +55,13 @@ import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.PrivilegedCode;
 import com.floragunn.searchsupport.PrivilegedCode.PrivilegedSupplierThrowing2;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 
-public class ExternalSearchGuardSessionAuthenticationBackend implements AuthenticationBackend, Destroyable {
+public class ExternalSearchGuardSessionAuthenticationBackend implements AuthenticationBackend, AutoCloseable {
     private final static Logger log = LogManager.getLogger(ExternalSearchGuardSessionAuthenticationBackend.class);
 
     private final ComponentState componentState = new ComponentState(0, "authentication_backend", TYPE,
@@ -188,7 +187,7 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
     }
 
     @Override
-    public void destroy() {
+    public void close() {
         if (this.httpClient != null) {
             try {
                 this.httpClient.close();

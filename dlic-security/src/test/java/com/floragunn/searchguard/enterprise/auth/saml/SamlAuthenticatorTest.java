@@ -50,7 +50,7 @@ public class SamlAuthenticatorTest {
 
     protected static MockSamlIdpServer mockSamlIdpServer;
 
-    private static ConfigurationRepository.Context testContext = new ConfigurationRepository.Context(null, null, null, null);
+    private static ConfigurationRepository.Context testContext = new ConfigurationRepository.Context(null, null, null, null).withExternalResources();
 
     private static Map<String, Object> basicIdpConfig;
     private static Map<String, Object> basicAuthenticatorSettings;
@@ -82,19 +82,21 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("horst");
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
-        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
+        try (SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext)) {
+            ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
 
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+            authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
-        String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
+            String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
-                "frontend_base_url", FRONTEND_BASE_URL);
+            Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
+                    "frontend_base_url", FRONTEND_BASE_URL);
 
-        AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
+            AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
 
-        Assert.assertEquals("horst", authCredentials.getUsername());
+            Assert.assertEquals("horst", authCredentials.getUsername());
+        }
     }
 
     @Test
@@ -108,21 +110,21 @@ public class SamlAuthenticatorTest {
                 mockSamlIdpServer.getIdpEntityId(), "frontend_base_url", FRONTEND_BASE_URL);
         Map<String, Object> inlineMetadataAuthenticatorSettings = ImmutableMap.of("idp", inlineMetadataIdpConfig);
 
-        System.out.println(inlineMetadataIdpConfig);
+        try (SamlAuthenticator samlAuthenticator = new SamlAuthenticator(inlineMetadataAuthenticatorSettings, testContext)) {
+            ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
 
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(inlineMetadataAuthenticatorSettings, testContext);
-        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
+            authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+            String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
-        String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
+            Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
+                    "frontend_base_url", FRONTEND_BASE_URL);
 
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
-                "frontend_base_url", FRONTEND_BASE_URL);
+            AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
 
-        AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-
-        Assert.assertEquals("horst", authCredentials.getUsername());
+            Assert.assertEquals("horst", authCredentials.getUsername());
+        }
     }
 
     @Test
@@ -149,7 +151,7 @@ public class SamlAuthenticatorTest {
                 + "              </IDPSSODescriptor>\n" + "            </EntityDescriptor>\n" + "        entity_id: urn:searchguard.eu.auth0.com\n"
                 + "      sp:\n" + "        entity_id: es-saml\n";
 
-        new SamlAuthenticator(DocNode.parse(Format.YAML).from(yml), null);
+        new SamlAuthenticator(DocNode.parse(Format.YAML).from(yml), testContext).close();
     }
 
     @Test
@@ -160,14 +162,14 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setEndpointQueryString(null);
         mockSamlIdpServer.setDefaultAssertionConsumerService("http://whereever/searchguard/saml/acs/idpinitiated");
 
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
+        try (SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext)) {
+            String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
 
-        String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
+            Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "frontend_base_url", FRONTEND_BASE_URL);
 
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "frontend_base_url", FRONTEND_BASE_URL);
-
-        AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-        Assert.assertEquals("horst", authCredentials.getUsername());
+            AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
+            Assert.assertEquals("horst", authCredentials.getUsername());
+        }
     }
 
     @Test
@@ -178,18 +180,18 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setEndpointQueryString(null);
         mockSamlIdpServer.setDefaultAssertionConsumerService("http://whereever/searchguard/saml/acs/idpinitiated");
 
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
+        try (SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext)) {
+            String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
 
-        String encodedSamlResponse = mockSamlIdpServer.createUnsolicitedSamlResponse();
+            Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", "saml_request_id:wrong_request_id",
+                    "frontend_base_url", FRONTEND_BASE_URL);
 
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", "saml_request_id:wrong_request_id",
-                "frontend_base_url", FRONTEND_BASE_URL);
-
-        try {
-            AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-            Assert.fail("Expected exception, got: " + authCredentials);
-        } catch (CredentialsException e) {
-            Assert.assertTrue(e.getMessage(), e.getMessage().contains("does not match the ID of the AuthNRequest sent by the SP"));
+            try {
+                AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
+                Assert.fail("Expected exception, got: " + authCredentials);
+            } catch (CredentialsException e) {
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("does not match the ID of the AuthNRequest sent by the SP"));
+            }
         }
     }
 
@@ -200,23 +202,24 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("horst");
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
+        try (SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext)) {
+            ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
+            authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
-        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+            mockSamlIdpServer.loadSigningKeys("saml/spock-keystore.jks", "spock");
 
-        mockSamlIdpServer.loadSigningKeys("saml/spock-keystore.jks", "spock");
+            String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
-        String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
+            Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
+                    "frontend_base_url", FRONTEND_BASE_URL);
 
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
-                "frontend_base_url", FRONTEND_BASE_URL);
-
-        try {
-            AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-            Assert.fail("Expected exception, got: " + authCredentials);
-        } catch (CredentialsException e) {
-            Assert.assertTrue(e.getMessage(), e.getMessage().contains("Signature validation failed"));
+            try {
+                AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
+                Assert.fail("Expected exception, got: " + authCredentials);
+            } catch (CredentialsException e) {
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("Signature validation failed"));
+            }
         }
     }
 
@@ -226,21 +229,22 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("horst");
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
+        try (SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext)) {
+            ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
+            authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
-        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+            String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
-        String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
+            Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
+                    "frontend_base_url", FRONTEND_BASE_URL);
 
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
-                "frontend_base_url", FRONTEND_BASE_URL);
-
-        try {
-            AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-            Assert.fail("Expected exception, got " + authCredentials);
-        } catch (CredentialsException e) {
-            Assert.assertTrue(e.getMessage(), e.getMessage().contains("No Signature found"));
+            try {
+                AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
+                Assert.fail("Expected exception, got " + authCredentials);
+            } catch (CredentialsException e) {
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("No Signature found"));
+            }
         }
     }
 
@@ -252,19 +256,21 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUserRoles(Arrays.asList("a", "b"));
         mockSamlIdpServer.setEndpointQueryString(null);
 
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
+        try (SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext)) {
+            ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
+            authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
-        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+            String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
-        String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
+            Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
+                    "frontend_base_url", FRONTEND_BASE_URL);
+            AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
 
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
-                "frontend_base_url", FRONTEND_BASE_URL);
-        AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-
-        Assert.assertEquals("horst", authCredentials.getUsername());
-        Assert.assertEquals(ImmutableMap.of("roles", ImmutableList.of("a", "b")), authCredentials.getAttributesForUserMapping().get("saml_response"));
+            Assert.assertEquals("horst", authCredentials.getUsername());
+            Assert.assertEquals(ImmutableMap.of("roles", ImmutableList.of("a", "b")),
+                    authCredentials.getAttributesForUserMapping().get("saml_response"));
+        }
     }
 
     @Test
@@ -274,18 +280,19 @@ public class SamlAuthenticatorTest {
         mockSamlIdpServer.setAuthenticateUser("horst");
         mockSamlIdpServer.setEndpointQueryString("extra=query");
 
-        SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext);
+        try (SamlAuthenticator samlAuthenticator = new SamlAuthenticator(basicAuthenticatorSettings, testContext)) {
+            ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
+            authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
-        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-        authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+            String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
 
-        String encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
+            Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
+                    "frontend_base_url", FRONTEND_BASE_URL);
+            AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
 
-        Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(),
-                "frontend_base_url", FRONTEND_BASE_URL);
-        AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-
-        Assert.assertEquals("horst", authCredentials.getUsername());
+            Assert.assertEquals("horst", authCredentials.getUsername());
+        }
     }
 
     @Test
@@ -295,44 +302,47 @@ public class SamlAuthenticatorTest {
                     mockSamlIdpServer.getIdpEntityId());
             Map<String, Object> config = ImmutableMap.of("idp", idpConfig, "idp.min_refresh_delay", 100);
 
-            SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext);
-            ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
+            try (SamlAuthenticator samlAuthenticator = new SamlAuthenticator(config, testContext)) {
+                ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
 
-            try {
-                authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
-                Assert.fail(authMethod.toString());
-            } catch (AuthenticatorUnavailableException e) {
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("SAML metadata is not yet available"));
+                try {
+                    authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                            new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+                    Assert.fail(authMethod.toString());
+                } catch (AuthenticatorUnavailableException e) {
+                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("SAML metadata is not yet available"));
+                }
+
+                String encodedSamlResponse = "whatever";
+                Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "frontend_base_url", FRONTEND_BASE_URL);
+
+                try {
+                    samlAuthenticator.extractCredentials(request);
+                    Assert.fail();
+                } catch (Exception e) {
+                    Assert.assertTrue(e.toString(), e.getMessage().contains("SAML metadata is not yet available"));
+                }
+
+                mockSamlIdpServer.start();
+
+                mockSamlIdpServer.setSignResponses(true);
+                mockSamlIdpServer.loadSigningKeys("saml/kirk-keystore.jks", "kirk");
+                mockSamlIdpServer.setAuthenticateUser("horst");
+                mockSamlIdpServer.setEndpointQueryString(null);
+
+                Thread.sleep(500);
+
+                authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
+                authMethod = samlAuthenticator.activateFrontendConfig(authMethod,
+                        new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+
+                encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
+                request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
+                        FRONTEND_BASE_URL);
+                AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
+
+                Assert.assertEquals("horst", authCredentials.getUsername());
             }
-
-            String encodedSamlResponse = "whatever";
-            Map<String, Object> request = ImmutableMap.of("saml_response", encodedSamlResponse, "frontend_base_url", FRONTEND_BASE_URL);
-
-            try {
-                samlAuthenticator.extractCredentials(request);
-                Assert.fail();
-            } catch (Exception e) {
-                Assert.assertTrue(e.toString(), e.getMessage().contains("SAML metadata is not yet available"));
-            }
-
-            mockSamlIdpServer.start();
-
-            mockSamlIdpServer.setSignResponses(true);
-            mockSamlIdpServer.loadSigningKeys("saml/kirk-keystore.jks", "kirk");
-            mockSamlIdpServer.setAuthenticateUser("horst");
-            mockSamlIdpServer.setEndpointQueryString(null);
-
-            Thread.sleep(500);
-
-            authMethod = new ActivatedFrontendConfig.AuthMethod("saml", "SAML", null);
-            authMethod = samlAuthenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
-
-            encodedSamlResponse = mockSamlIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation());
-            request = ImmutableMap.of("saml_response", encodedSamlResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
-                    FRONTEND_BASE_URL);
-            AuthCredentials authCredentials = samlAuthenticator.extractCredentials(request);
-
-            Assert.assertEquals("horst", authCredentials.getUsername());
         }
     }
 

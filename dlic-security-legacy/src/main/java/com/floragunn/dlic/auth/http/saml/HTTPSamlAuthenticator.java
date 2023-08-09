@@ -44,7 +44,6 @@ import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.legacy.LegacyHTTPAuthenticator;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
 import com.floragunn.searchguard.enterprise.auth.oidc.KeyProvider;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
@@ -65,7 +64,7 @@ import net.shibboleth.utilities.java.support.component.DestructableComponent;
 import net.shibboleth.utilities.java.support.resolver.ResolverException;
 
 @Deprecated
-public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyable {
+public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, AutoCloseable {
     protected final static Logger log = LogManager.getLogger(HTTPSamlAuthenticator.class);
     private static boolean openSamlInitialized = false;
 
@@ -248,7 +247,7 @@ public class HTTPSamlAuthenticator implements LegacyHTTPAuthenticator, Destroyab
     }
 
     @Override
-    public void destroy() {
+    public void close() {
         if (this.metadataResolver instanceof DestructableComponent) {
             ((DestructableComponent) this.metadataResolver).destroy();
         }
