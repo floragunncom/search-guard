@@ -557,6 +557,303 @@ public class MultiTenancyMigrationTest {
             assertThat(body, containsValue("$.items[0].create._id", "space_id"));
         }
     }
+    
+    @Test
+    public void shouldSupportSourceIncludesDuringProcessingOfBulkUpdatesWhenParameterDoesNotExistInTargetDocument() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String bulkBody = """
+                {"update": {"_index": ".kibana_8.8.0","_id": "space_1"}}
+                {"doc":{"no":"1"}}
+                
+                """;
+
+            HttpResponse response = client.postJson("/_bulk?refresh=wait_for&_source_includes=non_existing_field", bulkBody);
+
+            log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.items[0].update._index", indexName));
+            assertThat(body, containsValue("$.items[0].update._id", "space_1"));
+            assertThat(body, containsValue("$.items[0].update.get.found", true));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_source"));
+        }
+    }
+
+    @Test
+    public void shouldSupportSourceIncludesDuringProcessingOfBulkUpdates() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String bulkBody = """
+                {"update": {"_index": ".kibana_8.8.0","_id": "space_1"}}
+                {"doc":{"no":"1"}}
+                
+                """;
+
+            HttpResponse response = client.postJson("/_bulk?refresh=wait_for&_source_includes=name", bulkBody);
+            log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.items[0].update._index", indexName));
+            assertThat(body, containsValue("$.items[0].update._id", "space_1"));
+            assertThat(body, containsValue("$.items[0].update.get.found", true));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_source"));
+            assertThat(body, containsValue("$.items[0].update.get._source.name", "name_space_1"));
+        }
+    }
+
+    @Test
+    public void shouldSupportCompleteSourceIncludesDuringProcessingOfBulkUpdates() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String bulkBody = """
+                {"update": {"_index": ".kibana_8.8.0","_id": "space_1"}}
+                {"doc":{"no":"1"}}
+                
+                """;
+
+            HttpResponse response = client.postJson("/_bulk?refresh=wait_for&_source=true", bulkBody);
+
+            log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.items[0].update._index", indexName));
+            assertThat(body, containsValue("$.items[0].update._id", "space_1"));
+            assertThat(body, containsValue("$.items[0].update.get.found", true));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_source"));
+            assertThat(body, containsValue("$.items[0].update.get._source.initials", "sg"));
+            assertThat(body, containsValue("$.items[0].update.get._source.name", "name_space_1"));
+            assertThat(body, containsValue("$.items[0].update.get._source.description", "description_space_1"));
+            assertThat(body, containsValue("$.items[0].update.get._source.sg_tenant", "admin_tenant"));
+            assertThat(body, containsValue("$.items[0].update.get._source.no", "1"));
+        }
+    }
+
+    @Test
+    public void shouldSupportSourceExcludesIncludesDuringProcessingOfBulkUpdates() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String bulkBody = """
+                {"update": {"_index": ".kibana_8.8.0","_id": "space_1"}}
+                {"doc":{"no":"1"}}
+                
+                """;
+
+            HttpResponse response = client.postJson("/_bulk?refresh=wait_for&_source_excludes=description", bulkBody);
+
+            log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.items[0].update._index", indexName));
+            assertThat(body, containsValue("$.items[0].update._id", "space_1"));
+            assertThat(body, containsValue("$.items[0].update.get.found", true));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_source"));
+            assertThat(body, containsValue("$.items[0].update.get._source.initials", "sg"));
+            assertThat(body, containsValue("$.items[0].update.get._source.name", "name_space_1"));
+            assertThat(body, containsValue("$.items[0].update.get._source.sg_tenant", "admin_tenant"));
+            assertThat(body, containsValue("$.items[0].update.get._source.no", "1"));
+            assertThat(body, not(containsFieldPointedByJsonPath("$.items[0].update.get._source", "description")));
+        }
+    }
+
+    @Test
+    public void shouldSupportSourceIncludesDuringProcessingOfUpdatesWhenParameterDoesNotExistInTargetDocument() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
+
+            HttpResponse response = client.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source_includes=non_existing_field", requestBody);
+
+            log.debug("Update response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$._index", indexName));
+            assertThat(body, containsValue("$._id", "space_1"));
+            assertThat(body, containsValue("$.result", "updated"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_shards"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_seq_no"));
+            assertThat(body, containsValue("$.get.found", true));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_source"));
+        }
+    }
+
+    @Test
+    public void shouldSupportSourceIncludesDuringProcessingOfUpdatesWhenParameterExistInTargetDocument() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
+
+            HttpResponse response = client.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source_includes=name", requestBody);
+
+            log.debug("Update response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$._index", indexName));
+            assertThat(body, containsValue("$._id", "space_1"));
+            assertThat(body, containsValue("$.result", "updated"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_shards"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_seq_no"));
+            assertThat(body, containsValue("$.get.found", true));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_source"));
+            assertThat(body, containsValue("$.get._source.name", "name_space_1"));
+        }
+    }
+
+    @Test
+    public void shouldSupportSourceExcludesDuringProcessingOfUpdatesWhenParameterExistInTargetDocument() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
+
+            HttpResponse response = client.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source_excludes=name", requestBody);
+
+            log.debug("Update response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$._index", indexName));
+            assertThat(body, containsValue("$._id", "space_1"));
+            assertThat(body, containsValue("$.result", "updated"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_shards"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_seq_no"));
+            assertThat(body, containsValue("$.get.found", true));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_source"));
+            assertThat(body, not(containsFieldPointedByJsonPath("$.get._source", "name")));
+            assertThat(body, containsValue("$.get._source.no", "1"));
+            assertThat(body, containsValue("$.get._source.initials", "sg"));
+            assertThat(body, containsValue("$.get._source.description", "description_space_1"));
+            assertThat(body, containsValue("$.get._source.sg_tenant", "admin_tenant"));
+        }
+    }
+
+    @Test
+    public void shouldSupportSourceIncludeDuringProcessingOfUpdates() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
+
+            HttpResponse response = client.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source=true", requestBody);
+
+            log.debug("Update response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$._index", indexName));
+            assertThat(body, containsValue("$._id", "space_1"));
+            assertThat(body, containsValue("$.result", "updated"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_shards"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_seq_no"));
+            assertThat(body, containsValue("$.get.found", true));
+            assertThat(body, containsFieldPointedByJsonPath("$.get", "_source"));
+            assertThat(body, containsValue("$.get._source.no", "1"));
+            assertThat(body, containsValue("$.get._source.initials", "sg"));
+            assertThat(body, containsValue("$.get._source.name", "name_space_1"));
+            assertThat(body, containsValue("$.get._source.description", "description_space_1"));
+            assertThat(body, containsValue("$.get._source.sg_tenant", "admin_tenant"));
+        }
+    }
+
+    @Test
+    public void shouldIncludeVersionAndSeqNoWithPrimaryTermInSearchResponse() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
+
+            HttpResponse response = client.get("/.kibana_8.8.0/_search?version=true&seq_no_primary_term=true");
+
+            log.debug("Search response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.hits.hits[0]._index", indexName));
+            assertThat(body, containsValue("$.hits.hits[0]._id", "space_1"));
+            assertThat(body, containsValue("$.hits.hits[0]._source.name", "name_space_1"));
+            assertThat(body, containsValue("$.hits.total.value", 1));
+            assertThat(body, containsFieldPointedByJsonPath("$.hits", "max_score"));
+            assertThat(body, containsFieldPointedByJsonPath("$.hits.hits[0]", "_seq_no"));
+            assertThat(body, containsFieldPointedByJsonPath("$.hits.hits[0]", "_primary_term"));
+            assertThat(body, containsFieldPointedByJsonPath("$.hits.hits[0]", "_version"));
+        }
+    }
+
+    @Test
+    public void shouldNotIncludeVersionAndSeqNoWithPrimaryTermInSearchResponse() throws Exception {
+        String indexName = ".kibana_8.8.0";
+        BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
+        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(adminClient, indexName);
+            createSpace(client, indexName, "space_1");
+            String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
+
+            HttpResponse response = client.get("/.kibana_8.8.0/_search");
+
+            log.debug("Search response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.hits.hits[0]._index", indexName));
+            assertThat(body, containsValue("$.hits.hits[0]._id", "space_1"));
+            assertThat(body, containsValue("$.hits.hits[0]._source.name", "name_space_1"));
+            assertThat(body, containsValue("$.hits.total.value", 1));
+            assertThat(body, containsFieldPointedByJsonPath("$.hits", "max_score"));
+            assertThat(body, not(containsFieldPointedByJsonPath("$.hits.hits[0]", "_seq_no")));
+            assertThat(body, not(containsFieldPointedByJsonPath("$.hits.hits[0]", "_primary_term")));
+            assertThat(body, not(containsFieldPointedByJsonPath("$.hits.hits[0]", "_version")));
+        }
+    }
 
     // TODO add index related to multi-index search
 

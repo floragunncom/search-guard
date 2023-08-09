@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.enterprise.femt;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -68,7 +67,6 @@ import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -609,7 +607,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                                     docWriteResponse.getVersion(),
                                     docWriteResponse.getResult() == DocWriteResponse.Result.DELETED);
                             } else if (docWriteResponse instanceof UpdateResponse) {
-                                newDocWriteResponse = handleUpdateResponse(docWriteResponse);
+                                newDocWriteResponse = handleUpdateResponse((UpdateResponse)docWriteResponse);
                             } else {
                                 log.debug("Bulk response '{}' will be not modified", docWriteResponse);
                                 newDocWriteResponse = docWriteResponse;
@@ -640,7 +638,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         return SyncAuthorizationFilter.Result.INTERCEPTED;
     }
 
-    private UpdateResponse handleUpdateResponse(DocWriteResponse docWriteResponse) {
+    private UpdateResponse handleUpdateResponse(UpdateResponse docWriteResponse) {
         log.debug("Rewriting update response");
         UpdateResponse updateResponse = new UpdateResponse(
             docWriteResponse.getShardId(),
@@ -649,7 +647,9 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             docWriteResponse.getPrimaryTerm(),
             docWriteResponse.getVersion(),
             docWriteResponse.getResult());
+        updateResponse.setForcedRefresh(docWriteResponse.forcedRefresh());
         updateResponse.setShardInfo(docWriteResponse.getShardInfo());
+        updateResponse.setGetResult(docWriteResponse.getGetResult());
         return updateResponse;
     }
 
@@ -760,6 +760,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             rewrittenSearchHitArray[i].setSeqNo(originalSearchHitArray[i].getSeqNo());
             rewrittenSearchHitArray[i].setRank(originalSearchHitArray[i].getRank());
             rewrittenSearchHitArray[i].shard(originalSearchHitArray[i].getShard());
+            rewrittenSearchHitArray[i].version(originalSearchHitArray[i].getVersion());
         }
         
         SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());        
