@@ -29,7 +29,6 @@ import com.floragunn.searchguard.TypedComponentRegistry;
 import com.floragunn.searchguard.authc.*;
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
@@ -44,9 +43,13 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class StandardAuthenticationDomain<AuthenticatorType extends AuthenticationFrontend>
         implements AuthenticationDomain<AuthenticatorType>, Comparable<StandardAuthenticationDomain<AuthenticatorType>>,
-        Document<StandardAuthenticationDomain<AuthenticatorType>>, Destroyable {
+        Document<StandardAuthenticationDomain<AuthenticatorType>>, AutoCloseable {
+    private static final Logger log = LogManager.getLogger(StandardAuthenticationDomain.class);
 
     private final DocNode source;
     private final String type;
@@ -460,13 +463,33 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
     }
 
     @Override
-    public void destroy() {
-        if (authenticationBackend instanceof Destroyable) {
-            ((Destroyable) authenticationBackend).destroy();
+    public void close() {
+        try {
+            if (authenticationBackend instanceof AutoCloseable) {
+                ((AutoCloseable) authenticationBackend).close();
+            }
+        } catch (Exception e) {
+            log.error("Error while closing " + authenticationBackend, e);
         }
 
-        if (authenticationFrontend instanceof Destroyable) {
-            ((Destroyable) authenticationFrontend).destroy();
+        try {
+            if (authenticationFrontend instanceof AutoCloseable) {
+                ((AutoCloseable) authenticationFrontend).close();
+            }
+        } catch (Exception e) {
+            log.error("Error while closing " + authenticationFrontend, e);
+        }
+        
+        if (additionalUserInformationBackends != null) {
+            for (UserInformationBackend userInformationBackend : additionalUserInformationBackends) {
+                try {
+                    if (userInformationBackend instanceof AutoCloseable) {
+                        ((AutoCloseable) userInformationBackend).close();
+                    }
+                } catch (Exception e) {
+                    log.error("Error while closing " + userInformationBackend, e);
+                }
+            }
         }
     }
 }

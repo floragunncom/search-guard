@@ -172,18 +172,19 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         Map<String, Object> updated = new LinkedHashMap<>(existingConfiguration.toDocNode().toMap());
         updated.put(name, patchedResourceAsDocNode.toBasicObject());
         
-        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(DocNode.wrap(updated), null,
+        try (SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(DocNode.wrap(updated), null,
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
-                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();
+                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();) {
 
-        saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
+            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
-            @Override
-            public void onResponse(IndexResponse response) {
-                successResponse(channel, "'" + name + "' updated.");
+                @Override
+                public void onResponse(IndexResponse response) {
+                    successResponse(channel, "'" + name + "' updated.");
 
-            }
-        });
+                }
+            });
+        }
     }
 
     private void handleBulkPatch(RestChannel channel, RestRequest request, Client client, SgDynamicConfiguration<?> existingConfiguration,
@@ -254,18 +255,18 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             }
         }
 
-        SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(patchedAsDocNode, null,
+        try (SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(patchedAsDocNode, null,
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
-                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();
+                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get()) {
 
-        saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
+            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
-            @Override
-            public void onResponse(IndexResponse response) {
-                successResponse(channel, "Resource updated.");
-            }
-        });
-
+                @Override
+                public void onResponse(IndexResponse response) {
+                    successResponse(channel, "Resource updated.");
+                }
+            });
+        }
     }
 
     protected DocNode postProcessApplyPatchResult(RestChannel channel, RestRequest request,

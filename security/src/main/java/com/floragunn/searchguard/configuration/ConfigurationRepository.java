@@ -40,7 +40,6 @@ import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -583,7 +582,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 throw new ConfigUpdateException("Update failed: " + bulkResponse.buildFailureMessage());
             }
 
-            ConfigMap configMap = getConfigurationsFromIndex(CType.all(), "Testing configuration after migration");
+            ConfigMap configMap = this.externalUseConfigLoader.loadSync(CType.all(), "Testing configuration after migration", parserContext);
 
             LOGGER.info("Configuration after migration: " + configMap);
 
@@ -630,7 +629,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     private void reloadConfiguration0(Set<CType<?>> configTypes, String reason) throws ConfigUnavailableException {
         try {
-            ConfigMap loadedConfig = mainConfigLoader.load(configTypes, reason).get();
+            ConfigMap loadedConfig = mainConfigLoader.load(configTypes, reason, parserContext.withExternalResources()).get();
             ConfigMap discardedConfig;
 
             componentState.setConfigProperty("effective_main_config_index", loadedConfig.getSourceIndex());
@@ -651,7 +650,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             if (discardedConfig != null && !discardedConfig.isEmpty()) {
                 this.threadPool.schedule(() -> {
                     LOGGER.debug("Destroying old configuration: " + discardedConfig);
-                    discardedConfig.destroy();
+                    discardedConfig.close();
                 }, TimeValue.timeValueSeconds(10), ThreadPool.Names.GENERIC);
             }
 
@@ -685,40 +684,16 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     /**
-     * This retrieves the config directly from the index without caching involved
+     * This retrieves the config directly from the index without caching involved 
      *
      * @param configType
      * @return
      * @throws ConfigUnavailableException
      */
     public <T> SgDynamicConfiguration<T> getConfigurationFromIndex(CType<T> configType, String reason) throws ConfigUnavailableException {
-        return externalUseConfigLoader.loadSync(configType, reason);
+        return externalUseConfigLoader.loadSync(configType, reason, parserContext);
     }
-
-    /**
-     * This retrieves the config directly from the index without caching involved
-     *
-     * @param configTypes
-     * @return
-     * @throws ConfigUnavailableException
-     */
-    public ConfigMap getConfigurationsFromIndex(Set<CType<?>> configTypes, String reason) throws ConfigUnavailableException {
-        return externalUseConfigLoader.loadSync(configTypes, reason);
-    }
-
-    public <T> SgConfigEntry<T> getConfigEntryFromIndex(CType<T> configType, String id, String reason)
-            throws ConfigUnavailableException, NoSuchConfigEntryException {
-        SgDynamicConfiguration<T> baseConfig = getConfigurationFromIndex(configType, reason);
-
-        T entry = baseConfig.getCEntry(id);
-
-        if (entry != null) {
-            return new SgConfigEntry<T>(entry, baseConfig);
-        } else {
-            throw new NoSuchConfigEntryException(configType, id);
-        }
-    }
-
+   
     public <T> StandardResponse addOrUpdate(CType<T> ctype, String id, T entry, String matchETag)
             throws ConfigUpdateException, ConcurrentConfigUpdateException {
         try {
@@ -779,12 +754,20 @@ public class ConfigurationRepository implements ComponentStateProvider {
                     LinkedHashMap<String, T> result = new LinkedHashMap<>();
 
                     for (Map.Entry<String, DocNode> entry : docNode.toMapOfNodes().entrySet()) {
-                        ValidationResult<T> parsedEntry = configType.getParser().parse(entry.getValue(), parserContext);
+                        ValidationResult<T> parsedEntry = configType.getParser().parse(entry.getValue(), parserContext.withExternalResources());
 
                         if (parsedEntry.hasErrors()) {
                             validationErrors.add(entry.getKey(), parsedEntry.getValidationErrors());
                         } else {
                             result.put(entry.getKey(), parsedEntry.peek());
+                        }
+                        
+                        if (parsedEntry.peek() instanceof AutoCloseable) {
+                            try {
+                                ((AutoCloseable) parsedEntry.peek()).close();
+                            } catch (Exception e) {
+                                LOGGER.warn("Error while closing {}", parsedEntry, e);
+                            }
                         }
                     }
 
@@ -830,9 +813,20 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             @SuppressWarnings("unchecked")
             PatchableDocument<T> entry = (PatchableDocument<T>) document;
-
-            update(configType, configInstance.with(id, entry.patch(patch, parserContext)), matchETag);
-
+            T newEntry = entry.patch(patch, parserContext.withExternalResources());
+            
+            try {
+                update(configType, configInstance.with(id, newEntry), matchETag);
+            } finally {
+                if (newEntry instanceof AutoCloseable) {
+                    try {
+                        ((AutoCloseable) newEntry).close();
+                    } catch (Exception e) {
+                        LOGGER.warn("Error while closing {}", newEntry, e);
+                    }
+                }
+            }
+            
             String message;
 
             if (configType.getArity() == CType.Arity.SINGLE) {
@@ -975,48 +969,54 @@ public class ConfigurationRepository implements ComponentStateProvider {
             try {
                 @SuppressWarnings({ "unchecked", "rawtypes" }) // XXX weird generics issue
                 ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration
-                        .fromMap(configMap, ctype, parserContext);
+                        .fromMap(configMap, ctype, parserContext.withExternalResources());
 
-                if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
-                    validationErrors.add(ctype.toLCString(), configInstance.getValidationErrors());
-                    continue;
-                }
+                try {
+                    if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
+                        validationErrors.add(ctype.toLCString(), configInstance.getValidationErrors());
+                        continue;
+                    }
 
-                String id = ctype.toLCString();
+                    String id = ctype.toLCString();
 
-                IndexRequest indexRequest = new IndexRequest(searchGuardIndex).id(id).source(id,
-                        XContentHelper.toXContent(configInstance.peek().withoutStatic(), XContentType.JSON, false));
+                    IndexRequest indexRequest = new IndexRequest(searchGuardIndex).id(id).source(id,
+                            XContentHelper.toXContent(configInstance.peek().withoutStatic(), XContentType.JSON, false));
 
-                if (matchETag != null) {
-                    try {
-                        int dot = matchETag.indexOf('.');
+                    if (matchETag != null) {
+                        try {
+                            int dot = matchETag.indexOf('.');
 
-                        if (dot == -1) {
+                            if (dot == -1) {
+                                validationErrors.add(new InvalidAttributeValue(ctype.toLCString(), matchETag, null).message("Invalid E-Tag"));
+                                continue;
+                            }
+
+                            long primaryTerm = Long.parseLong(matchETag.substring(0, dot));
+                            long seqNo = Long.parseLong(matchETag.substring(dot + 1));
+
+                            if (currentConfig != null) {
+                                SgDynamicConfiguration<?> currentConfigInstance = currentConfig.get(ctype);
+
+                                if (currentConfigInstance != null
+                                        && (currentConfigInstance.getPrimaryTerm() != primaryTerm || currentConfigInstance.getSeqNo() != seqNo)) {
+                                    configTypesWithConcurrentModifications.add(ctype.toLCString());
+                                }
+                            }
+
+                            indexRequest.setIfPrimaryTerm(primaryTerm);
+                            indexRequest.setIfSeqNo(seqNo);
+                        } catch (NumberFormatException e) {
                             validationErrors.add(new InvalidAttributeValue(ctype.toLCString(), matchETag, null).message("Invalid E-Tag"));
                             continue;
                         }
+                    }
 
-                        long primaryTerm = Long.parseLong(matchETag.substring(0, dot));
-                        long seqNo = Long.parseLong(matchETag.substring(dot + 1));
-
-                        if (currentConfig != null) {
-                            SgDynamicConfiguration<?> currentConfigInstance = currentConfig.get(ctype);
-
-                            if (currentConfigInstance != null
-                                    && (currentConfigInstance.getPrimaryTerm() != primaryTerm || currentConfigInstance.getSeqNo() != seqNo)) {
-                                configTypesWithConcurrentModifications.add(ctype.toLCString());
-                            }
-                        }
-
-                        indexRequest.setIfPrimaryTerm(primaryTerm);
-                        indexRequest.setIfSeqNo(seqNo);
-                    } catch (NumberFormatException e) {
-                        validationErrors.add(new InvalidAttributeValue(ctype.toLCString(), matchETag, null).message("Invalid E-Tag"));
-                        continue;
+                    bulkRequest.add(indexRequest);
+                } finally {
+                    if (configInstance.hasResult()) {
+                        configInstance.peek().close();
                     }
                 }
-
-                bulkRequest.add(indexRequest);
             } catch (ConfigValidationException e) {
                 validationErrors.add(ctype.toLCString(), e);
             } catch (IOException e) {
@@ -1127,6 +1127,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         private final SearchGuardModulesRegistry searchGuardModulesRegistry;
         private final StaticSettings staticSettings;
         private final NamedXContentRegistry xContentRegistry;
+        private final boolean externalResourceCreationEnabled;
 
         public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings,
                 NamedXContentRegistry xContentRegistry) {
@@ -1134,7 +1135,18 @@ public class ConfigurationRepository implements ComponentStateProvider {
             this.searchGuardModulesRegistry = searchGuardModulesRegistry;
             this.staticSettings = staticSettings;
             this.xContentRegistry = xContentRegistry;
+            this.externalResourceCreationEnabled = false;
         }
+        
+        private Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings,
+                NamedXContentRegistry xContentRegistry, boolean externalResourceCreationEnabled) {
+            this.variableResolvers = variableResolvers;
+            this.searchGuardModulesRegistry = searchGuardModulesRegistry;
+            this.staticSettings = staticSettings;
+            this.xContentRegistry = xContentRegistry;
+            this.externalResourceCreationEnabled = externalResourceCreationEnabled;
+        }
+
 
         @Override
         public VariableResolvers variableResolvers() {
@@ -1152,6 +1164,15 @@ public class ConfigurationRepository implements ComponentStateProvider {
         @Override
         public NamedXContentRegistry xContentRegistry() {
             return xContentRegistry;
+        }
+        
+        @Override
+        public boolean isExternalResourceCreationEnabled() {
+            return externalResourceCreationEnabled;
+        }
+        
+        public Context withExternalResources() {
+            return new Context(this.variableResolvers, this.searchGuardModulesRegistry, this.staticSettings, this.xContentRegistry, true);
         }
     }
 

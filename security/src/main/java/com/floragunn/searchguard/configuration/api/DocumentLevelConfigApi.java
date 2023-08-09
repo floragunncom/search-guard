@@ -34,6 +34,7 @@ import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
+import com.floragunn.searchguard.configuration.ConfigurationLoader;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.NoSuchConfigEntryException;
 import com.floragunn.searchguard.configuration.SgConfigEntry;
@@ -53,6 +54,7 @@ public abstract class DocumentLevelConfigApi {
         public static abstract class Handler<T> extends Action.Handler<IdRequest, StandardResponse> {
 
             private final ConfigurationRepository configurationRepository;
+            private final ConfigurationLoader configLoader;
             private final CType<T> configType;
 
             @Inject
@@ -62,13 +64,14 @@ public abstract class DocumentLevelConfigApi {
 
                 this.configType = configType;
                 this.configurationRepository = configurationRepository;
+                this.configLoader = new ConfigurationLoader(baseDependencies.getLocalClient(), configurationRepository);
             }
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(IdRequest request) {
                 return supplyAsync(() -> {
                     try {
-                        SgConfigEntry<T> entry = configurationRepository.getConfigEntryFromIndex(configType, request.getId(), "GET API Request");
+                        SgConfigEntry<T> entry = this.configLoader.loadEntrySync(configType, request.getId(), "GET API Request", configurationRepository.getParserContext());
 
                         return new StandardResponse(200).data(entry.toRedactedBasicObject()).eTag(entry.getETag());
                     } catch (NoSuchConfigEntryException e) {

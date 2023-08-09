@@ -354,9 +354,7 @@ public class ConfigHistoryService implements ComponentStateProvider {
                                 }
 
                                 if (itemResponse.getResponse().isExists()) {
-
                                     SgDynamicConfiguration<?> sgDynamicConfig = parseConfig(itemResponse.getResponse());
-
                                     configByType.put(sgDynamicConfig.getCType(), sgDynamicConfig);
                                     configCache.put(new ConfigVersion(sgDynamicConfig.getCType(), sgDynamicConfig.getDocVersion()), sgDynamicConfig);
                                 }

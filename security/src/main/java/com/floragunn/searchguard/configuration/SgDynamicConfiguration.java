@@ -55,7 +55,7 @@ import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.google.common.base.Charsets;
 
-public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, RedactableDocument, ComponentStateProvider, Destroyable {
+public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, RedactableDocument, ComponentStateProvider, AutoCloseable {
 
     private static final Logger log = LogManager.getLogger(SgDynamicConfiguration.class);
 
@@ -365,17 +365,13 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     }
 
     @Override
-    public void destroy() {
-        if (!Destroyable.class.isAssignableFrom(ctype.getClass())) {
-            return;
-        }
-
+    public void close() {
         for (T entry : this.centries.values()) {
-            if (entry instanceof Destroyable) {
+            if (entry instanceof AutoCloseable) {
                 try {
-                    ((Destroyable) entry).destroy();
+                    ((AutoCloseable) entry).close();
                 } catch (Exception e) {
-                    log.error("Error while destroying " + entry, e);
+                    log.error("Error while closing {}", entry, e);
                 }
             }
         }

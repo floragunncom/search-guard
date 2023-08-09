@@ -195,11 +195,12 @@ public abstract class TypeLevelConfigApi {
                             configMap = request.getConfig();
                         }
                         
-                        SgDynamicConfiguration<T> config = SgDynamicConfiguration.fromMap(configMap, configType,
-                                configurationRepository.getParserContext()).get();
+                        try (SgDynamicConfiguration<T> config = SgDynamicConfiguration.fromMap(configMap, configType,
+                                configurationRepository.getParserContext().withExternalResources()).get()) {
 
-                        this.configurationRepository.update(configType, config, request.getIfMatch());
-                        return new StandardResponse(200).message("Configuration has been updated");
+                            this.configurationRepository.update(configType, config, request.getIfMatch());
+                            return new StandardResponse(200).message("Configuration has been updated");
+                        }
                     } catch (ConfigValidationException e) {
                         return new StandardResponse(400).error(e);
                     } catch (ConcurrentConfigUpdateException e) {
