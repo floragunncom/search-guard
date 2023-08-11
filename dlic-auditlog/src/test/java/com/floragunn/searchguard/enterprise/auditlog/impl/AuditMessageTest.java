@@ -15,12 +15,10 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.auditlog.AuditLog;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.elasticsearch.Version;
@@ -136,7 +134,7 @@ public class AuditMessageTest {
         assertThat(disabledFields.stream().allMatch(field -> toText.contains(field + ":")), is(true));
 
         //after disabling
-        am = am.without(disabledFields);
+        am.removeDisabledFields(disabledFields);
         Map<String, Object> asMapWithoutDisabled = am.getAsMap();
         String toStringWithoutDisabled = am.toString();
         String toPrettyStringWithoutDisabled = am.toPrettyString();

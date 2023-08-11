@@ -14,6 +14,22 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.patch.JsonPatch;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.support.Base64Helper;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserInformation;
+import com.floragunn.searchsupport.PrivilegedCode;
+import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +44,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,23 +84,6 @@ import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xcontent.json.JsonXContent;
 
-import com.floragunn.codova.config.text.Pattern;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.documents.patch.JsonPatch;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.support.Base64Helper;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.searchguard.user.UserInformation;
-import com.floragunn.searchsupport.PrivilegedCode;
-import com.google.common.io.BaseEncoding;
-
 public abstract class AbstractAuditLog implements AuditLog {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
@@ -113,7 +111,6 @@ public abstract class AbstractAuditLog implements AuditLog {
     private final boolean excludeSensitiveHeaders;
     private final boolean logEnvVars;
     private AuditLogConfig complianceConfig;
-    private final List<String> disabledFields;
 
     private final Pattern searchguardIndexPattern;
     protected final ConfigurationRepository configurationRepository;
@@ -255,8 +252,6 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         this.excludeSensitiveHeaders = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_EXCLUDE_SENSITIVE_HEADERS, true);
 
-        this.disabledFields = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS);
-
         if (validationErrors.size() != 0) {
             log.error("The audit log configuration contains errors:\n" + validationErrors);
         }
@@ -280,7 +275,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -308,7 +303,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
 
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -326,7 +321,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -353,7 +348,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
 
-        save(msg.without(disabledFields));
+        save(msg);
 
     }
 
@@ -371,7 +366,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -398,7 +393,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addInitiatingUser(initiatingUser);
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -420,7 +415,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         msg.addEffectiveUser(effectiveUser);
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -437,7 +432,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -455,7 +450,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -472,7 +467,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -497,7 +492,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         msg.addEffectiveUser(getUser());
 
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -511,7 +506,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -535,7 +530,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         msg.addEffectiveUser(getUser());
 
-        save(msg.without(disabledFields));
+        save(msg);
 
     }
 
@@ -552,7 +547,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -569,7 +564,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -587,7 +582,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, t);
 
         for (AuditMessage msg : msgs) {
-            save(msg.without(disabledFields));
+            save(msg);
         }
     }
 
@@ -613,7 +608,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         msg.addException(t);
         msg.addEffectiveUser(getUser());
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -685,7 +680,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 log.error("Unable to generate request body for {} and {}", msg.toPrettyString(), fieldNameValues, e);
             }
 
-            save(msg.without(disabledFields));
+            save(msg);
         }
 
     }
@@ -810,7 +805,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         }
 
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -832,7 +827,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addShardId(shardId);
         msg.addComplianceDocVersion(result.getVersion());
         msg.addComplianceOperation(Operation.DELETE);
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -887,7 +882,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         msg.addFileInfos(paths);
 
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -948,7 +943,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         }
 
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -1016,7 +1011,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         }
 
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     @Override
@@ -1037,7 +1032,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addResolvedIndexTemplates(resolvedTemplateNames.toArray(new String[] {}));
         msg.addComplianceOperation(Operation.DELETE);
 
-        save(msg.without(disabledFields));
+        save(msg);
     }
 
     private Origin getOrigin() {

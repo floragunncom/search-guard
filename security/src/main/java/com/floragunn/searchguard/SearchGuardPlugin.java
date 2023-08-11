@@ -992,6 +992,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX + ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX,
                     Property.NodeScope, Property.Filtered));
 
+            settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX + ConfigConstants.SEARCHGUARD_AUDIT_ES_TYPE,
+                    Property.NodeScope, Property.Filtered));
+            settings.add(Setting.groupSetting(
+                    ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX + ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_CUSTOM_ATTRIBUTES_PREFIX,
+                    Property.NodeScope)
+            );
+
             // External ES
             settings.add(Setting.listSetting(
                     ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX + ConfigConstants.SEARCHGUARD_AUDIT_EXTERNAL_ES_HTTP_ENDPOINTS,

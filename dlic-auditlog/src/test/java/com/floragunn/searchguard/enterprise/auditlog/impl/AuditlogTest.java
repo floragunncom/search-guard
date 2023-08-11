@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
 import static com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.CATEGORY;
+import static com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.CUSTOM_FIELD_PREFIX;
 import static com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.FORMAT_VERSION;
 import static com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.REQUEST_EFFECTIVE_USER;
 import static org.mockito.Mockito.mock;
@@ -30,7 +31,10 @@ import com.floragunn.searchguard.user.UserInformation;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.cluster.ClusterName;
@@ -44,7 +48,7 @@ import org.junit.Test;
 
 public class AuditlogTest {
 
-    public static final List<String> DISABLED_FIELDS = Arrays.asList(FORMAT_VERSION, REQUEST_EFFECTIVE_USER, CATEGORY);
+    private static final List<String> DISABLED_FIELDS = Arrays.asList(FORMAT_VERSION, REQUEST_EFFECTIVE_USER, CATEGORY);
     ClusterService cs = mock(ClusterService.class);
     DiscoveryNode dn = mock(DiscoveryNode.class);
     ConfigurationRepository configurationRepository = mock(ConfigurationRepository.class);
@@ -108,10 +112,10 @@ public class AuditlogTest {
             Assert.assertEquals(2, TestAuditlogImpl.messages.size());
         }
     }
-    
+
     @Test
     public void testRetry() throws IOException {
-        
+
         RetrySink.init();
 
         Settings settings = Settings.builder()
@@ -129,10 +133,10 @@ public class AuditlogTest {
             Assert.assertTrue(RetrySink.getMsg().toJson().contains("test retry"));
         }
     }
-    
+
     @Test
     public void testNoRetry() throws IOException {
-        
+
         RetrySink.init();
 
         Settings settings = Settings.builder()
@@ -144,7 +148,7 @@ public class AuditlogTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RETRY_DELAY_MS, 500)
                 .put("searchguard.audit.threadpool.size", 0)
                 .build();
-        
+
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             al.logSSLException(null, new Exception("test retry"));
             Assert.assertNull(RetrySink.getMsg());
@@ -299,6 +303,58 @@ public class AuditlogTest {
             TestAuditlogImpl.clear();
             al.logBadHeaders(new MockRestRequest());
             assertAuditLogDoesNotContainDisabledFields();
+        }
+    }
+
+    @Test
+    public void testCustomFields() throws IOException {
+        String customField1 = "field1";
+        String customValue1 = "val1";
+        String customField2 = "field2";
+        String customValue2 = "val2";
+        Settings settings = Settings.builder()
+            .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+            .put("searchguard.audit.config.custom_attributes." + customField1, customValue1)
+            .put("searchguard.audit.config.custom_attributes." + customField2, customValue2)
+            .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+            .build();
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logBadHeaders(new MockRestRequest());
+            Map<String, Object> auditMessages =
+                TestAuditlogImpl.messages.stream()
+                    .map(AuditMessage::getAsMap)
+                    .flatMap(stringObjectMap -> stringObjectMap.entrySet().stream())
+                    .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+
+            Assert.assertEquals(customValue1, auditMessages.get(AuditMessage.CUSTOM_FIELD_PREFIX + customField1));
+            Assert.assertEquals(customValue2, auditMessages.get(AuditMessage.CUSTOM_FIELD_PREFIX + customField2));
+        }
+    }
+
+    @Test
+    public void testCustomFieldsWithDisabledFields() throws IOException {
+        String customField1 = "field1";
+        String customValue1 = "val1";
+        String customField2 = "field2";
+        String customValue2 = "val2";
+        Settings settings = Settings.builder()
+            .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+            .put("searchguard.audit.config.custom_attributes." + customField1, customValue1)
+            .put("searchguard.audit.config.custom_attributes." + customField2, customValue2)
+            .putList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS, Arrays.asList(CUSTOM_FIELD_PREFIX + customField2))
+            .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
+            .build();
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logBadHeaders(new MockRestRequest());
+            Map<String, Object> auditMessages =
+                TestAuditlogImpl.messages.stream()
+                    .map(AuditMessage::getAsMap)
+                    .flatMap(stringObjectMap -> stringObjectMap.entrySet().stream())
+                    .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+            Assert.assertEquals(customValue1, auditMessages.get(AuditMessage.CUSTOM_FIELD_PREFIX + customField1));
+            Assert.assertFalse(auditMessages.containsKey(AuditMessage.CUSTOM_FIELD_PREFIX + customField2));
         }
     }
 

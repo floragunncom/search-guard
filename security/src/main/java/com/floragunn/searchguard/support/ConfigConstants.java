@@ -121,6 +121,10 @@ public class ConfigConstants {
 
     public static final String SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX = "searchguard.audit.config.";
 
+    // all endpoints
+
+    public static final String SEARCHGUARD_AUDIT_CONFIG_CUSTOM_ATTRIBUTES_PREFIX = "custom_attributes.";
+
     // Internal / External ES
     public static final String SEARCHGUARD_AUDIT_ES_INDEX = "index";
     public static final String SEARCHGUARD_AUDIT_ES_TYPE = "type";
