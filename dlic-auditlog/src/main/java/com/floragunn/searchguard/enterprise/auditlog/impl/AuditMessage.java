@@ -100,6 +100,7 @@ public final class AuditMessage {
     public static final String COMPLIANCE_DIFF_IS_NOOP = "audit_compliance_diff_is_noop";
     public static final String COMPLIANCE_DIFF_CONTENT = "audit_compliance_diff_content";
     public static final String COMPLIANCE_FILE_INFOS = "audit_compliance_file_infos";
+    public static final String CUSTOM_FIELD_PREFIX = "audit_custom_";
 
     //public static final String COMPLIANCE_DIFF_STORED_IS_NOOP = "audit_compliance_diff_stored_is_noop";
     //public static final String COMPLIANCE_STORED_FIELDS_CONTENT = "audit_compliance_stored_fields_content";
@@ -396,10 +397,9 @@ public final class AuditMessage {
     public Map<String, Object> getAsMap() {
         return new HashMap<>(this.auditInfo);
     }
-    
-    public AuditMessage without(List<String> disabledFields) {
+
+    public void removeDisabledFields(List<String> disabledFields) {
         disabledFields.forEach(auditInfo.keySet()::remove);
-        return this;
     }
 
     public String getInitiatingUser() {
@@ -480,6 +480,10 @@ public final class AuditMessage {
         }
 
         return String.valueOf(object);
+    }
+
+    public void addCustomFields(Map<String, String> customFields) {
+        customFields.forEach((k, v) -> auditInfo.put(CUSTOM_FIELD_PREFIX + k, v));
     }
 
     public enum Category {
