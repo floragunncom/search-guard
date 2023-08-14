@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -39,10 +40,12 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import org.awaitility.Awaitility;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
@@ -56,6 +59,7 @@ import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.ExtensiblePlugin;
 import org.elasticsearch.plugins.ExtensiblePlugin.ExtensionLoader;
 import org.elasticsearch.plugins.Plugin;
+import org.hamcrest.Matchers;
 import org.junit.rules.ExternalResource;
 
 import com.floragunn.codova.documents.DocumentParseException;
@@ -75,6 +79,8 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
 
@@ -346,6 +352,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                     alias.create(client);
                 }
             }
+            waitForSignalsInitialization();
         } catch (Exception e) {
             log.error("Local ES cluster start failed", e);
             throw new RuntimeException(e);
@@ -395,6 +402,23 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
             testSgConfig.initIndex(client);
+        }
+    }
+
+    private void waitForSignalsInitialization() {
+        if (!nodeOverride.getAsList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey()).contains("com.floragunn.signals.SignalsModule")) {
+            Awaitility.await()
+                    .atMost(Duration.ofSeconds(10))
+                    .pollInterval(Duration.ofMillis(25))
+                    .untilAsserted(() -> {
+                        SearchGuardModulesRegistry modulesRegistry = getInjectable(SearchGuardModulesRegistry.class);
+                        String signalsModuleName = "signals";
+                        ComponentState state = modulesRegistry.getComponentState(signalsModuleName);
+                        assertThat("Modules registry should contain signals module state", state, Matchers.notNullValue());
+                        assertThat("Signals module should be initialized or disabled", state.getState(), Matchers.anyOf(
+                                Matchers.equalTo(ComponentState.State.INITIALIZED), Matchers.equalTo(ComponentState.State.DISABLED)
+                        ));
+                    });
         }
     }
 
