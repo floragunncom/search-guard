@@ -147,6 +147,16 @@ public class AuditLogRelay implements AuditLog {
         auditLog.logIndexTemplateDeleted(templateNames, resolvedTemplateNames);
     }
 
+    @Override
+    public void logSucceededKibanaLogin(UserInformation effectiveUser) {
+        auditLog.logSucceededKibanaLogin(effectiveUser);
+    }
+
+    @Override
+    public void logSucceededKibanaLogout(UserInformation effectiveUser) {
+        auditLog.logSucceededKibanaLogout(effectiveUser);
+    }
+
     public void setAuditLog(AuditLog auditLog) {
         if (this.auditLog == NullAuditLog.INSTANCE) {
             this.auditLog = auditLog;

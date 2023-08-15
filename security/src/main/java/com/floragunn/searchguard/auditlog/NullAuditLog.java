@@ -149,7 +149,17 @@ public class NullAuditLog implements AuditLog {
         //noop, intentionally left empty
     }
 
-	@Override
+    @Override
+    public void logSucceededKibanaLogin(UserInformation effectiveUser) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logSucceededKibanaLogout(UserInformation effectiveUser) {
+        //noop, intentionally left empty
+    }
+
+    @Override
 	public void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task) {
 		//noop, intentionally left empty		
 	}

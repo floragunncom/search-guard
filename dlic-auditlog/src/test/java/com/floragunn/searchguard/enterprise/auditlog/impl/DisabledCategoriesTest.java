@@ -121,6 +121,8 @@ public class DisabledCategoriesTest {
 		Assert.assertThat(result, containsString("action.transport.ssl"));
 		Assert.assertThat(result, containsString("action.success"));
 		Assert.assertThat(result, containsString("Empty"));
+		Assert.assertThat(result, containsString("testuser.kibana.succeededlogin"));
+		Assert.assertThat(result, containsString("testuser.kibana.succeededlogout"));
 	}
 
 	@Test
@@ -209,6 +211,8 @@ public class DisabledCategoriesTest {
 		
 		logBlockedIp(auditLog);
 		logBlockedUser(auditLog);
+		logSucceededKibanaLogin(auditLog);
+		logSucceededKibanaLogout(auditLog);
     }
 
 	 protected void logRestSucceededLogin(AuditLog auditLog) {
@@ -264,6 +268,14 @@ public class DisabledCategoriesTest {
     
     protected void logBlockedUser(AuditLog auditLog) {
         auditLog.logBlockedUser(UserInformation.forName("horst"), false, UserInformation.forName("horst"), new MockRestRequest());
+    }
+
+    protected void logSucceededKibanaLogin(AuditLog auditLog) {
+        auditLog.logSucceededKibanaLogin(UserInformation.forName("testuser.kibana.succeededlogin"));
+    }
+
+    protected void logSucceededKibanaLogout(AuditLog auditLog) {
+        auditLog.logSucceededKibanaLogout(UserInformation.forName("testuser.kibana.succeededlogout"));
     }
 
 

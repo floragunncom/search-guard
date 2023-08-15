@@ -79,6 +79,9 @@ public interface AuditLog extends Closeable {
     void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate);
     void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames);
 
+    void logSucceededKibanaLogin(UserInformation effectiveUser);
+    void logSucceededKibanaLogout(UserInformation effectiveUser);
+
     public enum Origin {
         REST, TRANSPORT, LOCAL
     }
