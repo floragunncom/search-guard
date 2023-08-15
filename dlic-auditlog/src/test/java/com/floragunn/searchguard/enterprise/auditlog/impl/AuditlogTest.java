@@ -21,6 +21,7 @@ import static com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.RE
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auditlog.helper.MockRestRequest;
 import com.floragunn.searchguard.enterprise.auditlog.helper.RetrySink;
@@ -355,6 +356,44 @@ public class AuditlogTest {
                     .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
             Assert.assertEquals(customValue1, auditMessages.get(AuditMessage.CUSTOM_FIELD_PREFIX + customField1));
             Assert.assertFalse(auditMessages.containsKey(AuditMessage.CUSTOM_FIELD_PREFIX + customField2));
+        }
+    }
+
+    @Test
+    public void testKibanaLogin() throws IOException {
+        Settings settings = Settings.builder()
+            .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+            .build();
+        String userName = "test-user";
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logSucceededKibanaLogin(UserInformation.forName(userName));
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            Map<String, Object> msgAsMap = TestAuditlogImpl.messages.get(0).getAsMap();
+            Assert.assertEquals(AuditLog.Origin.REST, msgAsMap.get(AuditMessage.REQUEST_LAYER));
+            Assert.assertEquals(userName, msgAsMap.get(REQUEST_EFFECTIVE_USER));
+            Assert.assertNotNull(msgAsMap.get(AuditMessage.UTC_TIMESTAMP));
+            Assert.assertEquals(AuditMessage.Category.KIBANA_LOGIN, msgAsMap.get(CATEGORY));
+            Assert.assertNotNull(msgAsMap.get(FORMAT_VERSION));
+        }
+    }
+
+    @Test
+    public void testKibanaLogout() throws IOException {
+        Settings settings = Settings.builder()
+            .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+            .build();
+        String userName = "test-user";
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logSucceededKibanaLogout(UserInformation.forName(userName));
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            Map<String, Object> msgAsMap = TestAuditlogImpl.messages.get(0).getAsMap();
+            Assert.assertEquals(AuditLog.Origin.REST, msgAsMap.get(AuditMessage.REQUEST_LAYER));
+            Assert.assertEquals(userName, msgAsMap.get(REQUEST_EFFECTIVE_USER));
+            Assert.assertNotNull(msgAsMap.get(AuditMessage.UTC_TIMESTAMP));
+            Assert.assertEquals(AuditMessage.Category.KIBANA_LOGOUT, msgAsMap.get(CATEGORY));
+            Assert.assertNotNull(msgAsMap.get(FORMAT_VERSION));
         }
     }
 
