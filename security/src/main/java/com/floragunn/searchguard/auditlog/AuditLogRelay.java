@@ -24,7 +24,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
@@ -133,18 +135,45 @@ public class AuditLogRelay implements AuditLog {
     }
 
     @Override
-    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate) {
-        auditLog.logIndexTemplatePutted(templateName, originalTemplate, currentTemplate);
+    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate,
+                                       ComposableIndexTemplate currentTemplate, String action, TransportRequest transportRequest) {
+        auditLog.logIndexTemplatePutted(templateName, originalTemplate, currentTemplate, action, transportRequest);
     }
 
     @Override
-    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate) {
-        auditLog.logIndexTemplatePutted(templateName, originalTemplate, currentTemplate);
+    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate,
+                                       IndexTemplateMetadata currentTemplate, String action, TransportRequest transportRequest) {
+        auditLog.logIndexTemplatePutted(templateName, originalTemplate, currentTemplate, action, transportRequest);
     }
 
     @Override
-    public void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames) {
-        auditLog.logIndexTemplateDeleted(templateNames, resolvedTemplateNames);
+    public void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames,
+                                        String action, TransportRequest transportRequest) {
+        auditLog.logIndexTemplateDeleted(templateNames, resolvedTemplateNames, action, transportRequest);
+    }
+
+    @Override
+    public void logIndexCreated(String unresolvedIndexName, IndexMetadata indexMetadata,
+                                String action, TransportRequest transportRequest) {
+        auditLog.logIndexCreated(unresolvedIndexName, indexMetadata, action, transportRequest);
+    }
+
+    @Override
+    public void logIndicesDeleted(List<String> indexNames, Set<String> resolvedIndexNames,
+                                  String action, TransportRequest transportRequest) {
+        auditLog.logIndicesDeleted(indexNames, resolvedIndexNames, action, transportRequest);
+    }
+
+    @Override
+    public void logIndexSettingsUpdated(List<String> indexNames, String resolvedIndexName, Settings currentSettings,
+                                        String action, TransportRequest transportRequest) {
+        auditLog.logIndexSettingsUpdated(indexNames, resolvedIndexName, currentSettings, action, transportRequest);
+    }
+
+    @Override
+    public void logIndexMappingsUpdated(List<String> indexNames, String resolvedIndexName, MappingMetadata currentMapping,
+                                        String action, TransportRequest transportRequest) {
+        auditLog.logIndexMappingsUpdated(indexNames, resolvedIndexName, currentMapping, action, transportRequest);
     }
 
     @Override

@@ -32,6 +32,7 @@ import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.transport.TransportRequest;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,7 +56,7 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
 
     @Override
     public int order() {
-        return 1;
+        return 2;
     }
 
     @Override
@@ -64,16 +65,16 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
         if (shouldProceed(task)) {
             if (request instanceof PutComposableIndexTemplateAction.Request) {
                 PutComposableIndexTemplateAction.Request putIndexTemplateRequest = (PutComposableIndexTemplateAction.Request) request;
-                actualListener = new PutIndexTemplateListenerWrapper<>(putIndexTemplateRequest, auditLog, auditLogConfig.logDiffsForWrite(), listener);
+                actualListener = new PutIndexTemplateListenerWrapper<>(action, putIndexTemplateRequest, listener);
             } else if (request instanceof PutIndexTemplateRequest) {
                 PutIndexTemplateRequest putIndexTemplateRequest = (PutIndexTemplateRequest) request;
-                actualListener = new PutIndexTemplateListenerWrapper<>(putIndexTemplateRequest, auditLog, auditLogConfig.logDiffsForWrite(), listener);
+                actualListener = new PutIndexTemplateListenerWrapper<>(action, putIndexTemplateRequest, listener);
             } else if (request instanceof DeleteComposableIndexTemplateAction.Request) {
                 DeleteComposableIndexTemplateAction.Request deleteIndexTemplateRequest = (DeleteComposableIndexTemplateAction.Request) request;
-                actualListener = new DeleteIndexTemplateListenerWrapper<>(deleteIndexTemplateRequest, auditLog, listener);
+                actualListener = new DeleteIndexTemplateListenerWrapper<>(action, deleteIndexTemplateRequest, listener);
             } else if (request instanceof DeleteIndexTemplateRequest) {
                 DeleteIndexTemplateRequest deleteIndexTemplateRequest = (DeleteIndexTemplateRequest) request;
-                actualListener = new DeleteIndexTemplateListenerWrapper<>(deleteIndexTemplateRequest, auditLog, listener);
+                actualListener = new DeleteIndexTemplateListenerWrapper<>(action, deleteIndexTemplateRequest, listener);
             }
         }
         chain.proceed(task, action, request, actualListener);
@@ -116,62 +117,49 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
 
     private class PutIndexTemplateListenerWrapper<Response> implements ActionListener<Response> {
 
+        private final String action;
         private final String templateName;
-        private final AuditLog auditLog;
+        private final TransportRequest request;
         private final ActionListener<Response> originalListener;
         private final ComposableIndexTemplate originalComposableIndexTemplate;
         private final IndexTemplateMetadata originalLegacyIndexTemplate;
         private final boolean legacyTemplate;
 
-        private PutIndexTemplateListenerWrapper(
-                PutComposableIndexTemplateAction.Request request,
-                AuditLog auditLog, boolean logDiffsForWrite,
-                ActionListener<Response> originalListener) {
+        private PutIndexTemplateListenerWrapper(String action, PutComposableIndexTemplateAction.Request request,
+                                                ActionListener<Response> originalListener) {
+            this.action = action;
             this.templateName = request.name();
-            this.auditLog = auditLog;
+            this.request = request;
             this.originalListener = originalListener;
             this.originalComposableIndexTemplate = getComposableIndexTemplateCurrentState(request.name());
             this.originalLegacyIndexTemplate = null;
             this.legacyTemplate = false;
-
-            if (logDiffsForWrite) {
-                if (this.originalComposableIndexTemplate == null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Original composable index template with name {} does not exist", request.name());
-                    }
-                }
-            }
         }
 
-        private PutIndexTemplateListenerWrapper(
-                PutIndexTemplateRequest request,
-                AuditLog auditLog, boolean logDiffsForWrite,
-                ActionListener<Response> originalListener) {
+        private PutIndexTemplateListenerWrapper(String action, PutIndexTemplateRequest request,
+                                                ActionListener<Response> originalListener) {
+            this.action = action;
             this.templateName = request.name();
-            this.auditLog = auditLog;
+            this.request = request;
             this.originalListener = originalListener;
             this.originalComposableIndexTemplate = null;
             this.originalLegacyIndexTemplate = getLegacyIndexTemplateCurrentState(request.name());
             this.legacyTemplate = true;
-
-            if (logDiffsForWrite) {
-                if (originalLegacyIndexTemplate == null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Original legacy index template with name {} does not exist", request.name());
-                    }
-                }
-            }
         }
 
         @Override
         public void onResponse(Response response) {
-            if (legacyTemplate) {
-                final IndexTemplateMetadata currentTemplate = getLegacyIndexTemplateCurrentState(templateName);
-                auditLog.logIndexTemplatePutted(templateName, originalLegacyIndexTemplate, currentTemplate);
+            try {
+                if (legacyTemplate) {
+                    final IndexTemplateMetadata currentTemplate = getLegacyIndexTemplateCurrentState(templateName);
+                    auditLog.logIndexTemplatePutted(templateName, originalLegacyIndexTemplate, currentTemplate, action, request);
+                } else {
+                    final ComposableIndexTemplate currentTemplate = getComposableIndexTemplateCurrentState(templateName);
+                    auditLog.logIndexTemplatePutted(templateName, originalComposableIndexTemplate, currentTemplate, action, request);
+                }
                 originalListener.onResponse(response);
-            } else {
-                final ComposableIndexTemplate currentTemplate = getComposableIndexTemplateCurrentState(templateName);
-                auditLog.logIndexTemplatePutted(templateName, originalComposableIndexTemplate, currentTemplate);
+            } catch (Exception e) {
+                log.debug("An error occurred while logging index template '{}' putted audit message", templateName, e);
                 originalListener.onResponse(response);
             }
         }
@@ -184,33 +172,39 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
 
     private class DeleteIndexTemplateListenerWrapper<Response> implements ActionListener<Response> {
 
+        private final String action;
         private final List<String> templateNames;
         private final Set<String> resolvedTemplateNames;
-        private final AuditLog auditLog;
+        private final TransportRequest request;
         private final ActionListener<Response> originalListener;
 
-        private DeleteIndexTemplateListenerWrapper(
-                DeleteComposableIndexTemplateAction.Request request,
-                AuditLog auditLog, ActionListener<Response> originalListener) {
+        private DeleteIndexTemplateListenerWrapper(String action, DeleteComposableIndexTemplateAction.Request request,
+                                                   ActionListener<Response> originalListener) {
+            this.action = action;
             this.templateNames = Arrays.asList(request.names());
             this.resolvedTemplateNames = resolveComposableTemplateNames(templateNames);
-            this.auditLog = auditLog;
+            this.request = request;
             this.originalListener = originalListener;
         }
 
-        private DeleteIndexTemplateListenerWrapper(
-                DeleteIndexTemplateRequest request,
-                AuditLog auditLog, ActionListener<Response> originalListener) {
+        private DeleteIndexTemplateListenerWrapper(String action, DeleteIndexTemplateRequest request,
+                                                   ActionListener<Response> originalListener) {
+            this.action = action;
             this.templateNames = Collections.singletonList(request.name());
             this.resolvedTemplateNames = resolveLegacyTemplateNames(request.name());
-            this.auditLog = auditLog;
+            this.request = request;
             this.originalListener = originalListener;
         }
 
         @Override
         public void onResponse(Response response) {
-            auditLog.logIndexTemplateDeleted(templateNames, resolvedTemplateNames);
-            originalListener.onResponse(response);
+            try {
+                auditLog.logIndexTemplateDeleted(templateNames, resolvedTemplateNames, action, request);
+                originalListener.onResponse(response);
+            } catch (Exception e) {
+                log.debug("An error occurred while logging index templates '{}' deleted audit message", resolvedTemplateNames, e);
+                originalListener.onResponse(response);
+            }
         }
 
         @Override
