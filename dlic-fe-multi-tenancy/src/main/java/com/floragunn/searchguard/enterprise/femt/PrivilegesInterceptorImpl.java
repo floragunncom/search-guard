@@ -397,6 +397,13 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         }
         
         searchRequest.source().query(queryBuilder);
+        if(log.isDebugEnabled()) {
+            log.debug(
+                "Query to indices '{}' was intercepted to limit access only to tenant '{}', extended query version '{}'",
+                String.join(", ", searchRequest.indices()),
+                requestedTenant,
+                queryBuilder);
+        }
 
         nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
             @Override
