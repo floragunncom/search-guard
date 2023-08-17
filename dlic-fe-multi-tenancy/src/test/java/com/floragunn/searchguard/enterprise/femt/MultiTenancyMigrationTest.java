@@ -557,7 +557,7 @@ public class MultiTenancyMigrationTest {
             assertThat(body, containsValue("$.items[0].create._id", "space_id"));
         }
     }
-    
+
     @Test
     public void shouldSupportSourceIncludesDuringProcessingOfBulkUpdatesWhenParameterDoesNotExistInTargetDocument() throws Exception {
         String indexName = ".kibana_8.8.0";
