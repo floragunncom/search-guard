@@ -21,12 +21,9 @@ import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
-import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
@@ -79,12 +76,12 @@ public interface AuditLog extends Closeable {
 
     void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate, String action, TransportRequest transportRequest);
     void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate, String action, TransportRequest transportRequest);
-    void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames, String action, TransportRequest transportRequest);
+    void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest);
 
-    void logIndexCreated(String unresolvedIndexName, IndexMetadata indexMetadata, String action, TransportRequest transportRequest);
-    void logIndicesDeleted(List<String> indexNames, Set<String> resolvedIndexNames, String action, TransportRequest transportRequest);
-    void logIndexSettingsUpdated(List<String> indexNames, String resolvedIndexName, Settings currentSettings, String action, TransportRequest transportRequest);
-    void logIndexMappingsUpdated(List<String> indexNames, String resolvedIndexName, MappingMetadata currentMapping, String action, TransportRequest transportRequest);
+    void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest);
+    void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest);
+    void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest);
+    void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest);
 
     void logSucceededKibanaLogin(UserInformation effectiveUser);
     void logSucceededKibanaLogout(UserInformation effectiveUser);

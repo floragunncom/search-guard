@@ -25,14 +25,9 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.google.common.collect.Sets;
-import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
-import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -307,38 +302,31 @@ public class DisabledCategoriesTest {
 
 	protected void logIndexTemplateDeleted(AuditLog auditLog) {
 		auditLog.logIndexTemplateDeleted(Collections.singletonList("deleted-template-name"),
-				Sets.newHashSet("deleted-template-name"), "action.index-template-deleted", new TransportRequest.Empty()
+				"action.index-template-deleted", new TransportRequest.Empty()
 		);
 	}
 
 	protected void logIndexCreated(AuditLog auditLog) {
-		Settings settings = Settings.builder()
-				.put(IndexMetadata.INDEX_NUMBER_OF_REPLICAS_SETTING.getKey(), 1)
-				.put(IndexMetadata.INDEX_NUMBER_OF_SHARDS_SETTING.getKey(), 1)
-				.put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), Version.CURRENT)
-				.build();
-		IndexMetadata indexMetadata = new IndexMetadata.Builder("created-index-name").settings(settings).build();
-		auditLog.logIndexCreated("created-index-name", indexMetadata, "action.index-created", new TransportRequest.Empty());
+		auditLog.logIndexCreated("created-index-name", "action.index-created", new TransportRequest.Empty());
 	}
 
 	protected void logIndicesDeleted(AuditLog auditLog) {
 		auditLog.logIndicesDeleted(Collections.singletonList("deleted-index-name"),
-				Sets.newHashSet("deleted-index-name"), "action.index-deleted", new TransportRequest.Empty()
+				"action.index-deleted", new TransportRequest.Empty()
 		);
 	}
 
 	protected void logIndexSettingsUpdated(AuditLog auditLog) {
 		Settings settings = Settings.EMPTY;
 		auditLog.logIndexSettingsUpdated(Collections.singletonList("index-with-updated-settings"),
-				"index-with-updated-settings", settings, "action.index-settings-updated", new TransportRequest.Empty()
+				"index-with-updated-settings", new TransportRequest.Empty()
 		);
 	}
 
 	protected void logIndexMappingsUpdated(AuditLog auditLog) {
 		try {
-			MappingMetadata mappingMetadata = new MappingMetadata("type", ImmutableMap.empty());
 			auditLog.logIndexMappingsUpdated(Collections.singletonList("index-with-updated-mappings"),
-					"index-with-updated-mappings", mappingMetadata, "action.index-mappings-updated", new TransportRequest.Empty()
+					"index-with-updated-mappings", new TransportRequest.Empty()
 			);
 		} catch (Exception e) {
 			throw new RuntimeException(e);

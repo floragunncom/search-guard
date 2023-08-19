@@ -67,7 +67,7 @@ public class AuditLogModule implements SearchGuardModule {
             this.indexingOperationListener = new ComplianceIndexingOperationListenerImpl(this.auditLogConfig, auditLog,
                     baseDependencies.getGuiceDependencies());
             this.complianceIndexTemplateActionFilter = new ComplianceIndexTemplateActionFilter(this.auditLogConfig, this.auditLog, baseDependencies.getClusterService());
-            this.complianceIndexActionFilter = new ComplianceIndexActionFilter(this.auditLogConfig, auditLog, baseDependencies.getClusterService(), baseDependencies.getIndexNameExpressionResolver());
+            this.complianceIndexActionFilter = new ComplianceIndexActionFilter(this.auditLogConfig, auditLog);
         }
 
         return ImmutableList.empty();

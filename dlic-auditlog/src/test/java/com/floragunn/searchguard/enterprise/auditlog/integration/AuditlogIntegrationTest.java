@@ -41,11 +41,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
@@ -188,26 +183,24 @@ public class AuditlogIntegrationTest {
             AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.INDEX_TEMPLATE_WRITE).size() == 1, Duration.ofSeconds(2));
             DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.INDEX_TEMPLATE_WRITE).get(0).toJson());
 
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.CATEGORY), equalTo(AuditMessage.Category.INDEX_TEMPLATE_WRITE.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CATEGORY), equalTo(AuditMessage.Category.INDEX_TEMPLATE_WRITE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.CREATE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.CLUSTER_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.ORIGIN).get(0), equalTo(AuditLog.Origin.REST.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_LAYER).get(0), equalTo(AuditLog.Origin.TRANSPORT.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_BODY).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_ID).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.UTC_TIMESTAMP).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REMOTE_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER).get(0), equalTo(USER.getName()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_NAME).get(0), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
 
             TestAuditlogImpl.clear();
 
@@ -223,22 +216,20 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.UPDATE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.CLUSTER_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.ORIGIN).get(0), equalTo(AuditLog.Origin.REST.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_LAYER).get(0), equalTo(AuditLog.Origin.TRANSPORT.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_BODY).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_ID).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.UTC_TIMESTAMP).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REMOTE_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER).get(0), equalTo(USER.getName()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_NAME).get(0), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
 
             TestAuditlogImpl.clear();
 
@@ -252,21 +243,19 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.DELETE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.CLUSTER_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.ORIGIN).get(0), equalTo(AuditLog.Origin.REST.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_LAYER).get(0), equalTo(AuditLog.Origin.TRANSPORT.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_ID).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.UTC_TIMESTAMP).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REMOTE_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER).get(0), equalTo(USER.getName()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_NAME).get(0), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
         }
     }
 
@@ -289,22 +278,20 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.CREATE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.CLUSTER_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.ORIGIN).get(0), equalTo(AuditLog.Origin.REST.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_LAYER).get(0), equalTo(AuditLog.Origin.TRANSPORT.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_BODY).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_ID).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.UTC_TIMESTAMP).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REMOTE_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER).get(0), equalTo(USER.getName()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_NAME).get(0), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
 
             TestAuditlogImpl.clear();
 
@@ -320,22 +307,20 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.UPDATE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.CLUSTER_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.ORIGIN).get(0), equalTo(AuditLog.Origin.REST.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_LAYER).get(0), equalTo(AuditLog.Origin.TRANSPORT.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_BODY).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_ID).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.UTC_TIMESTAMP).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REMOTE_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER).get(0), equalTo(USER.getName()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_NAME).get(0), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
 
             TestAuditlogImpl.clear();
 
@@ -349,21 +334,19 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.DELETE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDEX_TEMPLATES).get(0), equalTo(templateName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.CLUSTER_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_NAME).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.ORIGIN).get(0), equalTo(AuditLog.Origin.REST.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_LAYER).get(0), equalTo(AuditLog.Origin.TRANSPORT.name()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_ID).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.UTC_TIMESTAMP).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REMOTE_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_ADDRESS).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER).get(0), equalTo(USER.getName()));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.FORMAT_VERSION).get(0), notNullValue());
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.NODE_HOST_NAME).get(0), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
         }
     }
 
@@ -473,8 +456,7 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.CREATE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexName));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES).get(0), equalTo(indexName));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
@@ -514,8 +496,7 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.CREATE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexNameWithDateMath));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES).get(0), equalTo(resolvedIndexNameWithDateMath));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
@@ -556,7 +537,6 @@ public class AuditlogIntegrationTest {
             String indexPrefix = "test-index-delete";
             String indexName = indexPrefix + "-1";
             String indexNameWithDateMath = "<" + indexPrefix + "{now{yyyy|UTC}}>";
-            String resolvedIndexNameWithDateMath = indexPrefix + DateTimeFormatter.ofPattern("yyyy").format(ZonedDateTime.now(ZoneOffset.UTC));
 
             for(String index : Arrays.asList(indexName, indexNameWithDateMath)) {
                 GenericRestClient.HttpResponse response = restClient.put("/" + URLEncoder.encode(index, StandardCharsets.UTF_8.toString()));
@@ -577,8 +557,7 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.DELETE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexToRemove));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), hasSize(2));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), containsInAnyOrder(indexName, resolvedIndexNameWithDateMath));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
@@ -641,37 +620,29 @@ public class AuditlogIntegrationTest {
             GenericRestClient.HttpResponse response = restClient.putJson("/" + indexNamePrefixWithWildcard + "/_settings", settings);
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
-            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).size() == 2, Duration.ofSeconds(2));
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).size() == 1, Duration.ofSeconds(2));
 
-            assertThat(
-                    String.format("Audit logs %s contains settings of indices: %s, %s", TestAuditlogImpl.sb.toString(), firstIndexName, secondIndexName),
-                    TestAuditlogImpl.sb.toString(), allOf(containsString(firstIndexName), containsString(secondIndexName))
-            );
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).get(0).toJson());
 
-            for (AuditMessage msg : getMessagesByCategory(AuditMessage.Category.INDEX_WRITE)) {
-                DocNode auditMessage = DocNode.parse(Format.JSON).from(msg.toJson());
-
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CATEGORY), equalTo(AuditMessage.Category.INDEX_WRITE.name()));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.UPDATE.name()));
-                assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES), hasSize(1));
-                assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexNamePrefixWithWildcard));
-                assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), hasSize(1));
-                assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), anyOf(contains(firstIndexName), contains(secondIndexName)));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_VERSION), notNullValue());
-            }
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CATEGORY), equalTo(AuditMessage.Category.INDEX_WRITE.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.UPDATE.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES), hasSize(1));
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexNamePrefixWithWildcard));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_VERSION), notNullValue());
 
             TestAuditlogImpl.clear();
 
@@ -683,14 +654,13 @@ public class AuditlogIntegrationTest {
 
             AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).size() == 1, Duration.ofSeconds(2));
 
-            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).get(0).toJson());
+            auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).get(0).toJson());
 
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CATEGORY), equalTo(AuditMessage.Category.INDEX_WRITE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.UPDATE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(anotherIndex));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), containsInAnyOrder(anotherIndex));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
@@ -785,37 +755,29 @@ public class AuditlogIntegrationTest {
             GenericRestClient.HttpResponse response = restClient.putJson("/" + indexNamePrefixWithWildcard + "/_mappings", mappings);
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
-            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).size() == 2, Duration.ofSeconds(2));
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).size() == 1, Duration.ofSeconds(2));
 
-            assertThat(
-                    String.format("Audit logs %s contains mappings of indices: %s, %s", TestAuditlogImpl.sb.toString(), firstIndexName, secondIndexName),
-                    TestAuditlogImpl.sb.toString(), allOf(containsString(firstIndexName), containsString(secondIndexName))
-            );
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).get(0).toJson());
 
-            for (AuditMessage msg : getMessagesByCategory(AuditMessage.Category.INDEX_WRITE)) {
-                DocNode auditMessage = DocNode.parse(Format.JSON).from(msg.toJson());
-
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CATEGORY), equalTo(AuditMessage.Category.INDEX_WRITE.name()));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.UPDATE.name()));
-                assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES), hasSize(1));
-                assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexNamePrefixWithWildcard));
-                assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), hasSize(1));
-                assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), anyOf(contains(firstIndexName), contains(secondIndexName)));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
-                assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_VERSION), notNullValue());
-            }
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CATEGORY), equalTo(AuditMessage.Category.INDEX_WRITE.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.UPDATE.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES), hasSize(1));
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexNamePrefixWithWildcard));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_LAYER), equalTo(AuditLog.Origin.TRANSPORT.name()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_ID), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.UTC_TIMESTAMP), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.FORMAT_VERSION), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REMOTE_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_ADDRESS), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER), equalTo(USER.getName()));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_HOST_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_VERSION), notNullValue());
 
             TestAuditlogImpl.clear();
 
@@ -827,13 +789,12 @@ public class AuditlogIntegrationTest {
 
             AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).size() == 1, Duration.ofSeconds(2));
 
-            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).get(0).toJson());
+            auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).get(0).toJson());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CATEGORY), equalTo(AuditMessage.Category.INDEX_WRITE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.COMPLIANCE_OPERATION), equalTo(AuditLog.Operation.UPDATE.name()));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES), hasSize(1));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(anotherIndex));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), hasSize(1));
-            assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.RESOLVED_INDICES), containsInAnyOrder(anotherIndex));
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());

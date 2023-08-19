@@ -87,8 +87,6 @@ public final class AuditMessage {
     public static final String INDEX_TEMPLATES = "audit_trace_index_templates";
     public static final String SHARD_ID = "audit_trace_shard_id";
     public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
-    public static final String RESOLVED_INDEX_TEMPLATES = "audit_trace_resolved_index_templates";
-
     public static final String EXCEPTION = "audit_request_exception_stacktrace";
     public static final String IS_ADMIN_DN = "audit_request_effective_user_is_admin";
     public static final String PRIVILEGE = "audit_request_privilege";
@@ -379,12 +377,6 @@ public final class AuditMessage {
     public void addIndexTemplates(String[] indexTemplates) {
         if (indexTemplates != null && indexTemplates.length > 0) {
             auditInfo.put(INDEX_TEMPLATES, indexTemplates);
-        }
-    }
-
-    public void addResolvedIndexTemplates(String[] resolvedIndexTemplates) {
-        if (resolvedIndexTemplates != null && resolvedIndexTemplates.length > 0) {
-            auditInfo.put(RESOLVED_INDEX_TEMPLATES, resolvedIndexTemplates);
         }
     }
 

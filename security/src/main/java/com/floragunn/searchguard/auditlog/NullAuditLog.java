@@ -21,12 +21,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
-import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
@@ -147,27 +144,27 @@ public class NullAuditLog implements AuditLog {
     }
 
     @Override
-    public void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames, String action, TransportRequest transportRequest) {
+    public void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logIndexCreated(String unresolvedIndexName, IndexMetadata indexMetadata, String action, TransportRequest transportRequest) {
+    public void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logIndicesDeleted(List<String> indexNames, Set<String> resolvedIndexNames, String action, TransportRequest transportRequest) {
+    public void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logIndexSettingsUpdated(List<String> indexNames, String resolvedIndexName, Settings currentSettings, String action, TransportRequest transportRequest) {
+    public void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logIndexMappingsUpdated(List<String> indexNames, String resolvedIndexName, MappingMetadata currentMapping, String action, TransportRequest transportRequest) {
+    public void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
         //noop, intentionally left empty
     }
 

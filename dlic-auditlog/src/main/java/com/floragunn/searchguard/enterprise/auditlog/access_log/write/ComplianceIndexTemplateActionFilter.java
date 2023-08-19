@@ -30,15 +30,12 @@ import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class ComplianceIndexTemplateActionFilter implements ActionFilter {
 
@@ -91,28 +88,6 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
 
     private IndexTemplateMetadata getLegacyIndexTemplateCurrentState(String indexTemplateName) {
         return clusterService.state().metadata().templates().get(indexTemplateName);
-    }
-
-    private Set<String> resolveComposableTemplateNames(List<String> templateNames) {
-        Set<String> existingTemplates = clusterService.state().metadata().templatesV2().keySet();
-        if (templateNames.size() > 1) {
-            return templateNames.stream().filter(existingTemplates::contains).collect(Collectors.toSet());
-        } else {
-            String name = templateNames.get(0);
-            if (Regex.isMatchAllPattern(name)) {
-                return existingTemplates;
-            } else {
-                return existingTemplates.stream().filter(existing -> Regex.simpleMatch(name, existing)).collect(Collectors.toSet());
-            }
-        }
-    }
-
-    private Set<String> resolveLegacyTemplateNames(String templateName) {
-        Set<String> existingTemplates = clusterService.state().metadata().templates().keySet();
-        if (Regex.isMatchAllPattern(templateName)) {
-            return existingTemplates;
-        }
-        return existingTemplates.stream().filter(existing -> Regex.simpleMatch(templateName, existing)).collect(Collectors.toSet());
     }
 
     private class PutIndexTemplateListenerWrapper<Response> implements ActionListener<Response> {
@@ -174,7 +149,6 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
 
         private final String action;
         private final List<String> templateNames;
-        private final Set<String> resolvedTemplateNames;
         private final TransportRequest request;
         private final ActionListener<Response> originalListener;
 
@@ -182,7 +156,6 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
                                                    ActionListener<Response> originalListener) {
             this.action = action;
             this.templateNames = Arrays.asList(request.names());
-            this.resolvedTemplateNames = resolveComposableTemplateNames(templateNames);
             this.request = request;
             this.originalListener = originalListener;
         }
@@ -191,7 +164,6 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
                                                    ActionListener<Response> originalListener) {
             this.action = action;
             this.templateNames = Collections.singletonList(request.name());
-            this.resolvedTemplateNames = resolveLegacyTemplateNames(request.name());
             this.request = request;
             this.originalListener = originalListener;
         }
@@ -199,10 +171,10 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
         @Override
         public void onResponse(Response response) {
             try {
-                auditLog.logIndexTemplateDeleted(templateNames, resolvedTemplateNames, action, request);
+                auditLog.logIndexTemplateDeleted(templateNames, action, request);
                 originalListener.onResponse(response);
             } catch (Exception e) {
-                log.debug("An error occurred while logging index templates '{}' deleted audit message", resolvedTemplateNames, e);
+                log.debug("An error occurred while logging index templates '{}' deleted audit message", templateNames, e);
                 originalListener.onResponse(response);
             }
         }

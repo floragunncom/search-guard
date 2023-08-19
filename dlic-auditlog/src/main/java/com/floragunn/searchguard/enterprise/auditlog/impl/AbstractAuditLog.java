@@ -42,7 +42,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
@@ -56,10 +55,8 @@ import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
-import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -878,7 +875,6 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndexTemplates(new String[] { templateName });
-        msg.addResolvedIndexTemplates(new String[] { templateName });
         msg.addComplianceIndexTemplateVersion(currentTemplate.version());
         msg.addComplianceOperation(originalTemplate == null ? Operation.CREATE : Operation.UPDATE);
 
@@ -912,7 +908,6 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndexTemplates(new String[] { templateName });
-        msg.addResolvedIndexTemplates(new String[] { templateName });
         msg.addComplianceIndexTemplateVersion(currentTemplate.getVersion() != null? Long.valueOf(currentTemplate.getVersion()) : null);
         msg.addComplianceOperation(originalTemplate == null ? Operation.CREATE : Operation.UPDATE);
 
@@ -929,8 +924,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames,
-                                        String action, TransportRequest transportRequest) {
+    public void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest) {
         UserInformation effectiveUser = getUser();
 
         Category category = Category.INDEX_TEMPLATE_WRITE;
@@ -944,20 +938,13 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndexTemplates(templateNames.toArray(new String[] {}));
-        msg.addResolvedIndexTemplates(resolvedTemplateNames.toArray(new String[] {}));
         msg.addComplianceOperation(Operation.DELETE);
 
         save(msg);
     }
 
     @Override
-    public void logIndexCreated(String unresolvedIndexName, IndexMetadata indexMetadata,
-                                String action, TransportRequest transportRequest) {
-        if (indexMetadata == null) {
-            log.error("Unable to log created index. Current index is null.");
-            return;
-        }
-
+    public void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest) {
         Category category = Category.INDEX_WRITE;
 
         UserInformation effectiveUser = getUser();
@@ -971,11 +958,10 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndices(new String[] { unresolvedIndexName });
-        msg.addResolvedIndices(new String[] { indexMetadata.getIndex().getName() });
         msg.addComplianceOperation(Operation.CREATE);
 
         try {
-            msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, XContentHelper.toXContent(indexMetadata, XContentType.JSON, false)));
+            addRequestContentToMessageIfPossible(msg, transportRequest);
         } catch (Exception e) {
             log.error("Unable to parse current index source", e);
         }
@@ -984,8 +970,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logIndicesDeleted(List<String> indexNames, Set<String> resolvedIndexNames,
-                                  String action, TransportRequest transportRequest) {
+    public void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest) {
         UserInformation effectiveUser = getUser();
 
         Category category = Category.INDEX_WRITE;
@@ -999,20 +984,13 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndices(indexNames.toArray(new String[] {}));
-        msg.addResolvedIndices(resolvedIndexNames.toArray(new String[] {}));
         msg.addComplianceOperation(Operation.DELETE);
 
         save(msg);
     }
 
     @Override
-    public void logIndexSettingsUpdated(List<String> indexNames, String resolvedIndexName, Settings currentSettings,
-                                        String action, TransportRequest transportRequest) {
-        if (currentSettings == null) {
-            log.error("Unable to log updated index settings. Current index settings are null.");
-            return;
-        }
-
+    public void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
         Category category = Category.INDEX_WRITE;
 
         UserInformation effectiveUser = getUser();
@@ -1026,14 +1004,10 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndices(indexNames.toArray(new String[] {}));
-        msg.addResolvedIndices(new String[] { resolvedIndexName });
         msg.addComplianceOperation(Operation.UPDATE);
 
-        try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
-            builder.startObject();
-            currentSettings.toXContent(builder, ToXContent.EMPTY_PARAMS);
-            builder.endObject();
-            msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, BytesReference.bytes(builder)));
+        try {
+            addRequestContentToMessageIfPossible(msg, transportRequest);
         } catch (Exception e) {
             log.error("Unable to parse current index settings source", e);
         }
@@ -1042,12 +1016,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logIndexMappingsUpdated(List<String> indexNames, String resolvedIndexName, MappingMetadata currentMapping,
-                                        String action, TransportRequest transportRequest) {
-        if (currentMapping == null) {
-            log.error("Unable to log updated index mappings. Current index mappings are null.");
-            return;
-        }
+    public void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
 
         Category category = Category.INDEX_WRITE;
 
@@ -1062,11 +1031,10 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndices(indexNames.toArray(new String[] {}));
-        msg.addResolvedIndices(new String[] { resolvedIndexName });
         msg.addComplianceOperation(Operation.UPDATE);
 
         try {
-            msg.addMapToRequestBody(currentMapping.getSourceAsMap());
+            addRequestContentToMessageIfPossible(msg, transportRequest);
         } catch (Exception e) {
             log.error("Unable to parse current index mappings source", e);
         }
@@ -1281,6 +1249,15 @@ public abstract class AbstractAuditLog implements AuditLog {
         //check category enabled
         //check action
         //check ignoreAuditUsers
+    }
+
+    protected void addRequestContentToMessageIfPossible(AuditMessage msg, TransportRequest transportRequest) throws IOException {
+        if (transportRequest instanceof  ToXContent) {
+            msg.addTupleToRequestBody(new Tuple<>(
+                    XContentType.JSON,
+                    XContentHelper.toXContent(((ToXContent) transportRequest), XContentType.JSON, false)
+            ));
+        }
     }
 
     protected abstract void save(final AuditMessage msg);

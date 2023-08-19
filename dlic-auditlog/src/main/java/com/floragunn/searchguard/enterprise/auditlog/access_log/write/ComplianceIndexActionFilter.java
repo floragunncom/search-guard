@@ -27,36 +27,21 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.metadata.MappingMetadata;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 public class ComplianceIndexActionFilter implements ActionFilter {
 
     private static final Logger log = LogManager.getLogger(ComplianceIndexActionFilter.class);
     private final AuditLogConfig auditLogConfig;
     private final AuditLog auditLog;
-    private final ClusterService clusterService;
-    private final IndexNameExpressionResolver indexNameExpressionResolver;
 
-    public ComplianceIndexActionFilter(
-            AuditLogConfig auditLogConfig, AuditLog auditLog,
-            ClusterService clusterService, IndexNameExpressionResolver indexNameExpressionResolver) {
+    public ComplianceIndexActionFilter(AuditLogConfig auditLogConfig, AuditLog auditLog) {
         this.auditLogConfig = auditLogConfig;
         this.auditLog = auditLog;
-        this.clusterService = clusterService;
-        this.indexNameExpressionResolver = indexNameExpressionResolver;
     }
 
     @Override
@@ -90,30 +75,6 @@ public class ComplianceIndexActionFilter implements ActionFilter {
         return auditLogConfig.isEnabled() && !task.getParentTaskId().isSet();
     }
 
-    private IndexMetadata getIndexCurrentState(String indexName) {
-        return clusterService.state().metadata().indices().get(indexName);
-    }
-
-    private Map<String, Settings> getIndicesCurrentSettings(Set<String> indexNames) {
-        Map<String, Settings> indicesSettings = new HashMap<>();
-        indexNames.forEach(index -> {
-            IndexMetadata indexMetadata = getIndexCurrentState(index);
-            Settings settings = indexMetadata != null? indexMetadata.getSettings() : null;
-            indicesSettings.put(index, settings);
-        });
-        return indicesSettings;
-    }
-
-    private Map<String, MappingMetadata> getIndicesCurrentMappings(Set<String> indexNames) {
-        Map<String, MappingMetadata> indicesMappings = new HashMap<>();
-        indexNames.forEach(index -> {
-            IndexMetadata indexMetadata = getIndexCurrentState(index);
-            MappingMetadata mapping = indexMetadata != null? indexMetadata.mapping() : null;
-            indicesMappings.put(index, mapping);
-        });
-        return indicesMappings;
-    }
-
     private class CreateIndexListenerWrapper<Response> implements ActionListener<Response> {
 
         private final String action;
@@ -131,9 +92,7 @@ public class ComplianceIndexActionFilter implements ActionFilter {
         @Override
         public void onResponse(Response response) {
             try {
-                final String resolvedIndexName = indexNameExpressionResolver.resolveDateMathExpression(this.indexName);
-                final IndexMetadata currentIndexState = getIndexCurrentState(resolvedIndexName);
-                auditLog.logIndexCreated(indexName, currentIndexState, action, request);
+                auditLog.logIndexCreated(indexName, action, request);
                 originalListener.onResponse(response);
             } catch (Exception e) {
                 log.debug("An error occurred while logging index '{}' created audit message", indexName, e);
@@ -151,14 +110,12 @@ public class ComplianceIndexActionFilter implements ActionFilter {
 
         private final String action;
         private final List<String> indexNames;
-        private final Set<String> resolvedIndexNames;
         private final DeleteIndexRequest request;
         private final ActionListener<Response> originalListener;
 
         private DeleteIndexListenerWrapper(String action, DeleteIndexRequest request, ActionListener<Response> originalListener) {
             this.action = action;
             this.indexNames = Arrays.asList(request.indices());
-            this.resolvedIndexNames = new HashSet<>(Arrays.asList(indexNameExpressionResolver.concreteIndexNames(clusterService.state(), request)));
             this.request = request;
             this.originalListener = originalListener;
         }
@@ -166,10 +123,10 @@ public class ComplianceIndexActionFilter implements ActionFilter {
         @Override
         public void onResponse(Response response) {
             try {
-                auditLog.logIndicesDeleted(indexNames, resolvedIndexNames, action, request);
+                auditLog.logIndicesDeleted(indexNames, action, request);
                 originalListener.onResponse(response);
             } catch (Exception e) {
-                log.debug("An error occurred while logging indices {} deleted audit message", resolvedIndexNames, e);
+                log.debug("An error occurred while logging indices {} deleted audit message", indexNames, e);
                 originalListener.onResponse(response);
             }
         }
@@ -184,8 +141,7 @@ public class ComplianceIndexActionFilter implements ActionFilter {
 
         private final String action;
         private final List<String> indexNames;
-        private final  Set<String> resolvedIndexNames;
-        private final  UpdateSettingsRequest request;
+        private final UpdateSettingsRequest request;
         private final ActionListener<Response> originalListener;
 
         private UpdateIndexSettingsListenerWrapper(String action, UpdateSettingsRequest request, ActionListener<Response> originalListener) {
@@ -193,24 +149,15 @@ public class ComplianceIndexActionFilter implements ActionFilter {
             this.indexNames = Arrays.asList(request.indices());
             this.request = request;
             this.originalListener = originalListener;
-            this.resolvedIndexNames = new HashSet<>(Arrays.asList(indexNameExpressionResolver.concreteIndexNames(clusterService.state(), request)));
         }
 
         @Override
         public void onResponse(Response response) {
             try {
-                final Map<String, Settings> currentIndicesSettings = getIndicesCurrentSettings(resolvedIndexNames);
-                for(String indexName : resolvedIndexNames) {
-                    try {
-                        Settings currentSettings = currentIndicesSettings.get(indexName);
-                        auditLog.logIndexSettingsUpdated(indexNames, indexName, currentSettings, action, request);
-                    } catch (Exception e) {
-                        log.debug("An error occurred while logging index '{}' settings updated audit message", indexName, e);
-                    }
-                }
+                auditLog.logIndexSettingsUpdated(indexNames, action, request);
                 originalListener.onResponse(response);
             } catch (Exception e) {
-                log.debug("An error occurred while logging indices {} settings updated audit messages", resolvedIndexNames, e);
+                log.debug("An error occurred while logging indices {} settings updated audit messages", indexNames, e);
                 originalListener.onResponse(response);
             }
         }
@@ -225,7 +172,6 @@ public class ComplianceIndexActionFilter implements ActionFilter {
 
         private final String action;
         private final List<String> indexNames;
-        private final Set<String> resolvedIndexNames;
         private final PutMappingRequest request;
         private final ActionListener<Response> originalListener;
 
@@ -234,26 +180,15 @@ public class ComplianceIndexActionFilter implements ActionFilter {
             this.indexNames = getIndexNames(request);
             this.request = request;
             this.originalListener = originalListener;
-            this.resolvedIndexNames = PutMappingRequestIndicesResolver.resolveIndexNames(
-                    request, indexNameExpressionResolver, clusterService.state()
-            );
         }
 
         @Override
         public void onResponse(Response response) {
             try {
-                final Map<String, MappingMetadata> currentIndicesMappings = getIndicesCurrentMappings(resolvedIndexNames);
-                for(String indexName : resolvedIndexNames) {
-                    try {
-                        MappingMetadata currentMapping = currentIndicesMappings.get(indexName);
-                        auditLog.logIndexMappingsUpdated(indexNames, indexName, currentMapping, action, request);
-                    } catch (Exception e) {
-                        log.debug("An error occurred while logging index '{}' mappings updated audit message", indexName, e);
-                    }
-                }
+                auditLog.logIndexMappingsUpdated(indexNames, action, request);
                 originalListener.onResponse(response);
             } catch (Exception e) {
-                log.debug("An error occurred while logging indices {} mappings updated audit messages", resolvedIndexNames, e);
+                log.debug("An error occurred while logging indices {} mappings updated audit messages", indexNames, e);
                 originalListener.onResponse(response);
             }
 
