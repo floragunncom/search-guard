@@ -408,7 +408,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     private void waitForSignalsInitialization() {
         if (!nodeOverride.getAsList(SearchGuardModulesRegistry.DISABLED_MODULES.getKey()).contains("com.floragunn.signals.SignalsModule")) {
             Awaitility.await()
-                    .atMost(Duration.ofSeconds(10))
+                    .atMost(Duration.ofSeconds(60))
                     .pollInterval(Duration.ofMillis(25))
                     .untilAsserted(() -> {
                         SearchGuardModulesRegistry modulesRegistry = getInjectable(SearchGuardModulesRegistry.class);
