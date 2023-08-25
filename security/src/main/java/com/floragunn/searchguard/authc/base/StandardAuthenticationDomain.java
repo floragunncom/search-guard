@@ -23,6 +23,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.NoSuchComponentException;
 import com.floragunn.searchguard.TypedComponentRegistry;
@@ -168,71 +169,89 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
             MetricsLevel metricsLevel) throws ConfigValidationException {
         TypedComponentRegistry typedComponentRegistry = context.modulesRegistry().getTypedComponentRegistry();
 
-        String id = vNode.get("id").asString();
-        String description = vNode.get("description").asString();
-        boolean enabled = vNode.get("enabled").withDefault(true).asBoolean();
-        int order = vNode.get("order").withDefault(0).asInt();
-        AcceptanceRules acceptanceRules = new AcceptanceRules(vNode.get("accept").by(AcceptanceRules.Criteria::parse),
-                vNode.get("skip").by(AcceptanceRules.Criteria::parse));
-        UserMapping userMapping = vNode.get("user_mapping").by(UserMapping::parse);
-
-        String type = vNode.get("type").required().asString();
-
+        String id = null;
+        String description = null;
+        boolean enabled = true;
+        int order = 0;
+        AcceptanceRules acceptanceRules = null;
+        UserMapping userMapping = null;
+        String type = null;
         AuthenticatorType authenticator = null;
         AuthenticationBackend authenticationBackend = AuthenticationBackend.NOOP;
         ImmutableList<UserInformationBackend> additionalUserInformationBackends = ImmutableList.empty();
 
-        if (type != null) {
-            String authenticatorSubType;
-            String backendType;
+        try {
+            id = vNode.get("id").asString();
+            description = vNode.get("description").asString();
+            enabled = vNode.get("enabled").withDefault(enabled).asBoolean();
+            order = vNode.get("order").withDefault(order).asInt();
+            acceptanceRules = new AcceptanceRules(vNode.get("accept").by(AcceptanceRules.Criteria::parse),
+                    vNode.get("skip").by(AcceptanceRules.Criteria::parse));
+            userMapping = vNode.get("user_mapping").by(UserMapping::parse);
 
-            int slash = type.indexOf('/');
+            type = vNode.get("type").required().asString();
 
-            if (slash == -1) {
-                authenticatorSubType = type;
-                backendType = null;
-            } else {
-                authenticatorSubType = type.substring(0, slash);
-                backendType = type.substring(slash + 1);
-            }
+            if (type != null) {
+                String authenticatorSubType;
+                String backendType;
 
-            try {
-                authenticator = typedComponentRegistry.create(authenticatorType, authenticatorSubType,
-                        vNode.getDocumentNode().getAsNode(authenticatorSubType), context);
-            } catch (ConfigValidationException e) {
-                validationErrors.add(authenticatorSubType, e);
-            } catch (NoSuchComponentException e) {
-                validationErrors.add(
-                        new InvalidAttributeValue("type", type, e.getAvailableTypesAsInfoString()).message("Unknown authentication frontend")
-                                .cause(e));
-            }
+                int slash = type.indexOf('/');
 
-            if (backendType != null) {
+                if (slash == -1) {
+                    authenticatorSubType = type;
+                    backendType = null;
+                } else {
+                    authenticatorSubType = type.substring(0, slash);
+                    backendType = type.substring(slash + 1);
+                }
+
                 try {
-                    authenticationBackend = typedComponentRegistry.create(AuthenticationBackend.class, backendType,
-                            vNode.getDocumentNode().getAsNode(backendType), context);
+                    authenticator = typedComponentRegistry.create(authenticatorType, authenticatorSubType,
+                            vNode.getDocumentNode().getAsNode(authenticatorSubType), context);
                 } catch (ConfigValidationException e) {
-                    validationErrors.add(backendType, e);
+                    validationErrors.add(authenticatorSubType, e);
                 } catch (NoSuchComponentException e) {
                     validationErrors.add(
-                            new InvalidAttributeValue("type", type, e.getAvailableTypesAsInfoString()).message("Unknown authentication backend")
+                            new InvalidAttributeValue("type", type, e.getAvailableTypesAsInfoString()).message("Unknown authentication frontend")
                                     .cause(e));
                 }
+
+                if (backendType != null) {
+                    try {
+                        authenticationBackend = typedComponentRegistry.create(AuthenticationBackend.class, backendType,
+                                vNode.getDocumentNode().getAsNode(backendType), context);
+                    } catch (ConfigValidationException e) {
+                        validationErrors.add(backendType, e);
+                    } catch (NoSuchComponentException e) {
+                        validationErrors.add(
+                                new InvalidAttributeValue("type", type, e.getAvailableTypesAsInfoString()).message("Unknown authentication backend")
+                                        .cause(e));
+                    }
+                }
+            }
+
+            if (id == null) {
+                id = Hashing.sha256().hashString(vNode.getDocumentNode().toJsonString(), StandardCharsets.UTF_8).toString().substring(0, 8);
+            }
+
+            if (vNode.hasNonNull("additional_user_information")) {
+                try {
+                    additionalUserInformationBackends = parseAdditionalUserInformationBackends(
+                            vNode.getDocumentNode().getAsListOfNodes("additional_user_information"), context);
+                } catch (ConfigValidationException e) {
+                    validationErrors.add("additional_user_information", e);
+                }
+            }
+        } catch (Exception e) { //handle all unknown exceptions
+            if (e instanceof ConfigValidationException) {
+                throw e;
+            } else {
+                validationErrors.add(new ValidationError(
+                        null, String.format("Failed to parse config due to exception: %s - %s", e.getClass().getName(), e.getMessage())).cause(e)
+                );
             }
         }
 
-        if (id == null) {
-            id = Hashing.sha256().hashString(vNode.getDocumentNode().toJsonString(), StandardCharsets.UTF_8).toString().substring(0, 8);
-        }
-
-        if (vNode.hasNonNull("additional_user_information")) {
-            try {
-                additionalUserInformationBackends = parseAdditionalUserInformationBackends(
-                        vNode.getDocumentNode().getAsListOfNodes("additional_user_information"), context);
-            } catch (ConfigValidationException e) {
-                validationErrors.add("additional_user_information", e);
-            }
-        }
 
         validationErrors.throwExceptionForPresentErrors();
 

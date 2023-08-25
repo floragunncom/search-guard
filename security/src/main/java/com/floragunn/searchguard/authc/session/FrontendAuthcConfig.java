@@ -140,21 +140,31 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
             ValidatingDocNode vNode = new ValidatingDocNode(documentNode, validationErrors);
 
             FrontendAuthenticationDomain result = new FrontendAuthenticationDomain();
-            result.parsedJson = documentNode.toMap();
-            result.type = vNode.get("type").required().asString();
-            result.label = vNode.get("label").withDefault(result.type).asString();
-            result.enabled = vNode.get("enabled").withDefault(true).asBoolean();
-            result.message = vNode.get("message").asString();
-            result.captureUrlFragment = vNode.get("capture_url_fragment").withDefault(false).asBoolean();
-            result.autoSelect = vNode.get("auto_select").withDefault(false).asBoolean();
+            try {
+                result.parsedJson = documentNode.toMap();
+                result.type = vNode.get("type").required().asString();
+                result.label = vNode.get("label").withDefault(result.type).asString();
+                result.enabled = vNode.get("enabled").withDefault(true).asBoolean();
+                result.message = vNode.get("message").asString();
+                result.captureUrlFragment = vNode.get("capture_url_fragment").withDefault(false).asBoolean();
+                result.autoSelect = vNode.get("auto_select").withDefault(false).asBoolean();
 
-            if ("basic".equals(result.type)) {
-                if (result.message == null) {
-                    result.message = DEFAULT_BASIC_AUTHC.getMessage();
+                if ("basic".equals(result.type)) {
+                    if (result.message == null) {
+                        result.message = DEFAULT_BASIC_AUTHC.getMessage();
+                    }
+                } else if (context != null && result.enabled) {
+                    result.authenticationDomain = StandardAuthenticationDomain.parse(vNode, validationErrors, ApiAuthenticationFrontend.class, context,
+                            metricsLevel);
                 }
-            } else if (context != null && result.enabled) {
-                result.authenticationDomain = StandardAuthenticationDomain.parse(vNode, validationErrors, ApiAuthenticationFrontend.class, context,
-                        metricsLevel);
+            } catch (Exception e) { //handle all unknown exceptions
+                if (e instanceof ConfigValidationException) {
+                    throw e;
+                } else {
+                    validationErrors.add(new ValidationError(
+                            null, String.format("Failed to parse config due to exception: %s - %s", e.getClass().getName(), e.getMessage())).cause(e)
+                    );
+                }
             }
 
             validationErrors.throwExceptionForPresentErrors();
