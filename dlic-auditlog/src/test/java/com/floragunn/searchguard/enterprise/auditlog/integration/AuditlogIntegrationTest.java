@@ -32,9 +32,6 @@ import org.junit.Test;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -444,9 +442,15 @@ public class AuditlogIntegrationTest {
 
             String indexPrefix = "test-index-simple-name";
             String indexName = indexPrefix + "-1";
-            DocNode settings = DocNode.of("settings", DocNode.of("index", DocNode.of("number_of_shards", 3, "number_of_replicas", 2)));
+            DocNode settings = DocNode.of("index", DocNode.of("number_of_shards", 3, "number_of_replicas", 2));
+            DocNode aliases = DocNode.of(
+                    "alias1", DocNode.EMPTY,
+                    "alias2", DocNode.of("filter", DocNode.of("term", DocNode.of("doc", "1")), "index_routing", "shard1")
+            );
+            DocNode mappings = DocNode.of("properties", DocNode.of("field1", DocNode.of("type", "text")));
+            DocNode reqBody = DocNode.of("settings", settings, "aliases", aliases, "mappings", mappings);
 
-            GenericRestClient.HttpResponse response = restClient.putJson("/" + indexName, settings);
+            GenericRestClient.HttpResponse response = restClient.putJson("/" + indexName, reqBody);
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.INDEX_WRITE).size() == 1, Duration.ofSeconds(2));
@@ -458,6 +462,15 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexName));
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+
+            DocNode msgReqBodyField = DocNode.parse(Format.JSON).from(auditMessage.getAsString(AuditMessage.REQUEST_BODY));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("index"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("settings"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("mappings"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("aliases"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("cause"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("origin"));
+
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
@@ -484,7 +497,6 @@ public class AuditlogIntegrationTest {
             String indexPrefix = "test-index-date-math-name";
             DocNode settings = DocNode.of("settings", DocNode.of("index", DocNode.of("number_of_shards", 3, "number_of_replicas", 2)));
             String indexNameWithDateMath = "<" + indexPrefix + "{now{yyyy|UTC}}>";
-            String resolvedIndexNameWithDateMath = indexPrefix + DateTimeFormatter.ofPattern("yyyy").format(ZonedDateTime.now(ZoneOffset.UTC));
 
             GenericRestClient.HttpResponse response = restClient.putJson("/" + URLEncoder.encode(indexNameWithDateMath, StandardCharsets.UTF_8.toString()), settings);
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
@@ -498,6 +510,16 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexNameWithDateMath));
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+
+            DocNode msgReqBodyField = DocNode.parse(Format.JSON).from(auditMessage.getAsString(AuditMessage.REQUEST_BODY));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("index"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("settings"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("mappings"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("aliases"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("cause"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("origin"));
+
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
@@ -630,6 +652,14 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexNamePrefixWithWildcard));
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+
+            DocNode msgReqBodyField = DocNode.parse(Format.JSON).from(auditMessage.getAsString(AuditMessage.REQUEST_BODY));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("indices"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("settings"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("preserve_existing"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("origin"));
+
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
@@ -662,6 +692,14 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(anotherIndex));
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+
+            msgReqBodyField = DocNode.parse(Format.JSON).from(auditMessage.getAsString(AuditMessage.REQUEST_BODY));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("indices"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("settings"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("preserve_existing"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("origin"));
+
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
@@ -765,6 +803,14 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.getAsListOfStrings(AuditMessage.INDICES).get(0), equalTo(indexNamePrefixWithWildcard));
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.RESOLVED_INDICES), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.REQUEST_BODY), notNullValue());
+
+            DocNode msgReqBodyField = DocNode.parse(Format.JSON).from(auditMessage.getAsString(AuditMessage.REQUEST_BODY));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("indices"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("source"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("write_index_only"));
+            assertThat(auditMessage.toJsonString(), msgReqBodyField, hasKey("origin"));
+
+            assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.CLUSTER_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.NODE_NAME), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.get(AuditMessage.ORIGIN), equalTo(AuditLog.Origin.REST.name()));
