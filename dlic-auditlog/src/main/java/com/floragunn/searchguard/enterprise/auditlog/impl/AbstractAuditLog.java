@@ -46,6 +46,9 @@ import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -961,7 +964,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addComplianceOperation(Operation.CREATE);
 
         try {
-            addRequestContentToMessageIfPossible(msg, transportRequest);
+            msg.addUnescapedJsonToRequestBody(serializeRequestContent(transportRequest));
         } catch (Exception e) {
             log.error("Unable to parse current index source", e);
         }
@@ -1007,7 +1010,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addComplianceOperation(Operation.UPDATE);
 
         try {
-            addRequestContentToMessageIfPossible(msg, transportRequest);
+            msg.addUnescapedJsonToRequestBody(serializeRequestContent(transportRequest));
         } catch (Exception e) {
             log.error("Unable to parse current index settings source", e);
         }
@@ -1034,7 +1037,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addComplianceOperation(Operation.UPDATE);
 
         try {
-            addRequestContentToMessageIfPossible(msg, transportRequest);
+            msg.addUnescapedJsonToRequestBody(serializeRequestContent(transportRequest));
         } catch (Exception e) {
             log.error("Unable to parse current index mappings source", e);
         }
@@ -1251,13 +1254,48 @@ public abstract class AbstractAuditLog implements AuditLog {
         //check ignoreAuditUsers
     }
 
-    protected void addRequestContentToMessageIfPossible(AuditMessage msg, TransportRequest transportRequest) throws IOException {
-        if (transportRequest instanceof  ToXContent) {
-            msg.addTupleToRequestBody(new Tuple<>(
-                    XContentType.JSON,
-                    XContentHelper.toXContent(((ToXContent) transportRequest), XContentType.JSON, false)
-            ));
+
+
+    protected String serializeRequestContent(TransportRequest transportRequest) {
+        if (transportRequest instanceof CreateIndexRequest) {
+            return serializeRequestContent((CreateIndexRequest) transportRequest);
+        } else if (transportRequest instanceof UpdateSettingsRequest) {
+                return serializeRequestContent((UpdateSettingsRequest) transportRequest);
+        } else if (transportRequest instanceof PutMappingRequest) {
+                return serializeRequestContent((PutMappingRequest) transportRequest);
+        } else {
+            throw new IllegalArgumentException(String.format("Unexpected request type: %s", transportRequest.getClass().getName()));
         }
+    }
+
+    private String serializeRequestContent(CreateIndexRequest request) {
+        List<Map<String, Object>> aliases = request.aliases().stream().map(Utils::convertJsonToxToStructuredMap).collect(Collectors.toList());
+        return DocNode.of(
+                "index", request.index(),
+                "settings", Utils.convertJsonToxToStructuredMap(request.settings()),
+                "mappings", request.mappings(),
+                "aliases", aliases,
+                "cause", request.cause(),
+                "origin", request.origin()
+        ).toJsonString();
+    }
+
+    private String serializeRequestContent(UpdateSettingsRequest request) {
+        return DocNode.of(
+            "indices", request.indices(),
+            "settings", Utils.convertJsonToxToStructuredMap(request.settings()),
+            "preserve_existing", request.isPreserveExisting(),
+            "origin", request.origin()
+        ).toJsonString();
+    }
+
+    private String serializeRequestContent(PutMappingRequest request) {
+        return DocNode.of(
+                "indices", request.indices(),
+                "source", Utils.convertJsonToxToStructuredMap(request.source()),
+                "write_index_only", request.writeIndexOnly(),
+                "origin", request.origin()
+        ).toJsonString();
     }
 
     protected abstract void save(final AuditMessage msg);
