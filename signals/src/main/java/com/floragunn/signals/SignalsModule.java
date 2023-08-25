@@ -15,6 +15,7 @@ import com.floragunn.signals.truststore.rest.FindAllTruststoresAction;
 import com.floragunn.signals.truststore.rest.FindOneTruststoreAction;
 import com.floragunn.signals.truststore.rest.CreateOrReplaceTruststoreAction;
 import com.floragunn.signals.truststore.rest.TransportTruststoreUpdatedAction;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -106,6 +107,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     private final boolean enabled;
     private final ComponentState moduleState = new ComponentState(100, null, "signals", SignalsModule.class);
 
+    private TrustManagerRegistry trustManagerRegistry;
+
     public SignalsModule(Settings settings) {
         enabled = settings.getAsBoolean("signals.enabled", true);
 
@@ -123,7 +126,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
         if (enabled) {
-            return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService),
+            return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService, trustManagerRegistry),
                     new DeActivateWatchAction(settings, controller), new AckWatchApiAction(settings, controller), new SearchWatchApiAction(),
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
@@ -201,10 +204,15 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                 }
             });
 
-            return signals.createComponents(baseDependencies.getLocalClient(), baseDependencies.getClusterService(), baseDependencies.getThreadPool(),
+            final Collection<Object> signalsComponents = signals.createComponents(baseDependencies.getLocalClient(), baseDependencies.getClusterService(), baseDependencies.getThreadPool(),
                     baseDependencies.getResourceWatcherService(), baseDependencies.getScriptService(), baseDependencies.getxContentRegistry(),
                     baseDependencies.getEnvironment(), baseDependencies.getNodeEnvironment(), baseDependencies.getInternalAuthTokenProvider(),
                     baseDependencies.getProtectedConfigIndexService(), baseDependencies.getDiagnosticContext());
+
+            this.trustManagerRegistry = signals.getTruststoreRegistry();
+
+            return signalsComponents;
+
         } else {
             return Collections.emptyList();
         }

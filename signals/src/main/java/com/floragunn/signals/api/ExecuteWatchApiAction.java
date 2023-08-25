@@ -3,8 +3,10 @@ package com.floragunn.signals.api;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -39,9 +41,12 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
     private final Logger log = LogManager.getLogger(this.getClass());
     private final ScriptService scriptService;
 
-    public ExecuteWatchApiAction(Settings settings, ScriptService scriptService) {
+    private final TrustManagerRegistry trustManagerRegistry;
+
+    public ExecuteWatchApiAction(Settings settings, ScriptService scriptService, TrustManagerRegistry trustManagerRegistry) {
         super(settings);
         this.scriptService = scriptService;
+        this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry,"TrustManagerRegistry is required");
     }
 
     @Override
@@ -60,7 +65,7 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
             //if not ES 8 throws an exception
             request.param("tenant");
             WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
-                null, LENIENT);
+                    trustManagerRegistry, LENIENT);
             final RequestBody requestBody = RequestBody.parse(watchInitializationService, request.content().utf8ToString());
 
             if (log.isDebugEnabled()) {

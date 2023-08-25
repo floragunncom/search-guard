@@ -1077,6 +1077,40 @@ public class RestApiTest {
     }
 
     @Test
+    public void testExecuteAnonymousWatchWithTruststore() throws Exception {
+
+        String tenant = "_main";
+        String watchPath = "/_signals/watch/" + tenant + "/_execute";
+
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            webhookProvider.uploadMockServerCertificateAsTruststore(cluster, USER_CERTIFICATE, UPLOADED_TRUSTSTORE_ID);
+            Watch watch = new WatchBuilder("tls-webhook-test")
+                    .search("testsource")
+                    .query("{\"match_all\" : {} }")
+                    .as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}")
+                    .as("teststatic")
+                    .then()
+                    .postWebhook(webhookProvider.getUri())
+                    .truststoreId(UPLOADED_TRUSTSTORE_ID)
+                    .throttledFor("0")
+                    .name("testhook")
+                    .build();
+
+            Thread.sleep(5000);
+
+            Assert.assertTrue(webhookProvider.getRequestCount() == 0);
+
+            HttpResponse response = restClient.postJson(watchPath, "{\"watch\": " + watch.toJson() + "}");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Assert.assertTrue(webhookProvider.getRequestCount() == 1);
+        }
+    }
+
+    @Test
     public void testExecuteWatchByIdWhichUsesUploadedTruststore() throws Exception {
         String tenant = "_main";
         String watchId = "tls_execution_test";

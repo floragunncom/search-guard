@@ -31,10 +31,6 @@ public class WatchInitializationService {
 
     private final ScriptService scriptService;
     private final AccountRegistry accountRegistry;
-
-    /**
-     * Can be <code>null</code> when action is executed by REST API
-     */
     private final TrustManagerRegistry trustManagerRegistry;
 
     private final ValidationLevel validationLevel;
@@ -43,7 +39,7 @@ public class WatchInitializationService {
             TrustManagerRegistry trustManagerRegistry, ValidationLevel validationLevel) {
         this.accountRegistry = accountRegistry;
         this.scriptService = scriptService;
-        this.trustManagerRegistry = trustManagerRegistry;
+        this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry, "TrustManagerRegistry is required");
         this.validationLevel = Objects.requireNonNull(validationLevel, "Life cycle stage is required");
 
     }

@@ -88,7 +88,7 @@ public class TlsConfig implements ToXContentObject {
      * @param validationLevel describe how strict validation should be applied during parsing configuration
      */
     public TlsConfig(TrustManagerRegistry trustManagerRegistry, ValidationLevel validationLevel) {
-        this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry, "TrustManagerRegistry ia required");
+        this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry, "TrustManagerRegistry is required");
         this.validationLevel = validationLevel;
         log.debug("TlsConfig created with trust manager registry '{}' and strict validation '{}'", trustManagerRegistry,
             this.validationLevel);
