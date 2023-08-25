@@ -21,6 +21,8 @@ import static com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.RE
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auditlog.helper.MockRestRequest;
@@ -37,6 +39,10 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -394,6 +400,96 @@ public class AuditlogTest {
             Assert.assertNotNull(msgAsMap.get(AuditMessage.UTC_TIMESTAMP));
             Assert.assertEquals(AuditMessage.Category.KIBANA_LOGOUT, msgAsMap.get(CATEGORY));
             Assert.assertNotNull(msgAsMap.get(FORMAT_VERSION));
+        }
+    }
+
+    @Test
+    public void testCreateIndexRequest_requestBodyFieldIsFilledInCorrectly() throws Exception {
+        Settings settings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .build();
+        String indexName = "test-index";
+        DocNode indexSettings = DocNode.of("index", DocNode.of("number_of_shards", "3"));
+        DocNode indexMappings = DocNode.of("_doc", DocNode.of("properties", DocNode.of("field1", DocNode.of("type", "text"))));
+        DocNode indexAliases = DocNode.of("alias2", DocNode.of("filter", DocNode.of("term", DocNode.of("doc", "1")), "index_routing", "shard1"));
+        String cause = "cause";
+        String origin = "origin";
+        CreateIndexRequest request = new CreateIndexRequest(indexName)
+                .settings(indexSettings)
+                .mapping(indexMappings)
+                .aliases(indexAliases)
+                .cause(cause)
+                .origin(origin);
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logIndexCreated(indexName, CreateIndexAction.NAME, request);
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            DocNode message = DocNode.wrap(TestAuditlogImpl.messages.get(0).getAsMap());
+            DocNode requestBody = DocNode.parse(Format.JSON).from(message.getAsString(AuditMessage.REQUEST_BODY));
+
+            Assert.assertEquals("Request body contains expected no of fields, " + requestBody.toJsonString(), 6, requestBody.size());
+            Assert.assertEquals(indexName, requestBody.getAsString("index"));
+            Assert.assertEquals(indexSettings.toJsonString(), requestBody.getAsNode("settings").toJsonString());
+            Assert.assertEquals(indexMappings.toJsonString(), requestBody.getAsNode("mappings").toJsonString());
+            Assert.assertEquals(DocNode.array(indexAliases).toJsonString(), requestBody.getAsNode("aliases").toJsonString());
+            Assert.assertEquals(cause, requestBody.getAsString("cause"));
+            Assert.assertEquals(origin, requestBody.getAsString("origin"));
+        }
+    }
+
+    @Test
+    public void testUpdateSettingsRequest_requestBodyFieldIsFilledInCorrectly() throws Exception {
+        Settings settings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .build();
+        String indexName = "test-index";
+        DocNode indexSettings = DocNode.of("index", DocNode.of("number_of_shards", "3"));
+        boolean preserveExisting = true;
+        String origin = "origin";
+        UpdateSettingsRequest request = new UpdateSettingsRequest(indexName)
+                .settings(indexSettings)
+                .setPreserveExisting(preserveExisting)
+                .origin(origin);
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logIndexCreated(indexName, CreateIndexAction.NAME, request);
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            DocNode message = DocNode.wrap(TestAuditlogImpl.messages.get(0).getAsMap());
+            DocNode requestBody = DocNode.parse(Format.JSON).from(message.getAsString(AuditMessage.REQUEST_BODY));
+
+            Assert.assertEquals("Request body contains expected no of fields, " + requestBody.toJsonString(), 4, requestBody.size());
+            Assert.assertEquals(DocNode.array(indexName).toJsonString(), requestBody.getAsNode("indices").toJsonString());
+            Assert.assertEquals(indexSettings.toJsonString(), requestBody.getAsNode("settings").toJsonString());
+            Assert.assertEquals(request.isPreserveExisting(), requestBody.getBoolean("preserve_existing"));
+            Assert.assertEquals(origin, requestBody.getAsString("origin"));
+        }
+    }
+
+    @Test
+    public void testPutMappingRequest_requestBodyFieldIsFilledInCorrectly() throws Exception {
+        Settings settings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .build();
+        String indexName = "test-index";
+        DocNode indexMappings = DocNode.of("_doc", DocNode.of("properties", DocNode.of("field1", DocNode.of("type", "text"))));
+        boolean writeIndexOnly = true;
+        String origin = "origin";
+        PutMappingRequest request = new PutMappingRequest(indexName)
+                .source(indexMappings)
+                .writeIndexOnly(writeIndexOnly)
+                .origin(origin);
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logIndexCreated(indexName, CreateIndexAction.NAME, request);
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            DocNode message = DocNode.wrap(TestAuditlogImpl.messages.get(0).getAsMap());
+            DocNode requestBody = DocNode.parse(Format.JSON).from(message.getAsString(AuditMessage.REQUEST_BODY));
+
+            Assert.assertEquals("Request body contains expected no of fields, " + requestBody.toJsonString(), 4, requestBody.size());
+            Assert.assertEquals(DocNode.array(indexName).toJsonString(), requestBody.getAsNode("indices").toJsonString());
+            Assert.assertEquals(indexMappings.toJsonString(), requestBody.getAsNode("source").toJsonString());
+            Assert.assertEquals(request.writeIndexOnly(), requestBody.getBoolean("write_index_only"));
+            Assert.assertEquals(origin, requestBody.getAsString("origin"));
         }
     }
 

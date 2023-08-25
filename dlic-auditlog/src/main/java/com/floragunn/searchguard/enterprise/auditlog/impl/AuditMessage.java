@@ -87,8 +87,6 @@ public final class AuditMessage {
     public static final String INDEX_TEMPLATES = "audit_trace_index_templates";
     public static final String SHARD_ID = "audit_trace_shard_id";
     public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
-    public static final String RESOLVED_INDEX_TEMPLATES = "audit_trace_resolved_index_templates";
-
     public static final String EXCEPTION = "audit_request_exception_stacktrace";
     public static final String IS_ADMIN_DN = "audit_request_effective_user_is_admin";
     public static final String PRIVILEGE = "audit_request_privilege";
@@ -382,12 +380,6 @@ public final class AuditMessage {
         }
     }
 
-    public void addResolvedIndexTemplates(String[] resolvedIndexTemplates) {
-        if (resolvedIndexTemplates != null && resolvedIndexTemplates.length > 0) {
-            auditInfo.put(RESOLVED_INDEX_TEMPLATES, resolvedIndexTemplates);
-        }
-    }
-
     public void addComplianceIndexTemplateVersion(Long version) {
         if (version != null) {
             auditInfo.put(COMPLIANCE_INDEX_TEMPLATE_VERSION, version);
@@ -489,7 +481,7 @@ public final class AuditMessage {
     public enum Category {
         BAD_HEADERS, FAILED_LOGIN, BLOCKED_IP, BLOCKED_USER, MISSING_PRIVILEGES, SG_INDEX_ATTEMPT, SSL_EXCEPTION, AUTHENTICATED, GRANTED_PRIVILEGES,
         COMPLIANCE_DOC_READ, COMPLIANCE_DOC_WRITE, COMPLIANCE_EXTERNAL_CONFIG, COMPLIANCE_INTERNAL_CONFIG_READ, COMPLIANCE_INTERNAL_CONFIG_WRITE,
-        COMPLIANCE_IMMUTABLE_INDEX_ATTEMPT, COMPLIANCE_INDEX_TEMPLATE_WRITE, KIBANA_LOGIN, KIBANA_LOGOUT
+        COMPLIANCE_IMMUTABLE_INDEX_ATTEMPT, INDEX_TEMPLATE_WRITE, INDEX_WRITE, KIBANA_LOGIN, KIBANA_LOGOUT
     }
 
 }

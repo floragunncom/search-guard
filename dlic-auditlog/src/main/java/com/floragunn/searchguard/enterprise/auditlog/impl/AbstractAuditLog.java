@@ -42,11 +42,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -886,151 +888,189 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate) {
+    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate,
+                                       ComposableIndexTemplate currentTemplate, String action, TransportRequest transportRequest) {
         if (currentTemplate == null) {
             log.error("Unable to log putted composable index template. Current index template is null.");
             return;
         }
 
-        if (complianceConfig == null) {
-            return;
-        }
-
-        Category category = Category.COMPLIANCE_INDEX_TEMPLATE_WRITE;
+        Category category = Category.INDEX_TEMPLATE_WRITE;
 
         UserInformation effectiveUser = getUser();
 
-        if (!checkComplianceFilter(category, effectiveUser, getOrigin())) {
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
             return;
         }
 
-        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), null);
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndexTemplates(new String[] { templateName });
-        msg.addResolvedIndexTemplates(new String[] { templateName });
         msg.addComplianceIndexTemplateVersion(currentTemplate.version());
         msg.addComplianceOperation(originalTemplate == null ? Operation.CREATE : Operation.UPDATE);
 
-        if (complianceConfig.logDiffsForWrite() && originalTemplate != null) {
-            try {
-                String originalSource = XContentHelper.convertToJson(
-                        XContentHelper.toXContent(originalTemplate, XContentType.JSON, false),
-                        false, XContentType.JSON
-                );
-                String currentSource = XContentHelper.convertToJson(
-                        XContentHelper.toXContent(currentTemplate, XContentType.JSON, false),
-                        false, XContentType.JSON
-                );
-
-                DocNode originalDocument = DocNode.parse(Format.JSON).from(originalSource);
-                DocNode currentDocument = DocNode.parse(Format.JSON).from(currentSource);
-
-                JsonPatch diff = JsonPatch.fromDiff(originalDocument, currentDocument);
-
-                msg.addComplianceWriteDiffSource(diff.isEmpty() ? "" : diff.toJsonString());
-            } catch (Exception e) {
-                log.error("Unable to generate diff for {}", msg.toPrettyString(), e);
-            }
-        }
-
-        if (!complianceConfig.logWriteMetadataOnly()) {
-            try {
-                msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, XContentHelper.toXContent(currentTemplate, XContentType.JSON, false)));
-            } catch (Exception e) {
-                log.error("Unable to parse current composable index template source", e);
-            }
+        try {
+            msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, XContentHelper.toXContent(currentTemplate, XContentType.JSON, false)));
+        } catch (Exception e) {
+            log.error("Unable to parse current composable index template source", e);
         }
 
         save(msg);
     }
 
     @Override
-    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate) {
+    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate,
+                                       IndexTemplateMetadata currentTemplate, String action, TransportRequest transportRequest) {
         if (currentTemplate == null) {
             log.error("Unable to log putted legacy index template. Current index template is null.");
             return;
         }
 
-        if (complianceConfig == null) {
-            return;
-        }
-
-        Category category = Category.COMPLIANCE_INDEX_TEMPLATE_WRITE;
+        Category category = Category.INDEX_TEMPLATE_WRITE;
 
         UserInformation effectiveUser = getUser();
 
-        if (!checkComplianceFilter(category, effectiveUser, getOrigin())) {
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
             return;
         }
 
-        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), null);
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndexTemplates(new String[] { templateName });
-        msg.addResolvedIndexTemplates(new String[] { templateName });
         msg.addComplianceIndexTemplateVersion(currentTemplate.getVersion() != null? Long.valueOf(currentTemplate.getVersion()) : null);
         msg.addComplianceOperation(originalTemplate == null ? Operation.CREATE : Operation.UPDATE);
 
-        if (complianceConfig.logDiffsForWrite() && originalTemplate != null) {
-            DocNode originalDocument;
-            DocNode currentDocument;
-            try {
-                try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
-                    builder.startObject();
-                    IndexTemplateMetadata.Builder.toXContent(originalTemplate, builder, ToXContent.EMPTY_PARAMS);
-                    builder.endObject();
-
-                    originalDocument = DocNode.parse(Format.JSON).from(Strings.toString(builder));
-                }
-                try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
-                    builder.startObject();
-                    IndexTemplateMetadata.Builder.toXContent(currentTemplate, builder, ToXContent.EMPTY_PARAMS);
-                    builder.endObject();
-
-                    currentDocument = DocNode.parse(Format.JSON).from(Strings.toString(builder));
-                }
-
-                JsonPatch diff = JsonPatch.fromDiff(originalDocument, currentDocument);
-                msg.addComplianceWriteDiffSource(diff.isEmpty() ? "" : diff.toJsonString());
-            } catch (Exception e) {
-                log.error("Unable to generate diff for {}", msg.toPrettyString(), e);
-            }
-        }
-
-        if (!complianceConfig.logWriteMetadataOnly()) {
-            try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
-                builder.startObject();
-                IndexTemplateMetadata.Builder.toXContent(currentTemplate, builder, ToXContent.EMPTY_PARAMS);
-                builder.endObject();
-                msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, BytesReference.bytes(builder)));
-            } catch (Exception e) {
-                log.error("Unable to parse current legacy index template source", e);
-            }
+        try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
+            builder.startObject();
+            IndexTemplateMetadata.Builder.toXContent(currentTemplate, builder, ToXContent.EMPTY_PARAMS);
+            builder.endObject();
+            msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, BytesReference.bytes(builder)));
+        } catch (Exception e) {
+            log.error("Unable to parse current legacy index template source", e);
         }
 
         save(msg);
     }
 
     @Override
-    public void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames) {
+    public void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest) {
         UserInformation effectiveUser = getUser();
 
-        Category category = Category.COMPLIANCE_INDEX_TEMPLATE_WRITE;
+        Category category = Category.INDEX_TEMPLATE_WRITE;
 
-        if (!checkComplianceFilter(category, effectiveUser, getOrigin())) {
+        if (!checkTransportFilter(category, action ,effectiveUser, transportRequest)) {
             return;
         }
 
-        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), null);
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         msg.addEffectiveUser(effectiveUser);
         msg.addIndexTemplates(templateNames.toArray(new String[] {}));
-        msg.addResolvedIndexTemplates(resolvedTemplateNames.toArray(new String[] {}));
         msg.addComplianceOperation(Operation.DELETE);
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest) {
+        Category category = Category.INDEX_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndices(new String[] { unresolvedIndexName });
+        msg.addComplianceOperation(Operation.CREATE);
+
+        try {
+            msg.addUnescapedJsonToRequestBody(serializeRequestContent(transportRequest));
+        } catch (Exception e) {
+            log.error("Unable to parse current index source", e);
+        }
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest) {
+        UserInformation effectiveUser = getUser();
+
+        Category category = Category.INDEX_WRITE;
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndices(indexNames.toArray(new String[] {}));
+        msg.addComplianceOperation(Operation.DELETE);
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
+        Category category = Category.INDEX_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndices(indexNames.toArray(new String[] {}));
+        msg.addComplianceOperation(Operation.UPDATE);
+
+        try {
+            msg.addUnescapedJsonToRequestBody(serializeRequestContent(transportRequest));
+        } catch (Exception e) {
+            log.error("Unable to parse current index settings source", e);
+        }
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
+
+        Category category = Category.INDEX_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndices(indexNames.toArray(new String[] {}));
+        msg.addComplianceOperation(Operation.UPDATE);
+
+        try {
+            msg.addUnescapedJsonToRequestBody(serializeRequestContent(transportRequest));
+        } catch (Exception e) {
+            log.error("Unable to parse current index mappings source", e);
+        }
 
         save(msg);
     }
@@ -1183,7 +1223,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             }
         }
 
-        if (category == Category.COMPLIANCE_DOC_WRITE || category == Category.COMPLIANCE_INTERNAL_CONFIG_WRITE || category == Category.COMPLIANCE_INDEX_TEMPLATE_WRITE) {
+        if (category == Category.COMPLIANCE_DOC_WRITE || category == Category.COMPLIANCE_INTERNAL_CONFIG_WRITE) {
             if (effectiveUser != null && effectiveUser.getName() != null && ignoredComplianceUsersForWrite.matches(effectiveUser.getName())) {
 
                 if (log.isTraceEnabled()) {
@@ -1242,6 +1282,50 @@ public abstract class AbstractAuditLog implements AuditLog {
         //check category enabled
         //check action
         //check ignoreAuditUsers
+    }
+
+
+
+    protected String serializeRequestContent(TransportRequest transportRequest) {
+        if (transportRequest instanceof CreateIndexRequest) {
+            return serializeRequestContent((CreateIndexRequest) transportRequest);
+        } else if (transportRequest instanceof UpdateSettingsRequest) {
+                return serializeRequestContent((UpdateSettingsRequest) transportRequest);
+        } else if (transportRequest instanceof PutMappingRequest) {
+                return serializeRequestContent((PutMappingRequest) transportRequest);
+        } else {
+            throw new IllegalArgumentException(String.format("Unexpected request type: %s", transportRequest.getClass().getName()));
+        }
+    }
+
+    private String serializeRequestContent(CreateIndexRequest request) {
+        List<Map<String, Object>> aliases = request.aliases().stream().map(Utils::convertJsonToxToStructuredMap).collect(Collectors.toList());
+        return DocNode.of(
+                "index", request.index(),
+                "settings", Utils.convertJsonToxToStructuredMap(request.settings()),
+                "mappings", Utils.convertJsonToxToStructuredMap(request.mappings()),
+                "aliases", aliases,
+                "cause", request.cause(),
+                "origin", request.origin()
+        ).toJsonString();
+    }
+
+    private String serializeRequestContent(UpdateSettingsRequest request) {
+        return DocNode.of(
+            "indices", request.indices(),
+            "settings", Utils.convertJsonToxToStructuredMap(request.settings()),
+            "preserve_existing", request.isPreserveExisting(),
+            "origin", request.origin()
+        ).toJsonString();
+    }
+
+    private String serializeRequestContent(PutMappingRequest request) {
+        return DocNode.of(
+                "indices", request.indices(),
+                "source", Utils.convertJsonToxToStructuredMap(request.source()),
+                "write_index_only", request.writeIndexOnly(),
+                "origin", request.origin()
+        ).toJsonString();
     }
 
     protected abstract void save(final AuditMessage msg);

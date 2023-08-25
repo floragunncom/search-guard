@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
@@ -135,17 +134,37 @@ public class NullAuditLog implements AuditLog {
     }
 
     @Override
-    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate) {
+    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate, String action, TransportRequest transportRequest) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate) {
+    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate, String action, TransportRequest transportRequest) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames) {
+    public void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
         //noop, intentionally left empty
     }
 

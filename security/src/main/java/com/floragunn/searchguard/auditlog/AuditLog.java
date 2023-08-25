@@ -21,7 +21,6 @@ import java.io.Closeable;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
@@ -75,9 +74,14 @@ public interface AuditLog extends Closeable {
     void logDocumentDeleted(ShardId shardId, Delete delete, DeleteResult result);
     void logExternalConfig(Settings settings, Environment environment);
 
-    void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate);
-    void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate);
-    void logIndexTemplateDeleted(List<String> templateNames, Set<String> resolvedTemplateNames);
+    void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate, String action, TransportRequest transportRequest);
+    void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate, String action, TransportRequest transportRequest);
+    void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest);
+
+    void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest);
+    void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest);
+    void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest);
+    void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest);
 
     void logSucceededKibanaLogin(UserInformation effectiveUser);
     void logSucceededKibanaLogout(UserInformation effectiveUser);

@@ -43,7 +43,7 @@ public class AuditLogModuleTest {
         assertThat(auditLogModule.getAuditLog(), notNullValue());
         assertThat(auditLogModule.getDirectoryReaderWrappersForAllOperations(), hasSize(1));
         assertThat(auditLogModule.getIndexOperationListeners(), hasSize(1));
-        assertThat(auditLogModule.getActionFilters(), hasSize(1));
+        assertThat(auditLogModule.getActionFilters(), hasSize(2));
     }
 
     private BaseDependencies buildBaseDependencies(Settings settings) {

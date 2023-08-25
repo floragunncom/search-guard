@@ -16,8 +16,12 @@ package com.floragunn.searchguard.enterprise.auditlog;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import com.floragunn.searchguard.enterprise.auditlog.access_log.write.ComplianceIndexActionFilter;
 import com.floragunn.searchguard.enterprise.auditlog.access_log.write.ComplianceIndexTemplateActionFilter;
 import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.lucene.index.DirectoryReader;
@@ -41,6 +45,7 @@ public class AuditLogModule implements SearchGuardModule {
     private AuditLogImpl auditLog;
     private ComplianceIndexingOperationListenerImpl indexingOperationListener;
     private ComplianceIndexTemplateActionFilter complianceIndexTemplateActionFilter;
+    private ComplianceIndexActionFilter complianceIndexActionFilter;
     private AuditLogConfig auditLogConfig;
     private boolean externalConfigLogged = false;
 
@@ -62,6 +67,7 @@ public class AuditLogModule implements SearchGuardModule {
             this.indexingOperationListener = new ComplianceIndexingOperationListenerImpl(this.auditLogConfig, auditLog,
                     baseDependencies.getGuiceDependencies());
             this.complianceIndexTemplateActionFilter = new ComplianceIndexTemplateActionFilter(this.auditLogConfig, this.auditLog, baseDependencies.getClusterService());
+            this.complianceIndexActionFilter = new ComplianceIndexActionFilter(this.auditLogConfig, auditLog);
         }
 
         return ImmutableList.empty();
@@ -80,7 +86,10 @@ public class AuditLogModule implements SearchGuardModule {
 
     @Override
     public ImmutableList<ActionFilter> getActionFilters() {
-        return complianceIndexTemplateActionFilter != null? ImmutableList.of(complianceIndexTemplateActionFilter) : ImmutableList.empty();
+        return ImmutableList.of(
+                Stream.of(complianceIndexActionFilter, complianceIndexTemplateActionFilter)
+                        .filter(Objects::nonNull).collect(Collectors.toList())
+        );
     }
 
     @Override
