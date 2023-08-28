@@ -175,6 +175,12 @@
       </dependency>
 
       <dependency>
+        <groupId>com.floragunn.org.opensaml</groupId>
+        <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.github.seancfoley</groupId>
         <artifactId>ipaddress</artifactId>
         <version>${ipaddress.version}</version>
@@ -414,12 +420,6 @@
         <artifactId>search-guard-flx-support</artifactId>
         <version>${project.version}</version>
         <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn.org.opensaml</groupId>
-        <artifactId>opensaml-xmlsec-impl-patched</artifactId>
-        <version>${project.version}</version>
       </dependency>
       <dependency>
         <!-- We explicitly specify jakarta.activation-api as provided dependency, as the API is also provided by jakarta.activation. However the explicit provided scope avoids activation-api
