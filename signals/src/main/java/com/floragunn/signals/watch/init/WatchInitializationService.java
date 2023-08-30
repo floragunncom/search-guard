@@ -3,8 +3,12 @@ package com.floragunn.signals.watch.init;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import com.floragunn.signals.script.SignalsScriptContextFactory;
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
+import com.floragunn.signals.watch.common.ValidationLevel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.script.Script;
@@ -22,15 +26,28 @@ import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.accounts.NoSuchAccountException;
 import com.floragunn.signals.support.ScriptValidationError;
 
+
 public class WatchInitializationService {
     private final static Logger log = LogManager.getLogger(WatchInitializationService.class);
 
     private final ScriptService scriptService;
     private final AccountRegistry accountRegistry;
+    private final ThrottlePeriodParser throttlePeriodParser;
 
-    public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService) {
+    /**
+     * Can be <code>null</code> when action is executed by REST API
+     */
+    private final TrustManagerRegistry trustManagerRegistry;
+
+    private final ValidationLevel validationLevel;
+
+    public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService,
+            TrustManagerRegistry trustManagerRegistry, ThrottlePeriodParser throttlePeriodParser, ValidationLevel validationLevel) {
         this.accountRegistry = accountRegistry;
         this.scriptService = scriptService;
+        this.trustManagerRegistry = trustManagerRegistry;
+        this.throttlePeriodParser = throttlePeriodParser;
+        this.validationLevel = Objects.requireNonNull(validationLevel, "Life cycle stage is required");
     }
 
     public ScriptService getScriptService() {
@@ -129,5 +146,23 @@ public class WatchInitializationService {
 
     public AccountRegistry getAccountRegistry() {
         return accountRegistry;
+    }
+
+    public ThrottlePeriodParser getThrottlePeriodParser() {
+        return throttlePeriodParser;
+    }
+
+    public TrustManagerRegistry getTrustManagerRegistry() {
+        return trustManagerRegistry;
+    }
+
+    public ValidationLevel getValidationLevel() {
+        return this.validationLevel;
+    }
+
+    @Override
+    public String toString() {
+        return "WatchInitializationService{" + "scriptService=" + scriptService + ", accountRegistry=" + accountRegistry
+            + ", trustManagerRegistry=" + trustManagerRegistry + ", lifecycleStage=" + validationLevel + '}';
     }
 }

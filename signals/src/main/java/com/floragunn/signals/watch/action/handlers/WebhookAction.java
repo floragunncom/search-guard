@@ -6,6 +6,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
 
+import com.floragunn.signals.watch.common.ValidationLevel;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -45,6 +46,7 @@ public class WebhookAction extends ActionHandler {
     public ActionExecutionResult execute(WatchExecutionContext ctx) throws ActionExecutionException {
 
         try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(ctx.getHttpProxyConfig())) {
+            log.info("New instance of HTTP client created for webhook action for URI '{}'.", requestConfig.getUri());
             HttpUriRequest request = requestConfig.createHttpRequest(ctx);
 
             if (log.isDebugEnabled()) {
@@ -113,7 +115,10 @@ public class WebhookAction extends ActionHandler {
             }
 
             try {
-                httpClientConfig = HttpClientConfig.create(vJsonNode);
+                ValidationLevel validationLevel = watchInitService.getValidationLevel();
+                log.debug("Create webhook action with validation level '{}' and initialization context '{}'.",
+                    validationLevel, watchInitService);
+                httpClientConfig = HttpClientConfig.create(vJsonNode, watchInitService.getTrustManagerRegistry(), validationLevel);
             } catch (ConfigValidationException e) {
                 validationErrors.add(null, e);
             }

@@ -21,10 +21,13 @@ import static org.mockito.Mockito.when;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
 import org.elasticsearch.cluster.ClusterName;
+import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -38,8 +41,6 @@ import org.junit.Test;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auditlog.helper.MockRestRequest;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditLogImpl;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.legacy.test.AbstractSGUnitTest;
@@ -119,6 +120,15 @@ public class DisabledCategoriesTest {
 		Assert.assertThat(result, containsString("action.transport.ssl"));
 		Assert.assertThat(result, containsString("action.success"));
 		Assert.assertThat(result, containsString("Empty"));
+		Assert.assertThat(result, containsString("putted-composable-template-name"));
+		Assert.assertThat(result, containsString("putted-legacy-template-name"));
+		Assert.assertThat(result, containsString("deleted-template-name"));
+		Assert.assertThat(result, containsString("created-index-name"));
+		Assert.assertThat(result, containsString("deleted-index-name"));
+		Assert.assertThat(result, containsString("index-with-updated-settings"));
+		Assert.assertThat(result, containsString("index-with-updated-mappings"));
+		Assert.assertThat(result, containsString("testuser.kibana.succeededlogin"));
+		Assert.assertThat(result, containsString("testuser.kibana.succeededlogout"));
 	}
 
 	@Test
@@ -136,7 +146,7 @@ public class DisabledCategoriesTest {
 
 	@Test
 	public void disableSomeCategoryTest() throws Exception{
-		checkCategoriesDisabled(Category.AUTHENTICATED, Category.BAD_HEADERS, Category.FAILED_LOGIN);
+		checkCategoriesDisabled(Category.AUTHENTICATED, Category.BAD_HEADERS, Category.FAILED_LOGIN, Category.INDEX_TEMPLATE_WRITE);
 	}
 
 	/*@After
@@ -207,6 +217,15 @@ public class DisabledCategoriesTest {
 		
 		logBlockedIp(auditLog);
 		logBlockedUser(auditLog);
+		logComposableIndexTemplatePutted(auditLog);
+		logLegacyIndexTemplatePutted(auditLog);
+		logIndexTemplateDeleted(auditLog);
+		logIndexCreated(auditLog);
+		logIndicesDeleted(auditLog);
+		logIndexSettingsUpdated(auditLog);
+		logIndexMappingsUpdated(auditLog);
+		logSucceededKibanaLogin(auditLog);
+		logSucceededKibanaLogout(auditLog);
     }
 
 	 protected void logRestSucceededLogin(AuditLog auditLog) {
@@ -262,6 +281,62 @@ public class DisabledCategoriesTest {
     
     protected void logBlockedUser(AuditLog auditLog) {
         auditLog.logBlockedUser(UserInformation.forName("horst"), false, UserInformation.forName("horst"), new MockRestRequest());
+    }
+
+	protected void logComposableIndexTemplatePutted(AuditLog auditLog) {
+		ComposableIndexTemplate indexTemplate = new ComposableIndexTemplate.Builder().build();
+		auditLog.logIndexTemplatePutted("putted-composable-template-name", null,
+				indexTemplate, "action.index-template-putted", new TransportRequest.Empty()
+		);
+	}
+
+	protected void logLegacyIndexTemplatePutted(AuditLog auditLog) {
+		IndexTemplateMetadata indexTemplate = IndexTemplateMetadata.builder("putted-legacy-template-name")
+				.patterns(Collections.singletonList("index-pattern")).build();
+		auditLog.logIndexTemplatePutted("putted-composable-template-name", null,
+				indexTemplate, "action.index-template-putted", new TransportRequest.Empty()
+		);
+	}
+
+	protected void logIndexTemplateDeleted(AuditLog auditLog) {
+		auditLog.logIndexTemplateDeleted(Collections.singletonList("deleted-template-name"),
+				"action.index-template-deleted", new TransportRequest.Empty()
+		);
+	}
+
+	protected void logIndexCreated(AuditLog auditLog) {
+		auditLog.logIndexCreated("created-index-name", "action.index-created", new TransportRequest.Empty());
+	}
+
+	protected void logIndicesDeleted(AuditLog auditLog) {
+		auditLog.logIndicesDeleted(Collections.singletonList("deleted-index-name"),
+				"action.index-deleted", new TransportRequest.Empty()
+		);
+	}
+
+	protected void logIndexSettingsUpdated(AuditLog auditLog) {
+		Settings settings = Settings.EMPTY;
+		auditLog.logIndexSettingsUpdated(Collections.singletonList("index-with-updated-settings"),
+				"index-with-updated-settings", new TransportRequest.Empty()
+		);
+	}
+
+	protected void logIndexMappingsUpdated(AuditLog auditLog) {
+		try {
+			auditLog.logIndexMappingsUpdated(Collections.singletonList("index-with-updated-mappings"),
+					"index-with-updated-mappings", new TransportRequest.Empty()
+			);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+    protected void logSucceededKibanaLogin(AuditLog auditLog) {
+        auditLog.logSucceededKibanaLogin(UserInformation.forName("testuser.kibana.succeededlogin"));
+    }
+
+    protected void logSucceededKibanaLogout(AuditLog auditLog) {
+        auditLog.logSucceededKibanaLogout(UserInformation.forName("testuser.kibana.succeededlogout"));
     }
 
 

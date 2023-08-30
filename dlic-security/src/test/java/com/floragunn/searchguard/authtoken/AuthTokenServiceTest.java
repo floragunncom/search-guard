@@ -28,6 +28,9 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenResponse;
 import com.floragunn.searchguard.authz.AuthorizationService;
@@ -49,6 +52,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.DeserializationException;
+import io.jsonwebtoken.io.Deserializer;
 
 public class AuthTokenServiceTest {
 
@@ -60,7 +65,14 @@ public class AuthTokenServiceTest {
     private static PrivilegedConfigClient privilegedConfigClient;
     private static StaticSgConfig staticSgConfig;
     private static ClusterService clusterService;
-
+    private static Deserializer<Map<String, ?>> jsonDeserializer = bytes -> {
+        try {
+            return DocReader.json().readObject(bytes);
+        } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
+            throw new DeserializationException(e.getMessage(), e);
+        }
+    };
+    
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
@@ -104,8 +116,8 @@ public class AuthTokenServiceTest {
 
             CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
 
-            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
-
+            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
+            
             Claims claims = jwtParser.parseClaimsJws(response.getJwt()).getBody();
 
             Assert.assertEquals(testUser.getName(), claims.getSubject());
@@ -149,7 +161,7 @@ public class AuthTokenServiceTest {
 
             CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
 
-            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
+            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
 
             Claims claims = jwtParser.parseClaimsJws(response.getJwt()).getBody();
 
@@ -193,7 +205,7 @@ public class AuthTokenServiceTest {
             CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
             CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
 
-            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
+            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
 
             Claims claims = jwtParser.parseClaimsJws(response.getJwt()).getBody();
 
@@ -255,7 +267,7 @@ public class AuthTokenServiceTest {
 
             CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
 
-            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
+            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
 
             Claims claims = jwtParser.parseClaimsJws(response.getJwt()).getBody();
             String id = claims.get(JwtConstants.CLAIM_JWT_ID).toString();
@@ -316,7 +328,7 @@ public class AuthTokenServiceTest {
 
                 CreateAuthTokenResponse createAuthTokenResponse = authTokenService.createJwt(testUser, request);
 
-                JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K));
+                JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
 
                 Claims claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
 

@@ -54,7 +54,7 @@ public class SinkProvider {
 
 		// make sure we always have a fallback to write to
 		if (this.fallbackSink == null) {
-			this.fallbackSink = new DebugSink(FALLBACKSINK_NAME, settings, null);
+			this.fallbackSink = new DebugSink(FALLBACKSINK_NAME, settings, null, fallbackConfigPrefix);
 		}
 
 		allSinks.put(FALLBACKSINK_NAME, this.fallbackSink);
@@ -139,7 +139,7 @@ public class SinkProvider {
 				}
 				break;
 			case "debug":
-				sink = new DebugSink(name, settings, fallbackSink);
+				sink = new DebugSink(name, settings, fallbackSink, settingsPrefix);
 				break;
             case "noop":
                 sink = new NoopSink(name, settings, fallbackSink);

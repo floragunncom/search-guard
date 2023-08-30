@@ -17,12 +17,12 @@
   <name>Search Guard FLX: Document and Field Level Security Legacy (Enterprise)</name>
 
   <dependencies>
+
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
       <scope>provided</scope>
     </dependency>
-
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-security</artifactId>
@@ -42,12 +42,6 @@
     </dependency>
 
     <dependency>
-      <groupId>co.elastic.clients</groupId>
-      <artifactId>elasticsearch-java</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-security-legacy</artifactId>
       <scope>test</scope>
@@ -62,7 +56,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>${mockito.version}</version>
+      <version>5.4.0</version>
       <scope>test</scope>
     </dependency>
 
@@ -88,4 +82,30 @@
     </dependency>
 
   </dependencies>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.1.2</version>
+          <configuration>
+            <argLine>-Xmx3072m</argLine>
+            <rerunFailingTestsCount>0</rerunFailingTestsCount>
+            <forkCount>3</forkCount>
+            <reuseForks>true</reuseForks>
+            <systemPropertyVariables>
+              <forkno>fork_${surefire.forkNumber}</forkno>
+            </systemPropertyVariables>
+
+            <includes>
+              <include>**/*.java</include>
+            </includes>
+            <trimStackTrace>false</trimStackTrace>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
 </project>

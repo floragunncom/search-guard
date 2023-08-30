@@ -20,11 +20,9 @@ import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -111,7 +109,7 @@ public class RolesApiTest {
             // GET sg_role_starfleet
             response = adminClient.get("/_searchguard/api/roles/sg_role_starfleet");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            JsonNode settings = DefaultObjectMapper.readTree(response.getBody());
+            DocNode settings = response.getBodyAsDocNode();
             Assert.assertEquals(1, settings.size());
 
             // GET, role does not exist
@@ -181,29 +179,29 @@ public class RolesApiTest {
             // put with empty roles, must fail
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet", "");
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            settings = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(AbstractConfigurationValidator.ErrorType.PAYLOAD_MANDATORY.getMessage(), settings.get("reason").asText());
+            settings = response.getBodyAsDocNode();
+            Assert.assertEquals(AbstractConfigurationValidator.ErrorType.PAYLOAD_MANDATORY.getMessage(), settings.getAsString("reason"));
 
             // put new configuration with invalid payload, must fail
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet", FileHelper.loadFile("restapi/roles_not_parseable.json"));
-            settings = DefaultObjectMapper.readTree(response.getBody());
+            settings = response.getBodyAsDocNode();
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            Assert.assertEquals(AbstractConfigurationValidator.ErrorType.BODY_NOT_PARSEABLE.getMessage(), settings.get("reason").asText());
+            Assert.assertEquals(AbstractConfigurationValidator.ErrorType.BODY_NOT_PARSEABLE.getMessage(), settings.getAsString("reason"));
 
             // put new configuration with invalid keys, must fail
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet", FileHelper.loadFile("restapi/roles_invalid_keys.json"));
-            settings = DefaultObjectMapper.readTree(response.getBody());
+            settings = response.getBodyAsDocNode();
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            Assert.assertEquals(AbstractConfigurationValidator.ErrorType.INVALID_CONFIGURATION.getMessage(), settings.get("reason").asText());
-            Assert.assertTrue(settings.get(AbstractConfigurationValidator.INVALID_KEYS_KEY).get("keys").asText().contains("indexx_permissions"));
-            Assert.assertTrue(settings.get(AbstractConfigurationValidator.INVALID_KEYS_KEY).get("keys").asText().contains("kluster_permissions"));
+            Assert.assertEquals(AbstractConfigurationValidator.ErrorType.INVALID_CONFIGURATION.getMessage(), settings.getAsString("reason"));
+            Assert.assertTrue(settings.getAsNode(AbstractConfigurationValidator.INVALID_KEYS_KEY).getAsString("keys").contains("indexx_permissions"));
+            Assert.assertTrue(settings.getAsNode(AbstractConfigurationValidator.INVALID_KEYS_KEY).getAsString("keys").contains("kluster_permissions"));
 
             // put new configuration with wrong datatypes, must fail
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet", FileHelper.loadFile("restapi/roles_wrong_datatype.json"));
-            settings = DefaultObjectMapper.readTree(response.getBody());
+            settings = response.getBodyAsDocNode();
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            Assert.assertEquals(AbstractConfigurationValidator.ErrorType.WRONG_DATATYPE.getMessage(), settings.get("reason").asText());
-            Assert.assertTrue(settings.get("cluster_permissions").asText().equals("Array expected"));
+            Assert.assertEquals(AbstractConfigurationValidator.ErrorType.WRONG_DATATYPE.getMessage(), settings.getAsString("reason"));
+            Assert.assertTrue(settings.getAsString("cluster_permissions").equals("Array expected"));
 
             // put read only role, must be forbidden
             response = adminClient.putJson("/_searchguard/api/roles/sg_transport_client", FileHelper.loadFile("restapi/roles_captains.json"));
@@ -247,73 +245,74 @@ public class RolesApiTest {
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet_captains",
                     FileHelper.loadFile("restapi/roles_captains_tenants.json"));
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            settings = DefaultObjectMapper.readTree(response.getBody());
+            settings = response.getBodyAsDocNode();
             Assert.assertEquals(2, settings.size());
-            Assert.assertEquals(settings.get("status").asText(), "OK");
+            Assert.assertEquals(settings.get("status"), "OK");
 
             response = adminClient.get("/_searchguard/api/roles/sg_role_starfleet_captains");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            //System.out.println(response.getBody());
-            settings = DefaultObjectMapper.readTree(response.getBody());
+            settings = response.getBodyAsDocNode();
             Assert.assertEquals(1, settings.size());
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(1).get("tenant_patterns")
-                    .get(0).asString(), "tenant1");
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(1).get("allowed_actions")
-                    .get(0).asString(), "SGS_KIBANA_ALL_READ");
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(1)
+                    .getAsListOfNodes("tenant_patterns").get(0).toString(), "tenant1");
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(1)
+                    .getAsListOfNodes("allowed_actions").get(0).toString(), "SGS_KIBANA_ALL_READ");
 
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(0).get("tenant_patterns")
-                    .get(0).asString(), "tenant2");
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(0).get("allowed_actions")
-                    .get(0).asString(), "SGS_KIBANA_ALL_WRITE");
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(0)
+                    .getAsListOfNodes("tenant_patterns").get(0).toString(), "tenant2");
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(0)
+                    .getAsListOfNodes("allowed_actions").get(0).toString(), "SGS_KIBANA_ALL_WRITE");
 
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet_captains",
                     FileHelper.loadFile("restapi/roles_captains_tenants2.json"));
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            settings = DefaultObjectMapper.readTree(response.getBody());
+            settings = response.getBodyAsDocNode();
             Assert.assertEquals(2, settings.size());
-            Assert.assertEquals(settings.get("status").asText(), "OK");
+            Assert.assertEquals(settings.get("status"), "OK");
 
             response = adminClient.get("/_searchguard/api/roles/sg_role_starfleet_captains");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            settings = DefaultObjectMapper.readTree(response.getBody());
+            settings = response.getBodyAsDocNode();
             Assert.assertEquals(1, settings.size());
 
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(0).get("tenant_patterns")
-                    .get(0).asString(), "tenant2");
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(0).get("tenant_patterns")
-                    .get(1).asString(), "tenant4");
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(0)
+                    .getAsListOfNodes("tenant_patterns").get(0).toString(), "tenant2");
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(0)
+                    .getAsListOfNodes("tenant_patterns").get(1).toString(), "tenant4");
 
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(0).get("allowed_actions")
-                    .get(0).asString(), "SGS_KIBANA_ALL_WRITE");
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(0)
+                    .getAsListOfNodes("allowed_actions").get(0).toString(), "SGS_KIBANA_ALL_WRITE");
 
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(1).get("tenant_patterns")
-                    .get(0).asString(), "tenant1");
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(1).get("tenant_patterns")
-                    .get(1).asString(), "tenant3");
-            Assert.assertEquals(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(1).get("allowed_actions")
-                    .get(0).asString(), "SGS_KIBANA_ALL_READ");
-
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(1)
+                    .getAsListOfNodes("tenant_patterns").get(0).toString(), "tenant1");
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(1)
+                    .getAsListOfNodes("tenant_patterns").get(1).toString(), "tenant3");
+            Assert.assertEquals(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").get(1)
+                    .getAsListOfNodes("allowed_actions").get(0).toString(), "SGS_KIBANA_ALL_READ");
+            
             // remove tenants from role
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet_captains",
                     FileHelper.loadFile("restapi/roles_captains_no_tenants.json"));
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            settings = DefaultObjectMapper.readTree(response.getBody());
+            settings = response.getBodyAsDocNode();
             Assert.assertEquals(2, settings.size());
-            Assert.assertEquals(settings.get("status").asText(), "OK");
+            Assert.assertEquals(settings.get("status"), "OK");
+
 
             response = adminClient.get("/_searchguard/api/roles/sg_role_starfleet_captains");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            settings = DefaultObjectMapper.readTree(response.getBody());
+            settings = response.getBodyAsDocNode();
             Assert.assertEquals(1, settings.size());
-            Assert.assertFalse(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.cluster_permissions").get(0).isNull());
-            Assert.assertTrue(new SgJsonNode(settings).getDotted("sg_role_starfleet_captains.tenant_permissions").get(0).isNull());
+            Assert.assertFalse(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("cluster_permissions").get(0).isNull());
+            Assert.assertTrue(settings.getAsNode("sg_role_starfleet_captains").getAsListOfNodes("tenant_permissions").isEmpty());
 
             response = adminClient.putJson("/_searchguard/api/roles/sg_role_starfleet_captains",
                     FileHelper.loadFile("restapi/roles_captains_tenants_malformed.json"));
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
-            settings = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(settings.get("status").asText(), "error");
-            Assert.assertEquals(settings.get("reason").asText(), ErrorType.INVALID_CONFIGURATION.getMessage());
+            settings = response.getBodyAsDocNode();
+            Assert.assertEquals(settings.get("status"), "error");
+            Assert.assertEquals(settings.get("reason"), ErrorType.INVALID_CONFIGURATION.getMessage());
+
 
             // -- PATCH
             // PATCH on non-existing resource
@@ -391,8 +390,8 @@ public class RolesApiTest {
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             response = adminClient.get("/_searchguard/api/roles/bulknew1");
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-            settings = DefaultObjectMapper.readTree(response.getBody());
-            permissions = new SgJsonNode(settings).get("bulknew1").get("index_permissions").get(0).get("allowed_actions").asList();
+            settings = response.getBodyAsDocNode();
+            permissions = settings.getAsNode("bulknew1").getAsListOfNodes("index_permissions").get(0).getAsListOfStrings("allowed_actions");
             Assert.assertNotNull(permissions);
             Assert.assertEquals(1, permissions.size());
             Assert.assertTrue(permissions.contains("READ"));

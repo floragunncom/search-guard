@@ -24,6 +24,8 @@ import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 import com.floragunn.signals.SignalsUnavailableException;
 
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
+
 public class TransportPutWatchAction extends HandledTransportAction<PutWatchRequest, PutWatchResponse> {
     private static final Logger log = LogManager.getLogger(TransportPutWatchAction.class);
 
@@ -58,7 +60,7 @@ public class TransportPutWatchAction extends HandledTransportAction<PutWatchRequ
                 try {
                     DiagnosticContext.fixupLoggingContext(threadContext);
                     
-                    IndexResponse response = signalsTenant.addWatch(request.getWatchId(), request.getBody().utf8ToString(), user);
+                    IndexResponse response = signalsTenant.addWatch(request.getWatchId(), request.getBody().utf8ToString(), user, STRICT);
 
                     listener.onResponse(
                             new PutWatchResponse(request.getWatchId(), response.getVersion(), response.getResult(), response.status(), null, null));

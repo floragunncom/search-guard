@@ -1,12 +1,19 @@
 package com.floragunn.signals;
 
+import java.net.Socket;
 import java.net.URI;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import com.floragunn.codova.documents.DocWriter;
+import com.jayway.jsonpath.JsonPath;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.elasticsearch.action.get.GetRequest;
@@ -18,6 +25,7 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -27,12 +35,13 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
-import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.signals.accounts.AccountRegistry;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.ExecutionEnvironment;
@@ -61,6 +70,19 @@ import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetup;
 
 import net.jcip.annotations.NotThreadSafe;
+
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.X509ExtendedTrustManager;
+
+import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
+import static com.floragunn.searchsupport.junit.matcher.ExceptionsMatchers.causeIsInstanceOfMatcher;
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @PowerMockIgnore({ "javax.script.*", "javax.crypto.*", "javax.management.*", "sun.security.*", "java.security.*", "javax.net.ssl.*", "javax.net.*",
         "javax.security.*" })
@@ -172,6 +194,7 @@ public class ActionTest {
             + "k+4D/wGJWWkW0NJN/7bGVkq5nXORzCMvN3r/UcovhEbDKAiMfIZz4eGw76xpqCmR\n"//
             + "puulRd0958X0/eOUE8jLSHCJsdGmwfOoJ0U=\n" //
             + "-----END ENCRYPTED PRIVATE KEY-----\n";
+    public static final String UPLOADED_TRUSTSTORE_ID = "my-uploaded-truststore-id";
 
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
@@ -183,6 +206,9 @@ public class ActionTest {
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals")
             .enableModule(SignalsModule.class).build();
+    
+    private final TrustManagerRegistry trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
+    private final X509ExtendedTrustManager trustManager = Mockito.mock(X509ExtendedTrustManager.class);
 
     @BeforeClass
     public static void setupTestData() throws Throwable {
@@ -203,6 +229,11 @@ public class ActionTest {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
     }
+    
+    @Before
+    public void resetMock() {
+        Mockito.reset(trustManagerRegistry, trustManager);
+    }
 
     @Test
     public void testWebhookAction() throws Exception {
@@ -215,15 +246,16 @@ public class ActionTest {
             runtimeData.put("signalsHeader", "Signals");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             Map<String, String> headers = ImmutableMap.of("signals", "{{data.signalsHeader}}", "anotherHeader", "another header value");
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", headers, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, headers, null, null);
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             webhookAction.execute(ctx);
 
@@ -238,6 +270,60 @@ public class ActionTest {
     }
 
     @Test
+    public void testWebhookAction_withJsonBodyFromRuntimeDataPath() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", ImmutableMap.of("test", "stuff"));
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                    "/{{data.path}}", null, null, JsonPath.compile("data.body"), null, null, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null, null, STRICT));
+
+            webhookAction.execute(ctx);
+
+            Assert.assertEquals(DocWriter.json().writeAsString(runtimeData.get("body")), webhookProvider.getLastRequestBody());
+        }
+    }
+
+
+    @Test
+    public void testWebhookAction_withJsonBodyFromRuntimeDataPath_givenPathDoesNotExists() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", ImmutableMap.of("test", "stuff"));
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                    "/{{data.path}}", null, null, JsonPath.compile("data.body.fake"), null, null, null);
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null, STRICT));
+
+            webhookAction.execute(ctx);
+
+            Assert.fail();
+        } catch (ActionExecutionException e) {
+            e.printStackTrace();
+            Assert.assertTrue(e.getCause().getMessage().contains("Failed to read body from runtime data using JSON Path: $['data']['body']['fake']"));
+        }
+    }
+
+    @Test
     public void testWebhookActionWithTlsCustomTrustStore() throws Exception {
 
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
@@ -247,21 +333,22 @@ public class ActionTest {
             runtimeData.put("body", "stuff");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, null, STRICT));
 
-            TlsConfig tlsConfig = new TlsConfig();
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
             tlsConfig.setInlineTruststorePem(ROOT_CA_CERT);
             tlsConfig.init();
 
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService), webhookAction, new WebhookAction.Factory());
+            //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService, null), webhookAction, new WebhookAction.Factory());
 
             webhookAction.execute(ctx);
 
@@ -279,21 +366,327 @@ public class ActionTest {
             runtimeData.put("body", "stuff");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry,
+                null, STRICT));
 
             webhookAction.execute(ctx);
 
             Assert.fail();
         } catch (ActionExecutionException e) {
             Assert.assertTrue(e.getCause().getMessage().contains("The server certificate could not be validated using the current truststore"));
+        }
+    }
+
+    @Test
+    public void testWebhookActionWithUploadedTruststore() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, null, STRICT));
+
+            when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
+
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+            tlsConfig.setTruststoreId(UPLOADED_TRUSTSTORE_ID);
+            tlsConfig.init();
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            webhookAction.execute(ctx);
+
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+            verify(trustManager).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
+        }
+    }
+
+    @Test
+    public void testWebhookActionWithUploadedTruststoreFailure() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+            when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
+            Mockito.doThrow(new CertificateException("Used for test purpose"))
+                .when(trustManager).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+                STRICT));
+
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+            tlsConfig.setTruststoreId(UPLOADED_TRUSTSTORE_ID);
+            tlsConfig.init();
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            assertThatThrown(() -> webhookAction.execute(ctx), instanceOf(ActionExecutionException.class),
+                causeIsInstanceOfMatcher(SSLHandshakeException.class));
+        }
+    }
+
+    @Test
+    public void testWebhookActionWithUploadedTruststoreFailureRecovery() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+            X509ExtendedTrustManager rejectingTrustManager = Mockito.mock(X509ExtendedTrustManager.class);
+
+            // trustManagerRegistry on each invocation return trust manager, rejectingTrustManager treats all certificates as invalid
+            when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(rejectingTrustManager));
+
+            Mockito.doThrow(new CertificateException("Used for test purpose"))
+                .when(rejectingTrustManager).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+                STRICT));
+
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+            tlsConfig.setTruststoreId(UPLOADED_TRUSTSTORE_ID);
+            tlsConfig.setClientSessionTimeout(1);
+            tlsConfig.init();
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            assertThatThrown(() -> webhookAction.execute(ctx), instanceOf(ActionExecutionException.class),
+                causeIsInstanceOfMatcher(SSLHandshakeException.class));
+
+            // second invocation of action, this time permissive trust manger trustManager should be used
+            when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
+
+            //in general this test checks if new trust manager is obtained from trustManagerRegistry on each request send by Webhook action
+
+            webhookAction.execute(ctx);
+
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+            verify(trustManager).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
+        }
+    }
+
+    @Test
+    public void testWebhookActionWithUploadedTruststoreShouldUseTrustManagerEachTimeWhenHttpRequestIsSendToExternalServer()
+        throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+
+            // Trust manager does not throw any exceptions this means that server certificates are validated correctly by WebHook action
+            when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+                STRICT));
+
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+            tlsConfig.setTruststoreId(UPLOADED_TRUSTSTORE_ID);
+            tlsConfig.setClientSessionTimeout(1);//Set TLS session timeout for one sec
+            tlsConfig.init();
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            //this test checks if new trust manager is called on each request after TLS session timeout
+
+            webhookAction.execute(ctx);
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+
+            Thread.sleep(1001); // try to block TLS session resumption
+
+            webhookAction.execute(ctx);
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+
+            Thread.sleep(1001); // try to block TLS session resumption
+
+            webhookAction.execute(ctx);
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+            verify(trustManager, times(3)).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
+        }
+    }
+
+    @Test
+    public void testWebhookActionWithUploadedTruststoreShouldUseTrustManagerOnlyOnceToCreateTlsContextAndThenUsesCachedTlsSession()
+        throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+
+            // Trust manager does not throw any exceptions this means that server certificates are validated correctly by WebHook action
+            when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+                STRICT));
+
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+            tlsConfig.setTruststoreId(UPLOADED_TRUSTSTORE_ID);
+            tlsConfig.setClientSessionTimeout(3600);//Set TLS session timeout for one hour
+            tlsConfig.init();
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            //this test checks if new trust manager is called only once because TLS session is reused each time
+
+            webhookAction.execute(ctx);
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+
+            Thread.sleep(1001);
+
+            webhookAction.execute(ctx);
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+
+            Thread.sleep(1001);
+
+            webhookAction.execute(ctx);
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+            verify(trustManager, times(1)).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
+        }
+    }
+
+    @Test
+    public void testWebhookActionWithUploadedTruststoreShouldDetectThatCertificateIsNotLongerTrusted()
+        throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+
+            // Trust manager does not throw any exceptions this means that server certificates are validated correctly by WebHook action
+            when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager), Optional.of(trustManager), Optional.of(trustManager), Optional.of(trustManager), Optional.of(trustManager));
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+                STRICT));
+
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+            tlsConfig.setTruststoreId(UPLOADED_TRUSTSTORE_ID);
+            tlsConfig.setClientSessionTimeout(1);
+            tlsConfig.init();
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            webhookAction.execute(ctx);
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+
+            // user remove certificate from truststore
+            Mockito.doThrow(new CertificateException("Used for test purpose"))
+                .when(trustManager).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
+
+            Thread.sleep(1001); // try to block TLS session resumption
+
+            assertThatThrown(() -> webhookAction.execute(ctx), instanceOf(ActionExecutionException.class),
+                causeIsInstanceOfMatcher(SSLHandshakeException.class));
+        }
+    }
+
+    @Test
+    public void testWebhookActionWithUploadedTruststoreShouldDetectThatTruststoreWasRemoved()
+        throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+
+            // Trust manager does not throw any exceptions this means that server certificates are validated correctly by WebHook action
+            when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+                STRICT));
+
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+            tlsConfig.setTruststoreId(UPLOADED_TRUSTSTORE_ID);
+            tlsConfig.setClientSessionTimeout(1);
+            tlsConfig.init();
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            webhookAction.execute(ctx);
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+
+            // user remove truststore
+            when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.empty());
+
+            Thread.sleep(1001); // try to block TLS session resumption
+
+            assertThatThrown(() -> webhookAction.execute(ctx), instanceOf(ActionExecutionException.class),
+                causeIsInstanceOfMatcher(SSLHandshakeException.class));
         }
     }
 
@@ -307,12 +700,13 @@ public class ActionTest {
             runtimeData.put("body", "stuff");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             TlsClientAuthConfig tlsClientAuthConfig = new TlsClientAuthConfig();
             tlsClientAuthConfig.setInlineAuthCertsPem(KIRK_CERT);
@@ -320,7 +714,7 @@ public class ActionTest {
             tlsClientAuthConfig.setInlineAuthKeyPassword("secret");
             tlsClientAuthConfig.init();
 
-            TlsConfig tlsConfig = new TlsConfig();
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
             tlsConfig.setInlineTruststorePem(ROOT_CA_CERT);
             tlsConfig.setClientAuthConfig(tlsClientAuthConfig);
             tlsConfig.init();
@@ -328,7 +722,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService), webhookAction, new WebhookAction.Factory());
+            //           webhookAction = parseBackAndForth(new WatchInitializationService(null, scriptService, null), webhookAction, new WebhookAction.Factory());
 
             webhookAction.execute(ctx);
 
@@ -346,19 +740,20 @@ public class ActionTest {
             runtimeData.put("body", "stuff");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
-            TlsConfig tlsConfig = new TlsConfig();
+            TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
             tlsConfig.setInlineTruststorePem(ROOT_CA_CERT);
             tlsConfig.init();
 
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             webhookAction.execute(ctx);
 
@@ -381,14 +776,15 @@ public class ActionTest {
             runtimeData.put("body", "stuff");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                    "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
             HttpClientConfig httpClientConfig = new HttpClientConfig(1, 1, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             webhookAction.execute(ctx);
 
@@ -410,7 +806,7 @@ public class ActionTest {
             runtimeData.put(new NestedValueMap.Path("o2"), "test");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
 
@@ -434,7 +830,7 @@ public class ActionTest {
             runtimeData.put(new NestedValueMap.Path("o2"), "test_2");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
 
@@ -471,7 +867,7 @@ public class ActionTest {
             runtimeData.put("_doc", docs);
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
 
@@ -510,7 +906,7 @@ public class ActionTest {
             runtimeData.put("_doc", docs);
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
             IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
 
@@ -535,14 +931,15 @@ public class ActionTest {
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
             runtimeData.put("body", "stuff");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             SlackActionConf c = new SlackActionConf();
             c.setAccount("test_destination");
@@ -551,7 +948,8 @@ public class ActionTest {
             c.setText("{{data.body}}");
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
@@ -569,14 +967,15 @@ public class ActionTest {
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
             runtimeData.put("body", "stuff");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             String blocksRawJson = "[\n" +
                     "\t\t{\n" +
@@ -588,8 +987,8 @@ public class ActionTest {
                     "\t\t}\n" +
                     "\t]";
 
-            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
-
+            List blocks = DocNode.parse(Format.JSON).from(blocksRawJson).toList();
+            
             SlackActionConf c = new SlackActionConf();
             c.setAccount("test_destination");
             c.setChannel("test_channel");
@@ -597,11 +996,12 @@ public class ActionTest {
             c.setBlocks(blocks);
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
-            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"blocks\":\"[{\\\"type\\\":\\\"section\\\",\\\"text\\\":{\\\"type\\\":\\\"mrkdwn\\\",\\\"text\\\":\\\"A message *with some bold text* and stuff.\\\"}}]\"}";
+            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"A message *with some bold text* and stuff.\"}}]}";
 
             Assert.assertEquals(expected, webhookProvider.getLastRequestBody());
         }
@@ -617,7 +1017,7 @@ public class ActionTest {
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -625,7 +1025,8 @@ public class ActionTest {
             runtimeData.put("someQuote", "\"a quote\"");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             String blocksRawJson = "[\n" +
                     "\t\t{\n" +
@@ -637,8 +1038,8 @@ public class ActionTest {
                     "\t\t}\n" +
                     "\t]";
 
-            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
-
+            List blocks = DocNode.parse(Format.JSON).from(blocksRawJson).toList();
+            
             SlackActionConf c = new SlackActionConf();
             c.setAccount("test_destination");
             c.setChannel("test_channel");
@@ -646,11 +1047,12 @@ public class ActionTest {
             c.setBlocks(blocks);
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
-            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"blocks\":\"[{\\\"type\\\":\\\"section\\\",\\\"text\\\":{\\\"type\\\":\\\"mrkdwn\\\",\\\"text\\\":\\\"A message *with some bold text* and stuff and \\\\\\\"a quote\\\\\\\".\\\"}}]\"}";
+            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"A message *with some bold text* and stuff and \\\"a quote\\\".\"}}]}";
 
             Assert.assertEquals(expected, webhookProvider.getLastRequestBody());
         }
@@ -666,14 +1068,15 @@ public class ActionTest {
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
             runtimeData.put("body", "stuff");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             String blocksRawJson = "[\n" +
                     "\t\t{\n" +
@@ -685,8 +1088,8 @@ public class ActionTest {
                     "\t\t}\n" +
                     "\t]";
 
-            List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
-
+            List blocks = DocNode.parse(Format.JSON).from(blocksRawJson).toList();
+            
             SlackActionConf c = new SlackActionConf();
             c.setAccount("test_destination");
             c.setChannel("test_channel");
@@ -695,11 +1098,12 @@ public class ActionTest {
             c.setBlocks(blocks);
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
-            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"text\":\"stuff\",\"blocks\":\"[{\\\"type\\\":\\\"section\\\",\\\"text\\\":{\\\"type\\\":\\\"mrkdwn\\\",\\\"text\\\":\\\"A message *with some bold text* and stuff.\\\"}}]\"}";
+            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"text\":\"stuff\",\"blocks\":[{\"type\":\"section\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"A message *with some bold text* and stuff.\"}}]}";
             Assert.assertEquals(expected, webhookProvider.getLastRequestBody());
         }
     }
@@ -716,7 +1120,8 @@ public class ActionTest {
             SlackAction slackAction = new SlackAction(c);
 
             try {
-                slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                    trustManagerRegistry, null, STRICT));
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains("'text': Required attribute is missing"));
             }
@@ -732,14 +1137,15 @@ public class ActionTest {
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
             runtimeData.put("body", "stuff");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             String attachmentRawJson = "[\n" +
                     "      {\n" +
@@ -767,8 +1173,8 @@ public class ActionTest {
                     "      }\n" +
                     "  ]";
 
-            List attachments = DefaultObjectMapper.readValue(attachmentRawJson, List.class);
-
+            List attachments = DocNode.parse(Format.JSON).from(attachmentRawJson).toList();
+            
             SlackActionConf c = new SlackActionConf();
             c.setAccount("test_destination");
             c.setChannel("test_channel");
@@ -776,11 +1182,12 @@ public class ActionTest {
             c.setAttachments(attachments);
 
             SlackAction slackAction = new SlackAction(c);
-            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
-            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"attachments\":\"[{\\\"fallback\\\":\\\"Plain-text summary of the attachment.\\\",\\\"color\\\":\\\"#2eb886\\\",\\\"pretext\\\":\\\"Optional text that appears above the attachment block\\\",\\\"author_name\\\":\\\"Bobby Tables\\\",\\\"author_link\\\":\\\"http://flickr.com/bobby/\\\",\\\"author_icon\\\":\\\"http://flickr.com/icons/bobby.jpg\\\",\\\"title\\\":\\\"Slack API Documentation\\\",\\\"title_link\\\":\\\"https://api.slack.com/\\\",\\\"text\\\":\\\"Optional text that appears within the attachment\\\",\\\"fields\\\":[{\\\"title\\\":\\\"Priority\\\",\\\"value\\\":\\\"High\\\",\\\"short\\\":false}],\\\"image_url\\\":\\\"http://my-website.com/path/to/image.jpg\\\",\\\"thumb_url\\\":\\\"http://example.com/path/to/thumb.png\\\",\\\"footer\\\":\\\"Slack API\\\",\\\"footer_icon\\\":\\\"https://platform.slack-edge.com/img/default_application_icon.png\\\",\\\"ts\\\":123456789}]\"}";
+            String expected = "{\"channel\":\"test_channel\",\"username\":\"test_from\",\"attachments\":[{\"fallback\":\"Plain-text summary of the attachment.\",\"color\":\"#2eb886\",\"pretext\":\"Optional text that appears above the attachment block\",\"author_name\":\"Bobby Tables\",\"author_link\":\"http://flickr.com/bobby/\",\"author_icon\":\"http://flickr.com/icons/bobby.jpg\",\"title\":\"Slack API Documentation\",\"title_link\":\"https://api.slack.com/\",\"text\":\"Optional text that appears within the attachment\",\"fields\":[{\"title\":\"Priority\",\"value\":\"High\",\"short\":false}],\"image_url\":\"http://my-website.com/path/to/image.jpg\",\"thumb_url\":\"http://example.com/path/to/thumb.png\",\"footer\":\"Slack API\",\"footer_icon\":\"https://platform.slack-edge.com/img/default_application_icon.png\",\"ts\":123456789}]}";
 
             Assert.assertEquals(expected, webhookProvider.getLastRequestBody());
         }
@@ -803,7 +1210,7 @@ public class ActionTest {
             emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setBody("We searched {{data.x}} shards");
@@ -819,13 +1226,15 @@ public class ActionTest {
 
             emailAction.setAttachments(ImmutableMap.of("test2", attachment2, "test1", attachment1));
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             ActionExecutionResult result = emailAction.execute(ctx);
             Assert.assertTrue(result.getRequest(), result.getRequest().contains("Content-Type: text/plain"));
@@ -868,7 +1277,7 @@ public class ActionTest {
             emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setBody("We searched {{data.x}} shards");
@@ -884,13 +1293,15 @@ public class ActionTest {
 
             emailAction.setAttachments(ImmutableMap.of("test2", attachment2, "test1", attachment1));
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             ActionExecutionResult result = emailAction.execute(ctx);
             Assert.assertTrue(result.getRequest(), result.getRequest().contains("Content-Type: text/plain"));
@@ -932,7 +1343,7 @@ public class ActionTest {
             emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setHtmlBody("<p>We searched {{data.x}} shards<p/>");
@@ -945,13 +1356,15 @@ public class ActionTest {
 
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             ActionExecutionResult result = emailAction.execute(ctx);
 
@@ -993,7 +1406,7 @@ public class ActionTest {
             emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setBody("{{data.x}} shards have been searched for");
@@ -1007,13 +1420,15 @@ public class ActionTest {
 
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             ActionExecutionResult result = emailAction.execute(ctx);
 
@@ -1051,7 +1466,7 @@ public class ActionTest {
             emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setSubject("Test Subject");
@@ -1064,7 +1479,8 @@ public class ActionTest {
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
             try {
-                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                    trustManagerRegistry, null, STRICT));
             } catch (ConfigValidationException e) {
                 Assert.assertTrue(e.getMessage().contains("Both body and html_body are empty"));
             }
@@ -1087,10 +1503,11 @@ public class ActionTest {
                 runtimeData.put("x", "y");
 
                 HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                        "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                        "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
-                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, null, STRICT));
 
                 EmailAccount emailDestination = new EmailAccount();
                 emailDestination.setHost("localhost");
@@ -1099,7 +1516,7 @@ public class ActionTest {
                 emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
                 AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-                Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+                when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
 
                 EmailAction emailAction = new EmailAction();
                 emailAction.setBody("We searched {{data.x}} shards");
@@ -1117,10 +1534,12 @@ public class ActionTest {
 
                 emailAction.setAttachments(ImmutableMap.of("test", attachment, "test2", attachment2));
 
-                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                    trustManagerRegistry, null, STRICT));
 
                 WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                        ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                        ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                        trustManagerRegistry);
 
                 emailAction.execute(ctx);
 
@@ -1162,10 +1581,11 @@ public class ActionTest {
                 runtimeData.put("body", "stuff");
                 runtimeData.put("x", "y");
                 HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                        "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                        "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
-                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, null, STRICT));
 
                 EmailAccount emailDestination = new EmailAccount();
                 emailDestination.setHost("localhost");
@@ -1174,7 +1594,7 @@ public class ActionTest {
                 emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
                 AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-                Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+                when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
 
                 EmailAction emailAction = new EmailAction();
                 emailAction.setBody("We searched {{data.x}} shards");
@@ -1192,10 +1612,12 @@ public class ActionTest {
 
                 emailAction.setAttachments(ImmutableMap.of("test", attachment, "test2", attachment2));
 
-                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                    trustManagerRegistry, null, STRICT));
 
                 WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                        ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                        ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                        trustManagerRegistry);
 
                 emailAction.execute(ctx);
 
@@ -1237,10 +1659,11 @@ public class ActionTest {
                 runtimeData.put("x", "y");
 
                 HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                        "/{{data.path}}", null, "{{data.body}}", null, null, null);
+                        "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
-                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+                httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, null, STRICT));
 
                 EmailAccount emailDestination = new EmailAccount();
                 emailDestination.setHost("localhost");
@@ -1249,7 +1672,7 @@ public class ActionTest {
                 emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
                 AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-                Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+                when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
 
                 EmailAction emailAction = new EmailAction();
                 emailAction.setBody("We searched {{data.x}} shards");
@@ -1272,10 +1695,12 @@ public class ActionTest {
 
                 emailAction.setAttachments(ImmutableMap.of("attachment3", attachment3, "test", attachment, "test2", attachment2));
 
-                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+                emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                    trustManagerRegistry, null, STRICT));
 
                 WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                        ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                        ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                        trustManagerRegistry);
 
                 emailAction.execute(ctx);
 
@@ -1320,7 +1745,7 @@ public class ActionTest {
             emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -1345,10 +1770,12 @@ public class ActionTest {
             emailAction.setReplyTo("Reply To <replyto@specific.sgtest>");
             emailAction.setAccount("test_destination");
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             ActionExecutionResult result = emailAction.execute(ctx);
             Assert.assertTrue(result.getRequest(), result.getRequest().contains("Content-Type: text/plain"));
@@ -1389,7 +1816,7 @@ public class ActionTest {
             emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
 
             NestedValueMap runtimeData = new NestedValueMap();
 
@@ -1400,10 +1827,12 @@ public class ActionTest {
             emailAction.setTo(Collections.singletonList("to@specific.sgtest"));
             emailAction.setAccount("test_destination");
 
-            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService));
+            emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, null, STRICT));
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                    trustManagerRegistry);
 
             emailAction.execute(ctx);
 

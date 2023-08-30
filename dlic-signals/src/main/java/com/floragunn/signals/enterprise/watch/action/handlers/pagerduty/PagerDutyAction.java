@@ -1,5 +1,6 @@
 package com.floragunn.signals.enterprise.watch.action.handlers.pagerduty;
 
+import com.floragunn.signals.watch.common.ValidationLevel;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
@@ -40,11 +41,13 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
     private String account;
     private PagerDutyEventConfig eventConfig;
     private boolean autoResolve;
+	private HttpClientConfig httpClientConfig;
 
-    public PagerDutyAction(String account, PagerDutyEventConfig eventConfig, boolean autoResolve) {
+    public PagerDutyAction(String account, PagerDutyEventConfig eventConfig, boolean autoResolve,  HttpClientConfig httpClientConfig) {
         this.account = account;
         this.eventConfig = eventConfig;
         this.autoResolve = autoResolve;
+		this.httpClientConfig = httpClientConfig;
     }
 
     @Override
@@ -104,7 +107,6 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
     }
 
     private void send(PagerDutyAccount account, PagerDutyEvent event, HttpProxyConfig proxyConfig) throws ActionExecutionException, IOException {
-        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
         try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(proxyConfig)) {
             HttpPost httpRequest = new HttpPost(account.getUri() != null ? account.getUri() : "https://events.pagerduty.com/v2/enqueue");
@@ -112,7 +114,7 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
             String eventJson = Strings.toString(event);
 
             if (log.isDebugEnabled()) {
-                log.debug("Sending to " + httpRequest.getURI() + ":\n" + eventJson);
+                log.debug("Sending to {} :\n{}",httpRequest.getURI(), eventJson);
             }
 
             httpRequest.setEntity(new StringEntity(eventJson, ContentType.APPLICATION_JSON));
@@ -121,7 +123,7 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
                     .doPrivileged((PrivilegedExceptionAction<CloseableHttpResponse>) () -> httpClient.execute(httpRequest));
 
             if (log.isDebugEnabled()) {
-                log.debug("Response: " + response.getStatusLine() + "\n" + HttpUtils.getEntityAsDebugString(response));
+                log.debug("Response: {}\n{}", response.getStatusLine(), HttpUtils.getEntityAsDebugString(response));
             }
 
             if (response.getStatusLine().getStatusCode() >= 400) {
@@ -149,6 +151,7 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
                 ValidationErrors validationErrors) throws ConfigValidationException {
 
             String account = vJsonNode.get("account").asString();
+			HttpClientConfig httpClientConfig = null;
 
             watchInitializationService.verifyAccount(account, PagerDutyAccount.class, validationErrors, vJsonNode.getDocumentNode());
 
@@ -156,7 +159,10 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
 
             if (vJsonNode.hasNonNull("event")) {
                 try {
-                    eventConfig = PagerDutyEventConfig.create(watchInitializationService, vJsonNode.getDocumentNode().getAsNode("event"));
+					ValidationLevel validationLevel = watchInitializationService.getValidationLevel();
+					eventConfig = PagerDutyEventConfig.create(watchInitializationService, vJsonNode.getDocumentNode().getAsNode("event"));
+					httpClientConfig =
+						HttpClientConfig.create(vJsonNode, watchInitializationService.getTrustManagerRegistry(), validationLevel);
                 } catch (ConfigValidationException e) {
                     validationErrors.add("event", e);
                 }
@@ -168,7 +174,7 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
 
             validationErrors.throwExceptionForPresentErrors();
 
-            return new PagerDutyAction(account, eventConfig, autoResolve);
+            return new PagerDutyAction(account, eventConfig, autoResolve, httpClientConfig);
         }
     }
 

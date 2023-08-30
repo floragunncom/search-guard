@@ -57,7 +57,7 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
         Assert.assertTrue("Expected (only) 'attribute-2' to be set for user'" + httpResponse.getBody(),
                 httpResponse.getBody().contains("attr.proxy2.username"));
         Assert.assertTrue("Expected (only) 'attribute-2' to be set for user'" + httpResponse.getBody(),
-                httpResponse.toJsonNode().get("custom_attribute_names").size() == 2);
+                httpResponse.toDocNode().getAsListOfNodes("custom_attribute_names").size() == 2);
         Assert.assertEquals(HttpStatus.SC_OK, httpResponse.getStatusCode());
 
         httpResponse = restHelper.executeGetRequest("_searchguard/authinfo", new BasicHeader("x-proxy-user", "scotty"),
@@ -70,7 +70,7 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
         Assert.assertTrue("Expected 'attribute-1' and 'attribute-2' to be set for user'" + httpResponse.getBody(), httpResponse.getBody().contains(
                 "attr.proxy2.username"));
         Assert.assertTrue("Expected 'attribute-1' and 'attribute-2' to be set for user'" + httpResponse.getBody(),
-                httpResponse.toJsonNode().get("custom_attribute_names").size() == 3);
+                httpResponse.toDocNode().getAsListOfNodes("custom_attribute_names").size() == 3);
         Assert.assertEquals(HttpStatus.SC_OK, httpResponse.getStatusCode());
     }
 

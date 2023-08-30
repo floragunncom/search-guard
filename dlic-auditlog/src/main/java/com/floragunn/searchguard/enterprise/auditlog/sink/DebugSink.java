@@ -20,8 +20,8 @@ import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 
 public final class DebugSink extends AuditLogSink {
 
-    public DebugSink(String name, Settings settings, AuditLogSink fallbackSink) {
-        super(name, settings, null, fallbackSink);
+    public DebugSink(String name, Settings settings, AuditLogSink fallbackSink, String settingsPrefix) {
+        super(name, settings, settingsPrefix, fallbackSink);
     }
 
     @Override

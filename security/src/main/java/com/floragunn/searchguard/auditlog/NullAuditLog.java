@@ -19,8 +19,11 @@ package com.floragunn.searchguard.auditlog;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Map;
 
+import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
@@ -130,7 +133,52 @@ public class NullAuditLog implements AuditLog {
         //noop, intentionally left empty
     }
 
-	@Override
+    @Override
+    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logSucceededKibanaLogin(UserInformation effectiveUser) {
+        //noop, intentionally left empty
+    }
+
+    @Override
+    public void logSucceededKibanaLogout(UserInformation effectiveUser) {
+        //noop, intentionally left empty
+    }
+
+    @Override
 	public void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task) {
 		//noop, intentionally left empty		
 	}

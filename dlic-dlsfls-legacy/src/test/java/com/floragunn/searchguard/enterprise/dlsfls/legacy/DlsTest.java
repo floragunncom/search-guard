@@ -70,7 +70,7 @@ public class DlsTest {
             GenericRestClient.HttpResponse response = client.get("/_searchguard/license");
 
             try {
-                Assert.assertFalse(response.getBody(), response.toJsonNode().path("modules").path("DLSFLS").isMissingNode());
+                Assert.assertFalse(response.getBody(), response.getBodyAsDocNode().getAsNode("modules").getAsNode("DLSFLS").isNull());
             } catch (Exception e) {
                 System.err.println("Error while parsing: " + response.getBody());
                 throw e;

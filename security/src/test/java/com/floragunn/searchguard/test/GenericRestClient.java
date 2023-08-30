@@ -58,8 +58,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.xcontent.ToXContentObject;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.floragunn.codova.documents.ContentType;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocWriter;
@@ -67,7 +65,6 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format.UnknownDocTypeException;
 import com.floragunn.codova.documents.patch.DocPatch;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.google.common.collect.Lists;
 
@@ -337,7 +334,8 @@ public class GenericRestClient implements AutoCloseable {
         private final Header[] headers;
         private final int statusCode;
         private final String statusReason;
-
+        private DocNode parsedBody;
+        
         public HttpResponse(CloseableHttpResponse inner) throws IllegalStateException, IOException {
             super();
             this.inner = inner;
@@ -378,7 +376,17 @@ public class GenericRestClient implements AutoCloseable {
         }
 
         public DocNode getBodyAsDocNode() throws DocumentParseException, UnknownDocTypeException {
-            return DocNode.parse(ContentType.parseHeader(getContentType())).from(body);
+            DocNode result = this.parsedBody;
+            
+            if (result != null) {
+                return result;
+            }
+            
+            result = DocNode.parse(ContentType.parseHeader(getContentType())).from(body);
+            
+            this.parsedBody = result;
+            
+            return result;
         }
 
         public int getStatusCode() {
@@ -401,10 +409,6 @@ public class GenericRestClient implements AutoCloseable {
             }
             
             return null;
-        }
-
-        public JsonNode toJsonNode() throws JsonProcessingException, IOException {
-            return DefaultObjectMapper.objectMapper.readTree(getBody());
         }
 
         @Override

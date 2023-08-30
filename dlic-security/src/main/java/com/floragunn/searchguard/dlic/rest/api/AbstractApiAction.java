@@ -87,10 +87,10 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected final AuditLog auditLog;
 	protected final Settings settings;
 	protected final StaticSgConfig staticSgConfig;
-	private final ConfigurationLoader configLoader;
+    protected final ConfigurationLoader configLoader;
 
     protected AbstractApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
-            final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
+            final AdminDNs adminDNs, final ConfigurationRepository configRepository, StaticSgConfig staticSgConfig, final ClusterService cs,
             final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
             AuditLog auditLog) {
@@ -98,14 +98,14 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		this.settings = settings;
 		this.acceptInvalidLicense = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE, Boolean.FALSE);
 
-		this.cl = cl;
+		this.cl = configRepository;
 		this.cs = cs;
 		this.threadPool = threadPool;
         this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
 		this.auditLog = auditLog;
 		this.staticSgConfig = staticSgConfig;
-		this.configLoader = new ConfigurationLoader(client, cl);
+        this.configLoader = new ConfigurationLoader(client, configRepository);		
 	}
 
 	protected abstract AbstractConfigurationValidator getValidator(RestRequest request, BytesReference ref, Object... params);
@@ -254,7 +254,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		notImplemented(channel, Method.POST);
 	}
 
-	protected void handleGet(final RestChannel channel, RestRequest request, Client client, final DocNode content)
+	@SuppressWarnings("resource")
+    protected void handleGet(final RestChannel channel, RestRequest request, Client client, final DocNode content)
 	        throws IOException{
 	    
 		final String resourcename = request.param("name");
@@ -264,7 +265,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 			
 			// Drop user information to avoid logging audit log events. Audit log is done manually below.
 			try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-			    configuration = configLoader.loadSync(getConfigName(), "API Request");
+			    configuration = configLoader.loadSync(getConfigName(), "API Request", cl.getParserContext());
 			}
 
 			logComplianceEvent(configuration);
@@ -299,7 +300,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         
         // Drop user information to avoid logging audit log events. Audit log events are logged manually below.
         try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-            loaded = cl.getConfigurationFromIndex(config, "API Request");
+            loaded = configLoader.loadSync(config, "API Request", cl.getParserContext());
         }
         
         if (logComplianceEvent) {

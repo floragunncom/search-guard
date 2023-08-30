@@ -41,7 +41,6 @@ import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.PrivilegedCode;
 import com.floragunn.searchsupport.cstate.ComponentState;
@@ -58,7 +57,7 @@ import com.unboundid.ldap.sdk.SearchResultEntry;
 import com.unboundid.ldap.sdk.SearchScope;
 import com.unboundid.ldap.sdk.SimpleBindRequest;
 
-public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInformationBackend, Destroyable {
+public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInformationBackend, AutoCloseable {
 
     public static final String TYPE = "ldap";
 
@@ -174,7 +173,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     }
 
     @Override
-    public void destroy() {
+    public void close() {
         if (this.connectionManager != null) {
             try {
                 this.connectionManager.close();

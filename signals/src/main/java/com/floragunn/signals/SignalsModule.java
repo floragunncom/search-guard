@@ -10,6 +10,11 @@ import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
 import com.floragunn.signals.script.SignalsScriptContextFactory;
+import com.floragunn.signals.truststore.rest.DeleteTruststoreAction;
+import com.floragunn.signals.truststore.rest.FindAllTruststoresAction;
+import com.floragunn.signals.truststore.rest.FindOneTruststoreAction;
+import com.floragunn.signals.truststore.rest.CreateOrReplaceTruststoreAction;
+import com.floragunn.signals.truststore.rest.TransportTruststoreUpdatedAction;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -99,6 +104,7 @@ import com.floragunn.signals.watch.severity.SeverityMapping;
 public class SignalsModule implements SearchGuardModule, ComponentStateProvider {
 
     private final boolean enabled;
+    private SignalsSettings signalsSettings;
     private final ComponentState moduleState = new ComponentState(100, null, "signals", SignalsModule.class);
 
     public SignalsModule(Settings settings) {
@@ -118,12 +124,13 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
         if (enabled) {
-            return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService),
+            return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService, this.signalsSettings),
                     new DeActivateWatchAction(settings, controller), new AckWatchApiAction(settings, controller), new SearchWatchApiAction(),
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
-                    new AckAndGetWatchApiAction(settings));
+                    new AckAndGetWatchApiAction(settings), CreateOrReplaceTruststoreAction.REST_API, FindOneTruststoreAction.REST_API,
+                    DeleteTruststoreAction.REST_API, FindAllTruststoresAction.REST_API);
         } else {
             return Collections.emptyList();
         }
@@ -155,7 +162,12 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(StartStopAction.INSTANCE, TransportStartStopAction.class),
                     new ActionHandler<>(SearchWatchStateAction.INSTANCE, TransportSearchWatchStateAction.class),
                     new ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class),
-                    new ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class)
+                    new ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
+                    new ActionHandler<>(CreateOrReplaceTruststoreAction.INSTANCE, CreateOrReplaceTruststoreAction.UploadTruststoreHandler.class),
+                    new ActionHandler<>(FindOneTruststoreAction.INSTANCE, FindOneTruststoreAction.FindOneTruststoreHandler.class),
+                    new ActionHandler<>(FindAllTruststoresAction.INSTANCE, FindAllTruststoresAction.FindAllTruststoresHandler.class),
+                    new ActionHandler<>(DeleteTruststoreAction.INSTANCE, DeleteTruststoreAction.DeleteTruststoreHandler.class),
+                    new ActionHandler<>(TransportTruststoreUpdatedAction.TruststoreUpdatedActionType.INSTANCE, TransportTruststoreUpdatedAction.class)
 
             );
         } else {
@@ -189,6 +201,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     }
                 }
             });
+
+            this.signalsSettings = signals.getSignalsSettings();
 
             return signals.createComponents(baseDependencies.getLocalClient(), baseDependencies.getClusterService(), baseDependencies.getThreadPool(),
                     baseDependencies.getResourceWatcherService(), baseDependencies.getScriptService(), baseDependencies.getxContentRegistry(),

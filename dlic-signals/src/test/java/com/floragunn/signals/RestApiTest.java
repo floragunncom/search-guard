@@ -1,5 +1,8 @@
 package com.floragunn.signals;
 
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -17,10 +20,14 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;
+import org.mockito.Mockito;
+
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 
 public class RestApiTest {
 
     private static ScriptService scriptService;
+    private static ThrottlePeriodParser throttlePeriodParser;
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
@@ -43,6 +50,7 @@ public class RestApiTest {
     @BeforeClass
     public static void setupDependencies() {
         scriptService = cluster.getInjectable(ScriptService.class);
+        throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
 
     }
 
@@ -71,7 +79,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
         }
     }

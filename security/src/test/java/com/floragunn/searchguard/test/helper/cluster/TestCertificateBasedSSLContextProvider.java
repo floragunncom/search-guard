@@ -18,13 +18,9 @@
 package com.floragunn.searchguard.test.helper.cluster;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.X509ExtendedKeyManager;
-import javax.net.ssl.X509ExtendedTrustManager;
 
+import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
-
-import nl.altindag.ssl.SSLFactory;
-import nl.altindag.ssl.util.PemUtils;
 
 public class TestCertificateBasedSSLContextProvider implements SSLContextProvider {
 
@@ -38,23 +34,17 @@ public class TestCertificateBasedSSLContextProvider implements SSLContextProvide
 
     @Override
     public SSLContext getSslContext(boolean clientAuthentication) {
-        X509ExtendedTrustManager trustManager = PemUtils.loadTrustMaterial(caCertificate.getCertificateFile().toPath());
+        try {
+            TLSConfig.Builder tlsConfigBuilder = new TLSConfig.Builder().trust(caCertificate.getCertificateFile());
 
-        SSLFactory.Builder builder = SSLFactory.builder().withTrustMaterial(trustManager);
-
-        if (clientAuthentication) {
-            X509ExtendedKeyManager keyManager;
-
-            if (certificate.getPrivateKeyPassword() != null) {
-                keyManager = PemUtils.loadIdentityMaterial(certificate.getCertificateFile().toPath(), certificate.getPrivateKeyFile().toPath(),
-                        certificate.getPrivateKeyPassword().toCharArray());
-            } else {
-                keyManager = PemUtils.loadIdentityMaterial(certificate.getCertificateFile().toPath(), certificate.getPrivateKeyFile().toPath());
+            if (clientAuthentication) {
+                tlsConfigBuilder = tlsConfigBuilder.clientCert(certificate.getCertificateFile(), certificate.getPrivateKeyFile(),
+                        certificate.getPrivateKeyPassword());
             }
 
-            builder.withIdentityMaterial(keyManager);
+            return tlsConfigBuilder.build().getUnrestrictedSslContext();
+        } catch (Exception e) {
+            throw new RuntimeException("Error when building SSLContext for tests", e);
         }
-
-        return builder.build().getSslContext();
     }
 }

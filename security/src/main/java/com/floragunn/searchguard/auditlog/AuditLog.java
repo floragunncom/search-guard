@@ -19,8 +19,11 @@ package com.floragunn.searchguard.auditlog;
 
 import java.io.Closeable;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Map;
 
+import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
@@ -70,7 +73,19 @@ public interface AuditLog extends Closeable {
     void logDocumentWritten(ShardId shardId, GetResult originalIndex, Index currentIndex, IndexResult result);
     void logDocumentDeleted(ShardId shardId, Delete delete, DeleteResult result);
     void logExternalConfig(Settings settings, Environment environment);
-    
+
+    void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate, ComposableIndexTemplate currentTemplate, String action, TransportRequest transportRequest);
+    void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate, IndexTemplateMetadata currentTemplate, String action, TransportRequest transportRequest);
+    void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest);
+
+    void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest);
+    void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest);
+    void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest);
+    void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest);
+
+    void logSucceededKibanaLogin(UserInformation effectiveUser);
+    void logSucceededKibanaLogout(UserInformation effectiveUser);
+
     public enum Origin {
         REST, TRANSPORT, LOCAL
     }

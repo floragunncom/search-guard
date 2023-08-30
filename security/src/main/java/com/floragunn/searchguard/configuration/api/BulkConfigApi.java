@@ -49,6 +49,7 @@ import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
+import com.floragunn.searchguard.configuration.ConfigurationLoader;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ConfigurationRepository.ConfigUpdateResult;
 import com.floragunn.searchguard.configuration.ConfigurationRepository.ConfigWithMetadata;
@@ -104,6 +105,7 @@ public class BulkConfigApi {
 
             private final ConfigurationRepository configurationRepository;
             private final ConfigVarService configVarService;
+            private final ConfigurationLoader configLoader;
             private final AuditLog auditLog;
 
             private final static ToXContent.Params OMIT_DEFAULTS_PARAMS = new ToXContent.MapParams(ImmutableMap.of("omit_defaults", "true"));
@@ -116,13 +118,15 @@ public class BulkConfigApi {
                 this.configurationRepository = configurationRepository;
                 this.configVarService = configVarService;
                 this.auditLog = baseDependencies.getAuditLog();
+                this.configLoader = new ConfigurationLoader(baseDependencies.getLocalClient(), configurationRepository);
             }
 
             @Override
             protected CompletableFuture<Response> doExecute(EmptyRequest request) {
                 return supplyAsync(() -> {
                     try {
-                        ConfigMap configMap = configurationRepository.getConfigurationsFromIndex(CType.all(), "GET Bulk API Request");
+                        ConfigMap configMap = this.configLoader.loadSync(CType.all(), "GET Bulk API Request",
+                                this.configurationRepository.getParserContext());
 
                         logComplianceEvent(configMap);
 

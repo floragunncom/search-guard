@@ -26,21 +26,18 @@
     <module>plugin</module>
     <module>ssl</module>
   </modules>
-
   <scm>
     <connection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite.git</connection>
     <developerConnection>scm:git:git@git.floragunn.com/search-guard/search-guard-suite.git</developerConnection>
     <tag>HEAD</tag>
     <url>https://git.floragunn.com/search-guard/search-guard-suite/</url>
   </scm>
-
   <distributionManagement>
     <repository>
       <id>release</id>
       <name>Release repository</name>
       <url>https://maven.search-guard.com:443/search-guard-flx-release</url>
     </repository>
-
     <snapshotRepository>
       <id>snapshot</id>
       <name>Snapshot repository</name>
@@ -49,163 +46,161 @@
   </distributionManagement>
 
   <properties>
-    <sg-suite.version>master-SNAPSHOT</sg-suite.version>
-    <maven.compiler.release>17</maven.compiler.release>
-
     <elasticsearch.version>8.9.0</elasticsearch.version>
-
-    <log4j.version>2.19.0</log4j.version>
-    <jackson.version>2.14.2</jackson.version>
-    <netty.version>4.1.86.Final</netty.version>
-
-    <bc.version>1.70</bc.version>
-    <guava.version>31.1-jre</guava.version>
-    <cxf.version>3.4.10</cxf.version>
-    <http.commons.version>4.5.14</http.commons.version>
-    <http.commons.httpcore.version>4.4.16</http.commons.httpcore.version>
-    <http.commons.httpasyncclient.version>4.1.5</http.commons.httpasyncclient.version>
-    <quartz.version>2.3.2</quartz.version>
-    <simplemail.version>5.2.1</simplemail.version>
-    <commons.codec.version>1.15</commons.codec.version>
-    <jjwt.version>0.11.5</jjwt.version>
-    <codova.version>1.3.0</codova.version>
-    <fluent.collections.version>1.0.1</fluent.collections.version>
-    <ipaddress.version>5.3.4</ipaddress.version>
-
-    <!-- Test only -->
-    <junit.version>4.13.2</junit.version>
-    <mockito.version>2.23.4</mockito.version>
-    <powermock.version>2.0.9</powermock.version>
-    <mustache.compiler.version>0.9.10</mustache.compiler.version>
-    <servlet.api-version>2.5</servlet.api-version>
-    <sslcontext.kickstart.for.pem.version>7.4.4</sslcontext.kickstart.for.pem.version>
-    <browserup.proxy.core.version>2.1.2</browserup.proxy.core.version>
-    <littleproxy.version>2.0.9</littleproxy.version>
-    <jcip.annotations.version>1.0-1</jcip.annotations.version>
-    <commons.io.version>2.12.0</commons.io.version>
-    <hamcrest.all.version>1.3</hamcrest.all.version>
-    <greenmail.version>1.5.14</greenmail.version>
-    <org_ow2_asm.version>7.2</org_ow2_asm.version>
-    <org_antlr.version>4.11.1</org_antlr.version>
-
-    <!-- Plugins -->
-    <maven.enforcer.plugin.version>3.3.0</maven.enforcer.plugin.version>
-    <maven.clean.plugin.version>3.2.0</maven.clean.plugin.version>
-    <maven.dependency.plugin.version>3.3.0</maven.dependency.plugin.version>
-    <flatten.maven.plugin.version>1.2.7</flatten.maven.plugin.version>
-    <license.maven.plugin.version>2.0.0</license.maven.plugin.version>
-    <maven.resources.plugin.version>3.2.0</maven.resources.plugin.version>
-    <maven.release.plugin.version>3.0.0-M6</maven.release.plugin.version>
-    <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
-    <maven.gpg.plugin.version>3.0.1</maven.gpg.plugin.version>
-    <maven.jar.plugin.version>3.2.2</maven.jar.plugin.version>
-    <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
-    <maven.surefire.plugin.version>3.0.0-M7</maven.surefire.plugin.version>
-    <jacoco.maven.plugin.version>0.8.8</jacoco.maven.plugin.version>
-    <maven.assembly.plugin.version>3.3.0</maven.assembly.plugin.version>
-    <download.maven.plugin.version>1.6.8</download.maven.plugin.version>
-    <checksum.maven.plugin.version>1.7.1</checksum.maven.plugin.version>
-    <maven.deploy.plugin.version>3.0.0-M2</maven.deploy.plugin.version>
-    <maven.install.plugin.version>3.0.0-M1</maven.install.plugin.version>
-    <maven.site.plugin.version>4.0.0-M2</maven.site.plugin.version>
-    <spotless.maven.plugin.version>2.22.8</spotless.maven.plugin.version>
-    <eclipse.formatter.version>4.21.0</eclipse.formatter.version>
-    <maven.build.helper.plugin.version>3.3.0</maven.build.helper.plugin.version>
-
-    <!-- Reporting plugins -->
-    <maven.project.info.reports.version>3.3.0</maven.project.info.reports.version>
-
+    <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <sonatypeOssDistMgmtSnapshotsUrl>https://oss.sonatype.org/content/repositories/snapshots/</sonatypeOssDistMgmtSnapshotsUrl>
     <dependency.locations.enabled>false</dependency.locations.enabled>
-    <YEAR>${maven.build.timestamp}</YEAR>
-    <maven.build.timestamp.format>yyyy</maven.build.timestamp.format>
+    <maven.compiler.release>17</maven.compiler.release>
+
+    <netty.version>4.1.86.Final</netty.version>
+    <bc.version>1.70</bc.version>
+    <log4j.version>2.19.0</log4j.version>
+    <jackson.version>2.14.2</jackson.version>
+    <cxf.version>4.0.2</cxf.version>
+    <http.commons.version>4.5.14</http.commons.version>
+    <opensaml.version>4.3.0</opensaml.version>
+    <opensaml.patch.version>4.3.0-1.0.3</opensaml.patch.version>
+    <powermock.version>2.0.2</powermock.version>
+
+    <!-- For mvn license:aggregate-add-third-party -->
+    <license.excludedArtifacts>.*search-guard.*</license.excludedArtifacts>
+    <license.excludedScopes>test,provided</license.excludedScopes>
   </properties>
 
   <dependencyManagement>
     <dependencies>
+
       <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-cbor</artifactId>
-        <version>${jackson.version}</version>
-        <scope>compile</scope>
+        <groupId>co.elastic.clients</groupId>
+        <artifactId>elasticsearch-java</artifactId>
+        <version>${elasticsearch.version}</version>
+
       </dependency>
 
       <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-smile</artifactId>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
         <version>${jackson.version}</version>
-        <scope>compile</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-yaml</artifactId>
-        <version>${jackson.version}</version>
-        <scope>compile</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>codova</artifactId>
-        <version>${codova.version}</version>
-        <scope>compile</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-          </exclusion>
-        </exclusions>
+        <version>1.4.0</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>dlic-search-guard-flx-security</artifactId>
+        <version>${project.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>fluent-collections</artifactId>
-        <version>${fluent.collections.version}</version>
-        <scope>compile</scope>
+        <version>1.0.1</version>
       </dependency>
 
       <dependency>
-        <groupId>com.github.seancfoley</groupId>
-        <artifactId>ipaddress</artifactId>
-        <version>${ipaddress.version}</version>
-        <scope>compile</scope>
+        <groupId>com.floragunn</groupId>
+        <artifactId>search-guard-flx-scheduler</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>search-guard-flx-security</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>search-guard-flx-security-legacy</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>search-guard-flx-ssl</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn</groupId>
+        <artifactId>search-guard-flx-support</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.floragunn.dependencies.org.opensaml</groupId>
+        <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+        <version>${opensaml.patch.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.stephenc.jcip</groupId>
+        <artifactId>jcip-annotations</artifactId>
+        <version>1.0-1</version>
       </dependency>
 
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
-        <scope>compile</scope>
+        <version>32.0.1-jre</version>
       </dependency>
 
       <dependency>
-        <!-- We explicitly depend on jakarta.activation in order to override various transitive dependencies to jakarta.activation which can trigger JAR hell issues -->
-        <groupId>com.sun.activation</groupId>
-        <artifactId>jakarta.activation</artifactId>
-        <version>[1.2.2,1.3)</version>
+        <groupId>com.icegreen</groupId>
+        <artifactId>greenmail</artifactId>
+        <version>1.5.10</version>
+      </dependency>
+      <dependency>
+        <groupId>com.jayway.jsonpath</groupId>
+        <artifactId>json-path</artifactId>
+        <version>2.5.0</version>
       </dependency>
 
       <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
-        <version>${commons.codec.version}</version>
-        <scope>compile</scope>
+        <version>1.16.0</version>
       </dependency>
 
       <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-api</artifactId>
-        <version>${jjwt.version}</version>
+        <groupId>commons-collections</groupId>
+        <artifactId>commons-collections</artifactId>
+        <version>3.2.2</version>
+      </dependency>
+
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>2.13.0</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-validator</groupId>
+        <artifactId>commons-validator</artifactId>
+        <version>1.7</version>
       </dependency>
 
       <dependency>
@@ -215,95 +210,80 @@
       </dependency>
 
       <dependency>
-        <groupId>org.apache.cxf</groupId>
-        <artifactId>cxf-rt-rs-security-jose</artifactId>
-        <version>${cxf.version}</version>
-        <scope>compile</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.glassfish.jaxb</groupId>
-            <artifactId>jaxb-runtime</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>jakarta.xml.bind</groupId>
-            <artifactId>jakarta.xml.bind-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.fasterxml.woodstox</groupId>
-            <artifactId>woodstox-core</artifactId>
-          </exclusion>
-        </exclusions>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>4.13.1</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>fluent-hc</artifactId>
+        <version>${http.commons.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpasyncclient</artifactId>
-        <version>${http.commons.httpasyncclient.version}</version>
-        <scope>compile</scope>
+        <version>4.1.5</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
         <version>${http.commons.version}</version>
-        <scope>compile</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient-cache</artifactId>
-        <version>${http.commons.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpcore</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpcore</artifactId>
-        <version>${http.commons.httpcore.version}</version>
-        <scope>compile</scope>
+        <version>4.4.16</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-slf4j2-impl</artifactId>
+        <artifactId>log4j-api</artifactId>
         <version>${log4j.version}</version>
-        <scope>compile</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-core</artifactId>
+        <version>${log4j.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpg-jdk15on</artifactId>
         <version>${bc.version}</version>
-        <scope>compile</scope>
       </dependency>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk15on</artifactId>
         <version>${bc.version}</version>
-        <scope>compile</scope>
       </dependency>
 
       <dependency>
-        <groupId>org.elasticsearch.client</groupId>
-        <artifactId>elasticsearch-rest-client</artifactId>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk15on</artifactId>
+        <version>${bc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.elasticsearch</groupId>
+        <artifactId>elasticsearch</artifactId>
         <version>${elasticsearch.version}</version>
-        <scope>compile</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch-preallocate</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.elasticsearch</groupId>
+        <artifactId>elasticsearch-ssl-config</artifactId>
+        <version>${elasticsearch.version}</version>
       </dependency>
 
       <dependency>
@@ -313,10 +293,66 @@
       </dependency>
 
       <dependency>
+        <groupId>org.elasticsearch.plugin</groupId>
+        <artifactId>aggs-matrix-stats-client</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.elasticsearch.plugin</groupId>
+        <artifactId>elasticsearch-scripting-painless-spi</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.elasticsearch.plugin</groupId>
+        <artifactId>lang-mustache</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.plugin</groupId>
+        <artifactId>lang-painless</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.elasticsearch.plugin</groupId>
+        <artifactId>parent-join-client</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.elasticsearch.plugin</groupId>
+        <artifactId>percolator-client</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.plugin</groupId>
+        <artifactId>reindex-client</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.hamcrest</groupId>
+        <artifactId>hamcrest-all</artifactId>
+        <version>1.3</version>
+      </dependency>
+      <dependency>
+        <groupId>org.powermock</groupId>
+        <artifactId>powermock-api-mockito2</artifactId>
+        <version>${powermock.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.powermock</groupId>
+        <artifactId>powermock-module-junit4</artifactId>
+        <version>${powermock.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.quartz-scheduler</groupId>
         <artifactId>quartz</artifactId>
-        <version>${quartz.version}</version>
-        <scope>compile</scope>
+        <version>2.3.2</version>
         <exclusions>
           <exclusion>
             <groupId>com.mchange</groupId>
@@ -326,352 +362,10 @@
       </dependency>
 
       <dependency>
-        <groupId>org.simplejavamail</groupId>
-        <artifactId>simple-java-mail</artifactId>
-        <version>${simplemail.version}</version>
-        <scope>compile</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>dlic-search-guard-flx-auditlog</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>dlic-search-guard-flx-security</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>dlic-search-guard-flx-signals</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-scheduler</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-security</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-security-legacy</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-signals</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-ssl</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-support</artifactId>
-        <version>${project.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn.org.opensaml</groupId>
-        <artifactId>opensaml-xmlsec-impl-patched</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <!-- We explicitly specify jakarta.activation-api as provided dependency, as the API is also provided by jakarta.activation. However the explicit provided scope avoids activation-api
-			     creeping into the build by transitive dependencies -->
-        <groupId>jakarta.activation</groupId>
-        <artifactId>jakarta.activation-api</artifactId>
-        <version>[1.2.2,1.3)</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.elasticsearch</groupId>
-        <artifactId>elasticsearch</artifactId>
-        <version>${elasticsearch.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.elasticsearch.plugin</groupId>
-        <artifactId>elasticsearch-scripting-painless-spi</artifactId>
-        <version>${elasticsearch.version}</version>
-        <scope>provided</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-impl</artifactId>
-        <version>${jjwt.version}</version>
-        <scope>runtime</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>co.elastic.clients</groupId>
-        <artifactId>elasticsearch-java</artifactId>
-        <version>${elasticsearch.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.browserup</groupId>
-        <artifactId>browserup-proxy-core</artifactId>
-        <version>${browserup.proxy.core.version}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>xyz.rogfam</groupId>
-            <artifactId>littleproxy</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>com.github.spullara.mustache.java</groupId>
-        <artifactId>compiler</artifactId>
-        <version>${mustache.compiler.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.github.stephenc.jcip</groupId>
-        <artifactId>jcip-annotations</artifactId>
-        <version>${jcip.annotations.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.icegreen</groupId>
-        <artifactId>greenmail</artifactId>
-        <version>${greenmail.version}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>commons-io</groupId>
-        <artifactId>commons-io</artifactId>
-        <version>${commons.io.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.github.hakky54</groupId>
-        <artifactId>sslcontext-kickstart-for-pem</artifactId>
-        <version>${sslcontext.kickstart.for.pem.version}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>io.jsonwebtoken</groupId>
-        <artifactId>jjwt-jackson</artifactId>
-        <version>${jjwt.version}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>javax.servlet</groupId>
-        <artifactId>servlet-api</artifactId>
-        <version>${servlet.api-version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>${junit.version}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>org.elasticsearch</groupId>
-        <artifactId>elasticsearch-ssl-config</artifactId>
-        <version>${elasticsearch.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.elasticsearch.plugin</groupId>
-        <artifactId>lang-mustache</artifactId>
-        <version>${elasticsearch.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.elasticsearch.plugin</groupId>
-        <artifactId>parent-join</artifactId>
-        <version>${elasticsearch.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.elasticsearch.plugin</groupId>
-        <artifactId>percolator</artifactId>
-        <version>${elasticsearch.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.elasticsearch.plugin</groupId>
-        <artifactId>reindex</artifactId>
-        <version>${elasticsearch.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.hamcrest</groupId>
-        <artifactId>hamcrest-all</artifactId>
-        <version>${hamcrest.all.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>${mockito.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-api-mockito2</artifactId>
-        <version>${powermock.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-module-junit4</artifactId>
-        <version>${powermock.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>xyz.rogfam</groupId>
-        <artifactId>littleproxy</artifactId>
-        <version>${littleproxy.version}</version>
-        <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
-        <scope>test</scope>
       </dependency>
 
       <dependency>
@@ -679,7 +373,6 @@
         <artifactId>dlic-search-guard-flx-security</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
-        <scope>test</scope>
       </dependency>
 
       <dependency>
@@ -687,7 +380,6 @@
         <artifactId>search-guard-flx-security</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
-        <scope>test</scope>
       </dependency>
 
       <dependency>
@@ -695,7 +387,6 @@
         <artifactId>search-guard-flx-security-legacy</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
-        <scope>test</scope>
       </dependency>
 
       <dependency>
@@ -703,75 +394,111 @@
         <artifactId>search-guard-flx-support</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
-        <scope>test</scope>
       </dependency>
 
+      <dependency>
+        <groupId>org.awaitility</groupId>
+        <artifactId>awaitility</artifactId>
+        <version>4.2.0</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
   <dependencies>
+
     <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-cbor</artifactId>
-      <scope>compile</scope>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-smile</artifactId>
+      <version>${jackson.version}</version>
       <scope>compile</scope>
+
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
+      <version>${jackson.version}</version>
       <scope>compile</scope>
+
+    </dependency>
+
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>codova</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+
+    <dependency>
+      <!-- We explicitly depend on jakarta.activation in order to override various transitive dependencies to jakarta.activation which can trigger JAR hell issues -->
+      <groupId>com.sun.activation</groupId>
+      <artifactId>jakarta.activation</artifactId>
+      <version>[1.2.2,1.3)</version>
+    </dependency>
+    <dependency>
+      <!-- We explicitly specify jakarta.activation-api as provided dependency, as the API is also provided by jakarta.activation. However the explicit provided scope avoids activation-api
+			     creeping into the build by transitive dependencies -->
+      <groupId>jakarta.activation</groupId>
+      <artifactId>jakarta.activation-api</artifactId>
+      <version>[1.2.2,1.3)</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j2-impl</artifactId>
-      <scope>compile</scope>
+      <artifactId>log4j-api</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.elasticsearch.plugin</groupId>
-      <artifactId>rest-root</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch</artifactId>
       <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.elasticsearch</groupId>
-          <artifactId>elasticsearch-preallocate</artifactId>
-        </exclusion>
-      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>co.elastic.clients</groupId>
+      <artifactId>elasticsearch-java</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-core</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.github.spullara.mustache.java</groupId>
       <artifactId>compiler</artifactId>
+      <version>0.9.10</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>io.github.hakky54</groupId>
-      <artifactId>sslcontext-kickstart-for-pem</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -796,18 +523,21 @@
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>parent-join</artifactId>
+      <version>${elasticsearch.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>percolator</artifactId>
+      <version>${elasticsearch.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>reindex</artifactId>
+      <version>${elasticsearch.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -816,21 +546,10 @@
       <artifactId>hamcrest-all</artifactId>
       <scope>test</scope>
     </dependency>
+
   </dependencies>
 
   <repositories>
-    <repository>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-      <id>sonatype-nexus-snapshots</id>
-      <name>Sonatype Nexus Snapshots</name>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </repository>
-
     <repository>
       <releases>
         <enabled>true</enabled>
@@ -841,7 +560,6 @@
       <id>release</id>
       <url>https://maven.search-guard.com:443/search-guard-flx-release</url>
     </repository>
-
     <repository>
       <releases>
         <enabled>false</enabled>
@@ -851,28 +569,6 @@
       </snapshots>
       <id>snapshot</id>
       <url>https://maven.search-guard.com:443/search-guard-flx-snapshot</url>
-    </repository>
-
-    <repository>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>elasticsearch-releases</id>
-      <url>https://artifacts.elastic.co/maven</url>
-    </repository>
-
-    <repository>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>util</id>
-      <url>https://maven.search-guard.com:443/util</url>
     </repository>
     <repository>
       <releases>
@@ -889,12 +585,31 @@
         <enabled>true</enabled>
       </releases>
       <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>util-release</id>
+      <url>https://maven.search-guard.com:443/util</url>
+    </repository>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
         <enabled>true</enabled>
       </snapshots>
       <id>third-party</id>
       <url>https://maven.search-guard.com:443/third-party</url>
     </repository>
-
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>elasticsearch-releases</id>
+      <url>https://artifacts.elastic.co/maven</url>
+    </repository>
     <repository>
       <releases>
         <enabled>true</enabled>
@@ -905,55 +620,26 @@
       <id>shibboleth</id>
       <url>https://build.shibboleth.net/nexus/content/repositories/releases/</url>
     </repository>
+    <repository>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <id>sonatype-nexus-snapshots</id>
+      <name>Sonatype Nexus Snapshots</name>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </repository>
   </repositories>
 
   <build>
     <resources>
       <resource>
-        <directory>src/main/resources</directory>
-      </resource>
-      <resource>
-        <targetPath>META-INF</targetPath>
-        <filtering>true</filtering>
-        <directory>${basedir}</directory>
-        <includes>
-          <include>LICENSE.txt</include>
-        </includes>
-      </resource>
-      <resource>
-        <targetPath>META-INF</targetPath>
-        <directory>${maven.multiModuleProjectDirectory}</directory>
-        <includes>
-          <include>NOTICE.txt</include>
-        </includes>
-      </resource>
-    </resources>
-    <testResources>
-      <testResource>
-        <directory>src/test/resources</directory>
-      </testResource>
-      <testResource>
-        <targetPath>META-INF</targetPath>
-        <filtering>true</filtering>
-        <directory>${basedir}</directory>
-        <includes>
-          <include>LICENSE.txt</include>
-        </includes>
-      </testResource>
-      <testResource>
-        <targetPath>META-INF</targetPath>
-        <directory>${maven.multiModuleProjectDirectory}</directory>
-        <includes>
-          <include>NOTICE.txt</include>
-        </includes>
-      </testResource>
-    </testResources>
-    <!-- <resources>
-      <resource>
         <filtering>false</filtering>
         <directory>${basedir}</directory>
         <includes>
-          <include>LICENSE.txt</include>
+          <include>LICENSE</include>
           <include>NOTICE.txt</include>
           <include>THIRD-PARTY.txt</include>
           <include>KEYS</include>
@@ -975,45 +661,46 @@
           <include>**/*</include>
         </includes>
       </testResource>
-    </testResources>-->
+    </testResources>
     <pluginManagement>
       <plugins>
         <plugin>
-          <artifactId>maven-assembly-plugin</artifactId>
-          <version>${maven.assembly.plugin.version}</version>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.1.0</version>
         </plugin>
-
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-clean-plugin</artifactId>
-          <version>${maven.clean.plugin.version}</version>
-        </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>${maven.compiler.plugin.version}</version>
+          <artifactId>maven-release-plugin</artifactId>
+          <version>2.5.3</version>
           <configuration>
-            <showDeprecation>true</showDeprecation>
-            <showWarnings>true</showWarnings>
-            <compilerArgument>-Xlint:unchecked</compilerArgument>
+            <tagNameFormat>v@{project.version}</tagNameFormat>
+            <pushChanges>false</pushChanges>
+            <localCheckout>true</localCheckout>
+            <autoVersionSubmodules>true</autoVersionSubmodules>
+            <useReleaseProfile>false</useReleaseProfile>
+            <releaseProfiles>release</releaseProfiles>
           </configuration>
         </plugin>
-
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-deploy-plugin</artifactId>
-          <version>${maven.deploy.plugin.version}</version>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>3.0.1</version>
+          <executions>
+            <execution>
+              <id>attach-sources</id>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
-
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-gpg-plugin</artifactId>
-          <version>${maven.gpg.plugin.version}</version>
+          <version>1.6</version>
           <configuration>
-            <!--suppress UnresolvedMavenProperty -->
             <keyname>${gpg.keyname}</keyname>
-            <!--suppress UnresolvedMavenProperty -->
             <passphraseServerId>${gpg.keyname}</passphraseServerId>
           </configuration>
           <executions>
@@ -1026,23 +713,15 @@
             </execution>
           </executions>
         </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-install-plugin</artifactId>
-          <version>${maven.install.plugin.version}</version>
-        </plugin>
-
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>${maven.jar.plugin.version}</version>
+          <version>3.1.1</version>
           <configuration>
             <excludes>
               <exclude>**/*cobertura*</exclude>
               <exclude>**/*jacoco*</exclude>
             </excludes>
-
             <archive>
               <manifest>
                 <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
@@ -1050,7 +729,6 @@
               <manifestEntries>
                 <Built-By>floragunn GmbH</Built-By>
                 <Build-Time>${maven.build.timestamp}</Build-Time>
-                <!--suppress UnresolvedMavenProperty -->
                 <git-sha1>${git.commit.id}</git-sha1>
               </manifestEntries>
             </archive>
@@ -1063,57 +741,25 @@
             </execution>
           </executions>
         </plugin>
-
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-release-plugin</artifactId>
-          <version>${maven.release.plugin.version}</version>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.11.0</version>
           <configuration>
-            <tagNameFormat>v@{project.version}</tagNameFormat>
-            <pushChanges>false</pushChanges>
-            <localCheckout>true</localCheckout>
-            <autoVersionSubmodules>true</autoVersionSubmodules>
-            <useReleaseProfile>false</useReleaseProfile>
-            <releaseProfiles>release</releaseProfiles>
+            <showDeprecation>true</showDeprecation>
+            <showWarnings>true</showWarnings>
+            <compilerArgument>-Xlint:unchecked</compilerArgument>
           </configuration>
         </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-resources-plugin</artifactId>
-          <version>${maven.resources.plugin.version}</version>
-          <configuration>
-            <propertiesEncoding>${project.build.sourceEncoding}</propertiesEncoding>
-          </configuration>
-        </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-site-plugin</artifactId>
-          <version>${maven.site.plugin.version}</version>
-        </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-source-plugin</artifactId>
-          <version>${maven.source.plugin.version}</version>
-          <executions>
-            <execution>
-              <id>attach-sources</id>
-              <goals>
-                <goal>jar</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>${maven.surefire.plugin.version}</version>
+          <version>3.1.2</version>
           <configuration>
+            <!-- add-opens is necessary for powermock on Java 17 -->
+            <argLine>-Xmx4g -Xms4g --add-opens java.base/sun.security.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.fs=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.base=ALL-UNNAMED</argLine>
             <rerunFailingTestsCount>3</rerunFailingTestsCount>
-            <forkCount>1</forkCount>
+            <forkCount>3</forkCount>
             <reuseForks>true</reuseForks>
             <systemPropertyVariables>
               <forkno>fork_${surefire.forkNumber}</forkno>
@@ -1123,104 +769,24 @@
               <include>**/*.java</include>
             </includes>
             <trimStackTrace>false</trimStackTrace>
-            <!-- fix powermock for Java 17
-						https://stackoverflow.com/questions/69896191/powermock-compatibility-with-jdk-17
-						-->
-            <argLine>-Xmx4g -Xms4g --add-opens java.base/sun.security.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.fs=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.base=ALL-UNNAMED</argLine>
           </configuration>
         </plugin>
-
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>license-maven-plugin</artifactId>
-          <version>${license.maven.plugin.version}</version>
-          <configuration>
-            <outputDirectory>${project.basedir}</outputDirectory>
-            <excludedGroups>com.floragunn</excludedGroups>
-            <excludedScopes>test,provided</excludedScopes>
-          </configuration>
-          <executions>
-            <execution>
-              <?m2e ignore?>
-              <id>aggregate-add-third-party</id>
-              <goals>
-                <goal>aggregate-add-third-party</goal>
-              </goals>
-              <phase>package</phase>
-            </execution>
-          </executions>
-        </plugin>
-
         <plugin>
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
-          <version>${jacoco.maven.plugin.version}</version>
+          <version>0.8.7</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <version>3.6.0</version>
         </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
       <plugin>
-        <groupId>com.diffplug.spotless</groupId>
-        <artifactId>spotless-maven-plugin</artifactId>
-        <version>${spotless.maven.plugin.version}</version>
-        <configuration>
-          <pom>
-            <includes>
-              <include>pom.xml</include>
-            </includes>
-            <sortPom>
-              <sortDependencies>scope,classifier,groupId,artifactId</sortDependencies>
-            </sortPom>
-          </pom>
-          <!--
-          <java>
-            <toggleOffOn></toggleOffOn>
-            <importOrder></importOrder>
-            <endWithNewline></endWithNewline>
-            <removeUnusedImports></removeUnusedImports>
-            <eclipse>
-              <version>${eclipse.formatter.version}</version>
-              <file>${maven.multiModuleProjectDirectory}/dev/eclipse-code-format-profile.xml</file>
-            </eclipse>
-
-            <licenseHeader>
-              <file>${project.basedir}/LICENSE.txt</file>
-            </licenseHeader>
-          </java>
-          -->
-        </configuration>
-        <executions>
-          <execution>
-            <?m2e ignore?>
-            <goals>
-              <goal>apply</goal>
-            </goals>
-            <phase>compile</phase>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <artifactId>maven-clean-plugin</artifactId>
-        <configuration>
-          <filesets>
-            <fileset>
-              <directory>data</directory>
-            </fileset>
-          </filesets>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <version>${maven.dependency.plugin.version}</version>
-      </plugin>
-
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>${maven.enforcer.plugin.version}</version>
+        <version>3.3.0</version>
         <executions>
           <execution>
             <id>enforce-maven</id>
@@ -1244,19 +810,30 @@
             <configuration>
               <rules>
                 <requireJavaVersion>
-                  <version>[${maven.compiler.release},)</version>
-                  <message>Java ${maven.compiler.release} or later required to build the plugin</message>
+                  <version>[17,)</version>
+                  <message>Java 17 or later required to build the plugin</message>
                 </requireJavaVersion>
               </rules>
             </configuration>
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <version>3.3.1</version>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>data</directory>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
 
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>flatten-maven-plugin</artifactId>
-        <version>${flatten.maven.plugin.version}</version>
+        <version>1.1.0</version>
         <configuration>
           <updatePomFile>true</updatePomFile>
           <flattenMode>resolveCiFriendliesOnly</flattenMode>
@@ -1280,17 +857,38 @@
           </execution>
         </executions>
       </plugin>
-    </plugins>
-  </build>
 
-  <reporting>
-    <plugins>
       <plugin>
-        <artifactId>maven-project-info-reports-plugin</artifactId>
-        <version>${maven.project.info.reports.version}</version>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>1.13</version>
       </plugin>
+
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>2.38.0</version>
+        <configuration>
+          <pom>
+            <includes>
+              <include>pom.xml</include>
+            </includes>
+            <sortPom>
+              <sortDependencies>scope,classifier,groupId,artifactId</sortDependencies>
+            </sortPom>
+          </pom>
+        </configuration>
+      </plugin>
+
     </plugins>
-  </reporting>
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.5.0.Final</version>
+      </extension>
+    </extensions>
+  </build>
 
   <profiles>
     <profile>
@@ -1314,7 +912,6 @@
         <module>dlic-security-legacy</module>
         <module>dlic-fe-multi-tenancy</module>
         <module>plugin</module>
-        <module>xmlsec</module>
       </modules>
     </profile>
 
@@ -1324,16 +921,15 @@
         <plugins>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-gpg-plugin</artifactId>
+            <artifactId>maven-source-plugin</artifactId>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-source-plugin</artifactId>
+            <artifactId>maven-gpg-plugin</artifactId>
           </plugin>
         </plugins>
       </build>
     </profile>
-
     <profile>
       <id>coverage</id>
       <build>
@@ -1370,4 +966,5 @@
       </build>
     </profile>
   </profiles>
+
 </project>

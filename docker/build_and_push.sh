@@ -1,26 +1,39 @@
 #!/bin/bash
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-set -e
-
-DOCKER_REPO="$1"
-DOCKER_USER="$2"
-SG_FLAVOUR="$3"
-ES_VERSION="$4"
-SG_VERSION="$5"
-
-# By default we build 64bit images for amd and arm
-# The arm images can also run on Apple M1 chips and AWS Graviton
-DEFAULT_PLATFORMS="linux/arm64,linux/amd64"
-
-PREFIX=""
-POSTFIX=""
-
-echo "Build and push search-guard $SG_FLAVOUR image to $DOCKER_REPO/$DOCKER_USER for ES $ES_VERSION and SG $SG_VERSION"
-
-export DOCKER_SCAN_SUGGEST=false
-export BUILDKIT_PROGRESS=plain
+DOCKER_USER=$1
+DOCKER_REPO=${2:-docker.io}
+COMPONENT=$3
+COMPONENT_VERSION=$4
+BUILD_ARGS=$5
+PLATFORMS=${6:-linux/arm64,linux/amd64}
+CHECK_TAG=${7:-true}
 
 retVal=0
+
+declare -A params
+
+params=(
+    ["DOCKER_USER"]=$DOCKER_USER
+    ["COMPONENT"]=$COMPONENT
+    ["COMPONENT_VERSION"]=$COMPONENT_VERSION
+    ["BUILD_ARGS"]=$BUILD_ARGS
+)
+
+for param in "${!params[@]}"; do
+    if [ -z "${params[$param]}" ]; then
+        echo "Error: $param is not set."
+        exit 1
+    fi
+done
+
+dependencies=("docker" "curl")
+
+for cmd in "${dependencies[@]}"; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "$cmd could not be found"
+        exit 1
+    fi
+done
+
 
 check() {
     local status=$?
@@ -30,54 +43,44 @@ check() {
     fi
 }
 
+check_tag() {
+  local docker_registry=$1
+  local tag=$2
+  if [ "$DOCKER_REPO" == "docker.io" ]; then
+    local docker_repo="hub.docker.com"
+  else
+    local docker_repo=$DOCKER_REPO  
+  fi
+  
+  response_code=$(curl -s -o /dev/null -w "%{http_code}" https://$docker_repo/v2/repositories/$docker_registry/tags/$tag || true)
+
+  if [ "$response_code" == "200" ]; then
+      echo "Error: The image $docker_registry:$tag already exists on $DOCKER_REPO" >&2
+      exit 1
+  fi
+}
+
 build() {
-    TAG="$DOCKER_REPO/$DOCKER_USER/$PREFIX${1}$POSTFIX:$2"
-    echo "Build and push image $TAG for $DEFAULT_PLATFORMS"
-
-    docker buildx build -f "$DIR/Dockerfile" --push --platform "$DEFAULT_PLATFORMS" -t "$TAG" --target "$3" --build-arg ES_FLAVOUR="$4" --build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION" .
-    check "  Buildx $TAG"    
+    local component="$1"
+    local tag="$DOCKER_REPO/$DOCKER_USER/$COMPONENT:$2"
+    echo "Build and push image $tag for $PLATFORMS"
+    docker buildx build --push  --platform "$PLATFORMS" -t "$tag" "${@:3}" .      
+    check "Buildx $tag"
 }
 
-build_flx() {
-    ES_FLAVOUR="$1"
-    VERSION="$SG_VERSION-es-$ES_VERSION$ES_FLAVOUR"
-    build "search-guard-flx" "$VERSION" "flx" "$ES_FLAVOUR"
-}
+export DOCKER_SCAN_SUGGEST=false
+export BUILDKIT_PROGRESS=plain
 
-build_non_flx() {
-    ES_FLAVOUR="$1"
-    VERSION="$SG_VERSION-es-$ES_VERSION$ES_FLAVOUR"
-    build "search-guard" "$VERSION" "non-flx" "$ES_FLAVOUR"
-}
+docker context create tls-environment
+docker buildx create --name esxbuilder  --use tls-environment || true
+docker buildx use esxbuilder
+docker buildx inspect --bootstrap
 
-docker context create tls-environment > /dev/null 2>&1 || true
-docker buildx create --name sgxbuilder --use tls-environment > /dev/null 2>&1 || true
-BUILDX_INSPECT=$(docker buildx inspect --bootstrap)
-check "  buildx inspect" 
+if [ "$CHECK_TAG" == "true" ]; then
+  check_tag $DOCKER_USER/$COMPONENT $COMPONENT_VERSION
+fi 
 
-IFS=',' read -r -a DEFAULT_PLATFORMS_AR <<< "$DEFAULT_PLATFORMS"
-
-for platform in "${DEFAULT_PLATFORMS_AR[@]}"
-do
-    if [[ $BUILDX_INSPECT != *" $platform"* ]];then
-        echo "Platform $platform noch supported by buildx"
-        exit 1
-    fi
-done
-
-
-if [ "$SG_FLAVOUR" = "flx" ]; then
-    build_flx ""
-    if [ "$ES_VERSION" = "7.10.2" ]; then
-        build_flx "-oss"
-    fi
-else
-    build_non_flx ""
-    if [ "$ES_VERSION" = "7.10.2" ]; then
-        build_non_flx "-oss"
-    fi
-fi
-
+build $COMPONENT "$COMPONENT_VERSION" $BUILD_ARGS
 
 if [ $retVal -eq 0 ]; then
   echo "Finished with success"

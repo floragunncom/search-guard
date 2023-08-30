@@ -14,6 +14,9 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.searchguard.auditlog.AuditLog.Operation;
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.user.UserInformation;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -26,7 +29,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.http.client.utils.URIBuilder;
 import org.elasticsearch.ExceptionsHelper;
@@ -44,10 +46,6 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import com.floragunn.searchguard.auditlog.AuditLog.Operation;
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.user.UserInformation;
 
 public final class AuditMessage {
 
@@ -68,6 +66,7 @@ public final class AuditMessage {
     public static final String NODE_HOST_ADDRESS = "audit_node_host_address";
     public static final String NODE_HOST_NAME = "audit_node_host_name";
     public static final String NODE_NAME = "audit_node_name";
+    public static final String NODE_VERSION = "audit_node_elasticsearch_version";
 
     public static final String ORIGIN = "audit_request_origin";
     public static final String REMOTE_ADDRESS = "audit_request_remote_address";
@@ -85,9 +84,9 @@ public final class AuditMessage {
     //public static final String TYPES = "audit_trace_doc_types";
     //public static final String SOURCE = "audit_trace_doc_source";
     public static final String INDICES = "audit_trace_indices";
+    public static final String INDEX_TEMPLATES = "audit_trace_index_templates";
     public static final String SHARD_ID = "audit_trace_shard_id";
     public static final String RESOLVED_INDICES = "audit_trace_resolved_indices";
-
     public static final String EXCEPTION = "audit_request_exception_stacktrace";
     public static final String IS_ADMIN_DN = "audit_request_effective_user_is_admin";
     public static final String PRIVILEGE = "audit_request_privilege";
@@ -99,6 +98,7 @@ public final class AuditMessage {
     public static final String COMPLIANCE_DIFF_IS_NOOP = "audit_compliance_diff_is_noop";
     public static final String COMPLIANCE_DIFF_CONTENT = "audit_compliance_diff_content";
     public static final String COMPLIANCE_FILE_INFOS = "audit_compliance_file_infos";
+    public static final String CUSTOM_FIELD_PREFIX = "audit_custom_";
 
     //public static final String COMPLIANCE_DIFF_STORED_IS_NOOP = "audit_compliance_diff_stored_is_noop";
     //public static final String COMPLIANCE_STORED_FIELDS_CONTENT = "audit_compliance_stored_fields_content";
@@ -107,12 +107,14 @@ public final class AuditMessage {
 
     public static final String COMPLIANCE_OPERATION = "audit_compliance_operation";
     public static final String COMPLIANCE_DOC_VERSION = "audit_compliance_doc_version";
+    public static final String COMPLIANCE_INDEX_TEMPLATE_VERSION = "audit_compliance_index_template_version";
 
     private static final DateTimeFormatter DEFAULT_FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
     private final Map<String, Object> auditInfo = new HashMap<String, Object>(50);
     private final Category msgCategory;
 
-    public AuditMessage(final Category msgCategory, final ClusterState clusterState, final Origin origin, final Origin layer) {
+    public AuditMessage(final Category msgCategory, final ClusterState clusterState,
+        final Origin origin, final Origin layer) {
         this.msgCategory = Objects.requireNonNull(msgCategory);
         final String currentTime = currentTime();
         auditInfo.put(FORMAT_VERSION, 4);
@@ -127,6 +129,7 @@ public final class AuditMessage {
             auditInfo.put(NODE_ID, localNode.getId());
             auditInfo.put(NODE_HOST_NAME, localNode.getHostName());
             auditInfo.put(NODE_NAME, localNode.getName());
+            auditInfo.put(NODE_VERSION, localNode.getVersion());
         }
 
         if (origin != null) {
@@ -371,8 +374,24 @@ public final class AuditMessage {
         auditInfo.put(COMPLIANCE_DOC_VERSION, version);
     }
 
+    public void addIndexTemplates(String[] indexTemplates) {
+        if (indexTemplates != null && indexTemplates.length > 0) {
+            auditInfo.put(INDEX_TEMPLATES, indexTemplates);
+        }
+    }
+
+    public void addComplianceIndexTemplateVersion(Long version) {
+        if (version != null) {
+            auditInfo.put(COMPLIANCE_INDEX_TEMPLATE_VERSION, version);
+        }
+    }
+
     public Map<String, Object> getAsMap() {
         return new HashMap<>(this.auditInfo);
+    }
+
+    public void removeDisabledFields(List<String> disabledFields) {
+        disabledFields.forEach(auditInfo.keySet()::remove);
     }
 
     public String getInitiatingUser() {
@@ -455,10 +474,14 @@ public final class AuditMessage {
         return String.valueOf(object);
     }
 
+    public void addCustomFields(Map<String, String> customFields) {
+        customFields.forEach((k, v) -> auditInfo.put(CUSTOM_FIELD_PREFIX + k, v));
+    }
+
     public enum Category {
         BAD_HEADERS, FAILED_LOGIN, BLOCKED_IP, BLOCKED_USER, MISSING_PRIVILEGES, SG_INDEX_ATTEMPT, SSL_EXCEPTION, AUTHENTICATED, GRANTED_PRIVILEGES,
         COMPLIANCE_DOC_READ, COMPLIANCE_DOC_WRITE, COMPLIANCE_EXTERNAL_CONFIG, COMPLIANCE_INTERNAL_CONFIG_READ, COMPLIANCE_INTERNAL_CONFIG_WRITE,
-        COMPLIANCE_IMMUTABLE_INDEX_ATTEMPT
+        COMPLIANCE_IMMUTABLE_INDEX_ATTEMPT, INDEX_TEMPLATE_WRITE, INDEX_WRITE, KIBANA_LOGIN, KIBANA_LOGOUT
     }
 
 }

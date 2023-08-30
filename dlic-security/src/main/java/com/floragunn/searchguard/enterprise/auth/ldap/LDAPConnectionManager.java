@@ -133,24 +133,28 @@ public final class LDAPConnectionManager implements Closeable {
 
         validationErrors.throwExceptionForPresentErrors();
 
-        try {
-            pool = PrivilegedCode.execute(
-                    () -> new LDAPConnectionPool(createServerSet(ldapHosts, opts), bindRequest, poolMinSize, poolMaxSize, null, false),
-                    LDAPException.class);
-        } catch (LDAPException e) {
-            log.error("Error while creating pool", e);
-            throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
-        }
-
-        pool.setCreateIfNecessary(createIfNecessary);
-        pool.setMaxWaitTimeMillis(maxWaitTimeMillis);
-
-        if (healthChecks != null) {
-            pool.setHealthCheck(healthChecks);
-
-            if (healthCheckInterval != null) {
-                pool.setHealthCheckIntervalMillis(healthCheckInterval.toMillis());
+        if (context.isExternalResourceCreationEnabled()) {
+            try {
+                pool = PrivilegedCode.execute(
+                        () -> new LDAPConnectionPool(createServerSet(ldapHosts, opts), bindRequest, poolMinSize, poolMaxSize, null, false),
+                        LDAPException.class);
+            } catch (LDAPException e) {
+                log.error("Error while creating pool", e);
+                throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
             }
+
+            pool.setCreateIfNecessary(createIfNecessary);
+            pool.setMaxWaitTimeMillis(maxWaitTimeMillis);
+
+            if (healthChecks != null) {
+                pool.setHealthCheck(healthChecks);
+
+                if (healthCheckInterval != null) {
+                    pool.setHealthCheckIntervalMillis(healthCheckInterval.toMillis());
+                }
+            }
+        } else {
+            pool = null;
         }
     }
 

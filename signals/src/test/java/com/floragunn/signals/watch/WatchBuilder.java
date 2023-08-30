@@ -13,22 +13,25 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TimeZone;
 
+import com.jayway.jsonpath.JsonPath;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
+import com.floragunn.signals.watch.common.TlsConfig;
+import com.google.common.base.Strings;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.mockito.Mockito;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.TimeOfDay;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
@@ -58,6 +61,8 @@ import com.floragunn.signals.watch.severity.SeverityLevel;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 import com.floragunn.signals.watch.severity.SeverityMapping.Element;
 
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
+
 // TODO split triggers and inputs into sep builders
 public class WatchBuilder {
     private String name;
@@ -69,7 +74,6 @@ public class WatchBuilder {
     SeverityMapping severityMapping;
     DurationExpression throttlePeriod;
 
-    final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private boolean active = true;
 
     public WatchBuilder(String name) {
@@ -127,6 +131,11 @@ public class WatchBuilder {
 
     public WatchBuilder throttledFor(String expression) throws ConfigValidationException {
         throttlePeriod = DurationExpression.parse(expression);
+        return this;
+    }
+
+    public WatchBuilder throttledFor(DurationExpression expression) throws ConfigValidationException {
+        throttlePeriod = expression;
         return this;
     }
 
@@ -263,9 +272,10 @@ public class WatchBuilder {
             for (int i = 0; i < properties.length; i += 2) {
                 propertyMap.put(Path.parse(String.valueOf(properties[i])), properties[i + 1]);
             }
-
-            ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(new WatchInitializationService(null, null),
-                    DocNode.parse(Format.JSON).from(propertyMap.toJsonString()));
+            WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+                Mockito.mock(TrustManagerRegistry.class), null, STRICT);
+            ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(
+                watchInitService, DocNode.parse(Format.JSON).from(propertyMap.toJsonString()));
 
             return new GenericActionBuilder(this, actionHandler);
         }
@@ -414,8 +424,13 @@ public class WatchBuilder {
         private final URI uri;
         private Auth auth;
         private String body;
+        private JsonPath jsonBodyFrom;
         private Map<String, String> headers = new HashMap<>();
         private HttpProxyConfig proxy;
+
+        private TrustManagerRegistry trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
+
+        private String truststoreId;
 
         WebhookActionBuilder(BaseActionBuilder parent, HttpRequestConfig.Method method, String uri) throws URISyntaxException {
             super(parent);
@@ -437,9 +452,45 @@ public class WatchBuilder {
             return this;
         }
 
+        public WebhookActionBuilder body(String body) {
+            if (this.jsonBodyFrom != null) {
+                throw new IllegalStateException("body and jsonBodyFrom cannot be populated at the same time");
+            }
+            this.body = body;
+            return this;
+        }
+
+        public WebhookActionBuilder jsonBodyFrom(String jsonBodyFrom) {
+            return this.jsonBodyFrom(JsonPath.compile(jsonBodyFrom));
+        }
+
+        public WebhookActionBuilder jsonBodyFrom(JsonPath jsonBodyFrom) {
+            if (this.body != null) {
+                throw new IllegalStateException("body and jsonBodyFrom cannot be populated at the same time");
+            }
+            this.jsonBodyFrom = jsonBodyFrom;
+            return this;
+        }
+
+        public WebhookActionBuilder trustManagerRegistry(TrustManagerRegistry trustManagerRegistry) {
+            this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry, "Truststore pem provider is required");
+            return this;
+        }
+
+        public WebhookActionBuilder truststoreId(String truststoreId) {
+            this.truststoreId = truststoreId;
+            return this;
+        }
+
         protected ActionHandler finish() {
-            return new WebhookAction(new HttpRequestConfig(method, uri, null, null, body, headers, auth, null),
-                    new HttpClientConfig(null, null, null, proxy));
+            boolean tlsIsRequired = ! Strings.isNullOrEmpty(this.truststoreId);
+            TlsConfig tlsConfig = null;
+            if(tlsIsRequired) {
+                tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
+                tlsConfig.setTruststoreId(truststoreId);
+            }
+            return new WebhookAction(new HttpRequestConfig(method, uri, null, null, body, jsonBodyFrom, headers, auth, null),
+                    new HttpClientConfig(null, null, tlsConfig, proxy));
         }
     }
 
@@ -536,20 +587,20 @@ public class WatchBuilder {
         private String[] indices;
         private String body;
         private String query;
-        private ObjectNode bodyNode = WatchBuilder.OBJECT_MAPPER.createObjectNode();
-
+        private DocNode bodyNode = DocNode.EMPTY;
+        
         SearchBuilder(WatchBuilder parent, String... indices) {
             this.parent = parent;
             this.indices = indices;
         }
 
         public SearchBuilder attr(String key, String value) {
-            bodyNode.put(key, value);
+            bodyNode = bodyNode.with(key, value);
             return this;
         }
 
         public SearchBuilder attr(String key, int value) {
-            bodyNode.put(key, value);
+            bodyNode = bodyNode.with(key, value);
             return this;
         }
 
@@ -558,7 +609,7 @@ public class WatchBuilder {
             return this;
         }
 
-        public WatchBuilder as(String name) throws JsonProcessingException, IOException {
+        public WatchBuilder as(String name) throws DocumentParseException, IOException {
 
             if (body == null) {
                 body = buildBody();
@@ -571,12 +622,8 @@ public class WatchBuilder {
             return parent;
         }
 
-        private String buildBody() throws JsonProcessingException, IOException {
-            JsonNode jsonNode = WatchBuilder.OBJECT_MAPPER.readTree(this.query);
-
-            bodyNode.set("query", jsonNode);
-
-            return WatchBuilder.OBJECT_MAPPER.writeValueAsString(bodyNode);
+        private String buildBody() throws DocumentParseException, IOException {
+            return DocNode.of("query", DocNode.parse(Format.JSON).from(this.query)).toString();
         }
     }
 
@@ -595,10 +642,9 @@ public class WatchBuilder {
             return this;
         }
 
-        public WatchBuilder as(String name) throws JsonProcessingException, IOException {
+        public WatchBuilder as(String name) throws DocumentParseException, IOException {
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> map = WatchBuilder.OBJECT_MAPPER.convertValue(WatchBuilder.OBJECT_MAPPER.readTree(this.data), Map.class);
+            Map<String, Object> map = DocNode.parse(Format.JSON).from(this.data).toMap();
 
             StaticInput simpleInput = new StaticInput(this.name != null ? this.name : name, name, map);
 
@@ -618,7 +664,7 @@ public class WatchBuilder {
             this.script = script;
         }
 
-        public WatchBuilder as(String name) throws JsonProcessingException, IOException {
+        public WatchBuilder as(String name) throws DocumentParseException, IOException {
 
             Transform transform = new Transform(name, name, script, "painless", Collections.emptyMap());
 

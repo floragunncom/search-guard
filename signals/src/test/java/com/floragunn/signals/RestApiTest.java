@@ -17,6 +17,12 @@
 
 package com.floragunn.signals;
 
+import static com.floragunn.searchguard.test.TestSgConfig.Role.ALL_ACCESS;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+
 import java.net.InetAddress;
 import java.net.URI;
 import java.time.DayOfWeek;
@@ -24,14 +30,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import org.apache.http.Header;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
+import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -61,20 +68,22 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.quartz.TimeOfDay;
 
 import com.browserup.bup.BrowserUpProxy;
 import com.browserup.bup.BrowserUpProxyServer;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
+import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.searchsupport.junit.LoggingTestWatcher;
-import com.floragunn.signals.support.JsonBuilder;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.util.WatchLogSearch;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
@@ -84,6 +93,8 @@ import com.floragunn.signals.watch.action.handlers.email.EmailAction.Attachment;
 import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
 import com.floragunn.signals.watch.action.handlers.slack.SlackActionConf;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.result.ActionLog;
 import com.floragunn.signals.watch.result.Status;
@@ -99,22 +110,23 @@ import net.jcip.annotations.NotThreadSafe;
 public class RestApiTest {
     private static final Logger log = LogManager.getLogger(RestApiTest.class);
     public static final String USERNAME_UHURA = "uhura";
+    public static final String UPLOADED_TRUSTSTORE_ID = "uploaded-truststore-id";
 
     private static ScriptService scriptService;
+    private static ThrottlePeriodParser throttlePeriodParser;
     private static BrowserUpProxy httpProxy;
 
     @Rule
     public LoggingTestWatcher loggingTestWatcher = new LoggingTestWatcher();
 
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+    private static User USER_CERTIFICATE = new User("certificate-user").roles(ALL_ACCESS);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
-                    "signals.watch_log.sync_indexing", true)
-            .dependsOn(javaSecurity).enableModule(SignalsModule.class).enterpriseModulesEnabled().build();
+                    "signals.watch_log.sync_indexing", true).user(USER_CERTIFICATE)
+            .enableModule(SignalsModule.class).enterpriseModulesEnabled().build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -126,12 +138,14 @@ public class RestApiTest {
                     .actionGet();
             client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
                     .actionGet();
+
         }
     }
 
     @BeforeClass
     public static void setupDependencies() throws Exception {
         scriptService = cluster.getInjectable(ScriptService.class);
+        throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
         httpProxy = new BrowserUpProxyServer();
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
@@ -178,7 +192,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 
@@ -260,7 +276,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, testSink, 1);
 
@@ -340,7 +358,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             log.info("Created watch; as it should find one doc in " + testSource + ", it should go to severity ERROR and write exactly one doc to "
                     + testSink);
@@ -409,7 +429,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch_with_dash", 1);
 
@@ -442,7 +464,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             Assert.assertTrue(response.getBody(), watch.getSchedule().getTriggers().isEmpty());
         }
@@ -466,7 +490,9 @@ public class RestApiTest {
 
             Assert.assertFalse(response.getBody(), response.getBody().contains("auth_token"));
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", watchId, response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", watchId, response.getBody(), -1);
 
             Assert.assertNull(response.getBody(), watch.getAuthToken());
         }
@@ -493,25 +519,26 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 
-            JsonNode parsedResponse = DefaultObjectMapper.readTree(response.getBody());
-
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, parsedResponse.path("status").asInt());
+            DocNode parsedResponse = response.getBodyAsDocNode();
+            
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, parsedResponse.get("status"));
             Assert.assertEquals(response.getBody(), "Invalid value",
-                    parsedResponse.path("detail").path("checks[testsearch].type").path(0).path("error").asText());
+                    parsedResponse.getAsNode("detail").getAsListOfNodes("checks[testsearch].type").get(0).get("error"));
             Assert.assertEquals(response.getBody(), "searchx",
-                    parsedResponse.path("detail").path("checks[testsearch].type").path(0).path("value").asText());
+                    parsedResponse.getAsNode("detail").getAsListOfNodes("checks[testsearch].type").get(0).get("value"));
             Assert.assertEquals(response.getBody(), "cannot resolve symbol [x]",
-                    parsedResponse.path("detail").path("checks[].source").path(0).path("error").asText());
-            Assert.assertTrue(response.getBody(),
-                    parsedResponse.path("detail").path("trigger.schedule.cron.0").path(0).path("error").asText().contains("Invalid cron expression"));
-            Assert.assertTrue(response.getBody(),
-                    parsedResponse.path("detail").path("trigger.schedule.x").path(0).path("error").asText().contains("Unsupported attribute"));
+                    parsedResponse.getAsNode("detail").getAsListOfNodes("checks[].source").get(0).get("error"));
+            Assert.assertTrue(response.getBody(), parsedResponse.getAsNode("detail").getAsListOfNodes("trigger.schedule.cron.0").get(0).get("error")
+                    .toString().contains("Invalid cron expression"));
+            Assert.assertTrue(response.getBody(), parsedResponse.getAsNode("detail").getAsListOfNodes("trigger.schedule.x").get(0).get("error")
+                    .toString().contains("Unsupported attribute"));
             Assert.assertEquals(response.getBody(), "Required attribute is missing",
-                    parsedResponse.path("detail").path("actions[].name").path(0).path("error").asText());
+                    parsedResponse.getAsNode("detail").getAsListOfNodes("actions[].name").get(0).get("error"));
             Assert.assertEquals(response.getBody(), "unexpected end of script.",
-                    parsedResponse.path("detail").path("checks[testcalc].source").path(0).path("error").asText());
+                    parsedResponse.getAsNode("detail").getAsListOfNodes("checks[testcalc].source").get(0).get("error"));
             Assert.assertEquals(response.getBody(), "Unsupported attribute",
-                    parsedResponse.path("detail").path("horst").path(0).get("error").asText());
+                    parsedResponse.getAsNode("detail").getAsListOfNodes("horst").get(0).get("error"));
+
 
         }
     }
@@ -522,19 +549,114 @@ public class RestApiTest {
         String watchId = "put_invalid_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
-            USERNAME_UHURA)) {
+        try (Client client = cluster.getInternalNodeClient(); GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             String watchJson = "{\"trigger\":{";
 
             HttpResponse response = restClient.putJson(watchPath, watchJson);
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 
-            JsonNode parsedResponse = DefaultObjectMapper.readTree(response.getBody());
+            DocNode parsedResponse = response.getBodyAsDocNode();
 
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, parsedResponse.get("status").asInt());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, parsedResponse.get("status"));
             Assert.assertTrue(response.getBody(),
-                    parsedResponse.get("detail").get("_").get(0).get("error").asText().contains("Invalid JSON document"));
+                    parsedResponse.getAsNode("detail").getAsListOfNodes("_").get(0).get("error").toString().contains("Invalid JSON document"));
+        }
+    }
+
+    @Test
+    public void testPutInvalidWatch_invalidHttpRequestBodyConfig_bothBodyAndJsonBodyFromAreSet() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_invalid_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
+            DocNode watch = DocNode.of("actions", Collections.singletonList(
+                    DocNode.of("type", "webhook", "name", "webhook_with_two_request_bodies",
+                            "request", DocNode.of("method", "POST", "url", "https://my.test.web.hook/endpoint", "body", "first_body", "json_body_from", "second.body")
+                    )
+            ));
+            System.out.println(watch.toJsonString());
+            HttpResponse response = restClient.putJson(watchPath, watch.toJsonString());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+
+            DocNode parsedResponse = DocNode.parse(Format.getByContentType(response.getContentType())).from(response.getBody());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), 2, parsedResponse.getAsNode("detail").size());
+            Assert.assertEquals(response.getBody(),
+            "Both body and json_body_from are set. These are mutually exclusive.",
+                    parsedResponse.findSingleNodeByJsonPath("detail['actions[webhook_with_two_request_bodies].request.body'][0]").getAsString("error")
+            );
+            Assert.assertEquals(response.getBody(),
+            "Both body and json_body_from are set. These are mutually exclusive.",
+                    parsedResponse.findSingleNodeByJsonPath("detail['actions[webhook_with_two_request_bodies].request.json_body_from'][0]").getAsString("error")
+            );
+        }
+    }
+
+    @Test
+    public void testPutInvalidWatch_httpRequestContentTypeAppXml_whenJsonBodyFromIsSet() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_invalid_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA,
+            USERNAME_UHURA)) {
+            DocNode watch = DocNode.of("actions", Collections.singletonList(
+                    DocNode.of("type", "webhook", "name", "json_body_from_and_wrong_content_type",
+                            "request", DocNode.of("method", "POST", "url", "https://my.test.web.hook/endpoint", "json_body_from", "data.test", "headers", DocNode.of("Content-Type", "application/xml"))
+                    )
+            ));
+
+            HttpResponse response = restClient.putJson(watchPath, watch.toJsonString());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+
+            DocNode parsedResponse = DocNode.parse(Format.getByContentType(response.getContentType())).from(response.getBody());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), 1, parsedResponse.getAsNode("detail").size());
+            Assert.assertEquals(response.getBody(),
+            "Content type header should be set to application/json when json_body_from is used.",
+                    parsedResponse.findSingleNodeByJsonPath("detail['actions[json_body_from_and_wrong_content_type].request.headers.Content-Type'][0]").getAsString("error")
+            );
+        }
+    }
+
+    @Test
+    public void testPutWatch_bodyFromRuntimeDataPath_contentTypeShouldDefaultToAppJson() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "put_watch_with_body_from_runtime_data_default_content_type_header";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            try {
+                Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?")
+                        .put("{\"test\": \"test\"}").as("teststatic")
+                        .then()
+                        .postWebhook(webhookProvider.getUri())
+                        .jsonBodyFrom("data.teststatic.test")
+                        .name("webhook_with_default_content_type").build();
+                HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+                Thread.sleep(3000);
+                Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+                Header header = webhookProvider.getLastRequestHeader(HttpHeaders.CONTENT_TYPE);
+                Assert.assertNotNull("content type header should be present", header);
+                Assert.assertEquals("content type header should contain " + ContentType.APPLICATION_JSON.getMimeType(), ContentType.APPLICATION_JSON.getMimeType(), header.getValue());
+                Assert.assertEquals("webhook request body should match", "\"test\"", webhookProvider.getLastRequestBody());
+            } finally {
+                restClient.delete(watchPath);
+            }
         }
     }
 
@@ -622,6 +744,81 @@ public class RestApiTest {
                 restClient.putJson("/_signals/settings/http.allowed_endpoints", "[\"*\"]");
                 restClient.delete(watchPath);
             }
+        }
+    }
+
+    @Test
+    public void testWebhookTruststore() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "webhook-with-truststore";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            webhookProvider.uploadMockServerCertificateAsTruststore(cluster, USER_CERTIFICATE, UPLOADED_TRUSTSTORE_ID);
+            Watch watch = new WatchBuilder("tls-webhook-test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                .postWebhook(webhookProvider.getUri()).truststoreId(UPLOADED_TRUSTSTORE_ID).throttledFor("0")
+                .name("testhook").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(600);
+
+            Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+        }
+    }
+
+    @Test
+    public void testWebhookTruststoreFailureWithoutCorrectTruststore() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "webhook-missing-truststore-configuration";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest("testsink-" + watchId)).actionGet();
+
+            Watch watch = new WatchBuilder("tls-webhook-test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                .postWebhook(webhookProvider.getUri()).throttledFor("0")
+                .name("testhook").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(600);
+
+            // Request are not sent because webhookProvider provided uses untrusted certificate so that SearchGuard is not able to
+            // establish connection with webhookProvider
+            Assert.assertTrue(webhookProvider.getRequestCount() == 0);
+        }
+    }
+
+    @Test
+    public void shouldNotCreateWatchWhenWatchContainsIncorrectTruststoreId() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "webhook-incorrect-truststore-id";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (Client client = cluster.getInternalNodeClient();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            client.admin().indices().create(new CreateIndexRequest("testsink-" + watchId)).actionGet();
+
+            Watch watch = new WatchBuilder("tls-webhook-test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                .postWebhook(webhookProvider.getUri()).truststoreId("not-existing-truststore-id").throttledFor("0")
+                .name("testhook").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+
         }
     }
 
@@ -782,7 +979,6 @@ public class RestApiTest {
                 restClient.delete(watchPath);
             }
         }
-
     }
 
     @Test
@@ -836,7 +1032,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
 
@@ -867,7 +1065,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
 
@@ -973,6 +1173,32 @@ public class RestApiTest {
     }
 
     @Test
+    public void testExecuteWatchByIdWhichUsesUploadedTruststore() throws Exception {
+        String tenant = "_main";
+        String watchId = "tls_execution_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources();
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/tls_endpoint", true, false)) {
+            webhookProvider.uploadMockServerCertificateAsTruststore(cluster, USER_CERTIFICATE, UPLOADED_TRUSTSTORE_ID);
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("0 0 */1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                .postWebhook(webhookProvider.getUri()).truststoreId(UPLOADED_TRUSTSTORE_ID).throttledFor("0").name("send-http-request")
+                .build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = restClient.postJson(watchPath + "/_execute", "{}");
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("status.code", "ACTION_EXECUTED"));
+            assertThat(webhookProvider.getRequestCount(), greaterThan(0));
+        }
+    }
+
+    @Test
     public void testExecuteAnonymousWatchWithGoto() throws Exception {
 
         String testSink = "testsink_anon_watch_with_goto";
@@ -1038,12 +1264,13 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            JsonNode responseJson = DefaultObjectMapper.readTree(response.getBody());
+            DocNode responseJson = response.getBodyAsDocNode();
+            
+            Assert.assertEquals(response.getBody(), "error", responseJson.get("runtime_attributes", "severity", "level"));
+            Assert.assertFalse(response.getBody(), responseJson.get("runtime_attributes", "trigger") == null);
+            Assert.assertTrue(response.getBody(), responseJson.get("runtime_attributes", "trigger", "triggered_time") == null);
+            Assert.assertEquals(response.getBody(), "42", responseJson.get("runtime_attributes", "data", "teststatic", "bla", "blub").toString());
 
-            Assert.assertEquals(response.getBody(), "error", responseJson.at("/runtime_attributes/severity/level").asText());
-            Assert.assertFalse(response.getBody(), responseJson.at("/runtime_attributes/trigger").isNull());
-            Assert.assertTrue(response.getBody(), responseJson.at("/runtime_attributes/trigger/triggered_time").isNull());
-            Assert.assertEquals(response.getBody(), "42", responseJson.at("/runtime_attributes/data/teststatic/bla/blub").asText());
 
         }
     }
@@ -1268,8 +1495,8 @@ public class RestApiTest {
             response = restClient.get(watchPath + "/_state");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(response.getBody(), USERNAME_UHURA, statusDoc.at("/actions/testaction/acked/by").textValue());
+            DocNode statusDoc = response.getBodyAsDocNode();
+            Assert.assertEquals(response.getBody(), "uhura", statusDoc.get("actions", "testaction", "acked", "by").toString());
 
             Thread.sleep(200);
 
@@ -1293,8 +1520,8 @@ public class RestApiTest {
 
             response = restClient.get(watchPath + "/_state");
 
-            statusDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertFalse(response.getBody(), statusDoc.get("actions").get("testaction").hasNonNull("acked"));
+            statusDoc = response.getBodyAsDocNode();
+            Assert.assertFalse(response.getBody(), statusDoc.getAsNode("actions").getAsNode("testaction").hasNonNull("acked"));
 
             // Create condition again
 
@@ -1345,10 +1572,9 @@ public class RestApiTest {
             response = restClient.put(watchPath + "/_ack_and_get/testaction");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            JsonNode ackDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals("testaction", ackDoc.at("/acked/0/action_id").textValue());
-            Assert.assertEquals(USERNAME_UHURA, ackDoc.at("/acked/0/by_user").textValue());
-            Assert.assertNotNull(ackDoc.at("/acked/0/on").textValue());
+            DocNode ackDoc = response.getBodyAsDocNode();
+            Assert.assertEquals("testaction", ackDoc.getAsListOfNodes("acked").get(0).get("action_id"));
+            Assert.assertEquals(USERNAME_UHURA, ackDoc.getAsListOfNodes("acked").get(0).get("by_user"));
         }
     }
 
@@ -1423,11 +1649,10 @@ public class RestApiTest {
             response = restClient.put(watchPath + "/_ack_and_get/testactionone");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            JsonNode ackDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals("testactionone", ackDoc.at("/acked/0/action_id").textValue());
-            Assert.assertEquals(USERNAME_UHURA, ackDoc.at("/acked/0/by_user").textValue());
-            Assert.assertNotNull(ackDoc.at("/acked/0/on").textValue());
-
+            DocNode ackDoc = response.getBodyAsDocNode();
+            Assert.assertEquals("testactionone", ackDoc.getAsListOfNodes("acked").get(0).get("action_id"));
+            Assert.assertEquals(USERNAME_UHURA, ackDoc.getAsListOfNodes("acked").get(0).get("by_user"));
+            
             assertThatActionIsNotAcked(restClient, watchPath, "testactiontwo");
         }
     }
@@ -1469,10 +1694,9 @@ public class RestApiTest {
         Thread.sleep(500);
         response = restClient.get(watchPath + "/_state");
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-        JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
-        Assert.assertFalse(statusDoc.at("/actions/" + actionName).isEmpty());
-        Assert.assertEquals("ACTION_EXECUTED", statusDoc.at("/actions/" + actionName + "/last_status/code").asText());
-        Assert.assertTrue(statusDoc.at("/actions/" + actionName + "/acked").isMissingNode());
+        DocNode statusDoc = response.getBodyAsDocNode();
+        Assert.assertEquals("ACTION_EXECUTED", statusDoc.get("actions", actionName, "last_status", "code"));
+        Assert.assertTrue(statusDoc.getAsNode("actions", actionName, "acked").isNull());
     }
 
     @Test
@@ -1510,13 +1734,9 @@ public class RestApiTest {
             response = restClient.put(watchPath + "/_ack_and_get");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            JsonNode ackDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(2, ackDoc.at("/acked").size());
-            Set<String> actionIds = Stream.of(ackDoc.at("/acked/0/action_id"), ackDoc.at("/acked/1/action_id"))//
-                .map(JsonNode::asText)//
-                .collect(Collectors.toSet());//
-            Assert.assertTrue(actionIds.contains("testactionone"));
-            Assert.assertTrue(actionIds.contains("testactiontwo"));
+            DocNode ackDoc = response.getBodyAsDocNode();           
+            Assert.assertEquals(2, ackDoc.getAsListOfNodes("acked").size());
+            Assert.assertEquals(ImmutableSet.of("testactionone", "testactiontwo"), ImmutableSet.of(ackDoc.findByJsonPath("acked[*].action_id")));
         }
     }
 
@@ -1559,110 +1779,10 @@ public class RestApiTest {
 
             response = restClient.delete(watchPath + "/_ack_and_get/testactionone");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            DocNode unackDoc = response.getBodyAsDocNode();           
 
-            JsonNode unackDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(1, unackDoc.at("/unacked_action_ids").size());
-            Assert.assertEquals("testactionone", unackDoc.at("/unacked_action_ids/0").asText());
+            Assert.assertEquals(Arrays.asList("testactionone"), unackDoc.findByJsonPath("unacked_action_ids[0]"));
             assertThatActionIsNotAcked(restClient, watchPath, "testactionone");
-        }
-    }
-
-    @Test
-    public void testDeAckAndGetSecondActionForWatchWithTwoAction() throws Exception {
-        String tenant = "_main";
-        String watchId = "deack_and_get_second_action_test";
-        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
-        String watchedIndex = "source_index_for_watch_" + watchId;
-        String sinkIndex = "sink_index_" + watchId;
-        String additionalSinkIndex = "additional_sink_index_" + watchId;
-
-        try (Client client = cluster.getInternalNodeClient();
-            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
-            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
-            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
-            client.admin().indices().create(new CreateIndexRequest(additionalSinkIndex)).actionGet();
-
-            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
-                .checkCondition("data.testsearch.hits.hits.length > 0").then()
-                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactionone")
-                .and().index(additionalSinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactiontwo")
-                .build();
-            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
-
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
-
-            Thread.sleep(220);
-
-            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
-                "val1", "key2", "val2")).actionGet();
-
-            awaitMinCountOfDocuments(client, sinkIndex, 1);
-            awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
-
-            response = restClient.put(watchPath + "/_ack_and_get");
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            Thread.sleep(220);
-
-            response = restClient.delete(watchPath + "/_ack_and_get/testactiontwo");
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            JsonNode unackDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(1, unackDoc.at("/unacked_action_ids").size());
-            Assert.assertEquals("testactiontwo", unackDoc.at("/unacked_action_ids/0").asText());
-            assertThatActionIsNotAcked(restClient, watchPath, "testactiontwo");
-        }
-    }
-
-    @Test
-    public void testDeAckAndGetBothActionForWatchWithTwoAction() throws Exception {
-        String tenant = "_main";
-        String watchId = "deack_and_get_both_action_test";
-        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
-        String watchedIndex = "source_index_for_watch_" + watchId;
-        String sinkIndex = "sink_index_" + watchId;
-        String additionalSinkIndex = "additional_sink_index_" + watchId;
-
-        try (Client client = cluster.getInternalNodeClient();
-            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
-            client.admin().indices().create(new CreateIndexRequest(watchedIndex)).actionGet();
-            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
-            client.admin().indices().create(new CreateIndexRequest(additionalSinkIndex)).actionGet();
-
-            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(watchedIndex).query("{\"match_all\" : {} }").as("testsearch")
-                .checkCondition("data.testsearch.hits.hits.length > 0").then()
-                .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactionone")
-                .and().index(additionalSinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testactiontwo")
-                .build();
-            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
-
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
-
-            Thread.sleep(220);
-
-            client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
-                "val1", "key2", "val2")).actionGet();
-
-            awaitMinCountOfDocuments(client, sinkIndex, 1);
-            awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
-
-            response = restClient.put(watchPath + "/_ack_and_get");
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            Thread.sleep(220);
-
-            response = restClient.delete(watchPath + "/_ack_and_get");
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            JsonNode unackDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(2, unackDoc.at("/unacked_action_ids").size());
-            Set<String> unakedActionsIds = Stream.of(unackDoc.at("/unacked_action_ids/0"), unackDoc.at("/unacked_action_ids/1"))//
-                .map(JsonNode::asText)//
-                .collect(Collectors.toSet());
-            Assert.assertTrue(unakedActionsIds.contains("testactionone"));
-            Assert.assertTrue(unakedActionsIds.contains("testactiontwo"));
-            assertThatActionIsNotAcked(restClient, watchPath, "testactionone");
-            assertThatActionIsNotAcked(restClient, watchPath, "testactiontwo");
         }
     }
 
@@ -1731,7 +1851,7 @@ public class RestApiTest {
             response = restClient.delete(watchPath + "/_ack");
 
             Assert.assertEquals(response.getBody(), 412, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), "No actions are in an un-acknowlegable state", response.toJsonNode().path("error").asText());
+            Assert.assertEquals(response.getBody(), "No actions are in an un-acknowlegable state", response.getBodyAsDocNode().get("error"));
         }
     }
 
@@ -1779,9 +1899,9 @@ public class RestApiTest {
             response = restClient.get(watchPath + "/_state");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            JsonNode statusDoc = DefaultObjectMapper.readTree(response.getBody());
-            Assert.assertEquals(response.getBody(), USERNAME_UHURA, statusDoc.at("/actions/testaction_ack/acked/by").textValue());
-            Assert.assertTrue(response.getBody(), statusDoc.at("/actions/testaction_unack/acked").isMissingNode());
+            DocNode statusDoc = response.getBodyAsDocNode();
+            Assert.assertEquals(response.getBody(), "uhura", statusDoc.get("actions", "testaction_ack", "acked", "by").toString());
+            Assert.assertTrue(response.getBody(), statusDoc.get("actions", "testaction_unack", "acked") == null);
 
             Thread.sleep(200);
 
@@ -1987,10 +2107,8 @@ public class RestApiTest {
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("\"_id\":\"_main/search_watch_scroll2\""));
 
-            JsonNode responseJsonNode = DefaultObjectMapper.readTree(response.getBody());
-
-            String scrollId = responseJsonNode.get("_scroll_id").asText(null);
-
+            DocNode docNode = response.getBodyAsDocNode();
+            String scrollId = docNode.getAsString("_scroll_id");
             Assert.assertNotNull(scrollId);
 
             response = restClient.postJson("/_search/scroll", "{ \"scroll\": \"60s\", \"scroll_id\": \"" + scrollId + "\"}");
@@ -2092,9 +2210,10 @@ public class RestApiTest {
                 try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
                     HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
-                            "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null);
+                            "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null, null);
 
-                    httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService));
+                    httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                        Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT));
 
                     EmailAccount destination = new EmailAccount();
                     destination.setHost("localhost");
@@ -2321,8 +2440,8 @@ public class RestApiTest {
                         + "\t\t\t\t\"type\": \"mrkdwn\",\n" + "\t\t\t\t\"text\": \"A message *with some bold text*}.\"\n" + "\t\t\t}\n" + "\t\t}\n"
                         + "\t]";
 
-                List blocks = DefaultObjectMapper.readValue(blocksRawJson, List.class);
-
+                List blocks = DocNode.parse(Format.JSON).from(blocksRawJson).toList();
+                
                 SlackActionConf slackActionConf = new SlackActionConf();
                 slackActionConf.setText("Test from slack action");
                 slackActionConf.setBlocks(blocks);
@@ -2379,8 +2498,8 @@ public class RestApiTest {
                         + "          \"footer_icon\": \"https://platform.slack-edge.com/img/default_application_icon.png\",\n"
                         + "          \"ts\": 123456789\n" + "      }\n" + "  ]";
 
-                List attachments = DefaultObjectMapper.readValue(attachmentRawJson, List.class);
-
+                List attachments = DocNode.parse(Format.JSON).from(attachmentRawJson).toList();
+                
                 SlackActionConf slackActionConf = new SlackActionConf();
                 slackActionConf.setText("Test from slack action");
                 slackActionConf.setAttachments(attachments);
@@ -2630,8 +2749,8 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            long watchVersion = response.toJsonNode().path("_version").asLong();
-
+            long watchVersion = Long.parseLong(response.getBodyAsDocNode().getAsString("_version"));
+            
             List<WatchLog> watchLogs = new WatchLogSearch(client).index("signals__main_log").watchId(watchId).watchVersion(watchVersion)
                     .fromTheStart().count(3).await();
 
@@ -2649,8 +2768,8 @@ public class RestApiTest {
 
             response = restClient.putJson(watchPath, watch);
 
-            long newWatchVersion = response.toJsonNode().path("_version").asLong();
-
+            long newWatchVersion = Long.parseLong(response.getBodyAsDocNode().getAsString("_version"));
+            
             Assert.assertNotEquals(response.getBody(), watchVersion, newWatchVersion);
 
             watchLogs = new WatchLogSearch(client).index("signals__main_log").watchId(watchId).watchVersion(newWatchVersion).fromTheStart().count(3)
@@ -2699,10 +2818,8 @@ public class RestApiTest {
 
             Assert.assertTrue(response.getBody(), response.getBody().contains("slack"));
 
-            JsonNode responseJsonNode = DefaultObjectMapper.readTree(response.getBody());
-
-            String scrollId = responseJsonNode.get("_scroll_id").asText(null);
-
+            DocNode docNode = response.getBodyAsDocNode();
+            String scrollId = docNode.getAsString("_scroll_id");
             Assert.assertNotNull(scrollId);
 
             response = restClient.postJson("/_search/scroll", "{ \"scroll\": \"60s\", \"scroll_id\": \"" + scrollId + "\"}");
@@ -2716,34 +2833,8 @@ public class RestApiTest {
     @Test
     public void testConvEs() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
-            String input = new JsonBuilder.Object()
-                    .attr("trigger",
-                            new JsonBuilder.Object().attr("schedule",
-                                    new JsonBuilder.Object().attr("daily", new JsonBuilder.Object().attr("at", "noon"))))
-                    .attr("input", new JsonBuilder.Object().attr("simple", new JsonBuilder.Object().attr("x", "y")))
-                    .attr("actions", new JsonBuilder.Object()
-                            .attr("email_action",
-                                    new JsonBuilder.Object().attr("email",
-                                            new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
-                                                    .attr("body", "Hallo {{ctx.payload.x}}").attr("attachments", "foo")))
-
-                            .attr("email_action_with_http",
-                                    new JsonBuilder.Object().attr("email", new JsonBuilder.Object().attr("to", "horst@horst")
-                                            .attr("subject", "Hello World").attr("body", "Hallo {{ctx.payload.x}}").attr("attachments",
-                                                    new JsonBuilder.Object().attr("my_image.png", new JsonBuilder.Object().attr("http",
-                                                            new JsonBuilder.Object().attr("request",
-                                                                    new JsonBuilder.Object().attr("url", "http://example.org/foo/my-image.png")))))))
-
-                            .attr("email_action_with_reporting",
-                                    new JsonBuilder.Object().attr("email",
-                                            new JsonBuilder.Object().attr("to", "horst@horst").attr("subject", "Hello World")
-                                                    .attr("body", "Hallo {{ctx.payload.x}}")
-                                                    .attr("attachments", new JsonBuilder.Object().attr("dashboard.pdf",
-                                                            new JsonBuilder.Object().attr("reporting", new JsonBuilder.Object().attr("url",
-                                                                    "http://example.org:5601/api/reporting/generate/dashboard/Error-Monitoring"))))))
-
-                            .attr("another_action", new JsonBuilder.Object().attr("index",
-                                    new JsonBuilder.Object().attr("index", "foo").attr("execution_time_field", "holla"))))
+            String input = DocNode.of("trigger.schedule.daily.at", "noon", "input.simple.x", "y", "actions",
+                    DocNode.of("email_action.email", DocNode.of("to", "horst@horst", "body", "Hallo {{ctx.payload.x}}", "attachments", "foo")))
                     .toJsonString();
 
             HttpResponse response = restClient.postJson("/_signals/convert/es", input);
@@ -2811,6 +2902,147 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), 1234,
                     response.getBodyAsDocNode().getAsNode("_source").getAsListOfNodes("checks").get(0).getAsNode("value").get("bla"));
+
+        }
+    }
+
+    @Test
+    public void testPutWatch_throttlePeriodCannotBeShorterThanLowerBound() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_test_throttle_period_shorter_than_lower_bound";
+        String actionName = "indexAction";
+        String testSink = "throttle_period_shorter_than_lower_bound";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        DurationExpression watchThrottle = DurationExpression.parse("2m");
+        DurationExpression lowerBound = DurationExpression.parse("6m");
+
+        try (Client client = cluster.getInternalNodeClient();
+             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?")
+                    .throttledFor(watchThrottle).then()
+                    .index(testSink).name(actionName).throttledFor(watchThrottle)
+                    .build();
+
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            String errorMsg = String.format("Throttle period: %s longer than configured lower bound: %s", watchThrottle, lowerBound);
+            Assert.assertEquals(response.getBody(),
+                    errorMsg,
+                    response.getBodyAsDocNode().getAsNode("detail").getAsListOfNodes("throttle_period").get(0).getAsString("expected")
+            );
+            Assert.assertEquals(response.getBody(),
+                    errorMsg,
+                    response.getBodyAsDocNode().getAsNode("detail").getAsListOfNodes("actions[indexAction].throttle_period").get(0).getAsString("expected")
+
+            );
+
+            watchThrottle = DurationExpression.parse("1m**3");
+            lowerBound = DurationExpression.parse("2m**2");
+            watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?")
+                    .throttledFor(watchThrottle).then()
+                    .index(testSink).name(actionName).throttledFor(watchThrottle)
+                    .build();
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            errorMsg = String.format("Throttle period: %s longer than configured lower bound: %s", watchThrottle, lowerBound);
+            Assert.assertEquals(response.getBody(),
+                    errorMsg,
+                    response.getBodyAsDocNode().getAsNode("detail").getAsListOfNodes("throttle_period").get(0).getAsString("expected")
+            );
+            Assert.assertEquals(response.getBody(),
+                    errorMsg,
+                    response.getBodyAsDocNode().getAsNode("detail").getAsListOfNodes("actions[indexAction].throttle_period").get(0).getAsString("expected")
+
+            );
+        }
+    }
+
+    @Test
+    public void testPutWatch_throttlePeriodLongerThanLowerBound() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_test_throttle_period_longer_than_lower_bound";
+        String actionName = "indexAction";
+        String testSink = "throttle_period_longer_than_lower_bound";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        DurationExpression watchThrottle = DurationExpression.parse("6m");
+        DurationExpression lowerBound = DurationExpression.parse("2m");
+
+        try (Client client = cluster.getInternalNodeClient();
+             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?")
+                    .throttledFor(watchThrottle).then()
+                    .index(testSink).name(actionName).throttledFor(watchThrottle)
+                    .build();
+
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+            watch = getWatchByRest(tenant, watchId, restClient);
+            Assert.assertEquals(watch.toJson(), watchThrottle.toString(), watch.getThrottlePeriod().toString());
+            Assert.assertEquals(watch.toJson(), watchThrottle.toString(), watch.getActionByName(actionName).getThrottlePeriod().toString());
+
+            watchThrottle = DurationExpression.parse("3m**2");
+            lowerBound = DurationExpression.parse("1m**2");
+            watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?")
+                    .throttledFor(watchThrottle).then()
+                    .index(testSink).name(actionName).throttledFor(watchThrottle)
+                    .build();
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            watch = getWatchByRest(tenant, watchId, restClient);
+            Assert.assertEquals(watch.toJson(), watchThrottle.toString(), watch.getThrottlePeriod().toString());
+            Assert.assertEquals(watch.toJson(), watchThrottle.toString(), watch.getActionByName(actionName).getThrottlePeriod().toString());
+        }
+    }
+
+    @Test
+    public void testPutWatch_unsetThrottlePeriodDefaultsToLowerBound() throws Exception {
+        String tenant = "_main";
+        String watchId = "put_test_throttle_period_defaults_to_lower_bound";
+        String actionName = "indexAction";
+        String testSink = "throttle_period_defaults_to_than_lower_bound";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        DurationExpression lowerBound = DurationExpression.parse("10m");
+
+        try (Client client = cluster.getInternalNodeClient();
+             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("* * * * * ?").then()
+                    .index(testSink).name(actionName)
+                    .build();
+
+            putDynamicSetting("execution.throttle_period_lower_bound", lowerBound.toString(), restClient);
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Watch watchState = getWatchByRest(tenant, watchId, restClient);
+            Assert.assertEquals(watch.toJson(), lowerBound.toString(), watchState.getThrottlePeriod().toString());
+            Assert.assertEquals(watch.toJson(), lowerBound.toString(), watchState.getActionByName(actionName).getThrottlePeriod().toString());
+
+            deleteDynamicSetting("execution.throttle_period_lower_bound", restClient);
+
+            response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            watchState = getWatchByRest(tenant, watchId, restClient);
+            Assert.assertNull(watch.toJson(), watchState.getThrottlePeriod());
+            Assert.assertNull(watch.toJson(), watchState.getActionByName(actionName).getThrottlePeriod());
 
         }
     }
@@ -2948,7 +3180,9 @@ public class RestApiTest {
 
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-        return Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", id, response.getBody(), -1);
+        WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+            Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+        return Watch.parseFromElasticDocument(initService, "test", id, response.getBody(), -1);
     }
 
     private HttpResponse awaitRestGet(String request, GenericRestClient restClient) throws Exception {
@@ -2970,6 +3204,18 @@ public class RestApiTest {
 
         return response;
 
+    }
+
+    private void putDynamicSetting(String settingName, String settingValue, GenericRestClient restClient) throws Exception {
+        HttpResponse response = restClient.putJson("/_signals/settings/" + settingName, DocNode.wrap(settingValue));
+
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+    }
+
+    private void deleteDynamicSetting(String settingName, GenericRestClient restClient) throws Exception {
+        HttpResponse response = restClient.delete("/_signals/settings/" + settingName);
+
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
     }
 
 }

@@ -14,6 +14,22 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.patch.JsonPatch;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
+import com.floragunn.searchguard.support.Base64Helper;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.searchguard.user.UserInformation;
+import com.floragunn.searchsupport.PrivilegedCode;
+import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -27,10 +43,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -39,7 +57,9 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.ClusterStateListener;
+import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -60,27 +80,11 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.xcontent.json.JsonXContent;
-
-import com.floragunn.codova.config.text.Pattern;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.documents.patch.JsonPatch;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.support.Base64Helper;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.searchguard.user.UserInformation;
-import com.floragunn.searchsupport.PrivilegedCode;
-import com.google.common.io.BaseEncoding;
 
 public abstract class AbstractAuditLog implements AuditLog {
 
@@ -235,7 +239,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             try {
                 AuditMessage.Category.valueOf(event.toUpperCase());
             } catch (Exception iae) {
-                log.error("Unkown category {}, please check searchguard.audit.config.disabled_categories settings", event);
+                log.error("Unknown category {}, please check searchguard.audit.config.disabled_categories settings", event);
             }
         }
 
@@ -244,7 +248,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             try {
                 AuditMessage.Category.valueOf(event.toUpperCase());
             } catch (Exception iae) {
-                log.error("Unkown category {}, please check searchguard.audit.config.disabled_categories settings", event);
+                log.error("Unknown category {}, please check searchguard.audit.config.disabled_categories settings", event);
             }
         }
 
@@ -883,6 +887,226 @@ public abstract class AbstractAuditLog implements AuditLog {
         save(msg);
     }
 
+    @Override
+    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate,
+                                       ComposableIndexTemplate currentTemplate, String action, TransportRequest transportRequest) {
+        if (currentTemplate == null) {
+            log.error("Unable to log putted composable index template. Current index template is null.");
+            return;
+        }
+
+        Category category = Category.INDEX_TEMPLATE_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndexTemplates(new String[] { templateName });
+        msg.addComplianceIndexTemplateVersion(currentTemplate.version());
+        msg.addComplianceOperation(originalTemplate == null ? Operation.CREATE : Operation.UPDATE);
+
+        try {
+            msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, XContentHelper.toXContent(currentTemplate, XContentType.JSON, false)));
+        } catch (Exception e) {
+            log.error("Unable to parse current composable index template source", e);
+        }
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate,
+                                       IndexTemplateMetadata currentTemplate, String action, TransportRequest transportRequest) {
+        if (currentTemplate == null) {
+            log.error("Unable to log putted legacy index template. Current index template is null.");
+            return;
+        }
+
+        Category category = Category.INDEX_TEMPLATE_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndexTemplates(new String[] { templateName });
+        msg.addComplianceIndexTemplateVersion(currentTemplate.getVersion() != null? Long.valueOf(currentTemplate.getVersion()) : null);
+        msg.addComplianceOperation(originalTemplate == null ? Operation.CREATE : Operation.UPDATE);
+
+        try (XContentBuilder builder = XContentBuilder.builder(XContentType.JSON.xContent())) {
+            builder.startObject();
+            IndexTemplateMetadata.Builder.toXContent(currentTemplate, builder, ToXContent.EMPTY_PARAMS);
+            builder.endObject();
+            msg.addTupleToRequestBody(new Tuple<>(XContentType.JSON, BytesReference.bytes(builder)));
+        } catch (Exception e) {
+            log.error("Unable to parse current legacy index template source", e);
+        }
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest) {
+        UserInformation effectiveUser = getUser();
+
+        Category category = Category.INDEX_TEMPLATE_WRITE;
+
+        if (!checkTransportFilter(category, action ,effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndexTemplates(templateNames.toArray(new String[] {}));
+        msg.addComplianceOperation(Operation.DELETE);
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest) {
+        Category category = Category.INDEX_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndices(new String[] { unresolvedIndexName });
+        msg.addComplianceOperation(Operation.CREATE);
+
+        try {
+            msg.addUnescapedJsonToRequestBody(serializeRequestContent(transportRequest));
+        } catch (Exception e) {
+            log.error("Unable to parse current index source", e);
+        }
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest) {
+        UserInformation effectiveUser = getUser();
+
+        Category category = Category.INDEX_WRITE;
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndices(indexNames.toArray(new String[] {}));
+        msg.addComplianceOperation(Operation.DELETE);
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
+        Category category = Category.INDEX_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndices(indexNames.toArray(new String[] {}));
+        msg.addComplianceOperation(Operation.UPDATE);
+
+        try {
+            msg.addUnescapedJsonToRequestBody(serializeRequestContent(transportRequest));
+        } catch (Exception e) {
+            log.error("Unable to parse current index settings source", e);
+        }
+
+        save(msg);
+    }
+
+    @Override
+    public void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
+
+        Category category = Category.INDEX_WRITE;
+
+        UserInformation effectiveUser = getUser();
+
+        if (!checkTransportFilter(category, action, effectiveUser, transportRequest)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.TRANSPORT);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+        msg.addEffectiveUser(effectiveUser);
+        msg.addIndices(indexNames.toArray(new String[] {}));
+        msg.addComplianceOperation(Operation.UPDATE);
+
+        try {
+            msg.addUnescapedJsonToRequestBody(serializeRequestContent(transportRequest));
+        } catch (Exception e) {
+            log.error("Unable to parse current index mappings source", e);
+        }
+
+        save(msg);
+    }
+
+    @Override
+    public void logSucceededKibanaLogin(UserInformation effectiveUser) {
+        Category category = Category.KIBANA_LOGIN;
+
+        if (!checkRestFilter(category, effectiveUser, null)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.REST);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+
+        msg.addEffectiveUser(effectiveUser);
+        save(msg);
+    }
+
+    @Override
+    public void logSucceededKibanaLogout(UserInformation effectiveUser) {
+        Category category = Category.KIBANA_LOGOUT;
+
+        if (!checkRestFilter(category, effectiveUser, null)) {
+            return;
+        }
+
+        AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.REST);
+        TransportAddress remoteAddress = getRemoteAddress();
+        msg.addRemoteAddress(remoteAddress);
+
+        msg.addEffectiveUser(effectiveUser);
+        save(msg);
+    }
+
     private Origin getOrigin() {
         String origin = threadPool.getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
 
@@ -1058,6 +1282,50 @@ public abstract class AbstractAuditLog implements AuditLog {
         //check category enabled
         //check action
         //check ignoreAuditUsers
+    }
+
+
+
+    protected String serializeRequestContent(TransportRequest transportRequest) {
+        if (transportRequest instanceof CreateIndexRequest) {
+            return serializeRequestContent((CreateIndexRequest) transportRequest);
+        } else if (transportRequest instanceof UpdateSettingsRequest) {
+                return serializeRequestContent((UpdateSettingsRequest) transportRequest);
+        } else if (transportRequest instanceof PutMappingRequest) {
+                return serializeRequestContent((PutMappingRequest) transportRequest);
+        } else {
+            throw new IllegalArgumentException(String.format("Unexpected request type: %s", transportRequest.getClass().getName()));
+        }
+    }
+
+    private String serializeRequestContent(CreateIndexRequest request) {
+        List<Map<String, Object>> aliases = request.aliases().stream().map(Utils::convertJsonToxToStructuredMap).collect(Collectors.toList());
+        return DocNode.of(
+                "index", request.index(),
+                "settings", Utils.convertJsonToxToStructuredMap(request.settings()),
+                "mappings", Utils.convertJsonToxToStructuredMap(request.mappings()),
+                "aliases", aliases,
+                "cause", request.cause(),
+                "origin", request.origin()
+        ).toJsonString();
+    }
+
+    private String serializeRequestContent(UpdateSettingsRequest request) {
+        return DocNode.of(
+            "indices", request.indices(),
+            "settings", Utils.convertJsonToxToStructuredMap(request.settings()),
+            "preserve_existing", request.isPreserveExisting(),
+            "origin", request.origin()
+        ).toJsonString();
+    }
+
+    private String serializeRequestContent(PutMappingRequest request) {
+        return DocNode.of(
+                "indices", request.indices(),
+                "source", Utils.convertJsonToxToStructuredMap(request.source()),
+                "write_index_only", request.writeIndexOnly(),
+                "origin", request.origin()
+        ).toJsonString();
     }
 
     protected abstract void save(final AuditMessage msg);
