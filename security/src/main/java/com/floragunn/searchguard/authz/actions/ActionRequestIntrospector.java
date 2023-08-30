@@ -793,7 +793,7 @@ public class ActionRequestIntrospector {
             if (this.remoteIndices == null || this.localIndices == null) {
                 RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
 
-                if (remoteClusterService.isCrossClusterSearchEnabled() && allowsRemoteIndices) {
+                if (allowsRemoteIndices) {
                     Map<String, OriginalIndices> groupedIndices = remoteClusterService.groupIndices(indicesOptions, indicesArray,
                             idx -> resolver.hasIndexAbstraction(idx, clusterService.state()));
 
