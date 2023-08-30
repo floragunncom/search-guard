@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.TreeSet;
 
+import com.floragunn.dlic.auth.ldap.util.Utils;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
 import org.hamcrest.Matchers;
@@ -25,6 +26,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 import org.ldaptive.Connection;
+import org.ldaptive.ConnectionConfig;
 import org.ldaptive.LdapAttribute;
 import org.ldaptive.LdapEntry;
 
@@ -47,32 +49,6 @@ public class LdapBackendTest {
     private static LdapServer startTlsLdapServer = LdapServer.createStartTls("base.ldif");
     private static LdapServer plainTextLdapServer = LdapServer.createPlainText("base.ldif");
 
-  
-    @Test
-    public void testOLdapAuthentication() throws Exception {
-
-
-        final Settings settings = Settings.builder()
-                .putList(ConfigConstants.LDAP_HOSTS, "localhost:389")
-                .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(cn={0})")
-                .put(ConfigConstants.LDAP_AUTHC_USERBASE, "dc=example,dc=org")
-                .put(ConfigConstants.LDAP_BIND_DN, "cn=admin,dc=example,dc=org")
-                .put(ConfigConstants.LDAP_PASSWORD, "admin")
-                .build();
-
-        try {
-            final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("user1").password("user1").build());
-            Assert.assertNotNull(user);
-            Assert.assertEquals("cn=user1,dc=example,dc=org", user.getName());
-            System.out.println("TC Wait");
-            Thread.sleep(10000);
-        } catch (Throwable e) {
-            e.printStackTrace();
-            System.out.println("TC Wait");
-            Thread.sleep(10000);
-        }
-
-    }
 
     @Test
     public void testLdapAuthentication() throws Exception {
@@ -289,7 +265,7 @@ public class LdapBackendTest {
                 .put(ConfigConstants.LDAPS_ENABLE_SSL, true)
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("ldap/truststore.jks"))
                 .put("verify_hostnames", false)
-                .putList("enabled_ssl_protocols", "TLSv1")
+                .putList("enabled_ssl_protocols", "TLSv1.2")
                 .putList("enabled_ssl_ciphers", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA")
                 .put("path.home", ".")
                 .build();
@@ -382,14 +358,10 @@ public class LdapBackendTest {
                 .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + plainTextLdapServer.getPort())
                 .put(ConfigConstants.LDAP_AUTHC_USERSEARCH, "(uid={0})").build();
 
-        final Connection con = LDAPAuthorizationBackend.getConnection(settings, null);
-        try {
-            final LdapEntry ref1 = LdapHelper.lookup(con, "cn=Ref1,ou=people,o=TEST");
-            Assert.assertNotNull(ref1);
-            Assert.assertEquals("cn=refsolved,ou=people,o=TEST", ref1.getDn());
-        } finally {
-            con.close();
-        }
+        final ConnectionConfig connectionConfig = LDAPAuthorizationBackend.getConnectionConfig(settings, null);
+        final LdapEntry ref1 = LdapHelper.lookup(connectionConfig, "cn=Ref1,ou=people,o=TEST");
+        Assert.assertNotNull(ref1);
+        Assert.assertEquals("cn=refsolved,ou=people,o=TEST", ref1.getDn());
 
     }
 
@@ -883,7 +855,7 @@ public class LdapBackendTest {
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("spec186").password("spec186").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST", user.getName());
-        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getLdaptiveEntry().getAttribute("cn").getStringValue());
+        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", Utils.getSingleStringValue(user.getUserEntry().getLdaptiveEntry().getAttribute("cn")));
         new LDAPAuthorizationBackend(settings, null).fillRoles(user, null);
 
         Assert.assertEquals(3, user.getRoles().size());
@@ -923,7 +895,7 @@ public class LdapBackendTest {
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null).authenticate(AuthCredentials.forUser("spec186").password("spec186").build());
         Assert.assertNotNull(user);
         Assert.assertEquals("CN=AA BB/CC (DD) my\\, company end\\=with\\=whitespace\\ ,ou=people,o=TEST", user.getName());
-        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", user.getUserEntry().getLdaptiveEntry().getAttribute("cn").getStringValue());
+        Assert.assertEquals("AA BB/CC (DD) my, company end=with=whitespace ", Utils.getSingleStringValue(user.getUserEntry().getLdaptiveEntry().getAttribute("cn")));
         new LDAPAuthorizationBackend(settings, null).fillRoles(user, null);
 
         Assert.assertEquals(3, user.getRoles().size());

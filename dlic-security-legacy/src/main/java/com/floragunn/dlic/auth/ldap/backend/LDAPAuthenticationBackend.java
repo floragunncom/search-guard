@@ -30,11 +30,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.settings.Settings;
-import org.ldaptive.Connection;
 import org.ldaptive.ConnectionConfig;
+import org.ldaptive.FilterTemplate;
 import org.ldaptive.LdapAttribute;
 import org.ldaptive.LdapEntry;
-import org.ldaptive.SearchFilter;
 import org.ldaptive.SearchScope;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
@@ -79,45 +78,33 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
     @Override
     public User authenticate(final AuthCredentials credentials) throws ElasticsearchSecurityException {
 
-        Connection ldapConnection = null;
-        final String user =credentials.getUsername();
+        final String user = credentials.getUsername();
         byte[] password = credentials.getPassword();
 
         try {
 
-            LdapEntry entry;
-            String dn;
-            ConnectionConfig connectionConfig;
-            try {
-                ldapConnection = LDAPAuthorizationBackend.getConnection(settings, configPath);
+            final ConnectionConfig connectionConfig = LDAPAuthorizationBackend.getConnectionConfig(settings, configPath);
 
-                entry = exists(user, ldapConnection, settings, userBaseSettings);
+            LdapEntry entry = exists(user, connectionConfig, settings, userBaseSettings);
 
-                // fake a user that no exists
-                // makes guessing if a user exists or not harder when looking on the
-                // authentication delay time
-                if (entry == null && settings.getAsBoolean(ConfigConstants.LDAP_FAKE_LOGIN_ENABLED, false)) {
-                    String fakeLognDn = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_DN,
-                            "CN=faketomakebindfail,DC=" + UUID.randomUUID().toString());
-                    entry = new LdapEntry(fakeLognDn);
-                    password = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_PASSWORD, "fakeLoginPwd123")
-                            .getBytes(StandardCharsets.UTF_8);
-                } else if (entry == null) {
-                    throw new ElasticsearchSecurityException("No user " + user + " found");
-                }
-
-                dn = entry.getDn();
-
-                if (log.isTraceEnabled()) {
-                    log.trace("Try to authenticate dn {}", dn);
-                }
-                
-                
-                connectionConfig = ldapConnection.getConnectionConfig();
-            } finally {
-                Utils.unbindAndCloseSilently(ldapConnection);
+            // fake a user that no exists
+            // makes guessing if a user exists or not harder when looking on the
+            // authentication delay time
+            if (entry == null && settings.getAsBoolean(ConfigConstants.LDAP_FAKE_LOGIN_ENABLED, false)) {
+                String fakeLognDn = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_DN, "CN=faketomakebindfail,DC=" + UUID.randomUUID());
+                entry = new LdapEntry();
+                entry.setDn(fakeLognDn);
+                password = settings.get(ConfigConstants.LDAP_FAKE_LOGIN_PASSWORD, "fakeLoginPwd123").getBytes(StandardCharsets.UTF_8);
+            } else if (entry == null) {
+                throw new ElasticsearchSecurityException("No user " + user + " found");
             }
-            
+
+            final String dn = entry.getDn();
+
+            if (log.isTraceEnabled()) {
+                log.trace("Try to authenticate dn {}", dn);
+            }
+
             LDAPAuthorizationBackend.checkConnection(connectionConfig, dn, password);
 
             final String usernameAttribute = settings.get(ConfigConstants.LDAP_AUTHC_USERNAME_ATTRIBUTE, null);
@@ -149,7 +136,6 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
         } finally {
             Arrays.fill(password, (byte) '\0');
             password = null;
-            Utils.unbindAndCloseSilently(ldapConnection);
         }
 
     }
@@ -161,7 +147,7 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
     
     @Override
     public boolean exists(User user) {
-        Connection ldapConnection = null;
+        ConnectionConfig connectionConfig = null;
         String userName = user.getName();
 
         if (user instanceof LdapUser) {
@@ -169,8 +155,8 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
         }
 
         try {
-            ldapConnection = LDAPAuthorizationBackend.getConnection(settings, configPath);
-            LdapEntry userEntry = exists(userName, ldapConnection, settings, userBaseSettings);
+            connectionConfig = LDAPAuthorizationBackend.getConnectionConfig(settings, configPath);
+            LdapEntry userEntry = exists(userName, connectionConfig, settings, userBaseSettings);
             boolean exists = userEntry != null;
             
             if(exists) {
@@ -186,8 +172,6 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
                 log.debug("User does not exist due to ", e);
             }
             return false;
-        } finally {
-            Utils.unbindAndCloseSilently(ldapConnection);
         }
     }
     
@@ -233,31 +217,31 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
         }
     }
 
-    static LdapEntry exists(final String user, Connection ldapConnection, Settings settings,
+    static LdapEntry exists(final String user, ConnectionConfig connectionConfig, Settings settings,
             List<Map.Entry<String, Settings>> userBaseSettings) throws Exception {
 
         if (settings.getAsBoolean(ConfigConstants.LDAP_FAKE_LOGIN_ENABLED, false)
                 || settings.getAsBoolean(ConfigConstants.LDAP_SEARCH_ALL_BASES, false)
                 || settings.hasValue(ConfigConstants.LDAP_AUTHC_USERBASE)) {
-            return existsSearchingAllBases(user, ldapConnection, userBaseSettings);
+            return existsSearchingAllBases(user, connectionConfig, userBaseSettings);
         } else {
-            return existsSearchingUntilFirstHit(user, ldapConnection, userBaseSettings);
+            return existsSearchingUntilFirstHit(user, connectionConfig, userBaseSettings);
         }
 
     }
 
-    private static LdapEntry existsSearchingUntilFirstHit(final String user, Connection ldapConnection,
+    private static LdapEntry existsSearchingUntilFirstHit(final String user, ConnectionConfig connectionConfig,
             List<Map.Entry<String, Settings>> userBaseSettings) throws Exception {
         final String username = user;
 
         for (Map.Entry<String, Settings> entry : userBaseSettings) {
             Settings baseSettings = entry.getValue();
 
-            SearchFilter f = new SearchFilter();
+            FilterTemplate f = new FilterTemplate();
             f.setFilter(baseSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_USERSEARCH_PATTERN));
             f.setParameter(ZERO_PLACEHOLDER, username);
-            
-            List<LdapEntry> result = LdapHelper.search(ldapConnection,
+
+            List<LdapEntry> result = LdapHelper.search(connectionConfig,
                     baseSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_USERBASE),
                     f,
                     SearchScope.SUBTREE);
@@ -274,19 +258,20 @@ public class LDAPAuthenticationBackend implements LegacyAuthenticationBackend {
         return null;
     }
 
-    private static LdapEntry existsSearchingAllBases(final String user, Connection ldapConnection,
+
+    private static LdapEntry existsSearchingAllBases(final String user, ConnectionConfig connectionConfig,
             List<Map.Entry<String, Settings>> userBaseSettings) throws Exception {
         final String username = user;
         Set<LdapEntry> result = new HashSet<>();
 
         for (Map.Entry<String, Settings> entry : userBaseSettings) {
             Settings baseSettings = entry.getValue();
-            
-            SearchFilter f = new SearchFilter();
+
+            FilterTemplate f = new FilterTemplate();
             f.setFilter(baseSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_USERSEARCH_PATTERN));
             f.setParameter(ZERO_PLACEHOLDER, username);
 
-            List<LdapEntry> foundEntries = LdapHelper.search(ldapConnection,
+            List<LdapEntry> foundEntries = LdapHelper.search(connectionConfig,
                     baseSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_USERBASE),
                     f,
                     SearchScope.SUBTREE);

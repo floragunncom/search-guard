@@ -106,11 +106,14 @@ public final class Utils {
         
         if(attribute.size() > 1) {
             if(log.isDebugEnabled()) {
-                log.debug("Multiple values found for {} ({})", attribute.getName(false), attribute);
+                log.debug("Multiple values found for ldap attribute {} ({})", attribute.getName(false), attribute);
             }
+
+            return attribute.getStringValues().stream().skip(attribute.size() - 1).findFirst().get();
+
+        } else {
+            return attribute.getStringValue();
         }
-        
-        return attribute.getStringValue();
     }
     
     public static String getSingleStringValue(Attribute attribute) {
@@ -120,7 +123,7 @@ public final class Utils {
         
         if(attribute.size() > 1) {
             if(log.isDebugEnabled()) {
-                log.debug("Multiple values found for {} ({})", attribute.getBaseName(), attribute);
+                log.debug("Multiple values found for attribute {} ({})", attribute.getBaseName(), attribute);
             }
         }
         

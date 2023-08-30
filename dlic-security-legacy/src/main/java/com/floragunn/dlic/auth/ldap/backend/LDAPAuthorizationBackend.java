@@ -30,18 +30,13 @@
 
 package com.floragunn.dlic.auth.ldap.backend;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.Arrays;
@@ -53,12 +48,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -66,26 +59,20 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.ldaptive.BindConnectionInitializer;
-import org.ldaptive.BindRequest;
 import org.ldaptive.Connection;
 import org.ldaptive.ConnectionConfig;
 import org.ldaptive.Credential;
 import org.ldaptive.DefaultConnectionFactory;
+import org.ldaptive.FilterTemplate;
 import org.ldaptive.LdapAttribute;
 import org.ldaptive.LdapEntry;
 import org.ldaptive.LdapException;
-import org.ldaptive.Response;
-import org.ldaptive.SearchFilter;
 import org.ldaptive.SearchScope;
-import org.ldaptive.control.RequestControl;
-import org.ldaptive.provider.ProviderConnection;
-import org.ldaptive.provider.jndi.JndiConnection;
 import org.ldaptive.ssl.AllowAnyHostnameVerifier;
 import org.ldaptive.ssl.AllowAnyTrustManager;
 import org.ldaptive.ssl.CredentialConfig;
 import org.ldaptive.ssl.CredentialConfigFactory;
 import org.ldaptive.ssl.SslConfig;
-import org.ldaptive.ssl.ThreadLocalTLSSocketFactory;
 
 import com.floragunn.dlic.auth.ldap.LdapUser;
 import com.floragunn.dlic.auth.ldap.util.ConfigConstants;
@@ -104,8 +91,6 @@ import com.google.common.collect.HashMultimap;
 
 public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
 
-    private static final AtomicInteger CONNECTION_COUNTER = new AtomicInteger();
-    private static final String COM_SUN_JNDI_LDAP_OBJECT_DISABLE_ENDPOINT_IDENTIFICATION = "com.sun.jndi.ldap.object.disableEndpointIdentification";
     private static final List<String> DEFAULT_TLS_PROTOCOLS = Arrays.asList("TLSv1.2", "TLSv1.1");
     static final int ONE_PLACEHOLDER = 1;
     static final int TWO_PLACEHOLDER = 2;
@@ -136,47 +121,9 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
         }
 
         try {
-            AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
-                @Override
-                public Void run() throws Exception {
-                    boolean isJava9OrHigher = getJavaVersion() >= 9;
-                    ClassLoader originalClassloader = null;
-                    if (isJava9OrHigher) {
-                        originalClassloader = Thread.currentThread().getContextClassLoader();
-                        Thread.currentThread().setContextClassLoader(new Java9CL());
-                    }
-
-                    checkConnection0(connectionConfig, bindDn, password, originalClassloader, isJava9OrHigher);
-                    return null;
-                }
-            });
-        } catch (PrivilegedActionException e) {
-            throw e.getException();
-        }
-
-    }
-
-    public static Connection getConnection(final Settings settings, final Path configPath) throws Exception {
-
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        try {
-            return AccessController.doPrivileged(new PrivilegedExceptionAction<Connection>() {
-                @Override
-                public Connection run() throws Exception {
-                    boolean isJava9OrHigher = getJavaVersion() >= 9;
-                    ClassLoader originalClassloader = null;
-                    if (isJava9OrHigher) {
-                        originalClassloader = Thread.currentThread().getContextClassLoader();
-                        Thread.currentThread().setContextClassLoader(new Java9CL());
-                    }
-
-                    return getConnection0(settings, configPath, originalClassloader, isJava9OrHigher);
-                }
+            AccessController.doPrivileged((PrivilegedExceptionAction<Void>) () -> {
+                checkConnection0(connectionConfig, bindDn, password);
+                return null;
             });
         } catch (PrivilegedActionException e) {
             throw e.getException();
@@ -211,9 +158,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
         return Collections.singletonList(result.entrySet().iterator().next());
     }
     
-    private static void checkConnection0(ConnectionConfig connectionConfig, String bindDn, byte[] password, final ClassLoader cl,
-            final boolean needRestore) throws KeyStoreException, NoSuchAlgorithmException, CertificateException,
-            FileNotFoundException, IOException, LdapException {
+    private static void checkConnection0(ConnectionConfig connectionConfig, String bindDn, byte[] password) throws LdapException {
 
         Connection connection = null;
         
@@ -226,37 +171,20 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
             if (bindDn != null && (password == null || password.length == 0)) {
                 throw new LdapException("no bindDn or no Password");
             }
-            
-            connectionConfig = ConnectionConfig.newConnectionConfig(connectionConfig);
-            connectionConfig.setConnectionInitializer(new BindConnectionInitializer(bindDn, new Credential(password)));
-           
+
+            connectionConfig = ConnectionConfig.copy(connectionConfig);
+            connectionConfig.setConnectionInitializers(new BindConnectionInitializer(bindDn, new Credential(password)));
+
             DefaultConnectionFactory connFactory = new DefaultConnectionFactory(connectionConfig);
             connection = connFactory.getConnection();
 
             connection.open();
         } finally {
             Utils.unbindAndCloseSilently(connection);
-            connection = null;
-            if (needRestore) {
-                try {
-                    AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
-                        @Override
-                        public Void run() throws Exception {
-                            Thread.currentThread().setContextClassLoader(cl);
-                            return null;
-                        }
-                    });
-                } catch (PrivilegedActionException e) {
-                    log.warn("Unable to restore classloader because of " + e.getException(), e.getException());
-                }
-            }
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static Connection getConnection0(final Settings settings, final Path configPath, final ClassLoader cl,
-            final boolean needRestore) throws KeyStoreException, NoSuchAlgorithmException, CertificateException,
-            FileNotFoundException, IOException, LdapException {
+    public static ConnectionConfig getConnectionConfig(final Settings settings, final Path configPath) throws LdapException {
         final boolean enableSSL = settings.getAsBoolean(ConfigConstants.LDAPS_ENABLE_SSL, false);
 
         final List<String> ldapHosts = settings.getAsList(ConfigConstants.LDAP_HOSTS,
@@ -283,15 +211,11 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                     port = enableSSL ? 636 : 389;
                 }
 
-                final ConnectionConfig config = new ConnectionConfig();
-                config.setLdapUrl("ldap" + (enableSSL ? "s" : "") + "://" + split[0] + ":" + port);
+                final ConnectionConfig.Builder configBuilder = ConnectionConfig.builder();
+                configBuilder.url("ldap" + (enableSSL ? "s" : "") + "://" + split[0] + ":" + port);
 
-                if (log.isTraceEnabled()) {
-                    log.trace("Connect to {}", config.getLdapUrl());
-                }
+                configureSSL(configBuilder, settings, configPath);
 
-                final Map<String, Object> props = configureSSL(config, settings, configPath);
-                
                 final String bindDn = settings.get(ConfigConstants.LDAP_BIND_DN, null);
                 final String password = settings.get(ConfigConstants.LDAP_PASSWORD, null);
 
@@ -319,29 +243,18 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                         log.debug("Will perform simple bind with bind dn");
                     }
                 }
-                
+
                 if (bindDn != null && password != null && password.length() > 0) {
-                    config.setConnectionInitializer(new BindConnectionInitializer(bindDn, new Credential(password)));
-                } else if (enableClientAuth) {
-                    props.put(JndiConnection.AUTHENTICATION, "EXTERNAL");
-                } else {
-                    props.put(JndiConnection.AUTHENTICATION, "none");
+                    configBuilder.connectionInitializers(new BindConnectionInitializer(bindDn, new Credential(password)));
                 }
 
-                DefaultConnectionFactory connFactory = new DefaultConnectionFactory(config);
-                connFactory.getProvider().getProviderConfig().setProperties(props);
+                DefaultConnectionFactory connFactory = new DefaultConnectionFactory(configBuilder.build());
                 connection = connFactory.getConnection();
-
                 connection.open();
-
                 if (connection != null && connection.isOpen()) {
-                    break;
+                    return configBuilder.build();
                 } else {
                     Utils.unbindAndCloseSilently(connection);
-                    if (needRestore) {
-                        restoreClassLoader0(cl);
-                    }
-                    connection = null;
                 }
             } catch (final Exception e) {
                 lastException = e;
@@ -350,19 +263,11 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                     log.debug("Unable to connect to ldapserver due to ", e);
                 }
                 Utils.unbindAndCloseSilently(connection);
-                if (needRestore) {
-                    restoreClassLoader0(cl);
-                }
-                connection = null;
-                continue;
             }
         }
 
         if (connection == null || !connection.isOpen()) {
             Utils.unbindAndCloseSilently(connection);  //just in case
-            if (needRestore) {
-                restoreClassLoader0(cl);
-            }
             connection = null;
             if (lastException == null) {
                 throw new LdapException("Unable to connect to any of those ldap servers " + ldapHosts);
@@ -372,136 +277,12 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                         lastException);
             }
         }
-
-        final Connection delegate = connection;
-        
-        if(log.isDebugEnabled()) {
-            log.debug("Opened a connection, total count is now {}", CONNECTION_COUNTER.incrementAndGet());
-        }
-
-        return new Connection() {
-
-            @Override
-            public Response<Void> reopen(BindRequest request) throws LdapException {
-                if(log.isDebugEnabled()) {
-                    log.debug("Reopened a connection");
-                }
-                return delegate.reopen(request);
-            }
-
-            @Override
-            public Response<Void> reopen() throws LdapException {
-                if(log.isDebugEnabled()) {
-                    log.debug("Reopened a connection");
-                }
-                return delegate.reopen();
-            }
-
-            @Override
-            public Response<Void> open(BindRequest request) throws LdapException {
-                
-                try {
-                    if(log.isDebugEnabled() && delegate != null && delegate.isOpen()) {
-                        log.debug("Opened a connection, total count is now {}", CONNECTION_COUNTER.incrementAndGet());
-                    }
-                } catch (Throwable e) {
-                    //ignore
-                }
-                
-                return delegate.open(request);
-            }
-
-            @Override
-            public Response<Void> open() throws LdapException {
-                
-                try {
-                    if(log.isDebugEnabled() && delegate != null && delegate.isOpen()) {
-                        log.debug("Opened a connection, total count is now {}", CONNECTION_COUNTER.incrementAndGet());
-                    }
-                } catch (Throwable e) {
-                    //ignore
-                }
-                
-                return delegate.open();
-            }
-
-            @Override
-            public boolean isOpen() {
-                return delegate.isOpen();
-            }
-
-            @Override
-            public ProviderConnection getProviderConnection() {
-                return delegate.getProviderConnection();
-            }
-
-            @Override
-            public ConnectionConfig getConnectionConfig() {
-                return delegate.getConnectionConfig();
-            }
-
-            @Override
-            public void close(RequestControl[] controls) {
-                
-                try {
-                    if(log.isDebugEnabled() && delegate != null && delegate.isOpen()) {
-                        log.debug("Closed a connection, total count is now {}", CONNECTION_COUNTER.decrementAndGet());
-                    }
-                } catch (Throwable e) {
-                    //ignore
-                }
-                
-                try {
-                    delegate.close(controls);
-                } finally {
-                    restoreClassLoader();
-                }
-            }
-
-            @Override
-            public void close() {
-                
-                try {
-                    if(log.isDebugEnabled() && delegate != null && delegate.isOpen()) {
-                        log.debug("Closed a connection, total count is now {}", CONNECTION_COUNTER.decrementAndGet());
-                    }
-                } catch (Throwable e) {
-                    //ignore
-                }
-                
-                try {
-                    delegate.close();
-                } finally {
-                    restoreClassLoader();
-                }
-            }
-
-            private void restoreClassLoader() {
-                if (needRestore) {
-                    restoreClassLoader0(cl);
-                }
-            }
-        };
-    }
-    
-    private static void restoreClassLoader0(final ClassLoader cl) {
-        try {
-            AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
-                @Override
-                public Void run() throws Exception {
-                    Thread.currentThread().setContextClassLoader(cl);
-                    return null;
-                }
-            });
-        } catch (PrivilegedActionException e) {
-            log.warn("Unable to restore classloader because of " + e.getException(), e.getException());
-        }
+        return null;
     }
 
-    private static Map<String, Object> configureSSL(final ConnectionConfig config, final Settings settings,
+    private static void configureSSL(final ConnectionConfig.Builder configBuilder, final Settings settings,
             final Path configPath) throws Exception {
 
-        final Map<String, Object> props = new HashMap<String, Object>();
         final boolean enableSSL = settings.getAsBoolean(ConfigConstants.LDAPS_ENABLE_SSL, false);
         final boolean enableStartTLS = settings.getAsBoolean(ConfigConstants.LDAPS_ENABLE_START_TLS, false);
 
@@ -518,10 +299,6 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
             if (log.isDebugEnabled()) {
                 log.debug("verifyHostname {}:", verifyHostnames);
                 log.debug("trustall {}:", trustAll);
-            }
-
-            if (enableStartTLS && !verifyHostnames) {
-                props.put("jndi.starttls.allowAnyHostname", "true");
             }
 
             final boolean pem = settings.get(ConfigConstants.LDAPS_PEMTRUSTEDCAS_FILEPATH, null) != null
@@ -613,20 +390,6 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
 
             if (!verifyHostnames) {
                 sslConfig.setHostnameVerifier(new AllowAnyHostnameVerifier());
-                final String deiProp = System.getProperty(COM_SUN_JNDI_LDAP_OBJECT_DISABLE_ENDPOINT_IDENTIFICATION);
-                
-                if (deiProp == null || !Boolean.parseBoolean(deiProp)) {
-                    log.warn("In order to disable host name verification for LDAP connections (verify_hostnames: true), "
-                            + "you also need to set set the system property "+COM_SUN_JNDI_LDAP_OBJECT_DISABLE_ENDPOINT_IDENTIFICATION+" to true when starting the JVM running ES. "
-                            + "This applies for all Java versions released since July 2018.");
-                    // See:
-                    // https://www.oracle.com/technetwork/java/javase/8u181-relnotes-4479407.html
-                    // https://www.oracle.com/technetwork/java/javase/10-0-2-relnotes-4477557.html
-                    // https://www.oracle.com/technetwork/java/javase/11-0-1-relnotes-5032023.html
-                }
-                
-                System.setProperty(COM_SUN_JNDI_LDAP_OBJECT_DISABLE_ENDPOINT_IDENTIFICATION, "true");
-
             }
 
             // https://github.com/floragunncom/search-guard/issues/227
@@ -642,30 +405,19 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
 
             log.debug("enabled ssl/tls protocols for ldaps {}", enabledProtocols);
             sslConfig.setEnabledProtocols(enabledProtocols.toArray(new String[0]));
-            config.setSslConfig(sslConfig);
+            configBuilder.sslConfig(sslConfig);
         }
 
-        config.setUseSSL(enableSSL);
-        config.setUseStartTLS(enableStartTLS);
+        configBuilder.useStartTLS(enableStartTLS);
 
         final long connectTimeout = settings.getAsLong(ConfigConstants.LDAP_CONNECT_TIMEOUT, 5000L); // 0L means TCP
                                                                                                      // default timeout
         final long responseTimeout = settings.getAsLong(ConfigConstants.LDAP_RESPONSE_TIMEOUT, 0L); // 0L means wait
                                                                                                     // infinitely
 
-        config.setConnectTimeout(Duration.ofMillis(connectTimeout < 0L ? 0L : connectTimeout)); // 5 sec by default
-        config.setResponseTimeout(Duration.ofMillis(responseTimeout < 0L ? 0L : responseTimeout));
-
-        if (log.isDebugEnabled()) {
-            log.debug("Connect timeout: " + config.getConnectTimeout() + "/ResponseTimeout: "
-                    + config.getResponseTimeout());
-        }
-        return props;
-
+        configBuilder.connectTimeout(Duration.ofMillis(connectTimeout < 0L ? 0L : connectTimeout)); // 5 sec by default
+        configBuilder.responseTimeout(Duration.ofMillis(responseTimeout < 0L ? 0L : responseTimeout));
     }
-    
-    
-
 
     @Override
     public void fillRoles(final User user, final AuthCredentials optionalAuthCreds)
@@ -720,11 +472,11 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
             return;
         }
 
-        Connection connection = null;
+        ConnectionConfig connectionConfig = null;
 
         try {
 
-            connection = getConnection(settings, configPath);
+            connectionConfig = getConnectionConfig(settings, configPath);
             
             if (entry == null || dn == null) {
 
@@ -738,7 +490,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                     log.debug("DBGTRACE (4): authenticatedUser="+authenticatedUser+" -> "+Arrays.toString(authenticatedUser.getBytes(StandardCharsets.UTF_8)));
 
 
-                    entry = LdapHelper.lookup(connection, authenticatedUser);
+                    entry = LdapHelper.lookup(connectionConfig, authenticatedUser);
 
                     if (entry == null) {
                         throw new ElasticsearchSecurityException("No user '" + authenticatedUser + "' found");
@@ -750,7 +502,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                     log.debug("DBGTRACE (5): authenticatedUser="+user.getName()+" -> "+Arrays.toString(user.getName().getBytes(StandardCharsets.UTF_8)));
 
                     
-                    entry = LDAPAuthenticationBackend.exists(user.getName(), connection, settings, userBaseSettings);
+                    entry = LDAPAuthenticationBackend.exists(user.getName(), connectionConfig, settings, userBaseSettings);
 
                     if (log.isTraceEnabled()) {
                         log.trace("{} is not a valid DN and was resolved to {}", authenticatedUser, entry);
@@ -849,15 +601,15 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
 
                 for (Map.Entry<String, Settings> roleSearchSettingsEntry : roleBaseSettings) {
                     Settings roleSearchSettings = roleSearchSettingsEntry.getValue();
-                    
-                    SearchFilter f = new SearchFilter();
+
+                    FilterTemplate f = new FilterTemplate();
                     f.setFilter(roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_ROLESEARCH));
                     f.setParameter(LDAPAuthenticationBackend.ZERO_PLACEHOLDER, escapedDn);
                     f.setParameter(ONE_PLACEHOLDER, originalUserName);
                     f.setParameter(TWO_PLACEHOLDER,
                             userRoleAttributeValue == null ? TWO_PLACEHOLDER : userRoleAttributeValue);
 
-                    List<LdapEntry> rolesResult = LdapHelper.search(connection,
+                    List<LdapEntry> rolesResult = LdapHelper.search(connectionConfig,
                             roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_ROLEBASE),
                             f,
                             SearchScope.SUBTREE);
@@ -904,7 +656,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                         continue;
                     }
 
-                    final Set<LdapName> nestedRoles = resolveNestedRoles(roleLdapName, connection, userRoleNames, 0,
+                    final Set<LdapName> nestedRoles = resolveNestedRoles(roleLdapName, connectionConfig, userRoleNames, 0,
                             rolesearchEnabled, nameRoleSearchBaseKeys, nestedRoleFilter);
 
                     if (log.isTraceEnabled()) {
@@ -915,7 +667,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                 }
 
                 for (final LdapName roleLdapName : nestedReturn) {
-                    final String role = getRoleFromEntry(connection, roleLdapName, roleName);
+                    final String role = getRoleFromEntry(connectionConfig, roleLdapName, roleName);
 
                     if (!Strings.isNullOrEmpty(role)) {
                         user.addRole(role);
@@ -927,7 +679,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
             } else {
                 // DN roles, extract rolename according to config
                 for (final LdapName roleLdapName : ldapRoles) {
-                    final String role = getRoleFromEntry(connection, roleLdapName, roleName);
+                    final String role = getRoleFromEntry(connectionConfig, roleLdapName, roleName);
 
                     if (!Strings.isNullOrEmpty(role)) {
                         user.addRole(role);
@@ -956,13 +708,10 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                 log.debug("Unable to fill user roles due to ", e);
             }
             throw new ElasticsearchSecurityException(e.toString(), e);
-        } finally {
-            Utils.unbindAndCloseSilently(connection);
         }
-
     }
 
-    protected Set<LdapName> resolveNestedRoles(final LdapName roleDn, final Connection ldapConnection,
+    protected Set<LdapName> resolveNestedRoles(final LdapName roleDn, final ConnectionConfig connectionConfig,
             String userRoleName, int depth, final boolean rolesearchEnabled,
             Set<Map.Entry<String, Settings>> roleSearchBaseSettingsSet, final List<String> roleFilter)
             throws ElasticsearchSecurityException, LdapException {
@@ -981,7 +730,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
         final Set<LdapName> result = new HashSet<>(20);
         final HashMultimap<LdapName, Map.Entry<String, Settings>> resultRoleSearchBaseKeys = HashMultimap.create();
 
-        final LdapEntry e0 = LdapHelper.lookup(ldapConnection,roleDn.toString());
+        final LdapEntry e0 = LdapHelper.lookup(connectionConfig, roleDn);
 
         if (e0.getAttribute(userRoleName) != null) {
             final Collection<String> userRoles = e0.getAttribute(userRoleName).getStringValues();
@@ -1020,13 +769,13 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
             for (Map.Entry<String, Settings> roleSearchBaseSettingsEntry : Utils
                     .getOrderedBaseSettings(roleSearchBaseSettingsSet)) {
                 Settings roleSearchSettings = roleSearchBaseSettingsEntry.getValue();
-                
-                SearchFilter f = new SearchFilter();
+
+                FilterTemplate f = new FilterTemplate();
                 f.setFilter(roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_SEARCH, DEFAULT_ROLESEARCH));
                 f.setParameter(LDAPAuthenticationBackend.ZERO_PLACEHOLDER, escapedDn);
                 f.setParameter(ONE_PLACEHOLDER, escapedDn);
 
-                List<LdapEntry> foundEntries = LdapHelper.search(ldapConnection,
+                List<LdapEntry> foundEntries = LdapHelper.search(connectionConfig,
                         roleSearchSettings.get(ConfigConstants.LDAP_AUTHCZ_BASE, DEFAULT_ROLEBASE),
                         f,
                         SearchScope.SUBTREE);
@@ -1068,7 +817,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
                     continue;
                 }
 
-                final Set<LdapName> in = resolveNestedRoles(nm, ldapConnection, userRoleName, depth, rolesearchEnabled,
+                final Set<LdapName> in = resolveNestedRoles(nm, connectionConfig, userRoleName, depth, rolesearchEnabled,
                         nameRoleSearchBaseKeys, roleFilter);
                 result.addAll(in);
             }
@@ -1097,7 +846,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
         return true;
     }
 
-    private String getRoleFromEntry(final Connection ldapConnection, final LdapName ldapName, final String role) {
+    private String getRoleFromEntry(final ConnectionConfig connectionConfig, final LdapName ldapName, final String role) {
 
         if (ldapName == null || Strings.isNullOrEmpty(role)) {
             return null;
@@ -1108,7 +857,7 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
         }
 
         try {
-            final LdapEntry roleEntry = LdapHelper.lookup(ldapConnection, ldapName.toString());
+            final LdapEntry roleEntry = LdapHelper.lookup(connectionConfig, ldapName);
 
             if(roleEntry != null) {
                 final LdapAttribute roleAttribute = roleEntry.getAttribute(role);
@@ -1121,59 +870,6 @@ public class LDAPAuthorizationBackend implements LegacyAuthorizationBackend {
         }
 
         return null;
-    }
-
-    private static int getJavaVersion() {
-        String version = System.getProperty("java.version");
-
-        if (version.startsWith("1.")) {
-            int nextDot = version.indexOf('.', 2);
-
-            if (nextDot == -1) {
-                log.error("Invalid java version " + version);
-                return -1;
-            } else {
-                return Integer.parseInt(version.substring(2, nextDot));
-            }
-        } else if (StringUtils.isNumeric(version)) {
-            return Integer.parseInt(version);
-        } else {
-            int nextDot = version.indexOf('.');
-
-            if (nextDot == -1) {
-                log.error("Invalid java version " + version);
-                return -1;
-            } else {
-                return Integer.parseInt(version.substring(0, nextDot));
-            }
-        }
-    }
-    
-    @SuppressWarnings("rawtypes")
-    private final static Class clazz = ThreadLocalTLSSocketFactory.class;
-    
-    private final static class Java9CL extends ClassLoader {
-
-        public Java9CL() {
-            super();
-        }
-
-        @SuppressWarnings("unused")
-        public Java9CL(ClassLoader parent) {
-            super(parent);
-        }
-
-        @SuppressWarnings({ "rawtypes", "unchecked" })
-        @Override
-        public Class loadClass(String name) throws ClassNotFoundException {
-
-            if (!name.equalsIgnoreCase("org.ldaptive.ssl.ThreadLocalTLSSocketFactory")) {
-                return super.loadClass(name);
-            }
-
-            return clazz;
-        }
-
     }
     
     public static TypedComponent.Info<LegacyAuthorizationBackend> INFO = new TypedComponent.Info<LegacyAuthorizationBackend>() {

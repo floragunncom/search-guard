@@ -20,29 +20,31 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
-import javax.naming.ldap.Rdn;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
-import org.ldaptive.Connection;
+import org.ldaptive.ConnectionConfig;
+import org.ldaptive.DefaultConnectionFactory;
 import org.ldaptive.DerefAliases;
+import org.ldaptive.FilterTemplate;
 import org.ldaptive.LdapEntry;
 import org.ldaptive.LdapException;
-import org.ldaptive.Response;
 import org.ldaptive.ReturnAttributes;
-import org.ldaptive.SearchFilter;
 import org.ldaptive.SearchOperation;
 import org.ldaptive.SearchRequest;
-import org.ldaptive.SearchResult;
+import org.ldaptive.SearchResponse;
 import org.ldaptive.SearchScope;
-import org.ldaptive.referral.SearchReferralHandler;
+import org.ldaptive.referral.FollowSearchReferralHandler;
 
 public class LdapHelper {
 
-    private static SearchFilter ALL = new SearchFilter("(objectClass=*)");
-    
-    public static List<LdapEntry> search(final Connection conn, final String unescapedDn, SearchFilter filter,
+    protected static final Logger log = LogManager.getLogger(LdapHelper.class);
+
+    private static FilterTemplate ALL = new FilterTemplate("(objectClass=*)");
+
+    public static List<LdapEntry> search(final ConnectionConfig connectionConfig, final String baseDn, FilterTemplate filter,
             final SearchScope searchScope) throws LdapException {
 
         final SecurityManager sm = System.getSecurityManager();
@@ -50,26 +52,23 @@ public class LdapHelper {
         if (sm != null) {
             sm.checkPermission(new SpecialPermission());
         }
-
         try {
-            final String baseDn = escapeDn(unescapedDn);
-            
-            return AccessController.doPrivileged(new PrivilegedExceptionAction<List<LdapEntry>>() {
-                @Override
-                public List<LdapEntry> run() throws Exception {
-                    final List<LdapEntry> entries = new ArrayList<>();
-                    final SearchRequest request = new SearchRequest(baseDn, filter);
-                    request.setReferralHandler(new SearchReferralHandler());
-                    request.setSearchScope(searchScope);
-                    request.setDerefAliases(DerefAliases.ALWAYS);
-                    request.setReturnAttributes(ReturnAttributes.ALL.value());
-                    final SearchOperation search = new SearchOperation(conn);
-                    // referrals will be followed to build the response
-                    final Response<SearchResult> r = search.execute(request);
-                    final org.ldaptive.SearchResult result = r.getResult();
-                    entries.addAll(result.getEntries());
-                    return entries;
-                }
+
+            if(log.isDebugEnabled())
+            log.debug("baseDn {}", baseDn);
+
+            return AccessController.doPrivileged((PrivilegedExceptionAction<List<LdapEntry>>) () -> {
+                SearchOperation search = new SearchOperation(new DefaultConnectionFactory(connectionConfig));
+                search.setSearchResultHandlers(new FollowSearchReferralHandler());
+                SearchResponse r =
+                    search.execute(SearchRequest.builder()
+                        .dn(baseDn)
+                        .aliases(DerefAliases.ALWAYS)
+                        .filter(filter)
+                        .scope(searchScope)
+                        .returnAttributes(ReturnAttributes.ALL.value())
+                        .build());
+                return new ArrayList<>(r.getEntries());
             });
         } catch (PrivilegedActionException e) {
             if (e.getException() instanceof LdapException) {
@@ -79,37 +78,21 @@ public class LdapHelper {
             } else {
                 throw new RuntimeException(e);
             }
-        } catch (InvalidNameException e) {
-            throw new RuntimeException(e);
         }
     }
 
-    public static LdapEntry lookup(final Connection conn, final String unescapedDn) throws LdapException {
+    public static LdapEntry lookup(ConnectionConfig connectionConfig, LdapName roleDn) throws LdapException {
+        return lookup(connectionConfig, roleDn.toString());
+    }
 
-        final List<LdapEntry> entries = search(conn, unescapedDn, ALL, SearchScope.OBJECT);
+    public static LdapEntry lookup(final ConnectionConfig connectionConfig, final String unescapedDn) throws LdapException {
+
+        final List<LdapEntry> entries = search(connectionConfig, unescapedDn, ALL, SearchScope.OBJECT);
 
         if (entries.size() == 1) {
             return entries.get(0);
         } else {
             return null;
         }
-    }
-    
-    private static String escapeDn(String dn) throws InvalidNameException {
-        final LdapName dnName = new LdapName(dn);
-        final List<Rdn> escaped = new ArrayList<>(dnName.size());
-        for(Rdn rdn: dnName.getRdns()) {
-            escaped.add(new Rdn(rdn.getType(), escapeForwardSlash(rdn.getValue())));
-        }
-        return new LdapName(escaped).toString();
-    }
-    
-    private static Object escapeForwardSlash(Object input) {
-        if(input != null && input instanceof String) {
-            return ((String)input).replace("/", "\\2f");
-        } else {
-            return input;
-        }
-        
     }
 }

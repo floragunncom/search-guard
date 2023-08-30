@@ -24,6 +24,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 import org.ldaptive.Connection;
+import org.ldaptive.ConnectionConfig;
 import org.ldaptive.LdapEntry;
 
 import com.floragunn.dlic.auth.ldap.backend.LDAPAuthenticationBackend;
@@ -243,7 +244,7 @@ public class LdapBackendTestNewStyleConfig {
                 .put("users.u1.search", "(uid={0})").put(ConfigConstants.LDAPS_ENABLE_SSL, true)
                 .put("searchguard.ssl.transport.truststore_filepath",
                         FileHelper.getAbsoluteFilePathFromClassPath("ldap/truststore.jks"))
-                .put("verify_hostnames", false).putList("enabled_ssl_protocols", "TLSv1")
+                .put("verify_hostnames", false).putList("enabled_ssl_protocols", "TLSv1.2")
                 .putList("enabled_ssl_ciphers", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA").put("path.home", ".").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend(settings, null)
@@ -274,7 +275,9 @@ public class LdapBackendTestNewStyleConfig {
 
         final Settings settings = Settings.builder()
                 .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + tlsLdapServer.getPort())
-                .put("users.u1.search", "(uid={0})").put(ConfigConstants.LDAPS_ENABLE_SSL, true).build();
+                .put("users.u1.search", "(uid={0})").put(ConfigConstants.LDAPS_ENABLE_SSL, true)
+                .put("path.home", ".")
+                .build();
 
         try {
             new LDAPAuthenticationBackend(settings, null)
@@ -327,14 +330,9 @@ public class LdapBackendTestNewStyleConfig {
                 .putList(ConfigConstants.LDAP_HOSTS, "localhost:" + plainTextLdapServer.getPort())
                 .put("users.u1.search", "(uid={0})").build();
 
-        final Connection con = LDAPAuthorizationBackend.getConnection(settings, null);
-        try {
-            final LdapEntry ref1 = LdapHelper.lookup(con, "cn=Ref1,ou=people,o=TEST");
-            Assert.assertEquals("cn=refsolved,ou=people,o=TEST", ref1.getDn());
-        } finally {
-            con.close();
-        }
-
+        final ConnectionConfig connectionConfig = LDAPAuthorizationBackend.getConnectionConfig(settings, null);
+        final LdapEntry ref1 = LdapHelper.lookup(connectionConfig, "cn=Ref1,ou=people,o=TEST");
+        Assert.assertEquals("cn=refsolved,ou=people,o=TEST", ref1.getDn());
     }
 
     @Test
