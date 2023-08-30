@@ -18,7 +18,7 @@
 
   <properties>
     <jjwt.version>0.10.5</jjwt.version>
-    <ldaptive.version>1.2.3</ldaptive.version>
+    <ldaptive.version>2.2.0</ldaptive.version>
     <unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
   </properties>
 
@@ -154,6 +154,10 @@
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

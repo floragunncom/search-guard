@@ -95,6 +95,7 @@ public class Base64Helper {
             SAFE_CLASSES.add("org.ldaptive.AbstractLdapBean");
             SAFE_CLASSES.add("org.ldaptive.LdapAttribute");
             SAFE_CLASSES.add("org.ldaptive.LdapAttribute$LdapAttributeValues");
+            SAFE_CLASSES.add("java.util.CollSer");
         }
 
         public SafeObjectInputStream(InputStream in) throws IOException {

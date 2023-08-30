@@ -72,7 +72,7 @@ public final class Utils {
         
         if(attribute.size() > 1) {
             if(log.isDebugEnabled()) {
-                log.debug("Multiple values found for {} ({})", attribute.getBaseName(), attribute);
+                log.debug("Multiple values found for attribute {} ({})", attribute.getBaseName(), attribute);
             }
         }
         
