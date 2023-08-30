@@ -522,12 +522,6 @@
 
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
-      <artifactId>rest-root</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>parent-join</artifactId>
       <version>${elasticsearch.version}</version>
       <scope>test</scope>
