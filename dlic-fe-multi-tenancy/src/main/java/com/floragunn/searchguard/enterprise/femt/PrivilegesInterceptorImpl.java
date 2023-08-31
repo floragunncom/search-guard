@@ -221,11 +221,14 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                     Map<String, Object> source = indexRequest.sourceAsMap();
                     if(isScopedId(indexRequest.id()) && (!source.containsKey(SG_TENANT_FIELD))) {
                         String tenantName = extractTenantFromId(indexRequest.id());
-                        log.info("Adding field '{}' to document '{}' from index '{}' with value '{}'.", SG_TENANT_FIELD, indexRequest.id(), indexRequest.index(), tenantName);
+                        log.info("Adding tenant distinctive field '{}' to document '{}' from index '{}' with value '{}'.", SG_TENANT_FIELD, indexRequest.id(), indexRequest.index(), tenantName);
                         source.put(SG_TENANT_FIELD, tenantName);
                         indexRequest.source(source);
                         requestExtended = true;
-                    }}
+                    } else {
+                        log.info("Document '{}' contain sg_tenant field with value '{}'", indexRequest.id(), source.get(SG_TENANT_FIELD));
+                    }
+                }
             }
         }
         if(requestExtended) {
