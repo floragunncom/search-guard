@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.enterprise.femt.request;
+package com.floragunn.searchguard.enterprise.femt;
 
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-public class RequestTenantData {
+public class RequestResponseTenantData {
 
     protected static final String SG_TENANT_FIELD = "sg_tenant";
     private static final String TENAND_SEPARATOR_IN_ID = "__sg_ten__";
