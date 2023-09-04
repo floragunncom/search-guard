@@ -16,7 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.enterprise.femt.request.RequestTenantData;
+import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -41,7 +41,7 @@ public class UpdateRequestHandler extends RequestHandler<UpdateRequest> {
         threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            String newId = RequestTenantData.scopeIdIfNeeded(request.id(), requestedTenant);
+            String newId = RequestResponseTenantData.scopeIdIfNeeded(request.id(), requestedTenant);
             request.id(newId);
             nodeClient.update(request, new ActionListener<>() {
 

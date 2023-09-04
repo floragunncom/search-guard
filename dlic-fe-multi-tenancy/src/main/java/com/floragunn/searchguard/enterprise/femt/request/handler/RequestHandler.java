@@ -16,7 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.enterprise.femt.request.RequestTenantData;
+import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -36,7 +36,7 @@ public abstract class RequestHandler<T extends ActionRequest> {
         log.debug("Rewriting update response");
         UpdateResponse updateResponse = new UpdateResponse(
                 docWriteResponse.getShardId(),
-                RequestTenantData.unscopedId(docWriteResponse.getId()),
+                RequestResponseTenantData.unscopedId(docWriteResponse.getId()),
                 docWriteResponse.getSeqNo(),
                 docWriteResponse.getPrimaryTerm(),
                 docWriteResponse.getVersion(),

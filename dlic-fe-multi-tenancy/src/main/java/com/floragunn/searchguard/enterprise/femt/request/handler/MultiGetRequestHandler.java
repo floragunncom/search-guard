@@ -16,7 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.enterprise.femt.request.RequestTenantData;
+import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetResponse;
@@ -87,7 +87,7 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
     }
 
     private MultiGetRequest.Item addTenantScopeToMultiGetItem(MultiGetRequest.Item item, String tenant) {
-        return new MultiGetRequest.Item(item.index(), RequestTenantData.scopedId(item.id(), tenant)) //
+        return new MultiGetRequest.Item(item.index(), RequestResponseTenantData.scopedId(item.id(), tenant)) //
                 .routing(item.routing()) //
                 .storedFields(item.storedFields()) //
                 .version(item.version()) //
@@ -98,7 +98,7 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
     private MultiGetItemResponse unscopeIdInMultiGetResponseItem(MultiGetItemResponse multiGetItemResponse) {
         GetResponse successResponse = Optional.ofNullable(multiGetItemResponse.getResponse()) //
                 .map(response -> new GetResult(response.getIndex(),
-                        RequestTenantData.unscopedId(response.getId()),
+                        RequestResponseTenantData.unscopedId(response.getId()),
                         response.getSeqNo(),
                         response.getPrimaryTerm(),
                         response.getVersion(),
@@ -110,7 +110,7 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
                 .orElse(null);
 
         MultiGetResponse.Failure failure = Optional.ofNullable(multiGetItemResponse.getFailure()) //
-                .map(fault -> new MultiGetResponse.Failure(fault.getIndex(), RequestTenantData.unscopedId(fault.getId()), fault.getFailure())) //
+                .map(fault -> new MultiGetResponse.Failure(fault.getIndex(), RequestResponseTenantData.unscopedId(fault.getId()), fault.getFailure())) //
                 .orElse(null);
         return new MultiGetItemResponse(successResponse, failure);
     }
