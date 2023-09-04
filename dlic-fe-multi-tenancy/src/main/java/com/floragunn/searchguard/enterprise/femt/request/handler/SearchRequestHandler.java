@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.enterprise.femt.request.RequestTenantData;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
@@ -44,7 +45,7 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
         threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            BoolQueryBuilder queryBuilder = createQueryExtension(requestedTenant, null);
+            BoolQueryBuilder queryBuilder = RequestTenantData.sgTenantFieldQuery(requestedTenant);
 
             if (request.source().query() != null) {
                 queryBuilder.must(request.source().query());
@@ -95,7 +96,7 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
         SearchHit [] rewrittenSearchHitArray = new  SearchHit [originalSearchHitArray.length];
 
         for (int i = 0; i < originalSearchHitArray.length; i++) {
-            rewrittenSearchHitArray[i] = new SearchHit(originalSearchHitArray[i].docId(), unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
+            rewrittenSearchHitArray[i] = new SearchHit(originalSearchHitArray[i].docId(), RequestTenantData.unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
             rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
             rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
             rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());

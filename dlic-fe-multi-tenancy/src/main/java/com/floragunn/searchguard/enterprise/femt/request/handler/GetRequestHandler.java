@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.enterprise.femt.request.RequestTenantData;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
@@ -32,7 +33,6 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.search.SearchHit;
@@ -64,8 +64,8 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
             SearchRequest searchRequest = new SearchRequest(request.indices());
-            BoolQueryBuilder query = QueryBuilders.boolQuery().must(QueryBuilders.idsQuery().addIds(scopedId(request.id(), requestedTenant)))
-                    .must(createQueryExtension(requestedTenant, null));
+            BoolQueryBuilder query = RequestTenantData.sgTenantIdsQuery(requestedTenant, request.id())
+                    .must(RequestTenantData.sgTenantFieldQuery(requestedTenant));
             searchRequest.source(SearchSourceBuilder.searchSource().query(query).version(true).seqNoAndPrimaryTerm(true));
 
             nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
@@ -148,7 +148,7 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
             }
         }
 
-        return new GetResult(hit.getIndex(), unscopedId(hit.getId()), hit.getSeqNo(), hit.getPrimaryTerm(), hit.getVersion(), true,
+        return new GetResult(hit.getIndex(), RequestTenantData.unscopedId(hit.getId()), hit.getSeqNo(), hit.getPrimaryTerm(), hit.getVersion(), true,
                 hit.getSourceRef(), documentFields, metadataFields);
     }
 }
