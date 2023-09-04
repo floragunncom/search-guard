@@ -17,13 +17,11 @@ package com.floragunn.searchguard.enterprise.femt;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -32,52 +30,32 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
+import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandler;
+import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
 import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.IndicesRequest;
-import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
-import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.delete.DeleteResponse;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchResponseSections;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
-import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.common.document.DocumentField;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.index.get.GetResult;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.seqno.SequenceNumbers;
+import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -97,7 +75,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX = "_reindex_temp";
 
     private static final String USER_TENANT = "__user__";
-    private static final String SG_FILTER_LEVEL_FEMT_DONE = ConfigConstants.SG_CONFIG_PREFIX + "filter_level_femt_done";
+    public static final String SG_FILTER_LEVEL_FEMT_DONE = ConfigConstants.SG_CONFIG_PREFIX + "filter_level_femt_done";
     public static final String SG_TENANT_FIELD = "sg_tenant";
     public static final String TENAND_SEPARATOR_IN_ID = "__sg_ten__";
 
@@ -113,11 +91,14 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private final boolean enabled;
     private final ThreadContext threadContext;
     private final Client nodeClient;
+    private final ClusterService clusterService;
+    private final IndicesService indicesService;
     private final ImmutableList<String> indexSubNames = ImmutableList.of("alerting_cases", "analytics", "security_solution", "ingest");
     private final RoleBasedTenantAuthorization tenantAuthorization;
+    private final RequestHandlerFactory requestHandlerFactory;
 
     public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, ImmutableSet<String> tenantNames,
-            Actions actions, ThreadContext threadContext, Client nodeClient) {
+                                     Actions actions, ThreadContext threadContext, Client nodeClient, ClusterService clusterService, IndicesService indicesService) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -130,7 +111,10 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
         this.threadContext = threadContext;
         this.nodeClient = nodeClient;
+        this.clusterService = clusterService;
+        this.indicesService = indicesService;
         this.tenantAuthorization = tenantAuthorization;
+        this.requestHandlerFactory = new RequestHandlerFactory(this.log, this.nodeClient, this.threadContext, this.clusterService, this.indicesService);
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
@@ -334,350 +318,19 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         Object request = context.getRequest();
 
-        if (request instanceof IndexRequest  || request instanceof DeleteRequest) {
-            // These are converted into BulkRequests and handled then
-            log.debug("Index or delete request, return PASS_ON_FAST_LANE");
-            return Result.PASS_ON_FAST_LANE;
+        RequestHandler<ActionRequest> requestHandler = requestHandlerFactory.requestHandlerFor(request);
+
+        if (Objects.nonNull(requestHandler)) {
+            return requestHandler.handle(context, requestedTenant, (ActionRequest) request, listener);
         }
-
-        try (StoredContext ctx = threadContext.newStoredContext()) {
-
-            threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
-
-            if (request instanceof SearchRequest) {
-                return handle(context, requestedTenant, (SearchRequest) request, ctx, listener);
-            } else if (request instanceof GetRequest) {
-                return handle(context, requestedTenant, (GetRequest) request, ctx, listener);
-            } else if (request instanceof MultiGetRequest) {
-                return handle(context, requestedTenant, (MultiGetRequest) request, ctx, (ActionListener<MultiGetResponse>) listener);
-            } else if (request instanceof ClusterSearchShardsRequest) {
-                return handle((ClusterSearchShardsRequest) request, ctx, listener);
-            } else if (request instanceof BulkRequest) {
-                return handle(context, requestedTenant, (BulkRequest) request, ctx, listener);
-            } else if (request instanceof UpdateRequest) {
-                return handle(requestedTenant, (UpdateRequest) request, ctx, (ActionListener<UpdateResponse>) listener);
-            }
-            else {
-                if (log.isTraceEnabled()) {
-                    log.trace("Not giving {} special treatment for FEMT", request);
-                }
-                return SyncAuthorizationFilter.Result.OK;
-            }
-        }
-    }
-
-    private Result handle(String requestedTenant, UpdateRequest request, StoredContext ctx, ActionListener<UpdateResponse> listener) {
-        String newId = scopeIdIfNeeded(request.id(), requestedTenant);
-        request.id(newId);
-        nodeClient.update(request, new ActionListener<>() {
-
-            @Override
-            public void onResponse(UpdateResponse updateResponse) {
-                ctx.restore();
-                // TODO is try catch needed here to invoke handleUpdateResponse
-                listener.onResponse(handleUpdateResponse(updateResponse));
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                log.debug("Interception of update request failed", e);
-                listener.onFailure(e);
-            }
-        });
-        return Result.INTERCEPTED;
-    }
-
-    private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, SearchRequest searchRequest,
-            StoredContext ctx, ActionListener<?> listener) {
-        BoolQueryBuilder queryBuilder = createQueryExtension(requestedTenant, null);
-
-        if (searchRequest.source().query() != null) {
-            queryBuilder.must(searchRequest.source().query());
-        }
-
         if (log.isTraceEnabled()) {
-            log.trace("handling search request: {}", queryBuilder);
+            log.trace("Not giving {} special treatment for FEMT", request);
         }
-        
-        searchRequest.source().query(queryBuilder);
-        if(log.isDebugEnabled()) {
-            log.debug(
-                "Query to indices '{}' was intercepted to limit access only to tenant '{}', extended query version '{}'",
-                String.join(", ", searchRequest.indices()),
-                requestedTenant,
-                queryBuilder);
-        }
-
-        nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
-            @Override
-            public void onResponse(SearchResponse response) {
-                try {
-                    ctx.restore();
-
-                    @SuppressWarnings("unchecked")
-                    ActionListener<SearchResponse> searchListener = (ActionListener<SearchResponse>) listener;
-
-                    searchListener.onResponse(unscopeIds(response));
-                } catch (Exception e) {
-                    listener.onFailure(e);
-                }
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                listener.onFailure(e);
-            }
-        });
-
-        return SyncAuthorizationFilter.Result.INTERCEPTED;
-    }
-    
-    private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, GetRequest getRequest,
-            StoredContext ctx, ActionListener<?> listener) {
-        SearchRequest searchRequest = new SearchRequest(getRequest.indices());
-        BoolQueryBuilder query = QueryBuilders.boolQuery().must(QueryBuilders.idsQuery().addIds(scopedId(getRequest.id(), requestedTenant)))
-                .must(createQueryExtension(requestedTenant, null));
-        searchRequest.source(SearchSourceBuilder.searchSource().query(query).version(true).seqNoAndPrimaryTerm(true));
-
-        nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
-            @Override
-            public void onResponse(SearchResponse response) {
-                try {
-
-                    ctx.restore();
-
-                    long hits = response.getHits().getTotalHits().value;
-
-                    @SuppressWarnings("unchecked")
-                    ActionListener<GetResponse> getListener = (ActionListener<GetResponse>) listener;
-                    if (hits == 1) {
-                        getListener.onResponse(new GetResponse(searchHitToGetResult(response.getHits().getAt(0))));
-                    } else if (hits == 0) {
-                        getListener.onResponse(new GetResponse(new GetResult(searchRequest.indices()[0], getRequest.id(),
-                                SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, -1, false, null, null, null)));
-                    } else {
-                        log.error("Unexpected hit count " + hits + " in " + response);
-                        listener.onFailure(new ElasticsearchSecurityException("Internal error when performing DLS"));
-                    }
-
-                } catch (Exception e) {
-                    listener.onFailure(e);
-                }
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                listener.onFailure(e);
-            }
-        });
-
-        return SyncAuthorizationFilter.Result.INTERCEPTED;
-    }
-
-    private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, MultiGetRequest multiGetRequest,
-            StoredContext ctx, ActionListener<MultiGetResponse> listener) {
-        MultiGetRequest interceptedRequest = new MultiGetRequest() //
-            .preference(multiGetRequest.preference()) //
-            .realtime(multiGetRequest.realtime()) //
-            .refresh(multiGetRequest.refresh());
-        interceptedRequest.setForceSyntheticSource(multiGetRequest.isForceSyntheticSource());
-
-        multiGetRequest.getItems() //
-            .stream() //
-            .map(item -> addTenantScopeToMultiGetItem(item, requestedTenant)) //
-            .forEach(interceptedRequest::add);
-
-        nodeClient.multiGet(interceptedRequest, new ActionListener<>() {
-            @Override
-            public void onResponse(MultiGetResponse multiGetItemResponses) {
-                MultiGetItemResponse[] items = Arrays.stream(multiGetItemResponses.getResponses()) //
-                    .map(PrivilegesInterceptorImpl.this::unscopeIdInMultiGetResponseItem)
-                    .toArray(size -> new MultiGetItemResponse[size]);
-                MultiGetResponse response = new MultiGetResponse(items);
-                listener.onResponse(response);
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                log.debug("MultiGet response failure during multi tenancy interception", e);
-                listener.onFailure(e);
-            }
-        });
-
-        return SyncAuthorizationFilter.Result.INTERCEPTED;
-    }
-
-    private MultiGetItemResponse unscopeIdInMultiGetResponseItem(MultiGetItemResponse multiGetItemResponse) {
-        GetResponse successResponse = Optional.ofNullable(multiGetItemResponse.getResponse()) //
-            .map(response -> new GetResult(response.getIndex(),
-                unscopedId(response.getId()),
-                response.getSeqNo(),
-                response.getPrimaryTerm(),
-                response.getVersion(),
-                response.isExists(),
-                response.getSourceAsBytesRef(),
-                response.getFields(),
-                null)) //
-            .map(GetResponse::new)
-            .orElse(null);
-
-        MultiGetResponse.Failure failure = Optional.ofNullable(multiGetItemResponse.getFailure()) //
-            .map(fault -> new MultiGetResponse.Failure(fault.getIndex(), unscopedId(fault.getId()), fault.getFailure())) //
-            .orElse(null);
-        return new MultiGetItemResponse(successResponse, failure);
-    }
-
-    private MultiGetRequest.Item addTenantScopeToMultiGetItem(MultiGetRequest.Item item, String tenant) {
-        return new MultiGetRequest.Item(item.index(), scopedId(item.id(), tenant)) //
-            .routing(item.routing()) //
-            .storedFields(item.storedFields()) //
-            .version(item.version()) //
-            .versionType(item.versionType()) //
-            .fetchSourceContext(item.fetchSourceContext());
-    }
-
-    private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, BulkRequest bulkRequest,
-            StoredContext ctx, ActionListener<?> listener) {
-
-        for (DocWriteRequest<?> item : bulkRequest.requests()) {
-            String id = item.id();
-            String newId;
-
-            if (id == null) {
-                // TODO check uuid generation
-                if (item instanceof IndexRequest) {
-                    newId = scopedId(UUID.randomUUID().toString(), requestedTenant);
-                } else {
-                    newId = null;
-                }
-            } else {
-                newId = scopeIdIfNeeded(id, requestedTenant);
-            }
-
-            if (item instanceof IndexRequest) {
-                IndexRequest indexRequest = (IndexRequest) item;
-
-                indexRequest.id(newId);
-
-                Map<String, Object> source = indexRequest.sourceAsMap();
-
-                Map<String, Object> newSource = new LinkedHashMap<>(source);
-                newSource.put(SG_TENANT_FIELD, requestedTenant);
-
-                indexRequest.source(newSource, indexRequest.getContentType());
-            } else if (item instanceof DeleteRequest) {
-                ((DeleteRequest) item).id(newId);
-            } else if (item instanceof UpdateRequest) {
-                ((UpdateRequest) item).id(newId);
-            } else {
-                log.error("Unhandled request {}", item);
-            }
-        }
-
-        nodeClient.bulk(bulkRequest, new ActionListener<BulkResponse>() {
-            @Override
-            public void onResponse(BulkResponse response) {
-                log.debug("Process bulk response {}", response);
-                try {
-                    ctx.restore();
-
-                    BulkItemResponse[] items = response.getItems();
-                    BulkItemResponse[] newItems = new BulkItemResponse[items.length];
-
-                    for (int i = 0; i < items.length; i++) {
-                        BulkItemResponse item = items[i];
-
-                        if (item.getFailure() != null) {
-                            BulkItemResponse.Failure failure = item.getFailure();
-                            BulkItemResponse.Failure interceptedFailure = failure;
-                            // TODO is any simpler method to replace in failure?
-                            if(failure.isAborted()) {
-                                interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), unscopedId(failure.getId()), failure.getCause(), true);
-                            } else if ((failure.getSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) || (failure.getTerm() != SequenceNumbers.UNASSIGNED_PRIMARY_TERM)) {
-                                interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), unscopedId(failure.getId()), failure.getCause(), failure.getSeqNo(), failure.getTerm());
-                            } else {
-                                interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), unscopedId(failure.getId()), failure.getCause(), failure.getStatus());
-                            }
-                            newItems[i] = BulkItemResponse.failure(item.getItemId(), item.getOpType(), interceptedFailure);
-                        } else {
-                            DocWriteResponse docWriteResponse = item.getResponse();
-                            DocWriteResponse newDocWriteResponse = null;
-
-                            if (docWriteResponse instanceof IndexResponse) {
-                                log.debug("Rewriting index response");
-                                newDocWriteResponse = new IndexResponse(docWriteResponse.getShardId(), unscopedId(docWriteResponse.getId()),
-                                        docWriteResponse.getSeqNo(), docWriteResponse.getPrimaryTerm(), docWriteResponse.getVersion(),
-                                        docWriteResponse.getResult() == DocWriteResponse.Result.CREATED);
-                            } else if (docWriteResponse instanceof DeleteResponse) {
-                                log.debug("Rewriting delete response");
-                                newDocWriteResponse = new DeleteResponse(docWriteResponse.getShardId(),
-                                    unscopedId(docWriteResponse.getId()),
-                                    docWriteResponse.getSeqNo(),
-                                    docWriteResponse.getPrimaryTerm(),
-                                    docWriteResponse.getVersion(),
-                                    docWriteResponse.getResult() == DocWriteResponse.Result.DELETED);
-                            } else if (docWriteResponse instanceof UpdateResponse) {
-                                newDocWriteResponse = handleUpdateResponse((UpdateResponse)docWriteResponse);
-                            } else {
-                                log.debug("Bulk response '{}' will be not modified", docWriteResponse);
-                                newDocWriteResponse = docWriteResponse;
-                            }
-                            newDocWriteResponse.setShardInfo(docWriteResponse.getShardInfo());
-
-                            newItems[i] = BulkItemResponse.success(item.getItemId(), item.getOpType(), newDocWriteResponse);
-                        }
-                    }
-
-                    @SuppressWarnings("unchecked")
-                    ActionListener<BulkResponse> bulkListener = (ActionListener<BulkResponse>) listener;
-                    BulkResponse bulkResponse = new BulkResponse(newItems, response.getIngestTookInMillis());
-                    bulkListener.onResponse(bulkResponse);
-                    log.debug("Bulk request handled without errors");
-                } catch (Exception e) {
-                    log.error("Error during handling bulk request response", e);
-                    listener.onFailure(e);
-                }
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                listener.onFailure(e);
-            }
-        });
-
-        return SyncAuthorizationFilter.Result.INTERCEPTED;
-    }
-
-    private UpdateResponse handleUpdateResponse(UpdateResponse docWriteResponse) {
-        log.debug("Rewriting update response");
-        UpdateResponse updateResponse = new UpdateResponse(
-            docWriteResponse.getShardId(),
-            unscopedId(docWriteResponse.getId()),
-            docWriteResponse.getSeqNo(),
-            docWriteResponse.getPrimaryTerm(),
-            docWriteResponse.getVersion(),
-            docWriteResponse.getResult());
-        updateResponse.setForcedRefresh(docWriteResponse.forcedRefresh());
-        updateResponse.setShardInfo(docWriteResponse.getShardInfo());
-        updateResponse.setGetResult(docWriteResponse.getGetResult());
-        return updateResponse;
-    }
-
-    private SyncAuthorizationFilter.Result handle(ClusterSearchShardsRequest request, StoredContext ctx, ActionListener<?> listener) {
-        listener.onFailure(new ElasticsearchSecurityException(
-                "Filter-level MT via cross cluster search is not available for scrolling and minimize_roundtrips=true"));
-        return SyncAuthorizationFilter.Result.INTERCEPTED;
+        return SyncAuthorizationFilter.Result.OK;
     }
 
     private String scopedId(String id, String tenant) {
         return id + TENAND_SEPARATOR_IN_ID + tenant;
-    }
-
-    private String scopeIdIfNeeded(String id, String tenant) {
-        if(id.contains(TENAND_SEPARATOR_IN_ID)) {
-            return scopedId(unscopedId(id), tenant);
-        }
-        return scopedId(id, tenant);
     }
 
     private String unscopedId(String id) {
@@ -703,93 +356,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             return false;
         }
         return id.contains(TENAND_SEPARATOR_IN_ID) && (!id.endsWith(TENAND_SEPARATOR_IN_ID));
-    }
-
-    private GetResult searchHitToGetResult(SearchHit hit) {
-
-        if (log.isDebugEnabled()) {
-            log.debug("Converting to GetResult:\n" + hit);
-        }
-
-        Map<String, DocumentField> fields = hit.getFields();
-        Map<String, DocumentField> documentFields;
-        Map<String, DocumentField> metadataFields;
-
-        if (fields.isEmpty()) {
-            documentFields = Collections.emptyMap();
-            metadataFields = Collections.emptyMap();
-        } else {
-            // TODO
-            //            IndexMetadata indexMetadata = clusterService.state().getMetadata().indices().get(hit.getIndex());
-            //            IndexService indexService = indexMetadata != null ? indicesService.indexService(indexMetadata.getIndex()) : null;
-            //
-            //            if (indexService != null) {
-            //                documentFields = new HashMap<>(fields.size());
-            //                metadataFields = new HashMap<>();
-            //                MapperService mapperService = indexService.mapperService();
-            //
-            //                for (Map.Entry<String, DocumentField> entry : fields.entrySet()) {
-            //                    if (mapperService.isMetadataField(entry.getKey())) {
-            //                        metadataFields.put(entry.getKey(), entry.getValue());
-            //                    } else {
-            //                        documentFields.put(entry.getKey(), entry.getValue());
-            //                    }
-            //                }
-            //
-            //                if (log.isDebugEnabled()) {
-            //                    log.debug("Partitioned fields: " + metadataFields + "; " + documentFields);
-            //                }
-            //
-            //            } else {
-            //                if (log.isWarnEnabled()) {
-            //                    log.warn("Could not find IndexService for " + hit.getIndex() + "; assuming all fields as document fields."
-            //                            + "This should not happen, however this should also not pose a big problem as ES mixes the fields again anyway.\n"
-            //                            + "IndexMetadata: " + indexMetadata);
-            //                }
-
-            documentFields = fields;
-            metadataFields = Collections.emptyMap();
-            //   }
-        }
-
-        return new GetResult(hit.getIndex(), unscopedId(hit.getId()), hit.getSeqNo(), hit.getPrimaryTerm(), hit.getVersion(), true,
-                hit.getSourceRef(), documentFields, metadataFields);
-    }
-
-    private SearchResponse unscopeIds(SearchResponse searchResponse) {
-        SearchResponseSections originalSections = searchResponse.getInternalResponse();
-        SearchHits originalSearchHits = originalSections.hits();
-        SearchHit [] originalSearchHitArray = originalSearchHits.getHits();
-        SearchHit [] rewrittenSearchHitArray = new  SearchHit [originalSearchHitArray.length];
-        
-        for (int i = 0; i < originalSearchHitArray.length; i++) {
-            rewrittenSearchHitArray[i] = new SearchHit(originalSearchHitArray[i].docId(), unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
-            rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
-            rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
-            rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());
-            rewrittenSearchHitArray[i].setSeqNo(originalSearchHitArray[i].getSeqNo());
-            rewrittenSearchHitArray[i].setRank(originalSearchHitArray[i].getRank());
-            rewrittenSearchHitArray[i].shard(originalSearchHitArray[i].getShard());
-            rewrittenSearchHitArray[i].version(originalSearchHitArray[i].getVersion());
-        }
-        
-        SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());        
-        SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, originalSections.aggregations(), originalSections.suggest(),
-                originalSections.timedOut(), originalSections.terminatedEarly(), null, originalSections.getNumReducePhases());
-        
-        return new SearchResponse(rewrittenSections, searchResponse.getScrollId(), searchResponse.getTotalShards(),
-                searchResponse.getSuccessfulShards(), searchResponse.getSkippedShards(), searchResponse.getTook().millis(),
-                searchResponse.getShardFailures(), searchResponse.getClusters(), searchResponse.pointInTimeId());
-        
-    }
-    
-    private BoolQueryBuilder createQueryExtension(String requestedTenant, String localClusterAlias) {
-        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery().minimumShouldMatch(1);
-
-        // TODO better tenant id
-        queryBuilder.should(QueryBuilders.termQuery(SG_TENANT_FIELD, requestedTenant));
-
-        return queryBuilder;
     }
 
     private boolean isTenantAllowed(PrivilegesEvaluationContext context, ActionRequest request, Action action, String requestedTenant)
