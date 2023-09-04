@@ -155,17 +155,8 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
 
     @Override
     protected String getRequestedTenant() {
-        return SignalsTenantParamResolver.getRequestedTenant(request.getRequest());
+        return SignalsTenantParamResolver.getRequestedTenant(request);
     }
-
-    /*@Override
-    protected String getRequestedTenant() {
-        if (restHandler instanceof TenantAwareRestHandler) {
-            return ((TenantAwareRestHandler) restHandler).getTenantName(request);
-        } else {
-            return request.getHeader("sgtenant") != null ? request.getHeader("sgtenant") : request.getHeader("sg_tenant");
-        }
-    }*/
 
     @Override
     protected String getImpersonationUser() {

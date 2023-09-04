@@ -176,16 +176,8 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
 
     @Override
     protected String getRequestedTenant() {
-        return SignalsTenantParamResolver.getRequestedTenant(request.getRequest());
+        return SignalsTenantParamResolver.getRequestedTenant(request);
     }
-
-    /*protected String getRequestedTenant() {
-        if (restHandler instanceof TenantAwareRestHandler) {
-            return ((TenantAwareRestHandler) restHandler).getTenantName(request);
-        } else {
-            return restRequest.header("sgtenant") != null ? restRequest.header("sgtenant") : restRequest.header("sg_tenant");
-        }
-    }*/
 
     @Override
     protected String getImpersonationUser() {

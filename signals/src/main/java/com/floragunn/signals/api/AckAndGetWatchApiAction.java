@@ -19,14 +19,13 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchAction;
 import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchRequest;
 import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchResponse;
 import com.floragunn.signals.actions.watch.ackandget.Acknowledgement;
 import com.google.common.collect.ImmutableList;
 
-public class AckAndGetWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
+public class AckAndGetWatchApiAction extends SignalsBaseRestHandler {
 
     private static final Logger log = LogManager.getLogger(AckAndGetWatchApiAction.class);
 

@@ -1,21 +1,27 @@
 package com.floragunn.searchguard;
 
+import com.floragunn.searchguard.authc.RequestMetaData;
 import org.elasticsearch.rest.RestRequest;
 
 import java.util.Optional;
 
 public class SignalsTenantParamResolver {
 
-    //this is quick and dirty hack to get the tenant from the uri path
-
     private SignalsTenantParamResolver() {
 
     }
 
-    public static String getRequestedTenant(RestRequest request) {
-        //TODO ES8 RestHandler refactoring: check precedence
-        //not sure if precedence is correct here
-        final Optional<String> tenantFromUri = getSignalsTenantFrom(request);
+    public static String getRequestedTenant(RequestMetaData<RestRequest> request) {
+        String result = request.getParam("tenant");
+        if ("_main".equals(result)) {
+            return null;
+        }
+
+        if (result != null) {
+            return result;
+        }
+        RestRequest restReq = request.getRequest();
+        final Optional<String> tenantFromUri = getSignalsTenantFrom(restReq);
 
         if (tenantFromUri.isPresent()) {
             String tenantParamValue = tenantFromUri.get();
@@ -26,10 +32,9 @@ public class SignalsTenantParamResolver {
                 return tenantParamValue;
             }
         } else {
-            return request.header("sgtenant") != null ? request.header("sgtenant") : request.header("sg_tenant");
+            return restReq.header("sgtenant") != null ? restReq.header("sgtenant") : restReq.header("sg_tenant");
         }
     }
-
 
     public static Optional<String> getSignalsTenantFrom(RestRequest request) {
         if(request.uri().startsWith("/_signals/watch/")) {

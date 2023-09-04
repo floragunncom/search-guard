@@ -14,13 +14,12 @@ import org.elasticsearch.rest.action.RestStatusToXContentListener;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.search.SearchWatchAction;
 import com.floragunn.signals.actions.watch.search.SearchWatchRequest;
 import com.floragunn.signals.actions.watch.search.SearchWatchResponse;
 import com.google.common.collect.ImmutableList;
 
-public class SearchWatchApiAction extends BaseRestHandler implements TenantAwareRestHandler {
+public class SearchWatchApiAction extends BaseRestHandler {
 
     public SearchWatchApiAction() {
         super();
