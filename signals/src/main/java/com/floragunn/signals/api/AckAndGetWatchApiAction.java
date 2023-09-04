@@ -1,6 +1,5 @@
 package com.floragunn.signals.api;
 
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchAction;
 import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchRequest;
 import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchResponse;
@@ -28,7 +27,7 @@ import static java.util.Comparator.comparing;
 import static org.elasticsearch.rest.RestRequest.Method.DELETE;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
 
-public class AckAndGetWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
+public class AckAndGetWatchApiAction extends SignalsBaseRestHandler {
 
     private static final Logger log = LogManager.getLogger(AckAndGetWatchApiAction.class);
 

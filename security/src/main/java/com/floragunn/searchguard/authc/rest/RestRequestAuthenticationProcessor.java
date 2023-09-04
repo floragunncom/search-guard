@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.authc.rest;
 
+import com.floragunn.searchguard.SignalsTenantParamResolver;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -53,7 +54,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
 
     private LinkedHashSet<String> challenges = new LinkedHashSet<>(2);
 
-    public RestRequestAuthenticationProcessor(RestHandler restHandler, RequestMetaData<RestRequest> request, 
+    public RestRequestAuthenticationProcessor(RestHandler restHandler, RequestMetaData<RestRequest> request,
              Collection<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, AdminDNs adminDns,
             PrivilegesEvaluator privilegesEvaluator, Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache,
             AuditLog auditLog, BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners,
@@ -156,11 +157,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
 
     @Override
     protected String getRequestedTenant() {
-        if (restHandler instanceof TenantAwareRestHandler) {
-            return ((TenantAwareRestHandler) restHandler).getTenantName(request);
-        } else {
-            return request.getHeader("sgtenant") != null ? request.getHeader("sgtenant") : request.getHeader("sg_tenant");
-        }
+        return SignalsTenantParamResolver.getRequestedTenant(request);
     }
 
     @Override

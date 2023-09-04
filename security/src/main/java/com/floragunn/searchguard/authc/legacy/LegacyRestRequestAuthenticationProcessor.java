@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.authc.legacy;
 
+import com.floragunn.searchguard.SignalsTenantParamResolver;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -39,7 +40,6 @@ import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.base.RequestAuthenticationProcessor;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -176,11 +176,7 @@ public class LegacyRestRequestAuthenticationProcessor extends RequestAuthenticat
 
     @Override
     protected String getRequestedTenant() {
-        if (restHandler instanceof TenantAwareRestHandler) {
-            return ((TenantAwareRestHandler) restHandler).getTenantName(request);
-        } else {
-            return restRequest.header("sgtenant") != null ? restRequest.header("sgtenant") : restRequest.header("sg_tenant");
-        }
+        return SignalsTenantParamResolver.getRequestedTenant(request);
     }
 
     @Override
