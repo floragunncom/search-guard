@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.enterprise.femt.request.RequestTenantData;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteRequest;
@@ -62,12 +63,12 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
                     // TODO check uuid generation
                     // TODO - IndexRequest#autoGenerateId - uses UUIDs.base64UUID()
                     if (item instanceof IndexRequest) {
-                        newId = scopedId(UUID.randomUUID().toString(), requestedTenant);
+                        newId = RequestTenantData.scopedId(UUID.randomUUID().toString(), requestedTenant);
                     } else {
                         newId = null;
                     }
                 } else {
-                    newId = scopeIdIfNeeded(id, requestedTenant);
+                    newId = RequestTenantData.scopeIdIfNeeded(id, requestedTenant);
                 }
 
                 if (item instanceof IndexRequest indexRequest) {
@@ -77,7 +78,7 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
                     Map<String, Object> source = indexRequest.sourceAsMap();
 
                     Map<String, Object> newSource = new LinkedHashMap<>(source);
-                    newSource.put(SG_TENANT_FIELD, requestedTenant);
+                    RequestTenantData.appendSgTenantFieldToSource(newSource, requestedTenant);
 
                     indexRequest.source(newSource, indexRequest.getContentType());
                 } else if (item instanceof DeleteRequest) {
@@ -108,11 +109,11 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
                                 // TODO is any simpler method to replace in failure?
                                 //TODO I do not think so
                                 if(failure.isAborted()) {
-                                    interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), unscopedId(failure.getId()), failure.getCause(), true);
+                                    interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), RequestTenantData.unscopedId(failure.getId()), failure.getCause(), true);
                                 } else if ((failure.getSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) || (failure.getTerm() != SequenceNumbers.UNASSIGNED_PRIMARY_TERM)) {
-                                    interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), unscopedId(failure.getId()), failure.getCause(), failure.getSeqNo(), failure.getTerm());
+                                    interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), RequestTenantData.unscopedId(failure.getId()), failure.getCause(), failure.getSeqNo(), failure.getTerm());
                                 } else {
-                                    interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), unscopedId(failure.getId()), failure.getCause(), failure.getStatus());
+                                    interceptedFailure = new BulkItemResponse.Failure(failure.getIndex(), RequestTenantData.unscopedId(failure.getId()), failure.getCause(), failure.getStatus());
                                 }
                                 newItems[i] = BulkItemResponse.failure(item.getItemId(), item.getOpType(), interceptedFailure);
                             } else {
@@ -121,13 +122,13 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
 
                                 if (docWriteResponse instanceof IndexResponse) {
                                     log.debug("Rewriting index response");
-                                    newDocWriteResponse = new IndexResponse(docWriteResponse.getShardId(), unscopedId(docWriteResponse.getId()),
+                                    newDocWriteResponse = new IndexResponse(docWriteResponse.getShardId(), RequestTenantData.unscopedId(docWriteResponse.getId()),
                                             docWriteResponse.getSeqNo(), docWriteResponse.getPrimaryTerm(), docWriteResponse.getVersion(),
                                             docWriteResponse.getResult() == DocWriteResponse.Result.CREATED);
                                 } else if (docWriteResponse instanceof DeleteResponse) {
                                     log.debug("Rewriting delete response");
                                     newDocWriteResponse = new DeleteResponse(docWriteResponse.getShardId(),
-                                            unscopedId(docWriteResponse.getId()),
+                                            RequestTenantData.unscopedId(docWriteResponse.getId()),
                                             docWriteResponse.getSeqNo(),
                                             docWriteResponse.getPrimaryTerm(),
                                             docWriteResponse.getVersion(),
