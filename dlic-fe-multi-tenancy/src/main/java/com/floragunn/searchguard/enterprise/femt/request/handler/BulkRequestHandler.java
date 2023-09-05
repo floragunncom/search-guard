@@ -31,12 +31,12 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.UUID;
 
 import static com.floragunn.searchguard.enterprise.femt.PrivilegesInterceptorImpl.SG_FILTER_LEVEL_FEMT_DONE;
 
@@ -60,10 +60,8 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
                 String newId;
 
                 if (id == null) {
-                    // TODO check uuid generation
-                    // TODO - IndexRequest#autoGenerateId - uses UUIDs.base64UUID()
                     if (item instanceof IndexRequest) {
-                        newId = RequestResponseTenantData.scopedId(UUID.randomUUID().toString(), requestedTenant);
+                        newId = RequestResponseTenantData.scopedId(UUIDs.base64UUID(), requestedTenant);
                     } else {
                         newId = null;
                     }
