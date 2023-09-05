@@ -28,7 +28,7 @@ public class IndexRequestHandler extends RequestHandler<IndexRequest> {
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, IndexRequest request, ActionListener<?> listener) {
         // This is converted into BulkRequests and handled then
-        log.debug("Index request, return PASS_ON_FAST_LANE");
+        log.debug("Handle index request, return PASS_ON_FAST_LANE");
         return SyncAuthorizationFilter.Result.PASS_ON_FAST_LANE;
     }
 

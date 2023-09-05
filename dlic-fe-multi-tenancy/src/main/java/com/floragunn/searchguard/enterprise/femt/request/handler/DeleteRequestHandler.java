@@ -28,7 +28,7 @@ public class DeleteRequestHandler extends RequestHandler<DeleteRequest> {
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, DeleteRequest request, ActionListener<?> listener) {
         // This is converted into BulkRequests and handled then
-        log.debug("Delete request, return PASS_ON_FAST_LANE");
+        log.debug("Handle delete request, return PASS_ON_FAST_LANE");
         return SyncAuthorizationFilter.Result.PASS_ON_FAST_LANE;
     }
 
