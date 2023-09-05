@@ -16,7 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
+import com.floragunn.searchguard.enterprise.femt.request.mapper.UpdateMapper;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -38,28 +38,34 @@ public class UpdateRequestHandler extends RequestHandler<UpdateRequest> {
 
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, UpdateRequest request, ActionListener<?> listener) {
+        log.debug("Handle update request");
         threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            String newId = RequestResponseTenantData.scopeIdIfNeeded(request.id(), requestedTenant);
-            request.id(newId);
-            nodeClient.update(request, new ActionListener<>() {
+            UpdateMapper updateMapper = new UpdateMapper();
+            UpdateRequest scoped = updateMapper.toScopedUpdateRequest(request, requestedTenant);
+
+            nodeClient.update(scoped, new ActionListener<>() {
 
                 @Override
                 public void onResponse(UpdateResponse updateResponse) {
                     try {
                         storedContext.restore();
+
+                        UpdateResponse unscoped = updateMapper.toUnscopedUpdateResponse(updateResponse);
                         @SuppressWarnings("unchecked")
                         ActionListener<UpdateResponse> updateListener = (ActionListener<UpdateResponse>) listener;
-                        updateListener.onResponse(handleUpdateResponse(updateResponse));
+                        updateListener.onResponse(unscoped);
                     } catch (Exception e) {
+                        if (log.isErrorEnabled()) {
+                            log.error("Error during handling update response", e);
+                        }
                         listener.onFailure(e);
                     }
                 }
 
                 @Override
                 public void onFailure(Exception e) {
-                    log.debug("Interception of update request failed", e);
                     listener.onFailure(e);
                 }
             });

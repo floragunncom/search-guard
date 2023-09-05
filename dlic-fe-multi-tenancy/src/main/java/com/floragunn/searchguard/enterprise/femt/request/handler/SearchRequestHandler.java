@@ -16,17 +16,13 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
+import com.floragunn.searchguard.enterprise.femt.request.mapper.SearchMapper;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchResponseSections;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
 
 import static com.floragunn.searchguard.enterprise.femt.PrivilegesInterceptorImpl.SG_FILTER_LEVEL_FEMT_DONE;
 
@@ -42,39 +38,29 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
 
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, SearchRequest request, ActionListener<?> listener) {
+        log.debug("Handle search request");
         threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            BoolQueryBuilder queryBuilder = RequestResponseTenantData.sgTenantFieldQuery(requestedTenant);
 
-            if (request.source().query() != null) {
-                queryBuilder.must(request.source().query());
-            }
+            SearchMapper searchMapper = new SearchMapper();
+            SearchRequest scopedRequest = searchMapper.toScopedSearchRequest(request, requestedTenant);
 
-            if (log.isTraceEnabled()) {
-                log.trace("handling search request: {}", queryBuilder);
-            }
-
-            request.source().query(queryBuilder);
-            if(log.isDebugEnabled()) {
-                log.debug(
-                        "Query to indices '{}' was intercepted to limit access only to tenant '{}', extended query version '{}'",
-                        String.join(", ", request.indices()),
-                        requestedTenant,
-                        queryBuilder);
-            }
-
-            nodeClient.search(request, new ActionListener<SearchResponse>() {
+            nodeClient.search(scopedRequest, new ActionListener<>() {
                 @Override
                 public void onResponse(SearchResponse response) {
                     try {
                         storedContext.restore();
 
+                        SearchResponse unscoped = searchMapper.toUnscopedSearchResponse(response);
                         @SuppressWarnings("unchecked")
                         ActionListener<SearchResponse> searchListener = (ActionListener<SearchResponse>) listener;
 
-                        searchListener.onResponse(unscopeIds(response));
+                        searchListener.onResponse(unscoped);
                     } catch (Exception e) {
+                        if (log.isErrorEnabled()) {
+                            log.error("Error during handling search response", e);
+                        }
                         listener.onFailure(e);
                     }
                 }
@@ -87,32 +73,5 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
 
             return SyncAuthorizationFilter.Result.INTERCEPTED;
         }
-    }
-
-    private SearchResponse unscopeIds(SearchResponse searchResponse) {
-        SearchResponseSections originalSections = searchResponse.getInternalResponse();
-        SearchHits originalSearchHits = originalSections.hits();
-        SearchHit[] originalSearchHitArray = originalSearchHits.getHits();
-        SearchHit [] rewrittenSearchHitArray = new  SearchHit [originalSearchHitArray.length];
-
-        for (int i = 0; i < originalSearchHitArray.length; i++) {
-            rewrittenSearchHitArray[i] = new SearchHit(originalSearchHitArray[i].docId(), RequestResponseTenantData.unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
-            rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
-            rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
-            rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());
-            rewrittenSearchHitArray[i].setSeqNo(originalSearchHitArray[i].getSeqNo());
-            rewrittenSearchHitArray[i].setRank(originalSearchHitArray[i].getRank());
-            rewrittenSearchHitArray[i].shard(originalSearchHitArray[i].getShard());
-            rewrittenSearchHitArray[i].version(originalSearchHitArray[i].getVersion());
-        }
-
-        SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());
-        SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, originalSections.aggregations(), originalSections.suggest(),
-                originalSections.timedOut(), originalSections.terminatedEarly(), null, originalSections.getNumReducePhases());
-
-        return new SearchResponse(rewrittenSections, searchResponse.getScrollId(), searchResponse.getTotalShards(),
-                searchResponse.getSuccessfulShards(), searchResponse.getSkippedShards(), searchResponse.getTook().millis(),
-                searchResponse.getShardFailures(), searchResponse.getClusters(), searchResponse.pointInTimeId());
-
     }
 }

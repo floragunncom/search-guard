@@ -1,0 +1,20 @@
+package com.floragunn.searchguard.enterprise.femt.request.mapper;
+
+import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
+import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.delete.DeleteResponse;
+
+public class DeleteMapper extends RequestResponseMapper{
+
+    public DeleteResponse toUnscopedDeleteResponse(DeleteResponse response) {
+        log.debug("Rewriting delete response - removing tenant scope");
+        DeleteResponse deleteResponse = new DeleteResponse(
+                response.getShardId(), RequestResponseTenantData.unscopedId(response.getId()),
+                response.getSeqNo(), response.getPrimaryTerm(),
+                response.getVersion(), response.getResult() == DocWriteResponse.Result.DELETED
+        );
+        deleteResponse.setShardInfo(response.getShardInfo());
+        return deleteResponse;
+    }
+    
+}
