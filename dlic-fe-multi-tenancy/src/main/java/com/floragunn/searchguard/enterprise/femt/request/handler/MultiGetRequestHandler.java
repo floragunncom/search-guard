@@ -17,7 +17,6 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.MultiGetMapper;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetResponse;
@@ -30,10 +29,12 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
 
     private final Client nodeClient;
     private final ThreadContext threadContext;
-    public MultiGetRequestHandler(Logger log, Client nodeClient, ThreadContext threadContext) {
-        super(log);
+    private final MultiGetMapper multiGetMapper;
+
+    public MultiGetRequestHandler(Client nodeClient, ThreadContext threadContext) {
         this.nodeClient = nodeClient;
         this.threadContext = threadContext;
+        this.multiGetMapper = new MultiGetMapper();
     }
 
     @Override
@@ -42,7 +43,6 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
         threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            MultiGetMapper multiGetMapper = new MultiGetMapper();
             MultiGetRequest scopedRequest = multiGetMapper.toScopedMultiGetRequest(request, requestedTenant);
 
             nodeClient.multiGet(scopedRequest, new ActionListener<>() {

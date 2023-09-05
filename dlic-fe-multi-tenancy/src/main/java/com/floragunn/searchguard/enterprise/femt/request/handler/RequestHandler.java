@@ -16,17 +16,14 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 
 public abstract class RequestHandler<T extends ActionRequest> {
 
-    protected final Logger log;
-
-    protected RequestHandler(Logger log) {
-        this.log = log;
-    }
+    protected final Logger log = LogManager.getLogger(this.getClass());
 
     public abstract SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, T request, ActionListener<?> listener);
 

@@ -16,14 +16,10 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexRequest;
 
 public class IndexRequestHandler extends RequestHandler<IndexRequest> {
-    public IndexRequestHandler(Logger log) {
-        super(log);
-    }
 
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, IndexRequest request, ActionListener<?> listener) {

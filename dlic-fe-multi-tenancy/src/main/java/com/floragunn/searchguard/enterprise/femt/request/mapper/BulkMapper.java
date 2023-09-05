@@ -43,7 +43,7 @@ public class BulkMapper extends RequestResponseMapper {
                 Map<String, Object> source = indexRequest.sourceAsMap();
 
                 Map<String, Object> newSource = new LinkedHashMap<>(source);
-                RequestResponseTenantData.appendSgTenantFieldToSource(newSource, tenant);
+                RequestResponseTenantData.appendSgTenantFieldTo(newSource, tenant);
 
                 indexRequest.source(newSource, indexRequest.getContentType());
             } else if (item instanceof DeleteRequest) {

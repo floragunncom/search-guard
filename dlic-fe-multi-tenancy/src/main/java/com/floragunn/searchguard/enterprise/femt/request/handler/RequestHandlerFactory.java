@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.enterprise.femt.request.handler;
 
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -33,14 +32,12 @@ import javax.annotation.Nullable;
 
 public class RequestHandlerFactory {
 
-    private final Logger log;
     private final Client nodeClient;
     private final ThreadContext threadContext;
     private final ClusterService clusterService;
     private final IndicesService indicesService;
 
-    public RequestHandlerFactory(Logger log, Client nodeClient, ThreadContext threadContext, ClusterService clusterService, IndicesService indicesService) {
-        this.log = log;
+    public RequestHandlerFactory(Client nodeClient, ThreadContext threadContext, ClusterService clusterService, IndicesService indicesService) {
         this.nodeClient = nodeClient;
         this.threadContext = threadContext;
         this.clusterService = clusterService;
@@ -52,21 +49,21 @@ public class RequestHandlerFactory {
     public <T extends ActionRequest> RequestHandler<T> requestHandlerFor(Object request) {
         RequestHandler<T> handler = null;
         if (request instanceof IndexRequest) {
-            handler = (RequestHandler<T>) new IndexRequestHandler(log);
+            handler = (RequestHandler<T>) new IndexRequestHandler();
         } else if (request instanceof DeleteRequest) {
-            handler = (RequestHandler<T>)  new DeleteRequestHandler(log);
+            handler = (RequestHandler<T>)  new DeleteRequestHandler();
         } else if (request instanceof SearchRequest) {
-            handler = (RequestHandler<T>)  new SearchRequestHandler(log, nodeClient, threadContext);
+            handler = (RequestHandler<T>)  new SearchRequestHandler(nodeClient, threadContext);
         } else if (request instanceof GetRequest) {
-            handler = (RequestHandler<T>)  new GetRequestHandler(log, nodeClient, threadContext, clusterService, indicesService);
+            handler = (RequestHandler<T>)  new GetRequestHandler(nodeClient, threadContext, clusterService, indicesService);
         } else if (request instanceof MultiGetRequest) {
-            handler = (RequestHandler<T>)  new MultiGetRequestHandler(log, nodeClient, threadContext);
+            handler = (RequestHandler<T>)  new MultiGetRequestHandler(nodeClient, threadContext);
         } else if (request instanceof ClusterSearchShardsRequest) {
-            handler = (RequestHandler<T>)  new ClusterSearchShardsRequestHandler(log, threadContext);
+            handler = (RequestHandler<T>)  new ClusterSearchShardsRequestHandler(threadContext);
         } else if (request instanceof BulkRequest) {
-            handler = (RequestHandler<T>)  new BulkRequestHandler(log, nodeClient, threadContext);
+            handler = (RequestHandler<T>)  new BulkRequestHandler(nodeClient, threadContext);
         } else if (request instanceof UpdateRequest) {
-            handler = (RequestHandler<T>)  new UpdateRequestHandler(log, nodeClient, threadContext);
+            handler = (RequestHandler<T>)  new UpdateRequestHandler(nodeClient, threadContext);
         }
         return handler;
     }

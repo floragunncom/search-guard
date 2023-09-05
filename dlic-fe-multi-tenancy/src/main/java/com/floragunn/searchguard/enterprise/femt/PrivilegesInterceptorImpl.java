@@ -76,8 +76,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
     private static final String USER_TENANT = "__user__";
     public static final String SG_FILTER_LEVEL_FEMT_DONE = ConfigConstants.SG_CONFIG_PREFIX + "filter_level_femt_done";
-    public static final String SG_TENANT_FIELD = "sg_tenant";
-    public static final String TENAND_SEPARATOR_IN_ID = "__sg_ten__";
 
     private final Action KIBANA_ALL_SAVED_OBJECTS_WRITE;
     private final Action KIBANA_ALL_SAVED_OBJECTS_READ;
@@ -114,7 +112,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.clusterService = clusterService;
         this.indicesService = indicesService;
         this.tenantAuthorization = tenantAuthorization;
-        this.requestHandlerFactory = new RequestHandlerFactory(this.log, this.nodeClient, this.threadContext, this.clusterService, this.indicesService);
+        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext, this.clusterService, this.indicesService);
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
@@ -203,14 +201,14 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
                 IndexInfo indexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(indexRequest.index());
                 if((indexInfo != null) && isTempMigrationIndex(Collections.singletonList(indexInfo))) {
                     Map<String, Object> source = indexRequest.sourceAsMap();
-                    if(isScopedId(indexRequest.id()) && (!source.containsKey(SG_TENANT_FIELD))) {
-                        String tenantName = extractTenantFromId(indexRequest.id());
-                        log.info("Adding tenant distinctive field '{}' to document '{}' from index '{}' with value '{}'.", SG_TENANT_FIELD, indexRequest.id(), indexRequest.index(), tenantName);
-                        source.put(SG_TENANT_FIELD, tenantName);
+                    if(RequestResponseTenantData.isScopedId(indexRequest.id()) && (!RequestResponseTenantData.containsSgTenantField(source))) {
+                        String tenantName = RequestResponseTenantData.extractTenantFromId(indexRequest.id());
+                        log.info("Adding field '{}' to document '{}' from index '{}' with value '{}'.", RequestResponseTenantData.getSgTenantField(), indexRequest.id(), indexRequest.index(), tenantName);
+                        RequestResponseTenantData.appendSgTenantFieldTo(source, tenantName);
                         indexRequest.source(source);
                         requestExtended = true;
                     } else {
-                        log.info("Document '{}' contain sg_tenant field with value '{}'", indexRequest.id(), source.get(SG_TENANT_FIELD));
+                        log.info("Document '{}' contain {} field with value '{}'", indexRequest.id(), RequestResponseTenantData.getSgTenantField(), source.get(RequestResponseTenantData.getSgTenantField()));
                     }
                 }
             }
@@ -242,8 +240,8 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         return Optional.of(node) //
             .filter(docNode -> docNode.hasNonNull("properties")) //
             .map(propertiesDocNode -> propertiesDocNode.getAsNode("properties")) //
-            .filter(propertiesDocNode -> !propertiesDocNode.hasNonNull(SG_TENANT_FIELD)) //
-            .map(propertiesDocNode -> propertiesDocNode.with("sg_tenant", DocNode.of("type", "keyword"))) //
+            .filter(propertiesDocNode -> !RequestResponseTenantData.containsSgTenantField(propertiesDocNode)) //
+            .map(propertiesDocNode -> propertiesDocNode.with(RequestResponseTenantData.getSgTenantField(), DocNode.of("type", "keyword"))) //
             .map(propertiesDocNode -> node.with("properties", propertiesDocNode));
     }
 
@@ -327,35 +325,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             log.trace("Not giving {} special treatment for FEMT", request);
         }
         return SyncAuthorizationFilter.Result.OK;
-    }
-
-    private String scopedId(String id, String tenant) {
-        return id + TENAND_SEPARATOR_IN_ID + tenant;
-    }
-
-    private String unscopedId(String id) {
-        int i = id.indexOf(TENAND_SEPARATOR_IN_ID);
-
-        if (i != -1) {
-            return id.substring(0, i);
-        } else {
-            return id;
-        }
-    }
-
-    public String extractTenantFromId(String id) {
-        if(isScopedId(id)) {
-            return id.substring(id.indexOf(TENAND_SEPARATOR_IN_ID) + TENAND_SEPARATOR_IN_ID.length());
-        } else {
-            return null;
-        }
-    }
-
-    public boolean isScopedId(String id) {
-        if(id == null) {
-            return false;
-        }
-        return id.contains(TENAND_SEPARATOR_IN_ID) && (!id.endsWith(TENAND_SEPARATOR_IN_ID));
     }
 
     private boolean isTenantAllowed(PrivilegesEvaluationContext context, ActionRequest request, Action action, String requestedTenant)
