@@ -16,14 +16,10 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.delete.DeleteRequest;
 
 public class DeleteRequestHandler extends RequestHandler<DeleteRequest> {
-    public DeleteRequestHandler(Logger log) {
-        super(log);
-    }
 
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, DeleteRequest request, ActionListener<?> listener) {

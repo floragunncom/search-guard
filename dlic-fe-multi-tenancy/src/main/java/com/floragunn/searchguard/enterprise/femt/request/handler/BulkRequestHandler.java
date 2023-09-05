@@ -17,7 +17,6 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.BulkMapper;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -31,8 +30,7 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
     private final Client nodeClient;
     private final ThreadContext threadContext;
     private final BulkMapper bulkMapper;
-    public BulkRequestHandler(Logger log, Client nodeClient, ThreadContext threadContext) {
-        super(log);
+    public BulkRequestHandler(Client nodeClient, ThreadContext threadContext) {
         this.nodeClient = nodeClient;
         this.threadContext = threadContext;
         this.bulkMapper = new BulkMapper();

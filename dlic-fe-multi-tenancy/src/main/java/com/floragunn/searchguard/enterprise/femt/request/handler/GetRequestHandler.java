@@ -18,7 +18,6 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.GetMapper;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.MappingException;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetRequest;
@@ -36,14 +35,12 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
 
     private final Client nodeClient;
     private final ThreadContext threadContext;
-    private final ClusterService clusterService;
-    private final IndicesService indicesService;
-    public GetRequestHandler(Logger log, Client nodeClient, ThreadContext threadContext, ClusterService clusterService, IndicesService indicesService) {
-        super(log);
+    private final GetMapper getMapper;
+
+    public GetRequestHandler(Client nodeClient, ThreadContext threadContext, ClusterService clusterService, IndicesService indicesService) {
         this.nodeClient = nodeClient;
         this.threadContext = threadContext;
-        this.clusterService = clusterService;
-        this.indicesService = indicesService;
+        this.getMapper = new GetMapper(clusterService, indicesService);
     }
 
     @Override
@@ -52,10 +49,9 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
         threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            GetMapper getMapper = new GetMapper(clusterService, indicesService);
             SearchRequest searchRequest = getMapper.toScopedSearchRequest(request, requestedTenant);
 
-            nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
+            nodeClient.search(searchRequest, new ActionListener<>() {
                 @Override
                 public void onResponse(SearchResponse response) {
                     try {

@@ -17,7 +17,6 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.UpdateMapper;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -30,10 +29,11 @@ public class UpdateRequestHandler extends RequestHandler<UpdateRequest> {
 
     private final Client nodeClient;
     private final ThreadContext threadContext;
-    public UpdateRequestHandler(Logger log, Client nodeClient, ThreadContext threadContext) {
-        super(log);
+    private final UpdateMapper updateMapper;
+    public UpdateRequestHandler(Client nodeClient, ThreadContext threadContext) {
         this.nodeClient = nodeClient;
         this.threadContext = threadContext;
+        this.updateMapper = new UpdateMapper();
     }
 
     @Override
@@ -42,7 +42,6 @@ public class UpdateRequestHandler extends RequestHandler<UpdateRequest> {
         threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            UpdateMapper updateMapper = new UpdateMapper();
             UpdateRequest scoped = updateMapper.toScopedUpdateRequest(request, requestedTenant);
 
             nodeClient.update(scoped, new ActionListener<>() {

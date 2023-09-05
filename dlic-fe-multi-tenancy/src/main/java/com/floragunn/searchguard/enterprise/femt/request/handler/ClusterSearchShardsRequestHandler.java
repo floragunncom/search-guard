@@ -16,7 +16,6 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
@@ -27,8 +26,7 @@ import static com.floragunn.searchguard.enterprise.femt.PrivilegesInterceptorImp
 public class ClusterSearchShardsRequestHandler extends RequestHandler<ClusterSearchShardsRequest> {
 
     private final ThreadContext threadContext;
-    public ClusterSearchShardsRequestHandler(Logger log, ThreadContext threadContext) {
-        super(log);
+    public ClusterSearchShardsRequestHandler(ThreadContext threadContext) {
         this.threadContext = threadContext;
     }
 

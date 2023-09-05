@@ -17,7 +17,6 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.SearchMapper;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -30,10 +29,12 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
 
     private final Client nodeClient;
     private final ThreadContext threadContext;
-    public SearchRequestHandler(Logger log, Client nodeClient, ThreadContext threadContext) {
-        super(log);
+    private final SearchMapper searchMapper;
+
+    public SearchRequestHandler(Client nodeClient, ThreadContext threadContext) {
         this.nodeClient = nodeClient;
         this.threadContext = threadContext;
+        this.searchMapper = new SearchMapper();
     }
 
     @Override
@@ -43,7 +44,6 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
 
-            SearchMapper searchMapper = new SearchMapper();
             SearchRequest scopedRequest = searchMapper.toScopedSearchRequest(request, requestedTenant);
 
             nodeClient.search(scopedRequest, new ActionListener<>() {
