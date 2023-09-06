@@ -44,7 +44,7 @@ public class MultiTenancyMigrationTest {
 
     @Test
     public void shouldExtendsMappingWithMultiTenancyData() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             // object typeMigrationVersion cause an error
             // {"error":{"root_cause":[{"type":"mapper_parsing_exception","reason":"No handler for type [version] declared on field [typeMigrationVersion]"}],"type":"mapper_parsing_exception","reason":"Failed to parse mapping: No handler for type [version] declared on field [typeMigrationVersion]","caused_by":{"type":"mapper_parsing_exception","reason":"No handler for type [version] declared on field [typeMigrationVersion]"}},"status":400}
 //            String createIndexBody = "{\"mappings\":{\"dynamic\":false,\"properties\":{\"type\":{\"type\":\"keyword\"},\"typeMigrationVersion\":{\"type\":\"version\"}}},\"aliases\":{},\"settings\":{\"index\":{\"number_of_shards\":1,\"auto_expand_replicas\":\"0-1\",\"refresh_interval\":\"1s\",\"priority\":10,\"mapping\":{\"total_fields\":{\"limit\":1500}}}}}";
@@ -88,7 +88,7 @@ public class MultiTenancyMigrationTest {
 
     @Test
     public void shouldSupportRequestToMappingEndpointButWithoutMappings() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             createIndexWithInitialMappings(client, ".kibana_8.8.0_001");
             String updateMappingsBody = """
                 {"dynamic":"strict","_meta":{"migrationMappingPropertyHashes":{"type":"2f4316de49999235636386fe51dc06c1","namespace":"2f4316de49999235636386fe51dc06c1","namespaces":"2f4316de49999235636386fe51dc06c1","originId":"2f4316de49999235636386fe51dc06c1","updated_at":"00da57df13e94e9d98437d13ace4bfe0","created_at":"00da57df13e94e9d98437d13ace4bfe0","references":"7997cf5a56cc02bdc9c93361bde732b0","coreMigrationVersion":"2f4316de49999235636386fe51dc06c1","typeMigrationVersion":"539e3ecebb3abc1133618094cc3b7ae7","managed":"88cf246b441a6362458cb6a56ca3f7d7","core-usage-stats":"3d1b76c39bfb2cc8296b024d73854724","legacy-url-alias":"0750774cf16475f88f2361e99cc5c8f0","config":"c63748b75f39d0c54de12d12c1ccbc20","config-global":"c63748b75f39d0c54de12d12c1ccbc20","usage-counters":"8cc260bdceffec4ffc3ad165c97dc1b4","guided-onboarding-guide-state":"a3db59c45a3fd2730816d4f53c35c7d9","guided-onboarding-plugin-state":"3d1b76c39bfb2cc8296b024d73854724","ui-metric":"0d409297dc5ebe1e3a1da691c6ee32e3","application_usage_totals":"3d1b76c39bfb2cc8296b024d73854724","application_usage_daily":"43b8830d5d0df85a6823d290885fc9fd","event_loop_delays_daily":"5df7e292ddd5028e07c1482e130e6654","url":"a37dbae7645ad5811045f4dd3dc1c0a8","sample-data-telemetry":"7d3cfeb915303c9641c59681967ffeb4","space":"c3aec2a5d4afcb75554fed96411170e1","spaces-usage-stats":"3d1b76c39bfb2cc8296b024d73854724","telemetry":"3d1b76c39bfb2cc8296b024d73854724","file":"c38faa34f21af9cef4301a687de5dce0","fileShare":"aa8f7ac2ddf8ab1a91bd34e347046caa","file-upload-usage-collection-telemetry":"a34fbb8e3263d105044869264860c697","tag":"83d55da58f6530f7055415717ec06474","slo":"71d78aec1e4a92e097d427141199506a","ml-job":"3bb64c31915acf93fc724af137a0891b","ml-trained-model":"d2f03c1a5dd038fa58af14a56944312b","ml-module":"46ef4f0d6682636f0fff9799d6a2d7ac","uptime-dynamic-settings":"3d1b76c39bfb2cc8296b024d73854724","synthetics-privates-locations":"3d1b76c39bfb2cc8296b024d73854724","synthetics-monitor":"4aef791eac6fe834fa7bc8db005f0df4","uptime-synthetics-api-key":"c3178f0fde61e18d3530ba9a70bc278a","synthetics-param":"3d1b76c39bfb2cc8296b024d73854724","infrastructure-ui-source":"3d1b76c39bfb2cc8296b024d73854724","inventory-view":"3d1b76c39bfb2cc8296b024d73854724","infrastructure-monitoring-log-view":"c50526fc6040c5355ed027d34d05b35c","metrics-explorer-view":"3d1b76c39bfb2cc8296b024d73854724","upgrade-assistant-reindex-operation":"6d1e2aca91767634e1829c30f20f6b16","upgrade-assistant-ml-upgrade-operation":"3caf305ad2da94d80d49453b0970156d","monitoring-telemetry":"2669d5ec15e82391cf58df4294ee9c68","enterprise_search_telemetry":"3d1b76c39bfb2cc8296b024d73854724","app_search_telemetry":"3d1b76c39bfb2cc8296b024d73854724","workplace_search_telemetry":"3d1b76c39bfb2cc8296b024d73854724","apm-indices":"3d1b76c39bfb2cc8296b024d73854724","apm-telemetry":"3d1b76c39bfb2cc8296b024d73854724","apm-server-schema":"b1d71908f324c17bf744ac72af5038fb","apm-service-group":"2af509c6506f29a858e5a0950577d9fa"},"indexTypesMap":{".kibana":["apm-indices","apm-server-schema","apm-service-group","apm-telemetry","app_search_telemetry","application_usage_daily","application_usage_totals","config","config-global","core-usage-stats","enterprise_search_telemetry","event_loop_delays_daily","file","file-upload-usage-collection-telemetry","fileShare","guided-onboarding-guide-state","guided-onboarding-plugin-state","infrastructure-monitoring-log-view","infrastructure-ui-source","inventory-view","legacy-url-alias","metrics-explorer-view","ml-job","ml-module","ml-trained-model","monitoring-telemetry","sample-data-telemetry","slo","space","spaces-usage-stats","synthetics-monitor","synthetics-param","synthetics-privates-locations","tag","telemetry","ui-metric","upgrade-assistant-ml-upgrade-operation","upgrade-assistant-reindex-operation","uptime-dynamic-settings","uptime-synthetics-api-key","url","usage-counters","workplace_search_telemetry"],".kibana_task_manager":["task"],".kibana_analytics":["canvas-element","canvas-workpad","canvas-workpad-template","dashboard","graph-workspace","index-pattern","kql-telemetry","lens","lens-ui-telemetry","map","query","search","search-session","search-telemetry","visualization"],".kibana_security_solution":["csp-rule-template","endpoint:user-artifact-manifest","exception-list","exception-list-agnostic","osquery-manager-usage-metric","osquery-pack","osquery-pack-asset","osquery-saved-query","security-rule","security-solution-signals-migration","siem-detection-engine-rule-actions","siem-ui-timeline","siem-ui-timeline-note","siem-ui-timeline-pinned-event"],".kibana_alerting_cases":["action","action_task_params","alert","api_key_pending_invalidation","cases","cases-comments","cases-configure","cases-connector-mappings","cases-telemetry","cases-user-actions","connector_token","maintenance-window","rules-settings"],".kibana_ingest":["epm-packages","epm-packages-assets","fleet-fleet-server-host","fleet-message-signing-keys","fleet-preconfiguration-deletion-record","fleet-proxy","ingest-agent-policies","ingest-download-sources","ingest-outputs","ingest-package-policies","ingest_manager_settings"]}}}
@@ -102,7 +102,7 @@ public class MultiTenancyMigrationTest {
 
     @Test
     public void shouldCopyTenantIdFromIdToDedicatedDocumentField() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
             String bulkRequestBody = """
                 {"index":{"_id":"config:8.5.3__sg_ten__SGS_GLOBAL_TENANT","_index":".kibana_8.8.0_reindex_temp"}}
@@ -123,7 +123,7 @@ public class MultiTenancyMigrationTest {
 
     @Test
     public void shouldHandleMultipleIndicesInBulkRequestDuringDataMigration() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
             createIndexWithInitialMappings(client, ".kibana_analytics_8.8.0_reindex_temp");
             String bulkRequestWithVariousIndices = """
@@ -152,7 +152,7 @@ public class MultiTenancyMigrationTest {
 
     @Test
     public void shouldUpdateOnlyAppropriateDocumentsDuringDataMigration() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
             createIndexWithInitialMappings(client, ".kibana_do_not_update_my_documents_8.8.0_reindex_temp");
             String bulkRequestWithVariousIndices = """
@@ -183,7 +183,7 @@ public class MultiTenancyMigrationTest {
 
     @Test
     public void shouldExtendMappingsDuringIndexCreation() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             String createIndexBody = """
                 {"mappings":{"dynamic":"strict","properties":{"type":{"type":"keyword"},"namespace":{"type":"keyword"},"namespaces":{"type":"keyword"},"originId":{"type":"keyword"},"updated_at":{"type":"date"},"created_at":{"type":"date"},"references":{"type":"nested","properties":{"name":{"type":"keyword"},"type":{"type":"keyword"},"id":{"type":"keyword"}}},"coreMigrationVersion":{"type":"keyword"},"managed":{"type":"boolean"},"core-usage-stats":{"dynamic":false,"properties":{}},"legacy-url-alias":{"dynamic":false,"properties":{"sourceId":{"type":"keyword"},"targetNamespace":{"type":"keyword"},"targetType":{"type":"keyword"},"targetId":{"type":"keyword"},"resolveCounter":{"type":"long"},"disabled":{"type":"boolean"}}},"config":{"dynamic":false,"properties":{"buildNum":{"type":"keyword"}}},"config-global":{"dynamic":false,"properties":{"buildNum":{"type":"keyword"}}},"usage-counters":{"dynamic":false,"properties":{"domainId":{"type":"keyword"}}},"guided-onboarding-guide-state":{"dynamic":false,"properties":{"guideId":{"type":"keyword"},"isActive":{"type":"boolean"}}},"guided-onboarding-plugin-state":{"dynamic":false,"properties":{}},"ui-metric":{"properties":{"count":{"type":"integer"}}},"application_usage_totals":{"dynamic":false,"properties":{}},"application_usage_daily":{"dynamic":false,"properties":{"timestamp":{"type":"date"}}},"event_loop_delays_daily":{"dynamic":false,"properties":{"lastUpdatedAt":{"type":"date"}}},"url":{"dynamic":false,"properties":{"slug":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"accessDate":{"type":"date"},"createDate":{"type":"date"}}},"sample-data-telemetry":{"properties":{"installCount":{"type":"long"},"unInstallCount":{"type":"long"}}},"space":{"dynamic":false,"properties":{"name":{"type":"text","fields":{"keyword":{"type":"keyword","ignore_above":2048}}}}},"spaces-usage-stats":{"dynamic":false,"properties":{}},"telemetry":{"dynamic":false,"properties":{}},"file":{"dynamic":false,"properties":{"created":{"type":"date"},"Updated":{"type":"date"},"name":{"type":"text"},"user":{"type":"flattened"},"Status":{"type":"keyword"},"mime_type":{"type":"keyword"},"extension":{"type":"keyword"},"size":{"type":"long"},"Meta":{"type":"flattened"},"FileKind":{"type":"keyword"}}},"fileShare":{"dynamic":false,"properties":{"created":{"type":"date"},"valid_until":{"type":"long"},"token":{"type":"keyword"},"name":{"type":"keyword"}}},"file-upload-usage-collection-telemetry":{"properties":{"file_upload":{"properties":{"index_creation_count":{"type":"long"}}}}},"tag":{"properties":{"name":{"type":"text"},"description":{"type":"text"},"color":{"type":"text"}}},"slo":{"dynamic":false,"properties":{"id":{"type":"keyword"},"name":{"type":"text"},"description":{"type":"text"},"indicator":{"properties":{"type":{"type":"keyword"},"params":{"type":"flattened"}}},"budgetingMethod":{"type":"keyword"},"enabled":{"type":"boolean"},"tags":{"type":"keyword"}}},"ml-job":{"properties":{"job_id":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"datafeed_id":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"type":{"type":"keyword"}}},"ml-trained-model":{"properties":{"model_id":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"job":{"properties":{"job_id":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"create_time":{"type":"date"}}}}},"ml-module":{"dynamic":false,"properties":{"id":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"title":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"description":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"type":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"logo":{"type":"object"},"defaultIndexPattern":{"type":"text","fields":{"keyword":{"type":"keyword"}}},"query":{"type":"object"},"jobs":{"type":"object"},"datafeeds":{"type":"object"}}},"uptime-dynamic-settings":{"dynamic":false,"properties":{}},"synthetics-privates-locations":{"dynamic":false,"properties":{}},"synthetics-monitor":{"dynamic":false,"properties":{"name":{"type":"text","fields":{"keyword":{"type":"keyword","ignore_above":256,"normalizer":"lowercase"}}},"type":{"type":"text","fields":{"keyword":{"type":"keyword","ignore_above":256}}},"urls":{"type":"text","fields":{"keyword":{"type":"keyword","ignore_above":256}}},"hosts":{"type":"text","fields":{"keyword":{"type":"keyword","ignore_above":256}}},"journey_id":{"type":"keyword"},"project_id":{"type":"keyword","fields":{"text":{"type":"text"}}},"origin":{"type":"keyword"},"hash":{"type":"keyword"},"locations":{"properties":{"id":{"type":"keyword","ignore_above":256,"fields":{"text":{"type":"text"}}},"label":{"type":"text"}}},"custom_heartbeat_id":{"type":"keyword"},"id":{"type":"keyword"},"tags":{"type":"keyword","fields":{"text":{"type":"text"}}},"schedule":{"properties":{"number":{"type":"integer"}}},"enabled":{"type":"boolean"},"alert":{"properties":{"status":{"properties":{"enabled":{"type":"boolean"}}}}},"throttling":{"properties":{"label":{"type":"keyword"}}}}},"uptime-synthetics-api-key":{"dynamic":false,"properties":{"apiKey":{"type":"binary"}}},"synthetics-param":{"dynamic":false,"properties":{}},"infrastructure-ui-source":{"dynamic":false,"properties":{}},"inventory-view":{"dynamic":false,"properties":{}},"infrastructure-monitoring-log-view":{"dynamic":false,"properties":{"name":{"type":"text"}}},"metrics-explorer-view":{"dynamic":false,"properties":{}},"upgrade-assistant-reindex-operation":{"dynamic":false,"properties":{"indexName":{"type":"keyword"},"status":{"type":"integer"}}},"upgrade-assistant-ml-upgrade-operation":{"dynamic":false,"properties":{"snapshotId":{"type":"text","fields":{"keyword":{"type":"keyword","ignore_above":256}}}}},"monitoring-telemetry":{"properties":{"reportedClusterUuids":{"type":"keyword"}}},"enterprise_search_telemetry":{"dynamic":false,"properties":{}},"app_search_telemetry":{"dynamic":false,"properties":{}},"workplace_search_telemetry":{"dynamic":false,"properties":{}},"apm-indices":{"dynamic":false,"properties":{}},"apm-telemetry":{"dynamic":false,"properties":{}},"apm-server-schema":{"properties":{"schemaJson":{"type":"text","index":false}}},"apm-service-group":{"properties":{"groupName":{"type":"keyword"},"kuery":{"type":"text"},"description":{"type":"text"},"color":{"type":"text"}}}},"_meta":{"migrationMappingPropertyHashes":{"type":"2f4316de49999235636386fe51dc06c1","namespace":"2f4316de49999235636386fe51dc06c1","namespaces":"2f4316de49999235636386fe51dc06c1","originId":"2f4316de49999235636386fe51dc06c1","updated_at":"00da57df13e94e9d98437d13ace4bfe0","created_at":"00da57df13e94e9d98437d13ace4bfe0","references":"7997cf5a56cc02bdc9c93361bde732b0","coreMigrationVersion":"2f4316de49999235636386fe51dc06c1","typeMigrationVersion":"539e3ecebb3abc1133618094cc3b7ae7","managed":"88cf246b441a6362458cb6a56ca3f7d7","core-usage-stats":"3d1b76c39bfb2cc8296b024d73854724","legacy-url-alias":"0750774cf16475f88f2361e99cc5c8f0","config":"c63748b75f39d0c54de12d12c1ccbc20","config-global":"c63748b75f39d0c54de12d12c1ccbc20","usage-counters":"8cc260bdceffec4ffc3ad165c97dc1b4","guided-onboarding-guide-state":"a3db59c45a3fd2730816d4f53c35c7d9","guided-onboarding-plugin-state":"3d1b76c39bfb2cc8296b024d73854724","ui-metric":"0d409297dc5ebe1e3a1da691c6ee32e3","application_usage_totals":"3d1b76c39bfb2cc8296b024d73854724","application_usage_daily":"43b8830d5d0df85a6823d290885fc9fd","event_loop_delays_daily":"5df7e292ddd5028e07c1482e130e6654","url":"a37dbae7645ad5811045f4dd3dc1c0a8","sample-data-telemetry":"7d3cfeb915303c9641c59681967ffeb4","space":"c3aec2a5d4afcb75554fed96411170e1","spaces-usage-stats":"3d1b76c39bfb2cc8296b024d73854724","telemetry":"3d1b76c39bfb2cc8296b024d73854724","file":"c38faa34f21af9cef4301a687de5dce0","fileShare":"aa8f7ac2ddf8ab1a91bd34e347046caa","file-upload-usage-collection-telemetry":"a34fbb8e3263d105044869264860c697","tag":"83d55da58f6530f7055415717ec06474","slo":"71d78aec1e4a92e097d427141199506a","ml-job":"3bb64c31915acf93fc724af137a0891b","ml-trained-model":"d2f03c1a5dd038fa58af14a56944312b","ml-module":"46ef4f0d6682636f0fff9799d6a2d7ac","uptime-dynamic-settings":"3d1b76c39bfb2cc8296b024d73854724","synthetics-privates-locations":"3d1b76c39bfb2cc8296b024d73854724","synthetics-monitor":"4aef791eac6fe834fa7bc8db005f0df4","uptime-synthetics-api-key":"c3178f0fde61e18d3530ba9a70bc278a","synthetics-param":"3d1b76c39bfb2cc8296b024d73854724","infrastructure-ui-source":"3d1b76c39bfb2cc8296b024d73854724","inventory-view":"3d1b76c39bfb2cc8296b024d73854724","infrastructure-monitoring-log-view":"c50526fc6040c5355ed027d34d05b35c","metrics-explorer-view":"3d1b76c39bfb2cc8296b024d73854724","upgrade-assistant-reindex-operation":"6d1e2aca91767634e1829c30f20f6b16","upgrade-assistant-ml-upgrade-operation":"3caf305ad2da94d80d49453b0970156d","monitoring-telemetry":"2669d5ec15e82391cf58df4294ee9c68","enterprise_search_telemetry":"3d1b76c39bfb2cc8296b024d73854724","app_search_telemetry":"3d1b76c39bfb2cc8296b024d73854724","workplace_search_telemetry":"3d1b76c39bfb2cc8296b024d73854724","apm-indices":"3d1b76c39bfb2cc8296b024d73854724","apm-telemetry":"3d1b76c39bfb2cc8296b024d73854724","apm-server-schema":"b1d71908f324c17bf744ac72af5038fb","apm-service-group":"2af509c6506f29a858e5a0950577d9fa"},"indexTypesMap":{".kibana":["apm-indices","apm-server-schema","apm-service-group","apm-telemetry","app_search_telemetry","application_usage_daily","application_usage_totals","config","config-global","core-usage-stats","enterprise_search_telemetry","event_loop_delays_daily","file","file-upload-usage-collection-telemetry","fileShare","guided-onboarding-guide-state","guided-onboarding-plugin-state","infrastructure-monitoring-log-view","infrastructure-ui-source","inventory-view","legacy-url-alias","metrics-explorer-view","ml-job","ml-module","ml-trained-model","monitoring-telemetry","sample-data-telemetry","slo","space","spaces-usage-stats","synthetics-monitor","synthetics-param","synthetics-privates-locations","tag","telemetry","ui-metric","upgrade-assistant-ml-upgrade-operation","upgrade-assistant-reindex-operation","uptime-dynamic-settings","uptime-synthetics-api-key","url","usage-counters","workplace_search_telemetry"],".kibana_task_manager":["task"],".kibana_analytics":["canvas-element","canvas-workpad","canvas-workpad-template","dashboard","graph-workspace","index-pattern","kql-telemetry","lens","lens-ui-telemetry","map","query","search","search-session","search-telemetry","visualization"],".kibana_security_solution":["csp-rule-template","endpoint:user-artifact-manifest","exception-list","exception-list-agnostic","osquery-manager-usage-metric","osquery-pack","osquery-pack-asset","osquery-saved-query","security-rule","security-solution-signals-migration","siem-detection-engine-rule-actions","siem-ui-timeline","siem-ui-timeline-note","siem-ui-timeline-pinned-event"],".kibana_alerting_cases":["action","action_task_params","alert","api_key_pending_invalidation","cases","cases-comments","cases-configure","cases-connector-mappings","cases-telemetry","cases-user-actions","connector_token","maintenance-window","rules-settings"],".kibana_ingest":["epm-packages","epm-packages-assets","fleet-fleet-server-host","fleet-message-signing-keys","fleet-preconfiguration-deletion-record","fleet-proxy","ingest-agent-policies","ingest-download-sources","ingest-outputs","ingest-package-policies","ingest_manager_settings"]}}},"aliases":{},"settings":{"index":{"number_of_shards":1,"auto_expand_replicas":"0-1","refresh_interval":"1s","priority":10,"mapping":{"total_fields":{"limit":1500}}}}}
                 """;
@@ -201,7 +201,7 @@ public class MultiTenancyMigrationTest {
 
     @Test
     public void shouldUpdateSpace() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
             String bulkRequestWithVariousIndices = """
                 {"index":{"_id":"space:admin_space_3__sg_ten__admin_tenant","_index":".kibana_8.8.0_reindex_temp"}}
@@ -251,11 +251,11 @@ public class MultiTenancyMigrationTest {
     public void shouldHandleMgetWhenAllDocumentsAreFound() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
-            createSpace(client, indexName, "space_2");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
+            createSpace(clientWithTenantHeader, indexName, "space_2");
             String mgetBody = """
                 {
                 	"docs": [
@@ -271,7 +271,7 @@ public class MultiTenancyMigrationTest {
                 }
                 """;
 
-            HttpResponse response = client.postJson("/_mget", mgetBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_mget", mgetBody);
 
             log.debug("Mget response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -302,10 +302,10 @@ public class MultiTenancyMigrationTest {
     public void shouldHandleMgetWhenSomeDocumentsAreFound() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String mgetBody = """
                 {
                 	"docs": [
@@ -321,7 +321,7 @@ public class MultiTenancyMigrationTest {
                 }
                 """;
 
-            HttpResponse response = client.postJson("/_mget", mgetBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_mget", mgetBody);
 
             log.debug("Mget response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -348,9 +348,9 @@ public class MultiTenancyMigrationTest {
     public void shouldHandleMgetWhenAllDocumentsAreNotFound() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
             String mgetBody = """
                 {
                 	"docs": [
@@ -366,7 +366,7 @@ public class MultiTenancyMigrationTest {
                 }
                 """;
 
-            HttpResponse response = client.postJson("/_mget", mgetBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_mget", mgetBody);
 
             log.debug("Mget response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -419,7 +419,7 @@ public class MultiTenancyMigrationTest {
 
     @Test
     public void shouldDeleteSpace() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
             String bulkRequestWithVariousIndices = """
                 {"index":{"_id":"space:admin_space_3__sg_ten__admin_tenant","_index":".kibana_8.8.0_reindex_temp"}}
@@ -455,15 +455,15 @@ public class MultiTenancyMigrationTest {
     public void shouldUnscopeIdsInBulkDeleteErrorResponses() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, ".kibana_8.8.0");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, ".kibana_8.8.0");
             String bulkBody = """
                 {"delete": {"_index": ".kibana_8.8.0","_id": "not_existing_document"}}
                 
                 """;
 
-            HttpResponse response = client.postJson("/_bulk", bulkBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_bulk", bulkBody);
 
             log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -507,16 +507,16 @@ public class MultiTenancyMigrationTest {
     public void shouldUnscopeIdsInBulkUpdateErrorResponses() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, ".kibana_8.8.0");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, ".kibana_8.8.0");
             String bulkBody = """
                 {"update": {"_index": ".kibana_8.8.0","_id": "not_existing_document"}}
                 {"doc":{"no":"1"}}
                 
                 """;
 
-            HttpResponse response = client.postJson("/_bulk", bulkBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_bulk", bulkBody);
 
             log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -534,17 +534,17 @@ public class MultiTenancyMigrationTest {
     public void shouldUnscopeIdsInBulkCreateErrorResponses() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, ".kibana_8.8.0");
-            createSpace(client, indexName, "space_id");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, ".kibana_8.8.0");
+            createSpace(clientWithTenantHeader, indexName, "space_id");
             String bulkBody = """
                 {"create": {"_index": ".kibana_8.8.0","_id": "space_id"}}
                 {"doc":{"no":"1"}}
                 
                 """;
 
-            HttpResponse response = client.postJson("/_bulk", bulkBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_bulk", bulkBody);
 
             log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -562,17 +562,17 @@ public class MultiTenancyMigrationTest {
     public void shouldSupportSourceIncludesDuringProcessingOfBulkUpdatesWhenParameterDoesNotExistInTargetDocument() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String bulkBody = """
                 {"update": {"_index": ".kibana_8.8.0","_id": "space_1"}}
                 {"doc":{"no":"1"}}
                 
                 """;
 
-            HttpResponse response = client.postJson("/_bulk?refresh=wait_for&_source_includes=non_existing_field", bulkBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_bulk?refresh=wait_for&_source_includes=non_existing_field", bulkBody);
 
             log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -590,17 +590,17 @@ public class MultiTenancyMigrationTest {
     public void shouldSupportSourceIncludesDuringProcessingOfBulkUpdates() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String bulkBody = """
                 {"update": {"_index": ".kibana_8.8.0","_id": "space_1"}}
                 {"doc":{"no":"1"}}
                 
                 """;
 
-            HttpResponse response = client.postJson("/_bulk?refresh=wait_for&_source_includes=name", bulkBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_bulk?refresh=wait_for&_source_includes=name", bulkBody);
             log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
@@ -618,17 +618,17 @@ public class MultiTenancyMigrationTest {
     public void shouldSupportCompleteSourceIncludesDuringProcessingOfBulkUpdates() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String bulkBody = """
                 {"update": {"_index": ".kibana_8.8.0","_id": "space_1"}}
                 {"doc":{"no":"1"}}
                 
                 """;
 
-            HttpResponse response = client.postJson("/_bulk?refresh=wait_for&_source=true", bulkBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_bulk?refresh=wait_for&_source=true", bulkBody);
 
             log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -651,17 +651,17 @@ public class MultiTenancyMigrationTest {
     public void shouldSupportSourceExcludesIncludesDuringProcessingOfBulkUpdates() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String bulkBody = """
                 {"update": {"_index": ".kibana_8.8.0","_id": "space_1"}}
                 {"doc":{"no":"1"}}
                 
                 """;
 
-            HttpResponse response = client.postJson("/_bulk?refresh=wait_for&_source_excludes=description", bulkBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/_bulk?refresh=wait_for&_source_excludes=description", bulkBody);
 
             log.debug("Bulk response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -684,13 +684,13 @@ public class MultiTenancyMigrationTest {
     public void shouldSupportSourceIncludesDuringProcessingOfUpdatesWhenParameterDoesNotExistInTargetDocument() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
 
-            HttpResponse response = client.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source_includes=non_existing_field", requestBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source_includes=non_existing_field", requestBody);
 
             log.debug("Update response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -712,13 +712,13 @@ public class MultiTenancyMigrationTest {
     public void shouldSupportSourceIncludesDuringProcessingOfUpdatesWhenParameterExistInTargetDocument() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
 
-            HttpResponse response = client.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source_includes=name", requestBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source_includes=name", requestBody);
 
             log.debug("Update response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -741,13 +741,13 @@ public class MultiTenancyMigrationTest {
     public void shouldSupportSourceExcludesDuringProcessingOfUpdatesWhenParameterExistInTargetDocument() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
 
-            HttpResponse response = client.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source_excludes=name", requestBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source_excludes=name", requestBody);
 
             log.debug("Update response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -774,13 +774,13 @@ public class MultiTenancyMigrationTest {
     public void shouldSupportSourceIncludeDuringProcessingOfUpdates() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
 
-            HttpResponse response = client.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source=true", requestBody);
+            HttpResponse response = clientWithTenantHeader.postJson("/.kibana_8.8.0/_update/space_1?refresh=wait_for&_source=true", requestBody);
 
             log.debug("Update response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -807,13 +807,13 @@ public class MultiTenancyMigrationTest {
     public void shouldIncludeVersionAndSeqNoWithPrimaryTermInSearchResponse() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
 
-            HttpResponse response = client.get("/.kibana_8.8.0/_search?version=true&seq_no_primary_term=true");
+            HttpResponse response = clientWithTenantHeader.get("/.kibana_8.8.0/_search?version=true&seq_no_primary_term=true");
 
             log.debug("Search response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -833,13 +833,13 @@ public class MultiTenancyMigrationTest {
     public void shouldNotIncludeVersionAndSeqNoWithPrimaryTermInSearchResponse() throws Exception {
         String indexName = ".kibana_8.8.0";
         BasicHeader tenantHeader = new BasicHeader("sg_tenant", "admin_tenant");
-        try (GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-            GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
-            createIndexWithInitialMappings(adminClient, indexName);
-            createSpace(client, indexName, "space_1");
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver");
+            GenericRestClient clientWithTenantHeader = cluster.getRestClient("kibanaserver", "kibanaserver", tenantHeader)) {
+            createIndexWithInitialMappings(client, indexName);
+            createSpace(clientWithTenantHeader, indexName, "space_1");
             String requestBody = DocNode.of("doc", DocNode.of("no", "1")).toJsonString();
 
-            HttpResponse response = client.get("/.kibana_8.8.0/_search");
+            HttpResponse response = clientWithTenantHeader.get("/.kibana_8.8.0/_search");
 
             log.debug("Search response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
