@@ -1,6 +1,8 @@
 package com.floragunn.searchguard.enterprise.femt.request.mapper;
 
 import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
@@ -10,7 +12,9 @@ import org.elasticsearch.index.get.GetResult;
 import java.util.Arrays;
 import java.util.Optional;
 
-public class MultiGetMapper extends RequestResponseMapper {
+public class MultiGetMapper {
+
+    private final static Logger log = LogManager.getLogger(MultiGetMapper.class);
 
     public MultiGetRequest toScopedMultiGetRequest(MultiGetRequest request, String tenant) {
         log.debug("Rewriting multi get request - adding tenant scope");

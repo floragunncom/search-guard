@@ -56,15 +56,14 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
                         ActionListener<MultiGetResponse> multiGetListener = (ActionListener<MultiGetResponse>) listener;
                         multiGetListener.onResponse(response);
                     } catch (Exception e) {
-                        if (log.isErrorEnabled()) {
-                            log.error("Error during handling multi get response", e);
-                        }
+                        log.error("An error occurred while handling multi get response", e);
                         onFailure(e);
                     }
                 }
 
                 @Override
                 public void onFailure(Exception e) {
+                    log.error("An error occurred while sending multi get request", e);
                     listener.onFailure(e);
                 }
             });

@@ -1,6 +1,8 @@
 package com.floragunn.searchguard.enterprise.femt.request.mapper;
 
 import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -18,7 +20,9 @@ import org.elasticsearch.index.seqno.SequenceNumbers;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class BulkMapper extends RequestResponseMapper {
+public class BulkMapper {
+
+    private final static Logger log = LogManager.getLogger(BulkMapper.class);
 
     public BulkRequest toScopedBulkRequest(BulkRequest request, String tenant) {
         log.debug("Rewriting bulk request - adding tenant scope");

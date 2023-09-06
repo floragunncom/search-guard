@@ -58,15 +58,14 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
 
                         searchListener.onResponse(unscoped);
                     } catch (Exception e) {
-                        if (log.isErrorEnabled()) {
-                            log.error("Error during handling search response", e);
-                        }
+                        log.error("An error occurred while handling search response", e);
                         listener.onFailure(e);
                     }
                 }
 
                 @Override
                 public void onFailure(Exception e) {
+                    log.error("An error occurred while sending search request", e);
                     listener.onFailure(e);
                 }
             });

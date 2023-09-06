@@ -56,15 +56,14 @@ public class UpdateRequestHandler extends RequestHandler<UpdateRequest> {
                         ActionListener<UpdateResponse> updateListener = (ActionListener<UpdateResponse>) listener;
                         updateListener.onResponse(unscoped);
                     } catch (Exception e) {
-                        if (log.isErrorEnabled()) {
-                            log.error("Error during handling update response", e);
-                        }
+                        log.error("An error occurred while handling update response", e);
                         listener.onFailure(e);
                     }
                 }
 
                 @Override
                 public void onFailure(Exception e) {
+                    log.error("An error occurred while sending update request", e);
                     listener.onFailure(e);
                 }
             });

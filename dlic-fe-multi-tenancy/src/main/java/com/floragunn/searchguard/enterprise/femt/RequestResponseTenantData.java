@@ -13,6 +13,8 @@ public class RequestResponseTenantData {
     private static final String SG_TENANT_FIELD = "sg_tenant";
     private static final String TENAND_SEPARATOR_IN_ID = "__sg_ten__";
 
+    private RequestResponseTenantData() {}
+
     public static String getSgTenantField() {
         return SG_TENANT_FIELD;
     }

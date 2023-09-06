@@ -1,10 +1,14 @@
 package com.floragunn.searchguard.enterprise.femt.request.mapper;
 
 import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 
-public class DeleteMapper extends RequestResponseMapper{
+public class DeleteMapper {
+
+    private final static Logger log = LogManager.getLogger(DeleteMapper.class);
 
     public DeleteResponse toUnscopedDeleteResponse(DeleteResponse response) {
         log.debug("Rewriting delete response - removing tenant scope");
