@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -74,8 +75,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private final boolean enabled;
     private final ThreadContext threadContext;
     private final Client nodeClient;
-    private final ClusterService clusterService;
-    private final IndicesService indicesService;
     private final ImmutableList<String> indexSubNames = ImmutableList.of("alerting_cases", "analytics", "security_solution", "ingest");
     private final RoleBasedTenantAuthorization tenantAuthorization;
     private final InitializationInterceptor initializationInterceptor;
@@ -95,11 +94,9 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
         this.threadContext = threadContext;
         this.nodeClient = nodeClient;
-        this.clusterService = clusterService;
-        this.indicesService = indicesService;
         this.tenantAuthorization = tenantAuthorization;
         this.initializationInterceptor = new InitializationInterceptor(threadContext, nodeClient, config);
-        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext, this.clusterService, this.indicesService);
+        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext, clusterService, indicesService);
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
@@ -168,15 +165,16 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         Object request = context.getRequest();
 
-        RequestHandler<ActionRequest> requestHandler = requestHandlerFactory.requestHandlerFor(request);
+        Optional<RequestHandler<ActionRequest>> requestHandler = requestHandlerFactory.requestHandlerFor(request);
 
-        if (Objects.nonNull(requestHandler)) {
-            return requestHandler.handle(context, requestedTenant, (ActionRequest) request, listener);
-        }
-        if (log.isTraceEnabled()) {
-            log.trace("Not giving {} special treatment for FEMT", request);
-        }
-        return SyncAuthorizationFilter.Result.OK;
+        return requestHandler
+                .map(handler -> handler.handle(context, requestedTenant, (ActionRequest) request, listener))
+                .orElseGet(() -> {
+                    if (log.isTraceEnabled()) {
+                        log.trace("Not giving {} special treatment for FEMT", request);
+                    }
+                    return SyncAuthorizationFilter.Result.OK;
+                });
     }
 
     private boolean isTenantAllowed(PrivilegesEvaluationContext context, ActionRequest request, Action action, String requestedTenant)

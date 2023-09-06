@@ -1,6 +1,8 @@
 package com.floragunn.searchguard.enterprise.femt.request.mapper;
 
 import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchResponseSections;
@@ -8,7 +10,9 @@ import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 
-public class SearchMapper extends RequestResponseMapper {
+public class SearchMapper {
+
+    private final static Logger log = LogManager.getLogger(SearchMapper.class);
 
     public SearchRequest toScopedSearchRequest(SearchRequest request, String tenant) {
         log.debug("Rewriting search request - adding tenant scope");

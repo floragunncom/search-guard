@@ -1,10 +1,14 @@
 package com.floragunn.searchguard.enterprise.femt.request.mapper;
 
 import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 
-public class UpdateMapper extends RequestResponseMapper {
+public class UpdateMapper {
+
+    private final static Logger log = LogManager.getLogger(UpdateMapper.class);
 
     public UpdateRequest toScopedUpdateRequest(UpdateRequest request, String tenant) {
         log.debug("Rewriting update request - adding tenant scope");

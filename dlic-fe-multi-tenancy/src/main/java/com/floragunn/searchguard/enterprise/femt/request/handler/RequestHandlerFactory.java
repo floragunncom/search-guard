@@ -28,7 +28,8 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.indices.IndicesService;
 
-import javax.annotation.Nullable;
+import java.util.Objects;
+import java.util.Optional;
 
 public class RequestHandlerFactory {
 
@@ -38,15 +39,14 @@ public class RequestHandlerFactory {
     private final IndicesService indicesService;
 
     public RequestHandlerFactory(Client nodeClient, ThreadContext threadContext, ClusterService clusterService, IndicesService indicesService) {
-        this.nodeClient = nodeClient;
-        this.threadContext = threadContext;
-        this.clusterService = clusterService;
-        this.indicesService = indicesService;
+        this.nodeClient = Objects.requireNonNull(nodeClient, "nodeClient is required");
+        this.threadContext = Objects.requireNonNull(threadContext, "threadContext is required");
+        this.clusterService = Objects.requireNonNull(clusterService, "clusterService is required");
+        this.indicesService = Objects.requireNonNull(indicesService, "indicesService is required");
     }
 
-    @Nullable
     @SuppressWarnings("unchecked")
-    public <T extends ActionRequest> RequestHandler<T> requestHandlerFor(Object request) {
+    public <T extends ActionRequest> Optional<RequestHandler<T>> requestHandlerFor(Object request) {
         RequestHandler<T> handler = null;
         if (request instanceof IndexRequest) {
             handler = (RequestHandler<T>) new IndexRequestHandler();
@@ -65,7 +65,7 @@ public class RequestHandlerFactory {
         } else if (request instanceof UpdateRequest) {
             handler = (RequestHandler<T>)  new UpdateRequestHandler(nodeClient, threadContext);
         }
-        return handler;
+        return Optional.ofNullable(handler);
     }
 
 }

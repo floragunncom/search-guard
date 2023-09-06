@@ -64,20 +64,17 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
                         getListener.onResponse(getResponse);
 
                     } catch (MappingException e) {
-                        if (log.isErrorEnabled()) {
-                            log.error("Error during handling search response", e);
-                        }
+                        log.error("An error occurred while handling search response", e);
                         listener.onFailure(new ElasticsearchSecurityException("Internal error during multi tenancy interception"));
                     } catch (Exception e) {
-                        if (log.isErrorEnabled()) {
-                            log.error("Error during handling search response", e);
-                        }
+                        log.error("An error occurred while handling search response", e);
                         listener.onFailure(e);
                     }
                 }
 
                 @Override
                 public void onFailure(Exception e) {
+                    log.error("An error occurred while sending search request", e);
                     listener.onFailure(e);
                 }
             });

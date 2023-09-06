@@ -57,15 +57,14 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
                         bulkListener.onResponse(bulkResponse);
                         log.debug("Bulk request handled without errors");
                     } catch (Exception e) {
-                        if (log.isErrorEnabled()) {
-                            log.error("Error during handling bulk response", e);
-                        }
+                        log.error("An error occurred while handling bulk response", e);
                         listener.onFailure(e);
                     }
                 }
 
                 @Override
                 public void onFailure(Exception e) {
+                    log.error("An error occurred while sending bulk request", e);
                     listener.onFailure(e);
                 }
             });
