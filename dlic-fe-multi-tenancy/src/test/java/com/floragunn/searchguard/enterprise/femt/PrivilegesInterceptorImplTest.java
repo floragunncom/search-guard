@@ -22,7 +22,6 @@ import org.junit.Test;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
@@ -51,7 +50,7 @@ public class PrivilegesInterceptorImplTest {
 
         RoleBasedTenantAuthorization actionAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenants);
         PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, actionAuthorization, tenants, actions, null,
-                null);
+                null, null, null);
 
         User user = User.forUser("test").searchGuardRoles("all_access").build();
 
