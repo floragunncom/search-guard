@@ -45,7 +45,7 @@ import java.util.Set;
 
 import static com.floragunn.searchguard.enterprise.femt.PrivilegesInterceptorImpl.SG_FILTER_LEVEL_FEMT_DONE;
 
-public class InitializationInterceptor {
+class FrontendDataMigrationInterceptor {
 
     private static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX = "_reindex_temp";
     private final Logger log = LogManager.getLogger(this.getClass());
@@ -53,7 +53,7 @@ public class InitializationInterceptor {
     private final ThreadContext threadContext;
     private final Client nodeClient;
 
-    public InitializationInterceptor(ThreadContext threadContext, Client nodeClient, FeMultiTenancyConfig config) {
+    public FrontendDataMigrationInterceptor(ThreadContext threadContext, Client nodeClient, FeMultiTenancyConfig config) {
         this.threadContext = threadContext;
         this.nodeClient = nodeClient;
         this.kibanaServerUsername = config.getServerUsername();
