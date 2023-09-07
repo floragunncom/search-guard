@@ -39,9 +39,7 @@ import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.indices.IndicesService;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -81,7 +79,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private final RequestHandlerFactory requestHandlerFactory;
 
     public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, ImmutableSet<String> tenantNames,
-                                     Actions actions, ThreadContext threadContext, Client nodeClient, ClusterService clusterService, IndicesService indicesService) {
+                                     Actions actions, ThreadContext threadContext, Client nodeClient) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -96,7 +94,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.nodeClient = nodeClient;
         this.tenantAuthorization = tenantAuthorization;
         this.frontendDataMigrationInterceptor = new FrontendDataMigrationInterceptor(threadContext, nodeClient, config);
-        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext, clusterService, indicesService);
+        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext);
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 

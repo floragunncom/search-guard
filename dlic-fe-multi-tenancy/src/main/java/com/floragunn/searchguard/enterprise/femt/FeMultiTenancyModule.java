@@ -137,7 +137,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                 if (feMultiTenancyConfig.isEnabled()) {
                     enabled = true;
                     interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, tenantAuthorization, tenantNames, baseDependencies.getActions(),
-                            baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient(), baseDependencies.getClusterService(), baseDependencies.getGuiceDependencies().getIndicesService());
+                            baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient());
                 } else {
                     enabled = false;
                     componentState.setState(State.SUSPENDED, "disabled_by_config");

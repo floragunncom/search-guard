@@ -24,9 +24,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.indices.IndicesService;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -35,14 +33,10 @@ public class RequestHandlerFactory {
 
     private final Client nodeClient;
     private final ThreadContext threadContext;
-    private final ClusterService clusterService;
-    private final IndicesService indicesService;
 
-    public RequestHandlerFactory(Client nodeClient, ThreadContext threadContext, ClusterService clusterService, IndicesService indicesService) {
+    public RequestHandlerFactory(Client nodeClient, ThreadContext threadContext) {
         this.nodeClient = Objects.requireNonNull(nodeClient, "nodeClient is required");
         this.threadContext = Objects.requireNonNull(threadContext, "threadContext is required");
-        this.clusterService = Objects.requireNonNull(clusterService, "clusterService is required");
-        this.indicesService = Objects.requireNonNull(indicesService, "indicesService is required");
     }
 
     @SuppressWarnings("unchecked")
@@ -55,7 +49,7 @@ public class RequestHandlerFactory {
         } else if (request instanceof SearchRequest) {
             handler = (RequestHandler<T>)  new SearchRequestHandler(nodeClient, threadContext);
         } else if (request instanceof GetRequest) {
-            handler = (RequestHandler<T>)  new GetRequestHandler(nodeClient, threadContext, clusterService, indicesService);
+            handler = (RequestHandler<T>)  new GetRequestHandler(nodeClient, threadContext);
         } else if (request instanceof MultiGetRequest) {
             handler = (RequestHandler<T>)  new MultiGetRequestHandler(nodeClient, threadContext);
         } else if (request instanceof ClusterSearchShardsRequest) {
