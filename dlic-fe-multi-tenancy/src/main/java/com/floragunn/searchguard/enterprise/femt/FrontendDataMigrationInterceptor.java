@@ -65,21 +65,14 @@ class FrontendDataMigrationInterceptor {
         try {
             Optional<ActionProcessor> actionProcessor = getActionProcessor(kibanaIndices, context, listener);
 
-            return actionProcessor.map(processor -> {
-                User user = context.getUser();
-                if (!isUserAllowed(user)) {
-                    log.error("User '{} is not allowed to perform this action", user.getName());
-                    return SyncAuthorizationFilter.Result.DENIED;
-                }
-                return processor.process();
-            }).orElseGet(() -> {
-                log.debug("Non-initialization action, return PASS_ON_FAST_LANE");
-                return SyncAuthorizationFilter.Result.PASS_ON_FAST_LANE;
-            });
+            return actionProcessor
+                    .map(processor -> (ActionProcessor) new UserAccessGuardWrapper(context.getUser(), processor))
+                    .orElseGet(PassOnFastLineProcessor::new)
+                    .process();
 
 
         } catch (Exception e) {
-            log.error("An error occurred while intercepting initialization", e);
+            log.error("An error occurred while intercepting migration", e);
             listener.onFailure(e);
             return SyncAuthorizationFilter.Result.INTERCEPTED;
         }
@@ -98,10 +91,6 @@ class FrontendDataMigrationInterceptor {
             return Optional.of(() -> extendIndexMappingWithMultiTenancyData((CreateIndexRequest) context.getRequest(), (ActionListener<CreateIndexResponse>)listener));
         }
         return Optional.empty();
-    }
-
-    private boolean isUserAllowed(User user) {
-        return kibanaServerUsername.equals(user.getName());
     }
 
     private SyncAuthorizationFilter.Result handleDataMigration(Set<String> kibanaIndices, PrivilegesEvaluationContext context, BulkRequest bulkRequest, ActionListener<BulkResponse> listener) {
@@ -254,5 +243,38 @@ class FrontendDataMigrationInterceptor {
 
         SyncAuthorizationFilter.Result process();
 
+    }
+
+    private class PassOnFastLineProcessor implements ActionProcessor {
+
+        @Override
+        public SyncAuthorizationFilter.Result process() {
+            log.debug("Non-migration action, return PASS_ON_FAST_LANE");
+            return SyncAuthorizationFilter.Result.PASS_ON_FAST_LANE;
+        }
+    }
+
+    private class UserAccessGuardWrapper implements ActionProcessor {
+
+        private final User user;
+        private final ActionProcessor delegate;
+
+        private UserAccessGuardWrapper(User user, ActionProcessor delegate) {
+            this.user = user;
+            this.delegate = delegate;
+        }
+
+        @Override
+        public SyncAuthorizationFilter.Result process() {
+            if (!isUserAllowed(user)) {
+                log.error("User '{} is not allowed to perform this action", user.getName());
+                return SyncAuthorizationFilter.Result.DENIED;
+            }
+            return delegate.process();
+        }
+
+        private boolean isUserAllowed(User user) {
+            return kibanaServerUsername.equals(user.getName());
+        }
     }
 }
