@@ -85,9 +85,9 @@ class FrontendDataMigrationInterceptor {
 
     @SuppressWarnings("unchecked")
     private Optional<ActionProcessor> getActionProcessor(Set<String> kibanaIndices, PrivilegesEvaluationContext context, ActionListener<?> listener) {
-        if(isTempMigrationIndex(kibanaIndices) && (context.getRequest() instanceof BulkRequest)) {
+        if(isTempMigrationIndex(kibanaIndices) && (context.getRequest() instanceof BulkRequest bulkRequest)) {
             log.debug("Temporary index '{}' used during migration detected.", kibanaIndices);
-            return Optional.of(() -> handleDataMigration(kibanaIndices, context, (BulkRequest) context.getRequest(), (ActionListener<BulkResponse>) listener));
+            return Optional.of(() -> handleDataMigration(kibanaIndices, context, bulkRequest, (ActionListener<BulkResponse>) listener));
         } else if ("indices:admin/mapping/put".equals(context.getAction().name())) {
             log.debug("Migration of mappings for index '{}' detected ", kibanaIndices);
             return Optional.of(() -> extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener));
