@@ -58,18 +58,14 @@ public class GetMapper {
             return new GetResponse(new GetResult(getRequest.index(), RequestResponseTenantData.unscopedId(getRequest.id()),
                     SequenceNumbers.UNASSIGNED_SEQ_NO, SequenceNumbers.UNASSIGNED_PRIMARY_TERM, -1, false, null, null, null));
         } else {
-            if (log.isErrorEnabled()) {
-                log.error("Rewriting search response to get response - unexpected number of hits: {}", hits);
-            }
+            log.error("Rewriting search response to get response - unexpected number of hits: {}", hits);
             throw new MappingException("Unexpected number of hits");
         }
     }
 
     private GetResult searchHitToGetResult(SearchHit hit) {
 
-        if (log.isDebugEnabled()) {
-            log.debug("Converting SearchHit: {} to GetResult", hit);
-        }
+        log.debug("Converting SearchHit: {} to GetResult", hit);
 
         Map<String, DocumentField> fields = hit.getFields();
         Map<String, DocumentField> documentFields;
@@ -95,15 +91,13 @@ public class GetMapper {
                     }
                 }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Partitioned fields: {}; {}", metadataFields, documentFields);
-                }
+                log.debug("Partitioned fields: {}; {}", metadataFields, documentFields);
             } else {
-                if (log.isWarnEnabled()) {
-                    log.warn("Could not find IndexService for {}; assuming all fields as document fields."
-                            + "This should not happen, however this should also not pose a big problem as ES mixes the fields again anyway.\n"
-                            + "IndexMetadata: {}", hit.getIndex(), indexMetadata);
-                }
+                log.warn("""
+                        Could not find IndexService for {}; assuming all fields as document fields. \
+                        This should not happen, however this should also not pose a big problem as ES mixes the fields again anyway.
+                        IndexMetadata: {}
+                        """, hit.getIndex(), indexMetadata);
                 documentFields = fields;
                 metadataFields = Collections.emptyMap();
             }
