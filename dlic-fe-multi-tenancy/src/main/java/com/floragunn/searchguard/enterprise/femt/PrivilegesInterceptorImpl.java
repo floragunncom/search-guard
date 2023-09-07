@@ -105,7 +105,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private final IndicesService indicesService;
     private final ImmutableList<String> indexSubNames = ImmutableList.of("alerting_cases", "analytics", "security_solution", "ingest");
     private final RoleBasedTenantAuthorization tenantAuthorization;
-    private final InitializationInterceptor initializationInterceptor;
+    private final FrontendDataMigrationInterceptor frontendDataMigrationInterceptor;
     private final RequestHandlerFactory requestHandlerFactory;
 
     public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, ImmutableSet<String> tenantNames,
@@ -125,8 +125,8 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.clusterService = clusterService;
         this.indicesService = indicesService;
         this.tenantAuthorization = tenantAuthorization;
-        this.initializationInterceptor = new InitializationInterceptor(threadContext, nodeClient, config);
-        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext, this.clusterService, this.indicesService);
+        this.frontendDataMigrationInterceptor = new FrontendDataMigrationInterceptor(threadContext, nodeClient, config);
+        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext, clusterService, indicesService);
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
@@ -164,7 +164,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             log.debug("IndexInfo: " + kibanaIndicesInfo);
         }
 
-        Result initializationProcessingResult = initializationInterceptor.process(getOriginalIndicesNames(kibanaIndicesInfo), context, listener);
+        Result initializationProcessingResult = frontendDataMigrationInterceptor.process(getOriginalIndicesNames(kibanaIndicesInfo), context, listener);
 
         if (Result.PASS_ON_FAST_LANE != initializationProcessingResult) {
             return initializationProcessingResult;
