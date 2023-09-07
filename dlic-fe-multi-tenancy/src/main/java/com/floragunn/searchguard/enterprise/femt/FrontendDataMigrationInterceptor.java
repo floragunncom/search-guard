@@ -27,8 +27,10 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -88,10 +90,10 @@ class FrontendDataMigrationInterceptor {
         if(isTempMigrationIndex(kibanaIndices) && (context.getRequest() instanceof BulkRequest bulkRequest)) {
             log.debug("Temporary index '{}' used during migration detected.", kibanaIndices);
             return Optional.of(() -> handleDataMigration(kibanaIndices, context, bulkRequest, (ActionListener<BulkResponse>) listener));
-        } else if ("indices:admin/mapping/put".equals(context.getAction().name())) {
+        } else if (PutMappingAction.NAME.equals(context.getAction().name())) {
             log.debug("Migration of mappings for index '{}' detected ", kibanaIndices);
             return Optional.of(() -> extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener));
-        } else if ("indices:admin/create".equals(context.getAction().name())) {
+        } else if (CreateIndexAction.NAME.equals(context.getAction().name())) {
             log.debug("Creation of index '{}' detected", kibanaIndices);
             return Optional.of(() -> extendIndexMappingWithMultiTenancyData((CreateIndexRequest) context.getRequest(), (ActionListener<CreateIndexResponse>)listener));
         }
