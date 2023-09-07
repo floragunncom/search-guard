@@ -40,9 +40,7 @@ public class MultiGetMapper {
     }
 
     private MultiGetRequest.Item addTenantScopeToMultiGetItem(MultiGetRequest.Item item, String tenant) {
-        if (log.isDebugEnabled()) {
-            log.debug("Adding tenant scope to multi get item: {}, {}", item.index(), item.id());
-        }
+        log.debug("Adding tenant scope to multi get item: {}, {}", item.index(), item.id());
         return new MultiGetRequest.Item(item.index(), RequestResponseTenantData.scopedId(item.id(), tenant))
                 .routing(item.routing())
                 .storedFields(item.storedFields())

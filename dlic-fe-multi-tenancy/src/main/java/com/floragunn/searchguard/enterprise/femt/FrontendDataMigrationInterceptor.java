@@ -86,19 +86,13 @@ class FrontendDataMigrationInterceptor {
     @SuppressWarnings("unchecked")
     private Optional<ActionProcessor> getActionProcessor(Set<String> kibanaIndices, PrivilegesEvaluationContext context, ActionListener<?> listener) {
         if(isTempMigrationIndex(kibanaIndices) && (context.getRequest() instanceof BulkRequest)) {
-            if (log.isDebugEnabled()) {
-                log.debug("Temporary index '{}' used during migration detected.", kibanaIndices);
-            }
+            log.debug("Temporary index '{}' used during migration detected.", kibanaIndices);
             return Optional.of(() -> handleDataMigration(kibanaIndices, context, (BulkRequest) context.getRequest(), (ActionListener<BulkResponse>) listener));
         } else if ("indices:admin/mapping/put".equals(context.getAction().name())) {
-            if(log.isDebugEnabled()) {
-                log.debug("Migration of mappings for index '{}' detected ", kibanaIndices);
-            }
+            log.debug("Migration of mappings for index '{}' detected ", kibanaIndices);
             return Optional.of(() -> extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener));
         } else if ("indices:admin/create".equals(context.getAction().name())) {
-            if(log.isDebugEnabled()) {
-                log.debug("Creation of index '{}' detected", kibanaIndices);
-            }
+            log.debug("Creation of index '{}' detected", kibanaIndices);
             return Optional.of(() -> extendIndexMappingWithMultiTenancyData((CreateIndexRequest) context.getRequest(), (ActionListener<CreateIndexResponse>)listener));
         }
         return Optional.empty();
@@ -110,9 +104,7 @@ class FrontendDataMigrationInterceptor {
 
     private SyncAuthorizationFilter.Result handleDataMigration(Set<String> kibanaIndices, PrivilegesEvaluationContext context, BulkRequest bulkRequest, ActionListener<BulkResponse> listener) {
         String actionName = context.getAction().name();
-        if (log.isDebugEnabled()) {
-            log.debug("Data migration - action '{}' invoked, request class '{}'.", actionName, context.getRequest().getClass());
-        }
+        log.debug("Data migration - action '{}' invoked, request class '{}'.", actionName, context.getRequest().getClass());
         boolean requestExtended = false;
         for (DocWriteRequest<?> item : bulkRequest.requests()) {
             if(item instanceof IndexRequest indexRequest) {
@@ -122,16 +114,19 @@ class FrontendDataMigrationInterceptor {
                     if(RequestResponseTenantData.isScopedId(indexRequest.id())) {
                         if (!RequestResponseTenantData.containsSgTenantField(source)) {
                             String tenantName = RequestResponseTenantData.extractTenantFromId(indexRequest.id());
-                            if (log.isDebugEnabled()) {
-                                log.debug("Data migration - adding field '{}' to document '{}' from index '{}' with value '{}'.", RequestResponseTenantData.getSgTenantField(), indexRequest.id(), indexRequest.index(), tenantName);
-                            }
+                            log.debug(
+                                    "Data migration - adding field '{}' to document '{}' from index '{}' with value '{}'.",
+                                    RequestResponseTenantData.getSgTenantField(), indexRequest.id(), indexRequest.index(), tenantName
+                            );
                             RequestResponseTenantData.appendSgTenantFieldTo(source, tenantName);
                             indexRequest.source(source);
                             requestExtended = true;
                         } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Data migration - document already '{}' contains {} field with value '{}'", indexRequest.id(), RequestResponseTenantData.getSgTenantField(), source.get(RequestResponseTenantData.getSgTenantField()));
-                            }
+                            log.debug(
+                                    "Data migration - document already '{}' contains {} field with value '{}'",
+                                    indexRequest.id(), RequestResponseTenantData.getSgTenantField(),
+                                    source.get(RequestResponseTenantData.getSgTenantField())
+                            );
                         }
                     }
                 }
@@ -153,9 +148,7 @@ class FrontendDataMigrationInterceptor {
     private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
                                                                                   ActionListener<AcknowledgedResponse> listener) {
         String source = request.source();
-        if (log.isDebugEnabled()) {
-            log.debug("Extend put mappings request for '{}' to support multi tenancy, current mappings '{}'", request.indices(), source);
-        }
+        log.debug("Extend put mappings request for '{}' to support multi tenancy, current mappings '{}'", request.indices(), source);
         try (ThreadContext.StoredContext ctx = threadContext.newStoredContext()) {
             Optional<PutMappingRequest> newRequest =  extendMappingsWithMultitenancy(source)
                     .map(docNode -> createExtendedPutMappingRequest(request, docNode));
@@ -163,9 +156,7 @@ class FrontendDataMigrationInterceptor {
                 PutMappingRequest putMappingRequest = newRequest.get();
                 threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, putMappingRequest.toString());
                 nodeClient.admin().indices().putMapping(putMappingRequest, listener);
-                if (log.isDebugEnabled()) {
-                    log.debug("Extend put mappings request - mappings extended: '{}'", putMappingRequest.source());
-                }
+                log.debug("Extend put mappings request - mappings extended: '{}'", putMappingRequest.source());
                 return SyncAuthorizationFilter.Result.INTERCEPTED;
             } else {
                 log.debug("Extend put mappings request - mappings not extended");
@@ -182,14 +173,16 @@ class FrontendDataMigrationInterceptor {
     private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(CreateIndexRequest request, ActionListener<CreateIndexResponse> listener) {
         String sourceMappings = request.mappings();
         if(Strings.isNullOrEmpty(sourceMappings)) {
-            if (log.isDebugEnabled()) {
-                log.debug("Extend create index request for '{}' to support multi tenancy. Exit early, mappings from request are empty", Arrays.asList(request.indices()));
-            }
+            log.debug(
+                    "Extend create index request for '{}' to support multi tenancy. Exit early, mappings from request are empty",
+                    Arrays.asList(request.indices())
+            );
             return SyncAuthorizationFilter.Result.OK;
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Extend create index request for '{}' to support multi tenancy, current mappings '{}", Arrays.asList(request.indices()), sourceMappings);
-        }
+        log.debug(
+                "Extend create index request for '{}' to support multi tenancy, current mappings '{}",
+                Arrays.asList(request.indices()), sourceMappings
+        );
         try (ThreadContext.StoredContext ctx = threadContext.newStoredContext()) {
             UnparsedDocument<?> mappings = UnparsedDocument.from(sourceMappings, Format.JSON);
             DocNode requestSource = mappings.parseAsDocNode();
@@ -202,9 +195,7 @@ class FrontendDataMigrationInterceptor {
                     request.mapping(extendedMappings);
                     threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
                     nodeClient.admin().indices().create(request, listener);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Extend create index - mappings extended: '{}'", extendedMappings);
-                    }
+                    log.debug("Extend create index - mappings extended: '{}'", extendedMappings);
                     return SyncAuthorizationFilter.Result.INTERCEPTED;
                 } else {
                     log.debug("Extend create index - mappings not extended");
