@@ -16,6 +16,11 @@ package com.floragunn.searchguard.enterprise.femt;
 
 import java.util.Arrays;
 
+import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.indices.IndicesService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -28,12 +33,18 @@ import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
+import org.mockito.Mockito;
 
 public class PrivilegesInterceptorImplTest {
 
     private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(
             SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
     private static final Actions actions = new Actions(null);
+
+    private final ThreadContext threadContext = new ThreadContext(Settings.EMPTY);
+    private final NodeClient nodeClient = Mockito.mock(NodeClient.class);
+    private final ClusterService clusterService = Mockito.mock(ClusterService.class);
+    private final IndicesService indexServices = Mockito.mock(IndicesService.class);
 
     @Test
     public void wildcardTenantMapping() throws Exception {
@@ -49,8 +60,8 @@ public class PrivilegesInterceptorImplTest {
         ImmutableSet<String> tenants = ImmutableSet.of("my_tenant", "test");
 
         RoleBasedTenantAuthorization actionAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenants);
-        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, actionAuthorization, tenants, actions, null,
-                null, null, null);
+        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, actionAuthorization, tenants, actions, threadContext,
+                nodeClient, clusterService, indexServices);
 
         User user = User.forUser("test").searchGuardRoles("all_access").build();
 
