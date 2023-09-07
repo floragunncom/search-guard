@@ -229,7 +229,7 @@ class FrontendDataMigrationInterceptor {
         return extendedRequest;
     }
 
-    private static Optional<DocNode> extendMappingsWithMultitenancy(DocNode node) {
+    private Optional<DocNode> extendMappingsWithMultitenancy(DocNode node) {
         return Optional.of(node) //
                 .filter(docNode -> docNode.hasNonNull("properties")) //
                 .map(propertiesDocNode -> propertiesDocNode.getAsNode("properties")) //
