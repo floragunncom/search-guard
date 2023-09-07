@@ -25,12 +25,14 @@ public class SearchMapper {
         log.trace("handling search request: {}", queryBuilder);
 
         request.source().query(queryBuilder);
-        log.debug(
-                "Query to indices '{}' was intercepted to limit access only to tenant '{}', extended query version '{}'",
-                String.join(", ", request.indices()),
-                tenant,
-                queryBuilder
-        );
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    "Query to indices '{}' was intercepted to limit access only to tenant '{}', extended query version '{}'",
+                    String.join(", ", request.indices()),
+                    tenant,
+                    queryBuilder
+            );
+        }
         return request;
     }
 
