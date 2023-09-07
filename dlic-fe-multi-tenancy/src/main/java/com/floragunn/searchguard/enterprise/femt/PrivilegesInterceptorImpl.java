@@ -37,38 +37,9 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.documents.UnparsedDocument;
-import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandler;
-import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
-import com.google.common.base.Strings;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.IndicesRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
-import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.rest.RestStatus;
-
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -101,15 +72,13 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private final boolean enabled;
     private final ThreadContext threadContext;
     private final Client nodeClient;
-    private final ClusterService clusterService;
-    private final IndicesService indicesService;
     private final ImmutableList<String> indexSubNames = ImmutableList.of("alerting_cases", "analytics", "security_solution", "ingest");
     private final RoleBasedTenantAuthorization tenantAuthorization;
     private final FrontendDataMigrationInterceptor frontendDataMigrationInterceptor;
     private final RequestHandlerFactory requestHandlerFactory;
 
     public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, ImmutableSet<String> tenantNames,
-                                     Actions actions, ThreadContext threadContext, Client nodeClient, ClusterService clusterService, IndicesService indicesService) {
+                                     Actions actions, ThreadContext threadContext, Client nodeClient) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -122,11 +91,9 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
         this.threadContext = threadContext;
         this.nodeClient = nodeClient;
-        this.clusterService = clusterService;
-        this.indicesService = indicesService;
         this.tenantAuthorization = tenantAuthorization;
         this.frontendDataMigrationInterceptor = new FrontendDataMigrationInterceptor(threadContext, nodeClient, config);
-        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext, clusterService, indicesService);
+        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext);
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
@@ -189,127 +156,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
             log.error(e, e);
             return SyncAuthorizationFilter.Result.DENIED;
         }
-    }
-
-    private Result handleDataMigration(PrivilegesEvaluationContext context, BulkRequest bulkRequest, ActionListener<BulkResponse> listener) {
-        String actionName = context.getAction().name();
-        log.info("Action '{}' invoked during index migration, request class '{}'.", actionName, context.getRequest().getClass());
-        boolean requestExtended = false;
-        for (DocWriteRequest<?> item : bulkRequest.requests()) {
-            if(item instanceof IndexRequest) {
-                IndexRequest indexRequest = (IndexRequest) item;
-                IndexInfo indexInfo = checkForExclusivelyUsedKibanaIndexOrAlias(indexRequest.index());
-                if((indexInfo != null) && isTempMigrationIndex(Collections.singletonList(indexInfo))) {
-                    Map<String, Object> source = indexRequest.sourceAsMap();
-                    if(RequestResponseTenantData.isScopedId(indexRequest.id()) && (!RequestResponseTenantData.containsSgTenantField(source))) {
-                        String tenantName = RequestResponseTenantData.extractTenantFromId(indexRequest.id());
-                        log.info("Adding field '{}' to document '{}' from index '{}' with value '{}'.", RequestResponseTenantData.getSgTenantField(), indexRequest.id(), indexRequest.index(), tenantName);
-                        RequestResponseTenantData.appendSgTenantFieldTo(source, tenantName);
-                        indexRequest.source(source);
-                        requestExtended = true;
-                    } else {
-                        log.info("Document '{}' contain {} field with value '{}'", indexRequest.id(), RequestResponseTenantData.getSgTenantField(), source.get(RequestResponseTenantData.getSgTenantField()));
-                    }
-                }
-            }
-        }
-        if(requestExtended) {
-            try (StoredContext ctx = threadContext.newStoredContext()) {
-                threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, bulkRequest.toString());
-                nodeClient.bulk(bulkRequest, listener);
-                return Result.INTERCEPTED;
-            }
-        }
-        return Result.OK;
-    }
-
-    private boolean isTempMigrationIndex(List<IndexInfo> indices) {
-        return indices.stream()
-            .map(info -> info.originalName)
-            .filter(indexName -> indexName.endsWith(TEMP_MIGRATION_INDEX_NAME_POSTFIX))
-            .count() > 0;
-    }
-
-    private Optional<DocNode> extendMappingsWithMultitenancy(String sourceMappings) throws DocumentParseException {
-        UnparsedDocument<?> mappings = UnparsedDocument.from(sourceMappings, Format.JSON);
-        DocNode node = mappings.parseAsDocNode();
-        return extendMappingsWithMultitenancy(node);
-    }
-
-    private static Optional<DocNode> extendMappingsWithMultitenancy(DocNode node) {
-        return Optional.of(node) //
-            .filter(docNode -> docNode.hasNonNull("properties")) //
-            .map(propertiesDocNode -> propertiesDocNode.getAsNode("properties")) //
-            .filter(propertiesDocNode -> !RequestResponseTenantData.containsSgTenantField(propertiesDocNode)) //
-            .map(propertiesDocNode -> propertiesDocNode.with(RequestResponseTenantData.getSgTenantField(), DocNode.of("type", "keyword"))) //
-            .map(propertiesDocNode -> node.with("properties", propertiesDocNode));
-    }
-
-    private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
-        ActionListener<AcknowledgedResponse> listener) {
-        String source = request.source();
-        log.trace("Mappings for index '{}' will be extended to support multitenancy, current mappings '{}'", request.indices(), source);
-        try (StoredContext ctx = threadContext.newStoredContext()){
-            Optional<PutMappingRequest> newRequest =  extendMappingsWithMultitenancy(source)
-                .map(docNode -> createExtendedPutMappingRequest(request, docNode));
-            if(newRequest.isPresent()) {
-                PutMappingRequest putMappingRequest = newRequest.get();
-                threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, putMappingRequest.toString());
-                nodeClient.admin().indices().putMapping(putMappingRequest, listener);
-                return SyncAuthorizationFilter.Result.INTERCEPTED;
-            } else {
-                return Result.OK;
-            }
-        } catch (DocumentParseException e) {
-            String message = "Cannot extend index mapping with information related to multi tenancy";
-            listener.onFailure(new ElasticsearchStatusException(message, RestStatus.INTERNAL_SERVER_ERROR, e));
-            return SyncAuthorizationFilter.Result.INTERCEPTED;
-        }
-    }
-
-    private PutMappingRequest createExtendedPutMappingRequest(PutMappingRequest request, DocNode docNode) {
-        log.debug("Update mapping request intercepted, new mappings '{}'", docNode.toJsonString());
-        PutMappingRequest extendedRequest = new PutMappingRequest(request.indices())
-            .source(docNode)
-            .origin(request.origin())
-            .writeIndexOnly(request.writeIndexOnly())
-            .masterNodeTimeout(request.masterNodeTimeout())
-            .timeout(request.timeout())
-            .indicesOptions(request.indicesOptions());
-        if(request.getConcreteIndex() != null) {
-            extendedRequest.setConcreteIndex(request.getConcreteIndex());
-        }
-        return extendedRequest;
-    }
-
-    private Result extendIndexMappingWithMultiTenancyData(CreateIndexRequest request, ActionListener<CreateIndexResponse> listener) {
-        String sourceMappings = request.mappings();
-        if(Strings.isNullOrEmpty(sourceMappings)) {
-            return Result.OK;
-        }
-        try (StoredContext ctx = threadContext.newStoredContext()){
-            UnparsedDocument<?> mappings = UnparsedDocument.from(sourceMappings, Format.JSON);
-            DocNode requestSource = mappings.parseAsDocNode();
-            if(requestSource.hasNonNull("_doc")) {
-                Optional<String> newMappings = extendMappingsWithMultitenancy(requestSource.getAsNode("_doc"))
-                    .map(updatedMappings -> requestSource.with("_doc", updatedMappings))
-                    .map(DocNode::toJsonString);
-                if (newMappings.isPresent()) {
-                    String extendedMappings = newMappings.get();
-                    log.debug("Mappings extended during index creation '{}'", extendedMappings);
-                    request.mapping(extendedMappings);
-                    threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
-                    nodeClient.admin().indices().create(request, listener);
-                    return SyncAuthorizationFilter.Result.INTERCEPTED;
-                }
-            }
-        } catch (DocumentParseException e) {
-            String message = "Cannot extend index mapping with information related to multi tenancy during index creation";
-            listener.onFailure(new ElasticsearchStatusException(message, RestStatus.INTERNAL_SERVER_ERROR, e));
-            return SyncAuthorizationFilter.Result.INTERCEPTED;
-        }
-        //TODO return SyncAuthorizationFilter.Result.INTERCEPTED
-        return Result.OK;
     }
 
     private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, ActionListener<?> listener) {

@@ -17,10 +17,8 @@ package com.floragunn.searchguard.enterprise.femt;
 import java.util.Arrays;
 
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.indices.IndicesService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -43,8 +41,6 @@ public class PrivilegesInterceptorImplTest {
 
     private final ThreadContext threadContext = new ThreadContext(Settings.EMPTY);
     private final NodeClient nodeClient = Mockito.mock(NodeClient.class);
-    private final ClusterService clusterService = Mockito.mock(ClusterService.class);
-    private final IndicesService indexServices = Mockito.mock(IndicesService.class);
 
     @Test
     public void wildcardTenantMapping() throws Exception {
@@ -61,7 +57,7 @@ public class PrivilegesInterceptorImplTest {
 
         RoleBasedTenantAuthorization actionAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenants);
         PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, actionAuthorization, tenants, actions, threadContext,
-                nodeClient, clusterService, indexServices);
+                nodeClient);
 
         User user = User.forUser("test").searchGuardRoles("all_access").build();
 

@@ -7,7 +7,6 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetResponse;
-import org.elasticsearch.index.get.GetResult;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -15,6 +14,11 @@ import java.util.Optional;
 public class MultiGetMapper {
 
     private final static Logger log = LogManager.getLogger(MultiGetMapper.class);
+    private final GetMapper getMapper;
+
+    public MultiGetMapper() {
+        getMapper = new GetMapper();
+    }
 
     public MultiGetRequest toScopedMultiGetRequest(MultiGetRequest request, String tenant) {
         log.debug("Rewriting multi get request - adding tenant scope");
@@ -52,16 +56,7 @@ public class MultiGetMapper {
     private MultiGetItemResponse unscopeIdInMultiGetResponseItem(MultiGetItemResponse multiGetItemResponse) {
         log.debug("Removing tenant scope from multi get item response: {}, {}", multiGetItemResponse.getIndex(), multiGetItemResponse.getId());
         GetResponse successResponse = Optional.ofNullable(multiGetItemResponse.getResponse())
-                .map(response -> new GetResult(response.getIndex(),
-                        RequestResponseTenantData.unscopedId(response.getId()),
-                        response.getSeqNo(),
-                        response.getPrimaryTerm(),
-                        response.getVersion(),
-                        response.isExists(),
-                        response.getSourceAsBytesRef(),
-                        response.getFields(),
-                        null))
-                .map(GetResponse::new)
+                .map(getMapper::toUnscopedGetResponse)
                 .orElse(null);
 
         MultiGetResponse.Failure failure = Optional.ofNullable(multiGetItemResponse.getFailure()) //

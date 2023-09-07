@@ -17,17 +17,11 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.GetMapper;
-import com.floragunn.searchguard.enterprise.femt.request.mapper.MappingException;
-import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.indices.IndicesService;
 
 import static com.floragunn.searchguard.enterprise.femt.PrivilegesInterceptorImpl.SG_FILTER_LEVEL_FEMT_DONE;
 
@@ -37,10 +31,10 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
     private final ThreadContext threadContext;
     private final GetMapper getMapper;
 
-    public GetRequestHandler(Client nodeClient, ThreadContext threadContext, ClusterService clusterService, IndicesService indicesService) {
+    public GetRequestHandler(Client nodeClient, ThreadContext threadContext) {
         this.nodeClient = nodeClient;
         this.threadContext = threadContext;
-        this.getMapper = new GetMapper(clusterService, indicesService);
+        this.getMapper = new GetMapper();
     }
 
     @Override
@@ -49,33 +43,29 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
         threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            SearchRequest searchRequest = getMapper.toScopedSearchRequest(request, requestedTenant);
+            GetRequest scoped = getMapper.toScopedGetRequest(request, requestedTenant);
 
-            nodeClient.search(searchRequest, new ActionListener<>() {
+            nodeClient.get(scoped, new ActionListener<>() {
                 @Override
-                public void onResponse(SearchResponse response) {
+                public void onResponse(GetResponse response) {
                     try {
 
                         storedContext.restore();
 
-                        GetResponse getResponse = getMapper.toUnscopedGetResponse(response, request);
+                        GetResponse getResponse = getMapper.toUnscopedGetResponse(response);
                         @SuppressWarnings("unchecked")
                         ActionListener<GetResponse> getListener = (ActionListener<GetResponse>) listener;
                         getListener.onResponse(getResponse);
 
-                    } catch (MappingException e) {
-                        log.error("An error occurred while handling search response", e);
-                        listener.onFailure(new ElasticsearchSecurityException("Internal error during multi tenancy interception"));
                     } catch (Exception e) {
-                        log.error("An error occurred while handling search response", e);
+                        log.error("An error occurred while handling get response", e);
                         listener.onFailure(e);
                     }
                 }
 
                 @Override
                 public void onFailure(Exception e) {
-
-                    log.error("An error occurred while sending search request", e);
+                    log.error("An error occurred while sending get request", e);
                     listener.onFailure(e);
                 }
             });
