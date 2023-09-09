@@ -71,6 +71,8 @@ public class SearchGuardInterceptorIntegrationTests {
             GenericRestClient.HttpResponse httpResponse = restClient.get("/_header_test", new BasicHeader("test_header_name", "test_header_value"));
             JsonNode headers = httpResponse.toJsonNode().get("headers");
 
+            Assert.assertNotNull(headers);
+            Assert.assertNotNull(headers.get("test_header_name"));
             Assert.assertEquals("test_header_value", headers.get("test_header_name").textValue());
         }
     }
