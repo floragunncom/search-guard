@@ -17,12 +17,17 @@
 
 package com.floragunn.searchguard.http;
 
+import java.util.List;
+
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpHandlingSettings;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
+import org.elasticsearch.http.netty4.internal.HttpValidator;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
@@ -32,10 +37,8 @@ import io.netty.channel.ChannelHandler;
 
 public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransport {
 
-    public SearchGuardNonSslHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
-            final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
-            final ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory) {
-        super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
+    public SearchGuardNonSslHttpServerTransport(Settings settings, NetworkService networkService, BigArrays bigArrays, ThreadPool threadPool, NamedXContentRegistry xContentRegistry, Dispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory, HttpValidator httpValidator) {
+        super(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, httpValidator);
     }
 
     @Override
@@ -43,10 +46,21 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
         return new NonSslHttpChannelHandler(this, handlingSettings);
     }
 
+    @Override
+    protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
+        for(String headerName: restRequest.getHeaders().keySet()) {
+            final List<String> headerValues = restRequest.getHeaders().get(headerName);
+
+            if (headerValues != null && !headerValues.isEmpty()) {
+                threadContext.putHeader(headerName, String.join(",", headerValues));
+            }
+        }
+    }
+
     protected class NonSslHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
         
         protected NonSslHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings) {
-            super(transport, handlingSettings);
+            super(transport, handlingSettings, null);
         }
 
         @Override

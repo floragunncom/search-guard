@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -77,6 +78,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
 import org.elasticsearch.index.Index;
@@ -87,6 +89,7 @@ import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ClusterPlugin;
 import org.elasticsearch.plugins.MapperPlugin;
+import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.ScriptPlugin;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestController;
@@ -727,14 +730,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
-            PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
-            NetworkService networkService, Dispatcher dispatcher, ClusterSettings clusterSettings) {
+    public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays, PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry, NetworkService networkService, Dispatcher dispatcher, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, ClusterSettings clusterSettings) {
 
         if (sslOnly) {
-            return super.getHttpTransports(settings, threadPool, bigArrays, pageCacheRecycler, circuitBreakerService, xContentRegistry,
-
-                    networkService, dispatcher, clusterSettings);
+            return super.getHttpTransports(settings, threadPool, bigArrays, pageCacheRecycler, circuitBreakerService, xContentRegistry, networkService, dispatcher, perRequestThreadContext, clusterSettings);
         }
 
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
@@ -751,8 +750,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
             } else if (!client) {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
-                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher,
-                                clusterSettings, sharedGroupFactory));
+                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, null));
             }
         }
         return httpTransports;

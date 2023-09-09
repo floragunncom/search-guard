@@ -19,7 +19,9 @@ package com.floragunn.searchguard.test.plugin;
 
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import org.elasticsearch.common.network.NetworkService;
@@ -28,6 +30,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
@@ -60,9 +63,7 @@ public class UserInjectorPlugin extends Plugin implements NetworkPlugin {
     }
 
     @Override
-    public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
-            PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
-            NetworkService networkService, Dispatcher dispatcher, ClusterSettings clusterSettings) {
+    public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays, PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry, NetworkService networkService, Dispatcher dispatcher, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, ClusterSettings clusterSettings) {
 
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
         final UserInjectingDispatcher validatingDispatcher = new UserInjectingDispatcher(dispatcher);
@@ -76,7 +77,18 @@ public class UserInjectorPlugin extends Plugin implements NetworkPlugin {
         public UserInjectingServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
                 final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
                 ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory) {
-            super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
+            super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, null);
+        }
+
+        @Override
+        protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
+            for(String headerName: restRequest.getHeaders().keySet()) {
+                final List<String> headerValues = restRequest.getHeaders().get(headerName);
+
+                if (headerValues != null && !headerValues.isEmpty()) {
+                    threadContext.putHeader(headerName, String.join(",", headerValues));
+                }
+            }
         }
     }
 
@@ -103,5 +115,6 @@ public class UserInjectorPlugin extends Plugin implements NetworkPlugin {
         }
 
     }
+
 
 }
