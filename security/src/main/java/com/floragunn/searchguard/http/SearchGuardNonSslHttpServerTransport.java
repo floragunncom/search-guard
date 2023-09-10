@@ -21,8 +21,10 @@ import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpHandlingSettings;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
@@ -30,12 +32,25 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 
+import java.util.List;
+
 public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransport {
 
     public SearchGuardNonSslHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
             final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
             final ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory) {
-        super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory);
+        super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, null);
+    }
+
+    @Override
+    protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
+        for(String headerName: restRequest.getHeaders().keySet()) {
+            final List<String> headerValues = restRequest.getHeaders().get(headerName);
+
+            if (headerValues != null && !headerValues.isEmpty()) {
+                threadContext.putHeader(headerName, String.join(",", headerValues));
+            }
+        }
     }
 
     @Override
@@ -46,7 +61,7 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
     protected class NonSslHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
         
         protected NonSslHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings) {
-            super(transport, handlingSettings);
+            super(transport, handlingSettings, null);
         }
 
         @Override
