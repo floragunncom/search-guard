@@ -57,7 +57,7 @@ class DataMigrationExecutor {
             } catch (Exception ex) {
                 String stepName = step.name();
                 String message = "Unexpected error: " + ex.getMessage();
-                accomplishedSteps.add(new StepExecutionSummary(i, stepStartTime, stepName, FAILURE, message));
+                accomplishedSteps.add(new StepExecutionSummary(i, stepStartTime, stepName, FAILURE, message, ex));
                 log.error("Unexpected error occured during execution of data migration step '{}' which is '{}'.", i, stepName, ex);
                 return persistState(dataMigrationContext, accomplishedSteps, FAILURE);
             }
@@ -68,12 +68,12 @@ class DataMigrationExecutor {
     private MigrationExecutionSummary persistState(
         DataMigrationContext dataMigrationContext, List<StepExecutionSummary> accomplishedSteps,
         ExecutionStatus status) {
-        MigrationExecutionSummary migrationExecutionSummary = createMigrationSummary(dataMigrationContext, accomplishedSteps, status);
+        MigrationExecutionSummary migrationExecutionSummary = createExecutionSummary(dataMigrationContext, accomplishedSteps, status);
         migrationStateRepository.upsert(MIGRATION_ID, migrationExecutionSummary);
         return migrationExecutionSummary;
     }
 
-    private static MigrationExecutionSummary createMigrationSummary(
+    private static MigrationExecutionSummary createExecutionSummary(
         DataMigrationContext dataMigrationContext,
         List<StepExecutionSummary> accomplishedSteps,
         ExecutionStatus status) {

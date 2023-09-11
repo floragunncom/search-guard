@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.rest;
 
 import com.floragunn.searchguard.SearchGuardVersion;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationService;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStateRepository;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.persistence.IndexMigrationStateRepository;
@@ -16,6 +17,7 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 
 import java.time.Clock;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 public class StartDataMigrationAction extends Action<EmptyRequest, StandardResponse> {
@@ -38,11 +40,14 @@ public class StartDataMigrationAction extends Action<EmptyRequest, StandardRespo
         private final DataMigrationService dataMigrationService;
 
         @Inject
-        public StartDataMigrationHandler(HandlerDependencies handlerDependencies, NodeClient client) {
+        public StartDataMigrationHandler(HandlerDependencies handlerDependencies, NodeClient client,
+            ConfigurationRepository configurationRepository) {
             super(INSTANCE, handlerDependencies);
+            Objects.requireNonNull(client, "Client is required");
+            Objects.requireNonNull(configurationRepository, "Configuration repository is required");
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
             MigrationStateRepository migrationStateRepository = new IndexMigrationStateRepository(privilegedConfigClient);
-            StepsFactory stepsFactory = new StepsFactory(privilegedConfigClient);
+            StepsFactory stepsFactory = new StepsFactory(privilegedConfigClient, configurationRepository);
             this.dataMigrationService = new DataMigrationService(migrationStateRepository, stepsFactory, Clock.systemUTC());
         }
 

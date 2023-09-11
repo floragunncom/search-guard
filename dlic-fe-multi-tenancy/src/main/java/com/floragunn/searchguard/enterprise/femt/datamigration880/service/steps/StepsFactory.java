@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
@@ -14,16 +15,15 @@ import java.util.stream.IntStream;
 
 public class StepsFactory {
     private final PrivilegedConfigClient client;
+    private ConfigurationRepository configurationRepository;
 
-    public StepsFactory(PrivilegedConfigClient privilegedConfigClient) {
+    public StepsFactory(PrivilegedConfigClient privilegedConfigClient, ConfigurationRepository configurationRepository) {
         this.client = Objects.requireNonNull(privilegedConfigClient, "Priviliaged config client is required");
+        this.configurationRepository = Objects.requireNonNull(configurationRepository, "Configuration repository is required");
     }
 
     public ImmutableList<MigrationStep> createSteps() {
-        List<MockStep> list = IntStream.range(0, 5) //
-            .mapToObj(i -> new MockStep("step_name_" + i, ExecutionStatus.SUCCESS, "Step executed correctly")) //
-            .collect(Collectors.toList());
-        return ImmutableList.of(list);
+        return ImmutableList.of(new PopulateIndexNamesStep(configurationRepository));
     }
 
     // TODO provide real steps implementation
