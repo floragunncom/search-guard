@@ -11,7 +11,6 @@ import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Collections;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
@@ -207,7 +206,7 @@ public class MultiTenancyMigrationTest {
         try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
             String bulkRequestWithVariousIndices = """
-                {"index":{"_id":"space:admin_space_3__sg_ten__admin_tenant","_index":".kibana_8.8.0_reindex_temp"}}
+                {"index":{"_id":"space:admin_space_3__sg_ten__-152937574_admintenant","_index":".kibana_8.8.0_reindex_temp"}}
                 {"doc":{"space":{"name":"admin_space_3","description":"3rd spaces of admin, so dark red that almost black, description updated","initials":"a3","color":"#440505","disabledFeatures":[],"imageUrl":""},"updated_at":"2023-07-24T08:16:09.347Z"}}
                 
                 """;
@@ -218,8 +217,8 @@ public class MultiTenancyMigrationTest {
             log.info("Search response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("$.hits.hits[0]._id", "space:admin_space_3__sg_ten__admin_tenant"));
-            assertThat(body, containsValue("$.hits.hits[0]._source.sg_tenant", "admin_tenant"));
+            assertThat(body, containsValue("$.hits.hits[0]._id", "space:admin_space_3__sg_ten__-152937574_admintenant"));
+            assertThat(body, containsValue("$.hits.hits[0]._source.sg_tenant", "-152937574_admintenant"));
             DocNode createAlias = DocNode.of("actions", Collections.singletonList(DocNode.of("add", DocNode.of("index", ".kibana_8.8.0_reindex_temp", "alias", ".kibana_8.8.0"))));
             response = client.postJson("/_aliases", createAlias.toJsonString());
             log.debug("Create alias response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -425,7 +424,7 @@ public class MultiTenancyMigrationTest {
         try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
             createIndexWithInitialMappings(client, ".kibana_8.8.0_reindex_temp");
             String bulkRequestWithVariousIndices = """
-                {"index":{"_id":"space:admin_space_3__sg_ten__admin_tenant","_index":".kibana_8.8.0_reindex_temp"}}
+                {"index":{"_id":"space:admin_space_3__sg_ten__-152937574_admintenant","_index":".kibana_8.8.0_reindex_temp"}}
                 {"doc":{"space":{"name":"admin_space_3","description":"3rd spaces of admin, so dark red that almost black, description updated","initials":"a3","color":"#440505","disabledFeatures":[],"imageUrl":""},"updated_at":"2023-07-24T08:16:09.347Z"}}
                 
                 """;
@@ -436,8 +435,8 @@ public class MultiTenancyMigrationTest {
             log.info("Search response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("$.hits.hits[0]._id", "space:admin_space_3__sg_ten__admin_tenant"));
-            assertThat(body, containsValue("$.hits.hits[0]._source.sg_tenant", "admin_tenant"));
+            assertThat(body, containsValue("$.hits.hits[0]._id", "space:admin_space_3__sg_ten__-152937574_admintenant"));
+            assertThat(body, containsValue("$.hits.hits[0]._source.sg_tenant", "-152937574_admintenant"));
             DocNode createAlias = DocNode.of("actions", Collections.singletonList(DocNode.of("add", DocNode.of("index", ".kibana_8.8.0_reindex_temp", "alias", ".kibana_8.8.0"))));
             response = client.postJson("/_aliases", createAlias.toJsonString());
             log.debug("Create alias response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -645,7 +644,7 @@ public class MultiTenancyMigrationTest {
             assertThat(body, containsValue("$.items[0].update.get._source.initials", "sg"));
             assertThat(body, containsValue("$.items[0].update.get._source.name", "name_space_1"));
             assertThat(body, containsValue("$.items[0].update.get._source.description", "description_space_1"));
-            assertThat(body, containsValue("$.items[0].update.get._source.sg_tenant", "admin_tenant"));
+            assertThat(body, containsValue("$.items[0].update.get._source.sg_tenant", "-152937574_admintenant"));
             assertThat(body, containsValue("$.items[0].update.get._source.no", "1"));
         }
     }
@@ -677,7 +676,7 @@ public class MultiTenancyMigrationTest {
             assertThat(body, containsFieldPointedByJsonPath("$.items[0].update.get", "_source"));
             assertThat(body, containsValue("$.items[0].update.get._source.initials", "sg"));
             assertThat(body, containsValue("$.items[0].update.get._source.name", "name_space_1"));
-            assertThat(body, containsValue("$.items[0].update.get._source.sg_tenant", "admin_tenant"));
+            assertThat(body, containsValue("$.items[0].update.get._source.sg_tenant", "-152937574_admintenant"));
             assertThat(body, containsValue("$.items[0].update.get._source.no", "1"));
             assertThat(body, not(containsFieldPointedByJsonPath("$.items[0].update.get._source", "description")));
         }
@@ -769,7 +768,7 @@ public class MultiTenancyMigrationTest {
             assertThat(body, containsValue("$.get._source.no", "1"));
             assertThat(body, containsValue("$.get._source.initials", "sg"));
             assertThat(body, containsValue("$.get._source.description", "description_space_1"));
-            assertThat(body, containsValue("$.get._source.sg_tenant", "admin_tenant"));
+            assertThat(body, containsValue("$.get._source.sg_tenant", "-152937574_admintenant"));
         }
     }
 
@@ -802,7 +801,7 @@ public class MultiTenancyMigrationTest {
             assertThat(body, containsValue("$.get._source.initials", "sg"));
             assertThat(body, containsValue("$.get._source.name", "name_space_1"));
             assertThat(body, containsValue("$.get._source.description", "description_space_1"));
-            assertThat(body, containsValue("$.get._source.sg_tenant", "admin_tenant"));
+            assertThat(body, containsValue("$.get._source.sg_tenant", "-152937574_admintenant"));
         }
     }
 
