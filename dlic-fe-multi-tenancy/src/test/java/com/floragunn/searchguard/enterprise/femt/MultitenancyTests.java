@@ -36,7 +36,6 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -69,15 +68,17 @@ public class MultitenancyTests {
             response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "business_intelligence"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
-            response = client.putJson(".kibana/_doc/5.6.0?pretty&refresh", body, new BasicHeader("sgtenant", "human_resources"));
+            String tenantName = "human_resources";
+            String internalTenantName = tenantName.hashCode() + "_" + "humanresources";
+            response = client.putJson(".kibana/_doc/5.6.0?pretty&refresh", body, new BasicHeader("sgtenant", tenantName));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
             Assert.assertEquals(response.getBody(), ".kibana", response.getBodyAsDocNode().get("_index"));
             Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().get("_id"));
 
-            response = adminClient.get(".kibana/_doc/5.6.0__sg_ten__human_resources");
+            response = adminClient.get(".kibana/_doc/5.6.0__sg_ten__" + internalTenantName);
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             
-            response = client.get(".kibana/_doc/5.6.0?pretty", new BasicHeader("sgtenant", "human_resources"));
+            response = client.get(".kibana/_doc/5.6.0?pretty", new BasicHeader("sgtenant", tenantName));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             Assert.assertEquals(response.getBody(), ".kibana", response.getBodyAsDocNode().get("_index"));
             Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().get("_id"));
@@ -216,20 +217,22 @@ public class MultitenancyTests {
     @Test
     public void testKibanaAlias() throws Exception {
         try {
+            String tenantName = "human_resources";
+            String internalTenantName = tenantName.hashCode() + "_" + "humanresources";
             try (Client tc = cluster.getInternalNodeClient()) {
                 String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
 
                 tc.admin().indices().create(new CreateIndexRequest(".kibana_8.8.0_001").alias(new Alias(".kibana"))
                         .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0))).actionGet();
 
-                tc.index(new IndexRequest(".kibana_8.8.0_001").id("6.2.2__sg_ten__human_resources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
+                tc.index(new IndexRequest(".kibana_8.8.0_001").id("6.2.2__sg_ten__" + internalTenantName).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
                         .actionGet();
             }
 
             try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee")) {
                 GenericRestClient.HttpResponse res;
               //  Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana_8.8.0_001/_doc/6.2.2?pretty", new BasicHeader("sgtenant", "human_resources"))).getStatusCode());
-                Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", "human_resources"))).getStatusCode());
+                Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", tenantName))).getStatusCode());
             }
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
@@ -280,6 +283,8 @@ public class MultitenancyTests {
     public void testKibanaAliasKibana_7_12() throws Exception {
         try {
 
+            String tenant = "kibana_7_12_alias_test";
+            String internalTenantName = tenant.hashCode() + "_" + "kibana712aliastest";
             try (Client tc = cluster.getInternalNodeClient()) {
                 String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"kibana_7_12_alias_test\"}";
 
@@ -289,11 +294,11 @@ public class MultitenancyTests {
                                 .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
                         .actionGet();
 
-                tc.index(new IndexRequest(".kibana_7.12.0").id("test__sg_ten__kibana_7_12_alias_test").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                tc.index(new IndexRequest(".kibana_7.12.0").id("test__sg_ten__" + internalTenantName).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                         .source(body, XContentType.JSON)).actionGet();
             }
 
-            try (GenericRestClient client = cluster.getRestClient("admin", "admin", "kibana_7_12_alias_test")) {
+            try (GenericRestClient client = cluster.getRestClient("admin", "admin", tenant)) {
 
                 GenericRestClient.HttpResponse response = client.get(".kibana_7.12.0/_doc/test");
 

@@ -58,7 +58,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
     private static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX = "_reindex_temp";
 
-    private static final String USER_TENANT = "__user__";
     public static final String SG_FILTER_LEVEL_FEMT_DONE = ConfigConstants.SG_CONFIG_PREFIX + "filter_level_femt_done";
 
     private final Action KIBANA_ALL_SAVED_OBJECTS_WRITE;
@@ -69,7 +68,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private final String kibanaIndexName;
     private final String kibanaIndexNamePrefix;
     private final Pattern versionedKibanaIndexPattern;
-    private final ImmutableSet<String> tenantNames;
     private final boolean enabled;
     private final ThreadContext threadContext;
     private final Client nodeClient;
@@ -77,6 +75,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private final RoleBasedTenantAuthorization tenantAuthorization;
     private final FrontendDataMigrationInterceptor frontendDataMigrationInterceptor;
     private final RequestHandlerFactory requestHandlerFactory;
+    private final TenantManager tenantManager;
 
     public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, ImmutableSet<String> tenantNames,
                                      Actions actions, ThreadContext threadContext, Client nodeClient) {
@@ -87,7 +86,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.versionedKibanaIndexPattern = Pattern.compile(
                 "(" + Pattern.quote(this.kibanaIndexName) + toPatternFragment(indexSubNames) + ")" + "(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)?" + "(" + Pattern.quote(TEMP_MIGRATION_INDEX_NAME_POSTFIX) + ")?");
 
-        this.tenantNames = tenantNames.with(Tenant.GLOBAL_TENANT_ID);
         this.KIBANA_ALL_SAVED_OBJECTS_WRITE = actions.get("kibana:saved_objects/_/write");
         this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
         this.threadContext = threadContext;
@@ -95,6 +93,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.tenantAuthorization = tenantAuthorization;
         this.frontendDataMigrationInterceptor = new FrontendDataMigrationInterceptor(threadContext, nodeClient, config);
         this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext);
+        this.tenantManager = new TenantManager(tenantNames);
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
@@ -142,7 +141,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         log.trace("User's '{}' requested tenant is '{}'", user.getName(), requestedTenant);
 
-        if (requestedTenant == null || requestedTenant.length() == 0) {
+        if (tenantManager.isGlobalTenant(requestedTenant)) {
             //requestedTenant = Tenant.GLOBAL_TENANT_ID;
             return SyncAuthorizationFilter.Result.OK;
         }
@@ -165,8 +164,10 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         Optional<RequestHandler<ActionRequest>> requestHandler = requestHandlerFactory.requestHandlerFor(request);
 
+        String internalTenantName = tenantManager.toInternalTenantName(context.getUser());
+
         return requestHandler
-                .map(handler -> handler.handle(context, requestedTenant, (ActionRequest) request, listener))
+                .map(handler -> handler.handle(context, internalTenantName, (ActionRequest) request, listener))
                 .orElseGet(() -> {
                     if (log.isTraceEnabled()) {
                         log.trace("Not giving {} special treatment for FEMT", request);
@@ -178,13 +179,13 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private boolean isTenantAllowed(PrivilegesEvaluationContext context, ActionRequest request, Action action, String requestedTenant)
             throws PrivilegesEvaluationException {
 
-        if (!isTenantValid(requestedTenant)) {
+        if (!tenantManager.isTenantValid(requestedTenant)) {
             log.warn("Invalid tenant: " + requestedTenant + "; user: " + context.getUser());
 
             return false;
         }
 
-        if (requestedTenant.equals(USER_TENANT)) {
+        if (tenantManager.isUserTenant(requestedTenant)) {
             return true;
         }
 
@@ -322,7 +323,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, roles, null, null, false, null, null);
 
-        for (String tenant : this.tenantNames) {
+        for (String tenant : tenantManager.getTenantNames()) {
             try {
                 boolean hasReadPermission = tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, tenant).isOk();
                 boolean hasWritePermission = tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, tenant).isOk();
@@ -338,10 +339,6 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         }
 
         return result.build();
-    }
-
-    private boolean isTenantValid(String tenant) {
-        return User.USER_TENANT.equals(tenant) || tenantNames.contains(tenant);
     }
 
     private String toPatternFragment(Collection<String> indexSuffixes) {
