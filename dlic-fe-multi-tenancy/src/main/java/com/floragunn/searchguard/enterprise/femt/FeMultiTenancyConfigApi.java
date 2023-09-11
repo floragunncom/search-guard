@@ -17,6 +17,9 @@
 
 package com.floragunn.searchguard.enterprise.femt;
 
+import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.StartDataMigrationAction;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
@@ -41,7 +44,9 @@ public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
     public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
             new ActionHandler<>(FeMultiTenancyConfigApi.GetAction.INSTANCE, FeMultiTenancyConfigApi.GetAction.Handler.class),
             new ActionHandler<>(FeMultiTenancyConfigApi.PutAction.INSTANCE, FeMultiTenancyConfigApi.PutAction.Handler.class),
-            new ActionHandler<>(FeMultiTenancyConfigApi.PatchAction.INSTANCE, FeMultiTenancyConfigApi.PatchAction.Handler.class));
+            new ActionHandler<>(FeMultiTenancyConfigApi.PatchAction.INSTANCE, FeMultiTenancyConfigApi.PatchAction.Handler.class),
+            new ActionHandler<>(StartDataMigrationAction.INSTANCE, StartDataMigrationAction.StartDataMigrationHandler.class)
+        );
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
         public static final GetAction INSTANCE = new GetAction();
