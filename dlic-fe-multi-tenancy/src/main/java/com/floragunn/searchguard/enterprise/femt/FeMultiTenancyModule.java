@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.StartDataMigrationAction;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -241,12 +242,12 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
         return ImmutableList.of(new TenantInfoAction(settings, restController, this, threadPool, clusterService, adminDns),
-                FeMultiTenancyConfigApi.REST_API);
+                FeMultiTenancyConfigApi.REST_API, StartDataMigrationAction.REST_API);
     }
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return (List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>>) FeMultiTenancyConfigApi.ACTION_HANDLERS;
+        return (List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>>) (ImmutableList.of(FeMultiTenancyConfigApi.ACTION_HANDLERS));
     }
 
     @Override

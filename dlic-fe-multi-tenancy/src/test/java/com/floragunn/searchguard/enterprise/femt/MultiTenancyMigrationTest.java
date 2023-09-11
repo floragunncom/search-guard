@@ -28,7 +28,10 @@ public class MultiTenancyMigrationTest {
     private static final Logger log = LogManager.getLogger(MultiTenancyMigrationTest.class);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").enterpriseModulesEnabled()
+    public static LocalCluster cluster = new LocalCluster.Builder()
+        .sslEnabled()
+        .resources("multitenancy")
+        .enterpriseModulesEnabled()
         .build();
 
     @After
