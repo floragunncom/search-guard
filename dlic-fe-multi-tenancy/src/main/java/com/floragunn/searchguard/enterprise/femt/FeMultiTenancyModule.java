@@ -117,6 +117,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             }
 
             this.config = feMultiTenancyConfig;
+            log.debug("Setting front-end multi-tenancy '{}' for instance '{}'", this.config, System.identityHashCode(this));
 
             SgDynamicConfiguration<Tenant> tenantConfig = configMap.get(CType.TENANTS);
 
@@ -156,9 +157,8 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             }
         });
 
-        return Arrays.asList(privilegesInterceptor, new FeMultiTenancyConfigurationProvider(this));
+        return Arrays.asList(privilegesInterceptor, new FeMultiTenancyConfigurationProvider(this), new MultiTenancyConfigurationProvider(this));
     }
-
     private final PrivilegesInterceptor privilegesInterceptor = new PrivilegesInterceptor() {
 
         @Override
@@ -230,6 +230,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     }
 
     public FeMultiTenancyConfig getConfig() {
+        log.debug("Getting multi tenancy config '{}' for instance '{}'", config, System.identityHashCode(this));
         return config;
     }
 

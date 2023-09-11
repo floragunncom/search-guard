@@ -61,7 +61,8 @@ public record StepExecutionSummary(long number, LocalDateTime startTime, String 
     }
 
     StepExecutionSummary(long number, LocalDateTime startTime, String name, StepResult stepResult) {
-        this(number, startTime, name, Objects.requireNonNull(stepResult, "Step result is required").status(), stepResult.message());
+        this(number, startTime, name, Objects.requireNonNull(stepResult, "Step result is required").status(), stepResult.message(),
+            stepResult.details());
     }
 
     @Override
