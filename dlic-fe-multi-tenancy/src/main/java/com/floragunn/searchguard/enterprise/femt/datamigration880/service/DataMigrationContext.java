@@ -15,7 +15,7 @@ public class DataMigrationContext {
     private final String migrationId;
     private ImmutableList<TenantData> tenants;
 
-    DataMigrationContext(Clock clock) {
+    public DataMigrationContext(Clock clock) {
         this.startTime = LocalDateTime.now(clock);
         int instanceNumber = instanceCounter.incrementAndGet();
         String time = IndexNameDataFormatter.format(startTime);

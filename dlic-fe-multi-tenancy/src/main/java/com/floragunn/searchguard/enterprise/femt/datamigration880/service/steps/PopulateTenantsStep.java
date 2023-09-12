@@ -7,6 +7,7 @@ import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantData;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -15,10 +16,11 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
+import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.index.IndexNotFoundException;
 
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -26,8 +28,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.SUCCESS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static java.util.Objects.requireNonNull;
 
 class PopulateTenantsStep implements MigrationStep {
@@ -47,14 +49,14 @@ class PopulateTenantsStep implements MigrationStep {
         ImmutableSet<String> configuredTenants = configurationProvider.getTenantNames();
         return configurationProvider.getConfig() //
             .map(config -> executeWithConfig(config, dataMigrationContext, configuredTenants)) //
-            .orElse(new StepResult(FAILURE, "Cannot retrieve multi tenancy configuration"));
+            .orElse(new StepResult(INDICES_NOT_FOUND_ERROR, "Cannot retrieve multi tenancy configuration"));
     }
 
     public StepResult executeWithConfig(FeMultiTenancyConfig config, DataMigrationContext dataMigrationContext,
         ImmutableSet<String> configuredTenants) {
         log.debug("Searching for tenants, provided configuration '{}' and tenant names '{}'.", config, configuredTenants);
         if(!config.isEnabled()) {
-            return new StepResult(FAILURE, "Frontend multi-tenancy is not enabled.", "Current configuration " + config);
+            return new StepResult(INDICES_NOT_FOUND_ERROR, "Frontend multi-tenancy is not enabled.", "Current configuration " + config);
         }
         Stream<TenantData> configuredTenantDataStream = configuredTenants.stream() //
             .filter(name -> !Tenant.GLOBAL_TENANT_ID.equals(name)) //
@@ -70,23 +72,21 @@ class PopulateTenantsStep implements MigrationStep {
         ImmutableList<TenantData> privateTenants = findPrivateTenants(config.getIndex(), tenantIndices);
         tenants.addAll(privateTenants);
         if(tenants.isEmpty()) {
-            return new StepResult(FAILURE, "Indices related to front-end multi tenancy not found.");
+            return new StepResult(INDICES_NOT_FOUND_ERROR, "Indices related to front-end multi tenancy not found.");
         }
         List<TenantData> globalTenants = tenants.stream().filter(TenantData::isGlobal).toList();
         if(globalTenants.size() != 1) {
             String message = "Definition of exactly one global tenant is expected, but found " + globalTenants.size();
             String globalTenantsString = globalTenants.stream().map(Object::toString).collect(Collectors.joining(", "));
-            return new StepResult(FAILURE, message, "List of global tenants: " + globalTenantsString);
-            // TODO check if global tenant exist
-            // TODO what to do when the global tenant does not exists
+            return new StepResult(StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR, message, "List of global tenants: " + globalTenantsString);
         }
         dataMigrationContext.setTenants(ImmutableList.of(tenants));
         String stringTenantList = tenants.stream() //
-            .map(data -> "tenant " + data.tenantName() + " -> " + data.indexName()) //
+            .map(data -> "tenant " + (data.isUserTenant() ? "__user__" : data.tenantName()) + " -> " + data.indexName()) //
             .collect(Collectors.joining(", "));
         String details = "Tenants found for migration: " + stringTenantList;
         String message = "Populates " +  tenants.size() + " tenants' data for migration";
-        return new StepResult(SUCCESS, message, details);
+        return new StepResult(OK, message, details);
     }
 
     private TenantData resolveIndexAlias(TenantData tenantData) {
@@ -110,7 +110,7 @@ class PopulateTenantsStep implements MigrationStep {
         return result.toString();
     }
 
-    public Optional<String> getIndexNameByAliasName(String aliasName) {
+    private Optional<String> getIndexNameByAliasName(String aliasName) {
         GetIndexRequest request = new GetIndexRequest();
         request.indices(aliasName);
         try {
@@ -126,16 +126,28 @@ class PopulateTenantsStep implements MigrationStep {
     }
 
     private ImmutableList<TenantData> findPrivateTenants(String validIndexPrefix, Set<String> alreadyFoundIndices) {
-        Pattern pattern = Pattern.compile(Pattern.quote(validIndexPrefix) + "(_-?[0-9]+_[a-z0-9]+(_[0-9]{3})?)");
+        Pattern pattern = Pattern.compile(Pattern.quote(validIndexPrefix) + "_-?\\d+_[a-z0-9]+\\b");
         GetIndexResponse indices = client.admin().indices().getIndex(new GetIndexRequest().indices("*")).actionGet();
         // TODO check implementation
-        List<TenantData> privateTenants = Arrays.stream(indices.getIndices())
-            .filter(indexName -> indexName.startsWith(validIndexPrefix))
-            .filter(indexName -> ! alreadyFoundIndices.contains(indexName))
-            .filter(indexName -> pattern.matcher(indexName).matches())
-            .map(indexName -> new TenantData(indexName, null))
+        List<TenantData> privateTenants = indices.aliases()
+            .entrySet()
+            .stream()
+            .filter(entry -> ! alreadyFoundIndices.contains(entry.getKey()))
+            .peek(entry -> log.trace("Checking if index {} is private user tenant index", entry.getKey()))
+            .filter(entry -> isPrivateUserTenantIndex(pattern, entry))
+            .map(entry -> new TenantData(entry.getKey(), null))
             .collect(Collectors.toList());
         log.debug("Private tenant related index found: '{}'", privateTenants);
         return ImmutableList.of(privateTenants);
+    }
+
+    private boolean isPrivateUserTenantIndex(Pattern aliasNamePattern, Map.Entry<String, List<AliasMetadata>> entry) {
+        for(AliasMetadata aliasMetadata : entry.getValue()) {
+            String currentAlias = aliasMetadata.alias();
+            if(aliasNamePattern.matcher(currentAlias).matches()) {
+                return true;
+            }
+        }
+        return false;
     }
 }

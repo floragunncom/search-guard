@@ -13,6 +13,7 @@ import java.util.Objects;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.IN_PROGRESS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.SUCCESS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNEXPECTED_ERROR;
 
 class DataMigrationExecutor {
 
@@ -51,13 +52,13 @@ class DataMigrationExecutor {
                 ExecutionStatus status = lastStep ? (result.isSuccess() ? SUCCESS : FAILURE) : (result.isSuccess() ? IN_PROGRESS : FAILURE);
                 var migrationSummary = persistState(dataMigrationContext, accomplishedSteps, status);
                 log.info("Step '{}' executed with result '{}", step.name(), result);
-                if(lastStep || (!SUCCESS.equals(result.status()))) {
+                if(lastStep || result.isFailure()) {
                     return migrationSummary;
                 }
             } catch (Exception ex) {
                 String stepName = step.name();
                 String message = "Unexpected error: " + ex.getMessage();
-                accomplishedSteps.add(new StepExecutionSummary(i, stepStartTime, stepName, FAILURE, message, ex));
+                accomplishedSteps.add(new StepExecutionSummary(i, stepStartTime, stepName, UNEXPECTED_ERROR, message, ex));
                 log.error("Unexpected error occured during execution of data migration step '{}' which is '{}'.", i, stepName, ex);
                 return persistState(dataMigrationContext, accomplishedSteps, FAILURE);
             }

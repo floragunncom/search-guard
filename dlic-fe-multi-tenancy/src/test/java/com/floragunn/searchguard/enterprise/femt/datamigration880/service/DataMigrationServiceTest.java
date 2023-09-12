@@ -23,6 +23,7 @@ import java.util.Optional;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.IN_PROGRESS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.SUCCESS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
 import static org.apache.http.HttpStatus.SC_CONFLICT;
 import static org.apache.http.HttpStatus.SC_GONE;
@@ -240,7 +241,7 @@ public class DataMigrationServiceTest {
     }
 
     private void mockOneSuccessfulStep() {
-        when(step.execute(any(DataMigrationContext.class))).thenReturn(new StepResult(SUCCESS, MESSAGE));
+        when(step.execute(any(DataMigrationContext.class))).thenReturn(new StepResult(OK, MESSAGE));
         when(step.name()).thenReturn(STEP_NAME);
         when(stepFactory.createSteps()).thenReturn(ImmutableList.of(step));
     }

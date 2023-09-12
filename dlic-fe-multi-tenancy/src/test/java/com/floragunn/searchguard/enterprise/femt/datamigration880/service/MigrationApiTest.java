@@ -56,9 +56,33 @@ public class MigrationApiTest {
         Client client = cluster.getInternalNodeClient();
         for(String alias : aliasNames) {
             String indexName = alias + "_8.7.0_001";
-            client.admin().indices().create(new CreateIndexRequest(indexName).alias(new Alias(alias))).actionGet();
+            String shortAlias = alias + "_8.7.0";
+            CreateIndexRequest request = new CreateIndexRequest(indexName).alias(new Alias(alias)).alias(new Alias(shortAlias));
+            client.admin().indices().create(request).actionGet();
         }
-        client.admin().indices().create(new CreateIndexRequest(".kibana_8.7.0_001").alias(new Alias(".kibana_8.7.0"))).actionGet();
+        // global tenant index
+        client.admin()
+            .indices() //
+            .create(new CreateIndexRequest(".kibana_8.7.0_001") //
+                .alias(new Alias(".kibana_8.7.0")) //
+                .alias(new Alias(".kibana"))) //
+            .actionGet();
+        // user tenant indices
+        String[][] userIndicesAndAliases = new String[][] {
+            //{"index name", "long alias", "short alias"}
+            {".kibana_3292183_kirk_8.7.0_001", ".kibana_3292183_kirk_8.7.0", ".kibana_3292183_kirk" },// kirk
+            {".kibana_-1091682490_lukasz_8.7.0_001", ".kibana_-1091682490_lukasz_8.7.0", ".kibana_-1091682490_lukasz"}, //lukasz
+            {".kibana_739988528_ukasz_8.7.0_001", ".kibana_739988528_ukasz_8.7.0", ".kibana_739988528_ukasz"}, //łukasz
+            {".kibana_-1091714203_luksz_8.7.0_001", ".kibana_-1091714203_luksz_8.7.0", ".kibana_-1091714203_luksz"}//luk@sz
+        };
+        for(String[] privateUserTenant : userIndicesAndAliases) {
+            client.admin()
+                .indices() //
+                .create(new CreateIndexRequest(privateUserTenant[0]) //
+                    .alias(new Alias(privateUserTenant[1])) //
+                    .alias(new Alias(privateUserTenant[2]))) //
+                .actionGet();
+        }
     }
 
     @Before

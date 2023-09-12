@@ -11,6 +11,8 @@ import org.junit.Test;
 
 import java.time.LocalDateTime;
 
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNEXPECTED_ERROR;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containSubstring;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -46,7 +48,7 @@ public class MigrationExecutionSummaryTest {
         assertThat(docNode, containsValue("$.backup_index_name", BACKUP_INDEX_NAME));
         assertThat(docNode, containsValue("$.stages[0].start_time", "2023-05-25T12:07:00.000Z"));
         assertThat(docNode, containsValue("$.stages[0].name", STEP_NAME));
-        assertThat(docNode, containsValue("$.stages[0].status", "success"));
+        assertThat(docNode, containsValue("$.stages[0].status", "ok"));
         assertThat(docNode, containsValue("$.stages[0].message", STEP_MESSAGE));
         assertThat(docNode, containsValue("$.stages[0].details", STEP_DETAILS));
     }
@@ -55,7 +57,7 @@ public class MigrationExecutionSummaryTest {
     public void shouldIncorporateStackTraceInMessageDetails() throws DocumentParseException {
         String message = "The stack trace should be incorporated into step summary";
         RuntimeException exception = new RuntimeException(message);
-        var stepSummary = new StepExecutionSummary(STEP_NO, NOW, STEP_NAME, ExecutionStatus.FAILURE, STEP_MESSAGE, exception);
+        var stepSummary = new StepExecutionSummary(STEP_NO, NOW, STEP_NAME, UNEXPECTED_ERROR, STEP_MESSAGE, exception);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
         MigrationExecutionSummary summary = new MigrationExecutionSummary(NOW, ExecutionStatus.FAILURE, null, null, stages, null);
 
@@ -73,7 +75,7 @@ public class MigrationExecutionSummaryTest {
 
 
     private static MigrationExecutionSummary createSummary(LocalDateTime startTime, ExecutionStatus status) {
-        StepExecutionSummary step = new StepExecutionSummary(STEP_NO, NOW, STEP_NAME, ExecutionStatus.SUCCESS, STEP_MESSAGE, STEP_DETAILS);
+        StepExecutionSummary step = new StepExecutionSummary(STEP_NO, NOW, STEP_NAME, OK, STEP_MESSAGE, STEP_DETAILS);
         return new MigrationExecutionSummary(startTime, status, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, ImmutableList.of(step));
     }
 
