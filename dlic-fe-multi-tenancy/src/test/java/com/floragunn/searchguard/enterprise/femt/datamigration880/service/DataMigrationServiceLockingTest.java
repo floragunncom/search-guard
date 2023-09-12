@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNEXPECTED_ERROR;
-import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containSubstring;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
 import static org.apache.http.HttpStatus.SC_CONFLICT;

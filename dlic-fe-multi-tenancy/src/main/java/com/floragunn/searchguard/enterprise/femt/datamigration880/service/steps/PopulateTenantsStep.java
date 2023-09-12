@@ -7,7 +7,6 @@ import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
-import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantData;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -28,7 +27,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_DISABLED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static java.util.Objects.requireNonNull;
 
@@ -47,22 +49,27 @@ class PopulateTenantsStep implements MigrationStep {
     @Override
     public StepResult execute(DataMigrationContext dataMigrationContext) {
         ImmutableSet<String> configuredTenants = configurationProvider.getTenantNames();
-        return configurationProvider.getConfig() //
-            .map(config -> executeWithConfig(config, dataMigrationContext, configuredTenants)) //
+        Optional<FeMultiTenancyConfig> optional = configurationProvider.getConfig();
+        if(optional.isEmpty()) {
+            return new StepResult(MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR, "Cannot load SearchGuard multi tenancy config.");
+        }
+        return optional.map(config -> executeWithConfig(config, dataMigrationContext, configuredTenants)) //
             .orElse(new StepResult(INDICES_NOT_FOUND_ERROR, "Cannot retrieve multi tenancy configuration"));
     }
 
-    public StepResult executeWithConfig(FeMultiTenancyConfig config, DataMigrationContext dataMigrationContext,
+    private StepResult executeWithConfig(FeMultiTenancyConfig config, DataMigrationContext dataMigrationContext,
         ImmutableSet<String> configuredTenants) {
         log.debug("Searching for tenants, provided configuration '{}' and tenant names '{}'.", config, configuredTenants);
         if(!config.isEnabled()) {
-            return new StepResult(INDICES_NOT_FOUND_ERROR, "Frontend multi-tenancy is not enabled.", "Current configuration " + config);
+            String details = "Current configuration " + config;
+            String message = "Frontend multi-tenancy is not enabled.";
+            return new StepResult(MULTI_TENANCY_DISABLED_ERROR, message, details);
         }
         Stream<TenantData> configuredTenantDataStream = configuredTenants.stream() //
             .filter(name -> !Tenant.GLOBAL_TENANT_ID.equals(name)) //
             .sorted() //
             .map(name -> new TenantData(toInternalIndexName(config, name), name));// here we have an index alias
-        TenantData globalTenant = new TenantData(".kibana_8.7.0", Tenant.GLOBAL_TENANT_ID);
+        TenantData globalTenant = new TenantData(".kibana_8.7.0", Tenant.GLOBAL_TENANT_ID);// here we have an index alias as well
         List<TenantData> tenants = Stream.concat(Stream.of(globalTenant), configuredTenantDataStream) //
             .map(this::resolveIndexAlias) //
             .filter(Objects::nonNull) //
@@ -78,11 +85,11 @@ class PopulateTenantsStep implements MigrationStep {
         if(globalTenants.size() != 1) {
             String message = "Definition of exactly one global tenant is expected, but found " + globalTenants.size();
             String globalTenantsString = globalTenants.stream().map(Object::toString).collect(Collectors.joining(", "));
-            return new StepResult(StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR, message, "List of global tenants: " + globalTenantsString);
+            return new StepResult(GLOBAL_TENANT_NOT_FOUND_ERROR, message, "List of global tenants: " + globalTenantsString);
         }
         dataMigrationContext.setTenants(ImmutableList.of(tenants));
         String stringTenantList = tenants.stream() //
-            .map(data -> "tenant " + (data.isUserTenant() ? "__user__" : data.tenantName()) + " -> " + data.indexName()) //
+            .map(data -> "tenant " + (data.isUserPrivateTenant() ? "__user__" : data.tenantName()) + " -> " + data.indexName()) //
             .collect(Collectors.joining(", "));
         String details = "Tenants found for migration: " + stringTenantList;
         String message = "Populates " +  tenants.size() + " tenants' data for migration";
@@ -119,8 +126,7 @@ class PopulateTenantsStep implements MigrationStep {
             log.debug("Alias '{}' is related to index '{}'.", aliasName, indexName);
             return Optional.ofNullable(indexName);
         } catch (IndexNotFoundException ex) {
-            // TODO maybe this should be treated as error
-            log.debug("Cannot find index by alias '{}'", aliasName);
+            log.warn("Index '{}' with front-end data does not exist, its data will be not used during migration.", aliasName);
             return Optional.empty();
         }
     }

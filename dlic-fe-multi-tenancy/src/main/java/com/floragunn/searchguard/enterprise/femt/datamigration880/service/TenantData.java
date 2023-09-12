@@ -14,7 +14,7 @@ public record TenantData(String indexName, @Nullable String tenantName) {
         return Tenant.GLOBAL_TENANT_ID.equals(tenantName);
     }
 
-    public boolean isUserTenant() {
+    public boolean isUserPrivateTenant() {
         return Strings.isNullOrEmpty(tenantName);
     }
 }
