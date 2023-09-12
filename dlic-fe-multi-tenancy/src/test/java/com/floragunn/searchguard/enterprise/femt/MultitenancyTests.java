@@ -244,7 +244,6 @@ public class MultitenancyTests {
         }
     }
 
-    @Ignore
     @Test
     public void testKibanaAlias65() throws Exception {
 
@@ -256,11 +255,8 @@ public class MultitenancyTests {
                 indexSettings.put("number_of_replicas", 0);
                 tc.admin().indices().create(new CreateIndexRequest(".kibana_1").alias(new Alias(".kibana")).settings(indexSettings)).actionGet();
 
-                tc.index(new IndexRequest(".kibana_1").id("6.2.2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
+                tc.index(new IndexRequest(".kibana_1").id("6.2.2__sg_ten__-900636979_kibanaro").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
                         .actionGet();
-                tc.index(new IndexRequest(".kibana_-900636979_kibanaro").id("6.2.2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body,
-                        XContentType.JSON)).actionGet();
-
             }
 
             try (GenericRestClient client = cluster.getRestClient("kibanaro", "kibanaro")) {
@@ -268,8 +264,8 @@ public class MultitenancyTests {
                 GenericRestClient.HttpResponse res;
                 Assert.assertEquals(HttpStatus.SC_OK,
                         (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-                //System.out.println(res.getBody());
-                Assert.assertTrue(res.getBody().contains(".kibana_-900636979_kibanaro"));
+                Assert.assertTrue(res.getBody().contains(".kibana_1"));
+                Assert.assertTrue(res.getBody().contains("15460"));
             }
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
@@ -309,43 +305,6 @@ public class MultitenancyTests {
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana_7.12.0_001")).actionGet();
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
-    @Ignore
-    @Test
-    public void testAliasCreationKibana_7_12() throws Exception {
-        try {
-            try (RestHighLevelClient tenantClient = cluster.getRestHighLevelClient("admin", "admin", "kibana_7_12_alias_creation_test");
-                 Client client = cluster.getInternalNodeClient()) {
-                IndexResponse indexResponse = tenantClient.index(".kibana_7.12.0_001","test", Map.of("buildNum", 15460));
-                Assert.assertEquals(indexResponse.toString(), indexResponse.result(), Result.Created);
-                Assert.assertEquals(indexResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", indexResponse.index());
-
-                UpdateAliasesResponse ackResponse = tenantClient.getJavaClient().indices().updateAliases(b->b.actions(
-                        a->a.add(ac->ac.index(".kibana_7.12.0_001").alias(".kibana_7.12.0")))
-                );
-
-                Assert.assertTrue(ackResponse.toString(), ackResponse.acknowledged());
-
-                GetResponse<Map> getResponse = tenantClient.get(".kibana_7.12.0", "test");
-
-                Assert.assertEquals(getResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", getResponse.index());
-
-                GetAliasesResponse getAliasesResponse = client.admin().indices()
-                        .getAliases(new GetAliasesRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0")).actionGet();
-
-                Assert.assertNotNull(getAliasesResponse.getAliases().toString(),
-                        getAliasesResponse.getAliases().get(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001"));
-                Assert.assertEquals(getAliasesResponse.getAliases().toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0",
-                        getAliasesResponse.getAliases().get(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001").get(0).alias());
-
-            }
-        } finally {
-            try (Client tc = cluster.getInternalNodeClient()) {
-                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001")).actionGet();
             } catch (Exception ignored) {
             }
         }
