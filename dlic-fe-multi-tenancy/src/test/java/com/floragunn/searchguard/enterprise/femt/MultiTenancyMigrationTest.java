@@ -7,10 +7,12 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
@@ -76,15 +78,18 @@ public class MultiTenancyMigrationTest {
             response = client.putJson("/.kibana_8.8.0_001/_doc/" + documentId, requestBody.toJsonString());
             assertThat(response.getStatusCode(), equalTo(SC_CREATED));
             DocNode termSearchRequest = DocNode.of("query", DocNode.of("term", DocNode.of("sg_tenant", DocNode.of("value", tenantName))));
-            Thread.sleep(3000); //TODO active waiting
-            response = client.postJson("/.kibana_8.8.0_001/_search", termSearchRequest.toJsonString());
-            log.info("Term search response status '{}' and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_OK));
-            body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("$.hits.total.value", 1));
-            assertThat(body, containsValue("$.hits.hits[0]._id", "my_test_space"));
-            assertThat(body, containsValue("$.hits.hits[0]._source.type", "space"));
-            assertThat(body, containsValue("$.hits.hits[0]._source.sg_tenant", tenantName));
+            Awaitility.await().atMost(Duration.ofSeconds(3)).pollInterval(Duration.ofMillis(50))
+                    .alias("Inserted document contains sg_tenant field")
+                    .untilAsserted(() ->{
+                        HttpResponse searchResponse = client.postJson("/.kibana_8.8.0_001/_search", termSearchRequest.toJsonString());
+                        log.info("Term search response status '{}' and body '{}'", searchResponse.getStatusCode(), searchResponse.getBody());
+                        assertThat(searchResponse.getStatusCode(), equalTo(SC_OK));
+                        DocNode searchResponseBody = searchResponse.getBodyAsDocNode();
+                        assertThat(searchResponseBody, containsValue("$.hits.total.value", 1));
+                        assertThat(searchResponseBody, containsValue("$.hits.hits[0]._id", "my_test_space"));
+                        assertThat(searchResponseBody, containsValue("$.hits.hits[0]._source.type", "space"));
+                        assertThat(searchResponseBody, containsValue("$.hits.hits[0]._source.sg_tenant", tenantName));
+                    });
         }
     }
 
