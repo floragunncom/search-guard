@@ -50,7 +50,6 @@ import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
@@ -141,7 +140,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         log.trace("User's '{}' requested tenant is '{}'", user.getName(), requestedTenant);
 
-        if (tenantManager.isGlobalTenant(requestedTenant)) {
+        if (tenantManager.isTenantHeaderEmpty(requestedTenant)) {
             //requestedTenant = Tenant.GLOBAL_TENANT_ID;
             return SyncAuthorizationFilter.Result.OK;
         }
@@ -179,13 +178,13 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private boolean isTenantAllowed(PrivilegesEvaluationContext context, ActionRequest request, Action action, String requestedTenant)
             throws PrivilegesEvaluationException {
 
-        if (!tenantManager.isTenantValid(requestedTenant)) {
+        if (!tenantManager.isTenantHeaderValid(requestedTenant)) {
             log.warn("Invalid tenant: " + requestedTenant + "; user: " + context.getUser());
 
             return false;
         }
 
-        if (tenantManager.isUserTenant(requestedTenant)) {
+        if (tenantManager.isUserTenantHeader(requestedTenant)) {
             return true;
         }
 

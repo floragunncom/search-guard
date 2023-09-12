@@ -11,35 +11,42 @@ public class TenantManager {
 
     private static final String USER_TENANT = "__user__";
 
-    private final ImmutableSet<String> tenantNames;
+    private final ImmutableSet<String> configuredTenants;
 
     public TenantManager(Set<String> tenantNames) {
-        this.tenantNames = ImmutableSet.of(tenantNames).with(Tenant.GLOBAL_TENANT_ID);
+        this.configuredTenants = ImmutableSet.of(tenantNames);
     }
 
-    public boolean isTenantValid(String tenant) {
-        return USER_TENANT.equals(tenant) || tenantNames.contains(tenant);
+    public boolean isTenantHeaderValid(String tenant) {
+        return Tenant.GLOBAL_TENANT_ID.equals(tenant) || USER_TENANT.equals(tenant) || configuredTenants.contains(tenant);
     }
 
-    public boolean isUserTenant(String tenant) {
+    public boolean isUserTenantHeader(String tenant) {
         return USER_TENANT.equals(tenant);
     }
 
-    public boolean isGlobalTenant(String tenant) {
+    public boolean isGlobalTenantHeader(String tenant) {
+        return Tenant.GLOBAL_TENANT_ID.equals(tenant);
+    }
+
+    public boolean isTenantHeaderEmpty(String tenant) {
         return tenant == null || tenant.isEmpty();
     }
 
     public String toInternalTenantName(User user) {
         final String requestedTenant = user.getRequestedTenant();
-        if (isUserTenant(requestedTenant)) {
+        if (isUserTenantHeader(requestedTenant)) {
             return toInternalTenantName(user.getName());
         } else {
             return toInternalTenantName(requestedTenant);
         }
     }
 
+    /**
+     * @return set of all known tenant names - global tenant and tenants defined in configuration
+     */
     public ImmutableSet<String> getTenantNames() {
-        return tenantNames;
+        return configuredTenants.with(Tenant.GLOBAL_TENANT_ID);
     }
 
     private String toInternalTenantName(String tenant) {
