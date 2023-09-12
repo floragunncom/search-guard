@@ -241,8 +241,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
-        return ImmutableList.of(new TenantInfoAction(settings, restController, this, threadPool, clusterService, adminDns),
-                FeMultiTenancyConfigApi.REST_API, StartDataMigrationAction.REST_API);
+        return ImmutableList.of(FeMultiTenancyConfigApi.REST_API, StartDataMigrationAction.REST_API);
     }
 
     @Override
