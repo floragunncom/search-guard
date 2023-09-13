@@ -23,11 +23,11 @@
       <artifactId>opensaml-xmlsec-impl-patched</artifactId>
     </dependency>
     <!--TODO temporary solution do not commit to repository-->
-<!--    <dependency>-->
-<!--      <groupId>com.floragunn.dependencies.org.opensaml</groupId>-->
-<!--      <artifactId>opensaml-xmlsec-impl-patched</artifactId>-->
-<!--      <version>4.3.0-1.0.3</version>-->
-<!--    </dependency>-->
+    <!--    <dependency>-->
+    <!--      <groupId>com.floragunn.dependencies.org.opensaml</groupId>-->
+    <!--      <artifactId>opensaml-xmlsec-impl-patched</artifactId>-->
+    <!--      <version>4.3.0-1.0.3</version>-->
+    <!--    </dependency>-->
 
     <dependency>
       <groupId>com.onelogin</groupId>

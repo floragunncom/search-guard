@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
+import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.index.IndexNotFoundException;
 
@@ -133,8 +134,8 @@ class PopulateTenantsStep implements MigrationStep {
 
     private ImmutableList<TenantData> findPrivateTenants(String validIndexPrefix, Set<String> alreadyFoundIndices) {
         Pattern pattern = Pattern.compile(Pattern.quote(validIndexPrefix) + "_-?\\d+_[a-z0-9]+\\b");
-        GetIndexResponse indices = client.admin().indices().getIndex(new GetIndexRequest().indices("*")).actionGet();
-        // TODO check implementation
+        GetIndexRequest request = new GetIndexRequest().indices("*").indicesOptions(IndicesOptions.strictExpandHidden());
+        GetIndexResponse indices = client.admin().indices().getIndex(request).actionGet();
         List<TenantData> privateTenants = indices.aliases()
             .entrySet()
             .stream()

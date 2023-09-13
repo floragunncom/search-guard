@@ -18,6 +18,7 @@ import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -48,13 +49,11 @@ import static com.floragunn.searchguard.support.PrivilegedConfigClient.adapt;
 import static org.apache.http.HttpStatus.SC_CREATED;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -81,7 +80,7 @@ public class MigrationStepTest {
         .enterpriseModulesEnabled()
         .build();
 
-    private Clock clock = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
+    private final Clock clock = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
     private DataMigrationContext context;
 
     @Mock
@@ -108,6 +107,7 @@ public class MigrationStepTest {
             CreateIndexRequest request = new CreateIndexRequest(index.indexName()) //
                 .alias(new Alias(index.shortAlias())) //
                 .alias(new Alias(index.longAlias()));
+            request.settings(Settings.builder().put("index.hidden", true));
             cluster.getInternalNodeClient().admin().indices().create(request).actionGet();
             createdIndices.add(index);
         }
@@ -172,7 +172,7 @@ public class MigrationStepTest {
     @Test
     public void shouldBreakMigrationProcessWhenGlobalTenantIndexIsNotFound() {
         List<DoubleAliasIndex> configuredTenantIndices = getIndicesForConfiguredTenantsWithoutGlobal(".kibana");
-        createIndex(configuredTenantIndices.toArray(size -> new DoubleAliasIndex[size]));
+        createIndex(configuredTenantIndices.toArray(DoubleAliasIndex[]::new));
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
 
         StepResult result = populateTenantsStep.execute(context);
@@ -184,7 +184,7 @@ public class MigrationStepTest {
     @Test
     public void shouldFindAllConfiguredTenants() {
         List<DoubleAliasIndex> configuredTenantIndices = getIndicesForConfiguredTenantsWithoutGlobal(".kibana");
-        createIndex(configuredTenantIndices.toArray(size -> new DoubleAliasIndex[size]));
+        createIndex(configuredTenantIndices.toArray(DoubleAliasIndex[]::new));
         createIndex(GLOBAL_TENANT_INDEX);
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
 
@@ -195,7 +195,7 @@ public class MigrationStepTest {
         assertThat(context.getTenants().size(), greaterThan(20));
         List<String> tenantsFoundByStep = context.getTenants().stream().map(TenantData::tenantName).collect(Collectors.toList());
         MultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(MultiTenancyConfigurationProvider.class);
-        String[] tenantsFromConfiguration = configurationProvider.getTenantNames().toArray(size -> new String[size]);
+        String[] tenantsFromConfiguration = configurationProvider.getTenantNames().toArray(String[]::new);
         assertThat(tenantsFoundByStep, containsInAnyOrder(tenantsFromConfiguration));
     }
 
@@ -230,7 +230,7 @@ public class MigrationStepTest {
         indices.add(GLOBAL_TENANT_INDEX);
         indices.addAll(getIndicesForConfiguredTenantsWithoutGlobal(".kibana"));
         indices.addAll(generatePrivateTenantNames(".kibana", 101));
-        createIndex(indices.toArray(size -> new DoubleAliasIndex[size]));
+        createIndex(indices.toArray(DoubleAliasIndex[]::new));
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
 
         StepResult result = populateTenantsStep.execute(context);
@@ -312,11 +312,12 @@ public class MigrationStepTest {
     }
 
     private List<DoubleAliasIndex> getIndicesForConfiguredTenantsWithoutGlobal(String indexNamePrefix) {
+        //TODO why this parameter is not used?
         MultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(MultiTenancyConfigurationProvider.class);
         return configurationProvider.getTenantNames() //
             .stream() //
             .filter(name -> !Tenant.GLOBAL_TENANT_ID.equals(name)) //
-            .map(tenantName -> DoubleAliasIndex.forTenant(tenantName)) //
+            .map(DoubleAliasIndex::forTenant) //
             .toList();
     }
 
@@ -334,8 +335,7 @@ public class MigrationStepTest {
     private static PopulateTenantsStep createPopulateTenantsStep() {
         MultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(MultiTenancyConfigurationProvider.class);
         Client client = cluster.getInternalNodeClient();
-        PopulateTenantsStep populateTenantsStep = new PopulateTenantsStep(configurationProvider, adapt(client));
-        return populateTenantsStep;
+        return new PopulateTenantsStep(configurationProvider, adapt(client));
     }
 
     private record DoubleAliasIndex(String indexName, String shortAlias, String longAlias) {
