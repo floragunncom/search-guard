@@ -24,6 +24,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.AuthorizationConfig;
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.authz.config.RoleMapping;
+import com.floragunn.searchguard.authz.config.Tenant;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -67,11 +73,6 @@ import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.authz.config.ActionGroup;
-import com.floragunn.searchguard.authz.config.AuthorizationConfig;
-import com.floragunn.searchguard.authz.config.Role;
-import com.floragunn.searchguard.authz.config.RoleMapping;
-import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigMap;
@@ -116,6 +117,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private ThreadContext threadContext;
 
     private PrivilegesInterceptor privilegesInterceptor;
+    private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
 
     private final boolean checkSnapshotRestoreWritePrivileges;
 
@@ -627,24 +629,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         return actionAuthorization.getTenants();
     }
 
-    public boolean multitenancyEnabled() {
-        return privilegesInterceptor != null && privilegesInterceptor.isEnabled();
-    }
-
-    /**
-     * @deprecated Even though this does not really belong to privileges evaluation, this is necessary to support KibanaInfoAction. This should be somehow moved to the MT module.
-     */
-    public String getKibanaServerUser() {
-        return privilegesInterceptor != null ? privilegesInterceptor.getKibanaServerUser() : "kibanaserver";
-    }
-
-    /**
-     * @deprecated Even though this does not really belong to privileges evaluation, this is necessary to support KibanaInfoAction. This should be somehow moved to the MT module.
-     */
-    public String getKibanaIndex() {
-        return privilegesInterceptor != null ? privilegesInterceptor.getKibanaIndex() : null;
-    }
-
     public boolean notFailOnForbiddenEnabled() {
         return authzConfig.isIgnoreUnauthorizedIndices();
     }
@@ -722,7 +706,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             ActionAuthorization actionAuthorization, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
         String requestedTenant = !Strings.isNullOrEmpty(user.getRequestedTenant()) ? user.getRequestedTenant() : Tenant.GLOBAL_TENANT_ID;
 
-        if (!multitenancyEnabled() && !Tenant.GLOBAL_TENANT_ID.equals(requestedTenant)) {
+        if (!multiTenancyConfigurationProvider.isMultiTenancyEnabled() && !Tenant.GLOBAL_TENANT_ID.equals(requestedTenant)) {
             log.warn("Denying request to non-default tenant because MT is disabled: " + requestedTenant);
             return PrivilegesEvaluationResult.INSUFFICIENT.reason("Multi-tenancy is disabled");
         }
@@ -734,7 +718,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         String requestedTenant = user.getRequestedTenant();
 
-        if (Strings.isNullOrEmpty(requestedTenant) || !multitenancyEnabled()) {
+        if (Strings.isNullOrEmpty(requestedTenant) || !multiTenancyConfigurationProvider.isMultiTenancyEnabled()) {
             return Tenant.GLOBAL_TENANT_ID;
         } else {
             return requestedTenant;
@@ -860,6 +844,10 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     public void setPrivilegesInterceptor(PrivilegesInterceptor privilegesInterceptor) {
         this.privilegesInterceptor = privilegesInterceptor;
+    }
+
+    public void setMultiTenancyConfigurationProvider(MultiTenancyConfigurationProvider multiTenancyConfigurationProvider) {
+        this.multiTenancyConfigurationProvider = multiTenancyConfigurationProvider;
     }
 
     public RoleBasedActionAuthorization getActionAuthorization() {

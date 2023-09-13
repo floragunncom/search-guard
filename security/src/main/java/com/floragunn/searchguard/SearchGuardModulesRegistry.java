@@ -29,8 +29,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
@@ -91,7 +91,7 @@ public class SearchGuardModulesRegistry {
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForNormalOperations;
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForAllOperations;
 
-    private PrivilegesInterceptor privilegesInterceptor;
+    private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
     private Set<String> moduleNames = new HashSet<>();
     private final Set<String> disabledModules;
     private final Settings settings;
@@ -191,10 +191,10 @@ public class SearchGuardModulesRegistry {
             typedComponentRegistry.register(module.getTypedComponents());
         }
 
-        List<Object> privilegesInterceptors = result.stream().filter(o -> o instanceof PrivilegesInterceptor).collect(Collectors.toList());
+        List<Object> multiTenancyConfigurationProviders = result.stream().filter(o -> MultiTenancyConfigurationProvider.class.isAssignableFrom(o.getClass())).toList();
 
-        if (privilegesInterceptors.size() != 0) {
-            this.privilegesInterceptor = (PrivilegesInterceptor) privilegesInterceptors.get(0);
+        if (!multiTenancyConfigurationProviders.isEmpty()) {
+            this.multiTenancyConfigurationProvider = (MultiTenancyConfigurationProvider) multiTenancyConfigurationProviders.get(0);
         }
 
         return result;
@@ -425,8 +425,8 @@ public class SearchGuardModulesRegistry {
         return Class.forName(className).getDeclaredConstructor().newInstance();
     }
 
-    public PrivilegesInterceptor getPrivilegesInterceptor() {
-        return privilegesInterceptor;
+    public MultiTenancyConfigurationProvider getMultiTenancyConfigurationProvider() {
+        return multiTenancyConfigurationProvider;
     }
 
     private static TypedComponentRegistry createTypedComponentRegistryWithDefaults() {
