@@ -479,7 +479,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             if (!sslOnly) {
                 handlers.add(
                         new SearchGuardInfoAction(settings, restController, authorizationService, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool), clusterService, adminDns));
-                handlers.add(new KibanaInfoAction(Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool), moduleRegistry.getMultiTenancyConfigurationProvider()));
+                handlers.add(new KibanaInfoAction(
+                        Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool),
+                        Objects.requireNonNull(moduleRegistry.getMultiTenancyConfigurationProvider())
+                ));
                 handlers.add(new SearchGuardHealthAction(settings, restController, cr));
                 handlers.add(new PermissionAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
 
