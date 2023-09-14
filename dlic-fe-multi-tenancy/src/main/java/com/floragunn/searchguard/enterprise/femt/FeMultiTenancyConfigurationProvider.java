@@ -35,7 +35,7 @@ public class FeMultiTenancyConfigurationProvider implements MultiTenancyConfigur
 
     @Override
     public String getKibanaIndex() {
-        return getConfig().map(FeMultiTenancyConfig::getServerUsername)
+        return getConfig().map(FeMultiTenancyConfig::getIndex)
                 .orElse(".kibana");
     }
 }

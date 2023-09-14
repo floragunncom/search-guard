@@ -68,7 +68,6 @@ import com.floragunn.searchguard.authc.rest.authenticators.HttpTrustedOriginAuth
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.LinkApiAuthenticationFrontend;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
@@ -191,10 +190,13 @@ public class SearchGuardModulesRegistry {
             typedComponentRegistry.register(module.getTypedComponents());
         }
 
-        List<Object> multiTenancyConfigurationProviders = result.stream().filter(o -> MultiTenancyConfigurationProvider.class.isAssignableFrom(o.getClass())).toList();
+        List<Object> multiTenancyConfigurationProviders = result.stream()
+                .filter(o -> MultiTenancyConfigurationProvider.class.isAssignableFrom(o.getClass())).toList();
 
         if (!multiTenancyConfigurationProviders.isEmpty()) {
             this.multiTenancyConfigurationProvider = (MultiTenancyConfigurationProvider) multiTenancyConfigurationProviders.get(0);
+        } else {
+            this.multiTenancyConfigurationProvider = MultiTenancyConfigurationProvider.DEFAULT;
         }
 
         return result;

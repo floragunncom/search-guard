@@ -74,15 +74,12 @@ public class KibanaInfoAction extends BaseRestHandler {
 
                     final User user = (User) threadContext.getTransient(ConfigConstants.SG_USER);
 
-                    Boolean mtEnabled = Objects.nonNull(multiTenancyConfigurationProvider)? multiTenancyConfigurationProvider.isMultiTenancyEnabled() : null;
-                    String kibanaIndex = Objects.nonNull(multiTenancyConfigurationProvider)? multiTenancyConfigurationProvider.getKibanaIndex() : null;
-                    String kibanaUser = Objects.nonNull(multiTenancyConfigurationProvider)? multiTenancyConfigurationProvider.getKibanaServerUser() : null;
                     builder.startObject();
                     builder.field("user_name", user == null ? null : user.getName());
                     builder.field("not_fail_on_forbidden_enabled", evaluator.notFailOnForbiddenEnabled());
-                    builder.field("kibana_mt_enabled", mtEnabled);
-                    builder.field("kibana_index", kibanaIndex);
-                    builder.field("kibana_server_user", kibanaUser);
+                    builder.field("kibana_mt_enabled", multiTenancyConfigurationProvider.isMultiTenancyEnabled());
+                    builder.field("kibana_index", multiTenancyConfigurationProvider.getKibanaIndex());
+                    builder.field("kibana_server_user", multiTenancyConfigurationProvider.getKibanaServerUser());
                     builder.field("kibana_rbac_enabled", false);
                     builder.endObject();
 
