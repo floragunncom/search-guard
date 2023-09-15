@@ -54,7 +54,7 @@ import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
-public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
+public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter {
 
     private static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX = "_reindex_temp";
 
@@ -77,8 +77,8 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private final RequestHandlerFactory requestHandlerFactory;
     private final TenantManager tenantManager;
 
-    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, TenantManager tenantManager,
-                                     Actions actions, ThreadContext threadContext, Client nodeClient) {
+    public MultiTenancyAuthorizationFilter(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, TenantManager tenantManager,
+                                           Actions actions, ThreadContext threadContext, Client nodeClient) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
