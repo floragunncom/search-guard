@@ -94,7 +94,7 @@ public class DataMigrationServiceLockingTest {
     }
 
     @Test(timeout = 10_000)
-    public void shouldNotAttemptToRerunMigrationTooEarly() throws InterruptedException, DocumentParseException {
+    public void shouldNotAttemptToRerunMigrationTooEarly() throws DocumentParseException {
         Clock nowClock = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
         Clock pastClock = Clock.offset(nowClock, Duration.ofSeconds(-1));
         //two services which represents two cluster nodes
@@ -117,7 +117,7 @@ public class DataMigrationServiceLockingTest {
         assertThat(responseBody, containsValue("$.data.stages[0].status", "migration_already_in_progress_error"));
         waitStep.enoughWaiting();//the first migration process can be finished very soon
         //verify that execution of the first data migration process is executed and accomplished correctly
-        Awaitility.await().until(() -> repository.findById("migration_8_8_0").get().status(), equalTo(ExecutionStatus.SUCCESS));
+        Awaitility.await().until(() -> repository.findById("migration_8_8_0").orElseThrow().status(), equalTo(ExecutionStatus.SUCCESS));
     }
 
     @Test

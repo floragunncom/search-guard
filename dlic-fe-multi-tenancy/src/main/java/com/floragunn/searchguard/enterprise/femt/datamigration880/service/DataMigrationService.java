@@ -11,6 +11,7 @@ import java.util.Objects;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_CREATE_STATUS_DOCUMENT_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_UPDATE_STATUS_DOCUMENT_LOCK_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MIGRATION_ALREADY_IN_PROGRESS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.STATUS_INDEX_ALREADY_EXISTS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
@@ -38,7 +39,7 @@ public class DataMigrationService {
             if (!migrationStateRepository.isIndexCreated()) {
                 migrationStateRepository.createIndex();
             }
-            return migrationStateRepository.findById(DataMigrationExecutor.MIGRATION_ID) //
+            return migrationStateRepository.findById(MigrationStepsExecutor.MIGRATION_ID) //
                 .map(this::restartMigration) //
                 .orElseGet(this::performFirstMigrationStart);
         } catch (IndexAlreadyExistsException e) {
@@ -51,7 +52,7 @@ public class DataMigrationService {
     }
 
     private StandardResponse executeMigrationSteps() {
-        DataMigrationExecutor executor = new DataMigrationExecutor(migrationStateRepository, clock, stepsFactory.createSteps());
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(migrationStateRepository, clock, stepsFactory.createSteps());
         MigrationExecutionSummary summary = executor.execute();
         int httpStatus = summary.isSuccessful() ? SC_OK : SC_INTERNAL_SERVER_ERROR;
         return new StandardResponse(httpStatus).data(summary);
@@ -61,7 +62,7 @@ public class DataMigrationService {
         LocalDateTime now = LocalDateTime.now(clock);
         MigrationExecutionSummary summary = migrationStartedSummary(now, "The first start of data migration process");
         try {
-            migrationStateRepository.create(DataMigrationExecutor.MIGRATION_ID, summary);
+            migrationStateRepository.create(MigrationStepsExecutor.MIGRATION_ID, summary);
             return executeMigrationSteps();
         } catch (OptimisticLockException e) {
             String message = "Another migration process has just been started.";
@@ -74,11 +75,11 @@ public class DataMigrationService {
         if(migration.isMigrationInProgress(now)) {
             String message = "Data migration started previously at " + migration.startTime() +
                 " is already in progress. Cannot run more than one migration process at the time.";
-            return errorResponse(SC_BAD_REQUEST, StepExecutionStatus.MIGRATION_ALREADY_IN_PROGRESS_ERROR, message, null);
+            return errorResponse(SC_BAD_REQUEST, MIGRATION_ALREADY_IN_PROGRESS_ERROR, message, null);
         }
         MigrationExecutionSummary restartedMigration = migrationStartedSummary(now, "Migration restarted");
         try {
-            migrationStateRepository.updateWithLock(DataMigrationExecutor.MIGRATION_ID, restartedMigration, migration.lockData());
+            migrationStateRepository.updateWithLock(MigrationStepsExecutor.MIGRATION_ID, restartedMigration, migration.lockData());
             return executeMigrationSteps();
         } catch (OptimisticLockException ex) {
             String errorMessage = "Another instance of data migration process is just starting, aborting.";

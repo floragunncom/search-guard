@@ -18,7 +18,6 @@ import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -94,7 +93,7 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
     public boolean isIndexCreated() {
         GetIndexRequest request = new GetIndexRequest().indices("*");
         GetIndexResponse response = client.admin().indices().getIndex(request).actionGet();
-        return Arrays.stream(response.indices()).filter(indexName -> INDEX_NAME.equals(indexName)).count() > 0;
+        return Arrays.asList(response.indices()).contains(INDEX_NAME);
     }
 
     @Override

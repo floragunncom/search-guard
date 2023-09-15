@@ -13,7 +13,7 @@ public class DataMigrationContext {
     private final static AtomicInteger instanceCounter = new AtomicInteger(0);
     private final LocalDateTime startTime;
     private final String migrationId;
-    private ImmutableList<TenantData> tenants;
+    private ImmutableList<TenantIndex> tenants;
 
     public DataMigrationContext(Clock clock) {
         this.startTime = LocalDateTime.now(clock);
@@ -38,11 +38,11 @@ public class DataMigrationContext {
         return migrationId;
     }
 
-    public ImmutableList<TenantData> getTenants() {
+    public ImmutableList<TenantIndex> getTenants() {
         return tenants;
     }
 
-    public void setTenants(ImmutableList<TenantData> tenants) {
+    public void setTenants(ImmutableList<TenantIndex> tenants) {
         Objects.requireNonNull(tenants, "Tenants list must not be null");
         this.tenants = tenants;
     }

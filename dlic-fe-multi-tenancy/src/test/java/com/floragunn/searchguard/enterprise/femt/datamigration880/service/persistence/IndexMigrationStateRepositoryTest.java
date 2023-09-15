@@ -6,7 +6,6 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Migrat
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.IndexAlreadyExistsException;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.OptimisticLock;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.OptimisticLockException;
-import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionSummary;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -127,7 +126,7 @@ public class IndexMigrationStateRepositoryTest {
 
         repository.create(ID_1, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_1).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_1).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummary));
     }
 
@@ -143,9 +142,9 @@ public class IndexMigrationStateRepositoryTest {
 
         repository.create(ID_2, migrationSummaryTwo);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_2).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_2).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummaryTwo));
-        loadedSummary = repository.findById(ID_1).get();
+        loadedSummary = repository.findById(ID_1).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummaryOne));
     }
 
@@ -158,11 +157,11 @@ public class IndexMigrationStateRepositoryTest {
         var migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         var migrationSummaryTwo = new MigrationExecutionSummary(startTime, FAILURE, null, null, stages);
         repository.upsert(ID_1, migrationSummary);
-        OptimisticLock optimisticLock = repository.findById(ID_1).get().lockData();
+        OptimisticLock optimisticLock = repository.findById(ID_1).orElseThrow().lockData();
 
         assertThatThrown(() -> repository.create(ID_1, migrationSummaryTwo), instanceOf(OptimisticLockException.class));
 
-        OptimisticLock lockDataAfterUpdate = repository.findById(ID_1).get().lockData();
+        OptimisticLock lockDataAfterUpdate = repository.findById(ID_1).orElseThrow().lockData();
         assertThat(lockDataAfterUpdate, equalTo(optimisticLock));
     }
 
@@ -176,7 +175,7 @@ public class IndexMigrationStateRepositoryTest {
 
         repository.upsert(ID_1, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_1).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_1).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummary));
     }
 
@@ -190,7 +189,7 @@ public class IndexMigrationStateRepositoryTest {
 
         repository.upsert(ID_2, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_2).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_2).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummary));
     }
 
@@ -212,7 +211,7 @@ public class IndexMigrationStateRepositoryTest {
         var migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         repository.upsert(ID_3, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).orElseThrow();
 
         OptimisticLock lock = loadedSummary.lockData();
         assertThat(lock, notNullValue());
@@ -234,7 +233,7 @@ public class IndexMigrationStateRepositoryTest {
 
         repository.upsert(ID_3, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).orElseThrow();
         assertThat(loadedSummary.status(), equalTo(SUCCESS));
         assertThat(loadedSummary.stages(), hasSize(2));
         assertThat(loadedSummary.stages().get(0).name(), equalTo(STEP_NAME_1));
@@ -249,14 +248,14 @@ public class IndexMigrationStateRepositoryTest {
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummaryOne);
         var migrationSummary = new MigrationExecutionSummary(startTime, IN_PROGRESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         repository.upsert(ID_3, migrationSummary);
-        OptimisticLock lock = repository.findById(ID_3).get().lockData();
+        OptimisticLock lock = repository.findById(ID_3).orElseThrow().lockData();
         StepExecutionSummary stepSummaryTwo = new StepExecutionSummary(STEP_NO_2, startTime, STEP_NAME_2, OK, MESSAGE);
         stages = ImmutableList.of(stepSummaryOne, stepSummaryTwo);
         migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
 
         repository.updateWithLock(ID_3, migrationSummary, lock);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).orElseThrow();
         assertThat(loadedSummary.status(), equalTo(SUCCESS));
         assertThat(loadedSummary.stages(), hasSize(2));
         assertThat(loadedSummary.stages().get(0).name(), equalTo(STEP_NAME_1));

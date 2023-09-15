@@ -1,7 +1,6 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.rest;
 
 import com.floragunn.searchguard.SearchGuardVersion;
-import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule;
 import com.floragunn.searchguard.enterprise.femt.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationService;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStateRepository;
@@ -42,10 +41,9 @@ public class StartDataMigrationAction extends Action<EmptyRequest, StandardRespo
 
         @Inject
         public StartDataMigrationHandler(HandlerDependencies handlerDependencies, NodeClient client,
-            FeMultiTenancyModule feMultiTenancyModule, MultiTenancyConfigurationProvider provider) {
+            MultiTenancyConfigurationProvider provider) {
             super(INSTANCE, handlerDependencies);
             Objects.requireNonNull(client, "Client is required");
-            Objects.requireNonNull(feMultiTenancyModule, "Frontend multi tenancy module is required");
             Objects.requireNonNull(provider, "Multi-tenancy configuration provider is required");
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
             MigrationStateRepository migrationStateRepository = new IndexMigrationStateRepository(privilegedConfigClient);

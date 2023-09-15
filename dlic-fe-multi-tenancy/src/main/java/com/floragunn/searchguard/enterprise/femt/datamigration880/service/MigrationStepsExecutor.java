@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.StepException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -15,9 +16,9 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.SUCCESS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNEXPECTED_ERROR;
 
-class DataMigrationExecutor {
+class MigrationStepsExecutor {
 
-    private static final Logger log = LogManager.getLogger(DataMigrationExecutor.class);
+    private static final Logger log = LogManager.getLogger(MigrationStepsExecutor.class);
     static final String MIGRATION_ID = "migration_8_8_0";
 
     private final MigrationStateRepository migrationStateRepository;
@@ -25,7 +26,7 @@ class DataMigrationExecutor {
     private final Clock clock;
     private final ImmutableList<MigrationStep> steps;
 
-    DataMigrationExecutor(MigrationStateRepository migrationStateRepository, Clock clock, ImmutableList<MigrationStep> steps) {
+    MigrationStepsExecutor(MigrationStateRepository migrationStateRepository, Clock clock, ImmutableList<MigrationStep> steps) {
         this.migrationStateRepository = Objects.requireNonNull(migrationStateRepository, "Migration state repository is required");
         this.clock = Objects.requireNonNull(clock, "Clock is required");
         this.steps = Objects.requireNonNull(steps, "Steps list is required");
@@ -55,6 +56,11 @@ class DataMigrationExecutor {
                 if(lastStep || result.isFailure()) {
                     return migrationSummary;
                 }
+            } catch (StepException ex) {
+                String stepName = step.name();
+                var stepSummary = new StepExecutionSummary(i, stepStartTime, stepName, ex.getStatus(), ex.getMessage(), ex.getDetails());
+                accomplishedSteps.add(stepSummary);
+                return persistState(dataMigrationContext, accomplishedSteps, FAILURE);
             } catch (Exception ex) {
                 String stepName = step.name();
                 String message = "Unexpected error: " + ex.getMessage();

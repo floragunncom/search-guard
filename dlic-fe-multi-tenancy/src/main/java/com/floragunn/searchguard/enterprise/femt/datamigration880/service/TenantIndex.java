@@ -1,14 +1,16 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 
 import com.floragunn.searchguard.authz.config.Tenant;
-import com.google.common.base.Strings;
+import org.elasticsearch.common.Strings;
 
 import javax.annotation.Nullable;
 
-public record TenantData(String indexName, @Nullable String tenantName) {
+import static org.elasticsearch.common.Strings.requireNonEmpty;
 
-    public TenantData {
-        org.elasticsearch.common.Strings.requireNonEmpty(indexName, "Tenant index name is required");
+public record TenantIndex(String indexName, @Nullable String tenantName) {
+
+    public TenantIndex {
+        requireNonEmpty(indexName, "Tenant index name is required");
     }
     public boolean isGlobal() {
         return Tenant.GLOBAL_TENANT_ID.equals(tenantName);
