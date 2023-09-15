@@ -69,7 +69,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     private final ComponentState componentState = new ComponentState(1000, null, "fe_multi_tenancy", FeMultiTenancyModule.class)
             .requiresEnterpriseLicense();
     private volatile boolean enabled;
-    private volatile PrivilegesInterceptorImpl interceptorImpl;
+    private volatile MultiTenancyAuthorizationFilter multiTenancyAuthorizationFilter;
     private volatile FeMultiTenancyConfig config;
     private volatile RoleBasedTenantAuthorization tenantAuthorization;
     private volatile TenantManager tenantManager;
@@ -140,7 +140,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             if (feMultiTenancyConfig != null) {
                 if (feMultiTenancyConfig.isEnabled()) {
                     enabled = true;
-                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, tenantAuthorization, tenantManager, baseDependencies.getActions(),
+                    multiTenancyAuthorizationFilter = new MultiTenancyAuthorizationFilter(feMultiTenancyConfig, tenantAuthorization, tenantManager, baseDependencies.getActions(),
                             baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient());
                 } else {
                     enabled = false;
@@ -155,7 +155,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             componentState.updateStateFromParts();
 
             if (log.isDebugEnabled()) {
-                log.debug("Using MT config: " + feMultiTenancyConfig + "\nenabled: " + enabled + "\ninterceptor: " + interceptorImpl);
+                log.debug("Using MT config: " + feMultiTenancyConfig + "\nenabled: " + enabled + "\nauthorization filter: " + multiTenancyAuthorizationFilter);
             }
         });
 
@@ -176,10 +176,10 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
         
         @Override
         public Result apply(PrivilegesEvaluationContext context, ActionListener<?> listener) {
-            PrivilegesInterceptorImpl interceptor = interceptorImpl;
+            MultiTenancyAuthorizationFilter delegate = multiTenancyAuthorizationFilter;
             
-            if (enabled && interceptor != null) {
-                return interceptor.apply(context, listener);
+            if (enabled && delegate != null) {
+                return delegate.apply(context, listener);
             } else {
                 return SyncAuthorizationFilter.Result.OK;
             }

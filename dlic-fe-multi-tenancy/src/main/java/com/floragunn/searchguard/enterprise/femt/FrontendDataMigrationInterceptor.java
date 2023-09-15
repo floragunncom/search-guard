@@ -45,7 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.floragunn.searchguard.enterprise.femt.PrivilegesInterceptorImpl.SG_FILTER_LEVEL_FEMT_DONE;
+import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.SG_FILTER_LEVEL_FEMT_DONE;
 
 class FrontendDataMigrationInterceptor {
 

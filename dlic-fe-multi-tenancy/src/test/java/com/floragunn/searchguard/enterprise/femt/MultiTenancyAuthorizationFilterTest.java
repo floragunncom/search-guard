@@ -35,7 +35,7 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 import org.mockito.Mockito;
 
-public class PrivilegesInterceptorImplTest {
+public class MultiTenancyAuthorizationFilterTest {
 
     private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(
             SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
@@ -59,7 +59,7 @@ public class PrivilegesInterceptorImplTest {
 
         TenantManager tenantManager = new TenantManager(tenants);
         RoleBasedTenantAuthorization actionAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenantManager, MetricsLevel.NONE);
-        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, actionAuthorization, tenantManager, actions, threadContext,
+        MultiTenancyAuthorizationFilter subject = new MultiTenancyAuthorizationFilter(FeMultiTenancyConfig.DEFAULT, actionAuthorization, tenantManager, actions, threadContext,
                 nodeClient);
 
         User user = User.forUser("test").searchGuardRoles("all_access").build();
