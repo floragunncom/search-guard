@@ -1,7 +1,7 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.rest;
 
 import com.floragunn.searchguard.SearchGuardVersion;
-import com.floragunn.searchguard.enterprise.femt.MultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationService;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStateRepository;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.persistence.IndexMigrationStateRepository;
@@ -41,7 +41,7 @@ public class StartDataMigrationAction extends Action<EmptyRequest, StandardRespo
 
         @Inject
         public StartDataMigrationHandler(HandlerDependencies handlerDependencies, NodeClient client,
-            MultiTenancyConfigurationProvider provider) {
+            FeMultiTenancyConfigurationProvider provider) {
             super(INSTANCE, handlerDependencies);
             Objects.requireNonNull(client, "Client is required");
             Objects.requireNonNull(provider, "Multi-tenancy configuration provider is required");

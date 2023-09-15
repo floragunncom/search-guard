@@ -5,7 +5,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
-import com.floragunn.searchguard.enterprise.femt.MultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
@@ -92,7 +92,7 @@ public class MigrationStepsTest {
     private DataMigrationContext context;
 
     @Mock
-    private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
+    private FeMultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
 
     @Mock
     private FeMultiTenancyConfig feMultiTenancyConfig;
@@ -231,7 +231,7 @@ public class MigrationStepsTest {
         assertThat(context.getTenants(), hasSize(configuredTenantIndices.size() + 1));
         assertThat(context.getTenants().size(), greaterThan(20));
         List<String> tenantsFoundByStep = context.getTenants().stream().map(TenantIndex::tenantName).collect(Collectors.toList());
-        MultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(MultiTenancyConfigurationProvider.class);
+        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         String[] tenantsFromConfiguration = configurationProvider.getTenantNames().toArray(String[]::new);
         assertThat(tenantsFoundByStep, containsInAnyOrder(tenantsFromConfiguration));
     }
@@ -432,7 +432,7 @@ public class MigrationStepsTest {
     }
 
     private List<DoubleAliasIndex> getIndicesForConfiguredTenantsWithoutGlobal() {
-        MultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(MultiTenancyConfigurationProvider.class);
+        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         return configurationProvider.getTenantNames() //
             .stream() //
             .filter(name -> !Tenant.GLOBAL_TENANT_ID.equals(name)) //
@@ -452,7 +452,7 @@ public class MigrationStepsTest {
     }
 
     private static PopulateTenantsStep createPopulateTenantsStep() {
-        MultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(MultiTenancyConfigurationProvider.class);
+        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         Client client = cluster.getInternalNodeClient();
         return new PopulateTenantsStep(configurationProvider, adapt(client));
     }
@@ -521,7 +521,7 @@ public class MigrationStepsTest {
     }
 
     public static String getConfiguredIndexPrefix() {
-        MultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(MultiTenancyConfigurationProvider.class);
+        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         return configurationProvider.getConfig().orElseThrow().getIndex();
     }
 }

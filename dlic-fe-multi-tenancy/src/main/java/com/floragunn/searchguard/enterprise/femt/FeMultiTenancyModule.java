@@ -157,7 +157,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             }
         });
 
-        return Arrays.asList(privilegesInterceptor, new FeMultiTenancyConfigurationProvider(this), new MultiTenancyConfigurationProvider(this));
+        return Arrays.asList(privilegesInterceptor, new FeMultiTenancyConfigurationProvider(this));
     }
     private final PrivilegesInterceptor privilegesInterceptor = new PrivilegesInterceptor() {
 

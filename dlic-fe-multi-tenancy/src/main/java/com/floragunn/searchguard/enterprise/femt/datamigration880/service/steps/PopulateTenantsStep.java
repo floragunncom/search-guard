@@ -4,7 +4,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
-import com.floragunn.searchguard.enterprise.femt.MultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
@@ -22,7 +22,6 @@ import org.elasticsearch.index.IndexNotFoundException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -41,10 +40,10 @@ class PopulateTenantsStep implements MigrationStep {
 
     private static final Logger log = LogManager.getLogger(PopulateTenantsStep.class);
 
-    private final MultiTenancyConfigurationProvider configurationProvider;
+    private final FeMultiTenancyConfigurationProvider configurationProvider;
     private final PrivilegedConfigClient client;
 
-    public PopulateTenantsStep(MultiTenancyConfigurationProvider configurationProvider, PrivilegedConfigClient client) {
+    public PopulateTenantsStep(FeMultiTenancyConfigurationProvider configurationProvider, PrivilegedConfigClient client) {
         this.configurationProvider = requireNonNull(configurationProvider, "Multi-tenancy configuration provider is required");
         this.client = requireNonNull(client, "Privileged client is required");
     }
