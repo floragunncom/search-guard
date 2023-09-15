@@ -18,8 +18,8 @@
 package com.floragunn.searchguard.enterprise.femt;
 
 import java.util.Map;
-import java.util.Set;
 
+import com.floragunn.searchguard.authz.TenantManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -38,7 +38,6 @@ import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
-import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
@@ -52,12 +51,8 @@ import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
 public class RoleBasedTenantAuthorization implements TenantAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedTenantAuthorization.class);
-    private static final String USER_TENANT = "__user__";
 
-    private final SgDynamicConfiguration<Role> roles;
-    private final ActionGroup.FlattenedIndex actionGroups;
-    private final Actions actions;
-    private final ImmutableSet<String> tenants;
+    private final TenantManager tenantManager;
 
     private final TenantPermissions tenant;
     private final ComponentState componentState;
@@ -69,19 +64,11 @@ public class RoleBasedTenantAuthorization implements TenantAuthorization, Compon
     private final CountAggregation tenantActionCheckResults_insufficient;
 
     public RoleBasedTenantAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-             Set<String> tenants) {
-        this(roles, actionGroups, actions, tenants, MetricsLevel.NONE);
-    }
-
-    public RoleBasedTenantAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-             Set<String> tenants, MetricsLevel metricsLevel) {
-        this.roles = roles;
-        this.actionGroups = actionGroups;
-        this.actions = actions;
+             TenantManager tenantManager, MetricsLevel metricsLevel) {
         this.metricsLevel = metricsLevel;
-        this.tenants = ImmutableSet.of(tenants);
+        this.tenantManager = tenantManager;
 
-        this.tenant = new TenantPermissions(roles, actionGroups, actions, this.tenants);
+        this.tenant = new TenantPermissions(roles, actionGroups, actions, this.tenantManager.getConfiguredTenantNames());
 
         this.componentState = new ComponentState("role_based_tenant_authorization");
         this.componentState.addParts(tenant.getComponentState());
@@ -131,7 +118,7 @@ public class RoleBasedTenantAuthorization implements TenantAuthorization, Compon
                 }
             }
 
-            if (!isTenantValid(requestedTenant)) {
+            if (!tenantManager.isTenantHeaderValid(requestedTenant)) {
                 log.info("Invalid tenant requested: {}", requestedTenant);
                 tenantActionCheckResults_insufficient.increment();
                 return PrivilegesEvaluationResult.INSUFFICIENT.reason("Invalid requested tenant");
@@ -271,22 +258,6 @@ public class RoleBasedTenantAuthorization implements TenantAuthorization, Compon
         public ComponentState getComponentState() {
             return this.componentState;
         }
-    }
-
-    private boolean isTenantValid(String requestedTenant) {
-        if (Tenant.GLOBAL_TENANT_ID.equals(requestedTenant) || USER_TENANT.equals(requestedTenant)) {
-            return true;
-        }
-
-        return tenants.contains(requestedTenant);
-    }
-
-    public ImmutableSet<String> getTenants() {
-        return tenants;
-    }
-
-    public ActionGroup.FlattenedIndex getActionGroups() {
-        return actionGroups;
     }
 
     @Override

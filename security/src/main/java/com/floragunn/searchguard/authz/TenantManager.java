@@ -1,4 +1,4 @@
-package com.floragunn.searchguard.enterprise.femt;
+package com.floragunn.searchguard.authz;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Tenant;
@@ -43,9 +43,16 @@ public class TenantManager {
     }
 
     /**
+     * @return set of all tenants names as defined in configuration
+     */
+    public ImmutableSet<String> getConfiguredTenantNames() {
+        return configuredTenants;
+    }
+
+    /**
      * @return set of all known tenant names - global tenant and tenants defined in configuration
      */
-    public ImmutableSet<String> getTenantNames() {
+    public ImmutableSet<String> getAllKnownTenantNames() {
         return configuredTenants.with(Tenant.GLOBAL_TENANT_ID);
     }
 

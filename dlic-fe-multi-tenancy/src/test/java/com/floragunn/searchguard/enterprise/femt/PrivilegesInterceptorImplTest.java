@@ -16,6 +16,8 @@ package com.floragunn.searchguard.enterprise.femt;
 
 import java.util.Arrays;
 
+import com.floragunn.searchguard.authz.TenantManager;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -55,8 +57,9 @@ public class PrivilegesInterceptorImplTest {
 
         ImmutableSet<String> tenants = ImmutableSet.of("my_tenant", "test");
 
-        RoleBasedTenantAuthorization actionAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenants);
-        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, actionAuthorization, tenants, actions, threadContext,
+        TenantManager tenantManager = new TenantManager(tenants);
+        RoleBasedTenantAuthorization actionAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenantManager, MetricsLevel.NONE);
+        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, actionAuthorization, tenantManager, actions, threadContext,
                 nodeClient);
 
         User user = User.forUser("test").searchGuardRoles("all_access").build();

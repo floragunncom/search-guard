@@ -20,6 +20,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.StartDataMigrationAction;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,10 +51,6 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
-import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
@@ -73,6 +74,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     private volatile PrivilegesInterceptorImpl interceptorImpl;
     private volatile FeMultiTenancyConfig config;
     private volatile RoleBasedTenantAuthorization tenantAuthorization;
+    private volatile TenantManager tenantManager;
 
     private volatile ImmutableSet<String> tenantNames = ImmutableSet.empty();
     private ThreadPool threadPool;
@@ -131,13 +133,14 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                     ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
                     : ActionGroup.FlattenedIndex.EMPTY;
 
-            tenantAuthorization = new RoleBasedTenantAuthorization(roles, actionGroups, baseDependencies.getActions(), tenants.getCEntries().keySet(),
+            tenantManager = new TenantManager(tenants.getCEntries().keySet());
+            tenantAuthorization = new RoleBasedTenantAuthorization(roles, actionGroups, baseDependencies.getActions(), tenantManager,
                     feMultiTenancyConfig.getMetricsLevel());
 
             if (feMultiTenancyConfig != null) {
                 if (feMultiTenancyConfig.isEnabled()) {
                     enabled = true;
-                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, tenantAuthorization, tenantNames, baseDependencies.getActions(),
+                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, tenantAuthorization, tenantManager, baseDependencies.getActions(),
                             baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient());
                 } else {
                     enabled = false;

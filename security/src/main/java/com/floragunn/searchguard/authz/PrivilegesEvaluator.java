@@ -106,7 +106,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             StaticSettings.AttributeSet.of(ADMIN_ONLY_ACTIONS, ADMIN_ONLY_INDICES, CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
                     UNSUPPORTED_RESTORE_SGINDEX_ENABLED);
 
-    private static final String USER_TENANT = "__user__";
     private static final Logger log = LogManager.getLogger(PrivilegesEvaluator.class);
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final ClusterService clusterService;
@@ -133,6 +132,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     private volatile AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
     private volatile RoleBasedActionAuthorization actionAuthorization = null;
+    private volatile TenantManager tenantManager = null;
 
     // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
     private String kibanaServerUsername;
@@ -202,6 +202,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
                         : ActionGroup.FlattenedIndex.EMPTY;
 
+                tenantManager = new TenantManager(tenants.getCEntries().keySet());
                 actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions,
                         clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet(), adminOnlyIndices,
                         authzConfig.getMetricsLevel());
@@ -626,7 +627,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     public Set<String> getAllConfiguredTenantNames() {
-        return actionAuthorization.getTenants();
+        return tenantManager.getConfiguredTenantNames();
     }
 
     public boolean notFailOnForbiddenEnabled() {
@@ -660,7 +661,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         Map<String, Boolean> result = new HashMap<>();
 
-        boolean tenantValid = isTenantValid(requestedTenant);
+        boolean tenantValid = tenantManager.isTenantHeaderValid(requestedTenant);
 
         if (!tenantValid) {
             log.info("Invalid tenant: " + requestedTenant + "; user: " + user);
@@ -693,20 +694,11 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         return result;
     }
 
-    private boolean isTenantValid(String requestedTenant) {
-
-        if (Tenant.GLOBAL_TENANT_ID.equals(requestedTenant) || USER_TENANT.equals(requestedTenant)) {
-            return true;
-        }
-
-        return getAllConfiguredTenantNames().contains(requestedTenant);
-    }
-
     private PrivilegesEvaluationResult hasTenantPermission(User user, ImmutableSet<String> mappedRoles, Action action,
             ActionAuthorization actionAuthorization, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
         String requestedTenant = !Strings.isNullOrEmpty(user.getRequestedTenant()) ? user.getRequestedTenant() : Tenant.GLOBAL_TENANT_ID;
 
-        if (!multiTenancyConfigurationProvider.isMultiTenancyEnabled() && !Tenant.GLOBAL_TENANT_ID.equals(requestedTenant)) {
+        if (!multiTenancyConfigurationProvider.isMultiTenancyEnabled() && !tenantManager.isGlobalTenantHeader(requestedTenant)) {
             log.warn("Denying request to non-default tenant because MT is disabled: " + requestedTenant);
             return PrivilegesEvaluationResult.INSUFFICIENT.reason("Multi-tenancy is disabled");
         }
@@ -718,7 +710,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         String requestedTenant = user.getRequestedTenant();
 
-        if (Strings.isNullOrEmpty(requestedTenant) || !multiTenancyConfigurationProvider.isMultiTenancyEnabled()) {
+        if (tenantManager.isTenantHeaderEmpty(requestedTenant) || !multiTenancyConfigurationProvider.isMultiTenancyEnabled()) {
             return Tenant.GLOBAL_TENANT_ID;
         } else {
             return requestedTenant;
