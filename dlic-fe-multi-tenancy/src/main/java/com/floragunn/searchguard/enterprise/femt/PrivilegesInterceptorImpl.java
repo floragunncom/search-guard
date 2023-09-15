@@ -26,6 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandler;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
 import org.apache.logging.log4j.LogManager;
@@ -76,7 +77,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
     private final RequestHandlerFactory requestHandlerFactory;
     private final TenantManager tenantManager;
 
-    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, ImmutableSet<String> tenantNames,
+    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, TenantManager tenantManager,
                                      Actions actions, ThreadContext threadContext, Client nodeClient) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
@@ -92,7 +93,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.tenantAuthorization = tenantAuthorization;
         this.frontendDataMigrationInterceptor = new FrontendDataMigrationInterceptor(threadContext, nodeClient, config);
         this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext);
-        this.tenantManager = new TenantManager(tenantNames);
+        this.tenantManager = tenantManager;
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
@@ -322,7 +323,7 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, roles, null, null, false, null, null);
 
-        for (String tenant : tenantManager.getTenantNames()) {
+        for (String tenant : tenantManager.getAllKnownTenantNames()) {
             try {
                 boolean hasReadPermission = tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, tenant).isOk();
                 boolean hasWritePermission = tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, tenant).isOk();
