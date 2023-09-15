@@ -62,7 +62,6 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -79,7 +78,6 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -325,24 +323,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     return evaluateIndexPrivileges(user, action0, action.expandPrivileges(request), request, task, requestInfo, mappedRoles,
                             authzConfig, actionAuthorization, specialPrivilegesEvaluationContext, context);
                 }
-                
-                // TODO
-//
-//                if (privilegesInterceptor != null) {
-//                    PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(context, request, action,
-//                            actionAuthorization);
-//
-//                    if (log.isDebugEnabled()) {
-//                        log.debug("Result from privileges interceptor for cluster perm: {}", replaceResult);
-//                    }
-//
-//                    if (replaceResult == PrivilegesInterceptor.InterceptionResult.DENY) {
-//                        auditLog.logMissingPrivileges(action0, request, task);
-//                        return PrivilegesEvaluationResult.INSUFFICIENT.reason("Denied due to multi-tenancy settings");
-//                    } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
-//                        return PrivilegesEvaluationResult.OK;
-//                    }
-//                }
 
                 ImmutableSet<Action> additionalPrivileges = action.getAdditionalPrivileges(request);
 
@@ -457,24 +437,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 }
             }
         }
-
-        // TODO
-//        if (privilegesInterceptor != null) {
-//
-//            PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(context, request, actions.get(action0),
-//                    actionAuthorization);
-//
-//            if (log.isDebugEnabled()) {
-//                log.debug("Result from privileges interceptor: {}", replaceResult);
-//            }
-//
-//            if (replaceResult == PrivilegesInterceptor.InterceptionResult.DENY) {
-//                auditLog.logMissingPrivileges(action0, request, task);
-//                return PrivilegesEvaluationResult.INSUFFICIENT.reason("Denied due to multi-tenancy settings");
-//            } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
-//                return PrivilegesEvaluationResult.OK.with(additionalActionFilter);
-//            }
-//        }
 
         boolean dnfofPossible = authzConfig.isIgnoreUnauthorizedIndices() && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action0)
                 && (actionRequestInfo.ignoreUnavailable() || actionRequestInfo.containsWildcards());
