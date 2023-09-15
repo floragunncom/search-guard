@@ -22,14 +22,15 @@ class MigrationStepsExecutor {
     static final String MIGRATION_ID = "migration_8_8_0";
 
     private final MigrationStateRepository migrationStateRepository;
-
     private final Clock clock;
     private final ImmutableList<MigrationStep> steps;
+    private final MigrationConfig config;
 
-    MigrationStepsExecutor(MigrationStateRepository migrationStateRepository, Clock clock, ImmutableList<MigrationStep> steps) {
+    MigrationStepsExecutor(MigrationConfig config, MigrationStateRepository migrationStateRepository, Clock clock, ImmutableList<MigrationStep> steps) {
         this.migrationStateRepository = Objects.requireNonNull(migrationStateRepository, "Migration state repository is required");
         this.clock = Objects.requireNonNull(clock, "Clock is required");
         this.steps = Objects.requireNonNull(steps, "Steps list is required");
+        this.config = Objects.requireNonNull(config, "Migration config is required");
         if(steps.isEmpty()) {
             throw new IllegalStateException("Step list cannot be empty");
         }
@@ -39,7 +40,7 @@ class MigrationStepsExecutor {
     }
 
     public MigrationExecutionSummary execute() {
-        DataMigrationContext dataMigrationContext = new DataMigrationContext(clock);
+        DataMigrationContext dataMigrationContext = new DataMigrationContext(config, clock);
         List<StepExecutionSummary> accomplishedSteps = new ArrayList<>();
         for(int i = 0; i < steps.size(); ++i) {
             MigrationStep step = steps.get(i);
@@ -65,7 +66,7 @@ class MigrationStepsExecutor {
                 String stepName = step.name();
                 String message = "Unexpected error: " + ex.getMessage();
                 accomplishedSteps.add(new StepExecutionSummary(i, stepStartTime, stepName, UNEXPECTED_ERROR, message, ex));
-                log.error("Unexpected error occured during execution of data migration step '{}' which is '{}'.", i, stepName, ex);
+                log.error("Unexpected error occurred during execution of data migration step '{}' which is '{}'.", i, stepName, ex);
                 return persistState(dataMigrationContext, accomplishedSteps, FAILURE);
             }
         }

@@ -28,20 +28,22 @@ public class DataMigrationService {
     private final StepsFactory stepsFactory;
     private final Clock clock;
 
-    public DataMigrationService(MigrationStateRepository migrationStateRepository, StepsFactory stepsFactory, Clock clock) {
+    public DataMigrationService(MigrationStateRepository migrationStateRepository, StepsFactory stepsFactory,
+        Clock clock) {
         this.migrationStateRepository = Objects.requireNonNull(migrationStateRepository, "Migration state repository is required");
         this.stepsFactory = Objects.requireNonNull(stepsFactory, "Step factory is required");
         this.clock = Objects.requireNonNull(clock, "Clock is required");
     }
 
-    public StandardResponse migrateData() {
+    public StandardResponse migrateData(MigrationConfig config) {
+        Objects.requireNonNull(config, "Migration config is required");
         try {
             if (!migrationStateRepository.isIndexCreated()) {
                 migrationStateRepository.createIndex();
             }
             return migrationStateRepository.findById(MigrationStepsExecutor.MIGRATION_ID) //
-                .map(this::restartMigration) //
-                .orElseGet(this::performFirstMigrationStart);
+                .map(summary -> restartMigration(config, summary)) //
+                .orElseGet(() -> performFirstMigrationStart(config));
         } catch (IndexAlreadyExistsException e) {
             String message = """
                     Cannot create index to store migration related data./
@@ -51,36 +53,38 @@ public class DataMigrationService {
         }
     }
 
-    private StandardResponse executeMigrationSteps() {
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(migrationStateRepository, clock, stepsFactory.createSteps());
+    private StandardResponse executeMigrationSteps(MigrationConfig config) {
+        Objects.requireNonNull(config, "Migration config is required");
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(config, migrationStateRepository, clock, stepsFactory.createSteps());
         MigrationExecutionSummary summary = executor.execute();
         int httpStatus = summary.isSuccessful() ? SC_OK : SC_INTERNAL_SERVER_ERROR;
         return new StandardResponse(httpStatus).data(summary);
     }
 
-    private StandardResponse performFirstMigrationStart() {
+    private StandardResponse performFirstMigrationStart(MigrationConfig config) {
+        Objects.requireNonNull(config, "Migration config is required");
         LocalDateTime now = LocalDateTime.now(clock);
         MigrationExecutionSummary summary = migrationStartedSummary(now, "The first start of data migration process");
         try {
             migrationStateRepository.create(MigrationStepsExecutor.MIGRATION_ID, summary);
-            return executeMigrationSteps();
+            return executeMigrationSteps(config);
         } catch (OptimisticLockException e) {
             String message = "Another migration process has just been started.";
             return errorResponse(SC_PRECONDITION_FAILED, CANNOT_CREATE_STATUS_DOCUMENT_ERROR, message, e);
         }
     }
 
-    private StandardResponse restartMigration(MigrationExecutionSummary migration) {
+    private StandardResponse restartMigration(MigrationConfig config, MigrationExecutionSummary migrationSummary) {
         LocalDateTime now = LocalDateTime.now(clock);
-        if(migration.isMigrationInProgress(now)) {
-            String message = "Data migration started previously at " + migration.startTime() +
+        if(migrationSummary.isMigrationInProgress(now)) {
+            String message = "Data migration started previously at " + migrationSummary.startTime() +
                 " is already in progress. Cannot run more than one migration process at the time.";
             return errorResponse(SC_BAD_REQUEST, MIGRATION_ALREADY_IN_PROGRESS_ERROR, message, null);
         }
         MigrationExecutionSummary restartedMigration = migrationStartedSummary(now, "Migration restarted");
         try {
-            migrationStateRepository.updateWithLock(MigrationStepsExecutor.MIGRATION_ID, restartedMigration, migration.lockData());
-            return executeMigrationSteps();
+            migrationStateRepository.updateWithLock(MigrationStepsExecutor.MIGRATION_ID, restartedMigration, migrationSummary.lockData());
+            return executeMigrationSteps(config);
         } catch (OptimisticLockException ex) {
             String errorMessage = "Another instance of data migration process is just starting, aborting.";
             return errorResponse(SC_CONFLICT, CANNOT_UPDATE_STATUS_DOCUMENT_LOCK_ERROR, errorMessage, ex);

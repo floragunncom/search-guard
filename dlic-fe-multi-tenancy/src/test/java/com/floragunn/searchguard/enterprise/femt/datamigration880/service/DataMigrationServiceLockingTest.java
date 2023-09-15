@@ -50,6 +50,7 @@ public class DataMigrationServiceLockingTest {
     private static final Logger log = LogManager.getLogger(DataMigrationServiceLockingTest.class);
 
     private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(2010, 1, 1, 12, 1), ZoneOffset.UTC);
+    public static final MigrationConfig STRICT_CONFIG = new MigrationConfig(false);
 
     private ExecutorService executor;
 
@@ -88,7 +89,7 @@ public class DataMigrationServiceLockingTest {
         when(stepFactory1.createSteps()).thenReturn(ImmutableList.of(new WaitStep().enoughWaiting()));
         DataMigrationService migrationService = new DataMigrationService(repository, stepFactory1, Clock.systemUTC());
 
-        StandardResponse response = migrationService.migrateData();
+        StandardResponse response = migrationService.migrateData(STRICT_CONFIG);
 
         assertThat(response.getStatus(), equalTo(SC_OK));
     }
@@ -103,11 +104,11 @@ public class DataMigrationServiceLockingTest {
         SyncStep syncStep = new SyncStep();
         WaitStep waitStep = new WaitStep();
         when(stepFactory1.createSteps()).thenReturn(ImmutableList.of(syncStep, waitStep));
-        executor.submit(migrationService1::migrateData);
+        executor.submit(() -> migrationService1.migrateData(STRICT_CONFIG));
         syncStep.waitUntilStepExecution();// From this point the first migration is executed until invocation of waitStep.enoughWaiting()
 
         //try to run another migration in parallel
-        StandardResponse response = migrationService2.migrateData();
+        StandardResponse response = migrationService2.migrateData(STRICT_CONFIG);
 
         String jsonString = response.toJsonString();
         log.debug("Status and body from the second data migration run in parallel: '{}', '{}'", response.getStatus(), jsonString);
@@ -133,7 +134,7 @@ public class DataMigrationServiceLockingTest {
         Clock fixed = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
         DataMigrationService migrationService = new DataMigrationService(migrationStateRepository, stepFactory1, fixed);
 
-        StandardResponse response = migrationService.migrateData();
+        StandardResponse response = migrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Parallel index creation caused response '{}'.", response.toJsonString());
         assertThat(response.getStatus(), equalTo(SC_CONFLICT));
@@ -165,7 +166,7 @@ public class DataMigrationServiceLockingTest {
         Clock fixed = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
         DataMigrationService migrationService = new DataMigrationService(migrationStateRepository, stepFactory1, fixed);
 
-        StandardResponse response = migrationService.migrateData();
+        StandardResponse response = migrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Parallel index creation caused response '{}'.", response.toJsonString());
         assertThat(response.getStatus(), equalTo(SC_PRECONDITION_FAILED));
@@ -203,7 +204,7 @@ public class DataMigrationServiceLockingTest {
         Clock fixed = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
         DataMigrationService migrationService = new DataMigrationService(migrationStateRepository, stepFactory1, fixed);
 
-        StandardResponse response = migrationService.migrateData();
+        StandardResponse response = migrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Optimistic lock failure response '{}'.", response.toJsonString());
         assertThat(response.getStatus(), equalTo(SC_CONFLICT));

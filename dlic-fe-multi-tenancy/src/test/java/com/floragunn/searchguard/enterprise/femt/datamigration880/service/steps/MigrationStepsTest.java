@@ -7,8 +7,10 @@ import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -34,9 +36,9 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +53,7 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_DISABLED_ERROR;
 import static com.floragunn.searchguard.support.PrivilegedConfigClient.adapt;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
+import static java.time.ZoneOffset.UTC;
 import static org.apache.http.HttpStatus.SC_CREATED;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
@@ -69,7 +72,7 @@ public class MigrationStepsTest {
 
     private static final Logger log = LogManager.getLogger(MigrationStepsTest.class);
 
-    private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(2000, 1, 1, 1, 1), ZoneOffset.UTC);
+    private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(2000, 1, 1, 1, 1), UTC);
 
     private static final DoubleAliasIndex GLOBAL_TENANT_INDEX = new DoubleAliasIndex(".kibana_8.7.0_001", ".kibana_8.7.0", ".kibana");
     private static final DoubleAliasIndex TASK_MANAGER_INDEX = new DoubleAliasIndex(".kibana_task_manager_8.7.0_001", ".kibana_task_manager_8.7.0", "kibana_task_manager");
@@ -88,7 +91,7 @@ public class MigrationStepsTest {
         .enterpriseModulesEnabled()
         .build();
 
-    private final Clock clock = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
+    private final Clock clock = Clock.fixed(NOW.toInstant(), UTC);
     private DataMigrationContext context;
 
     @Mock
@@ -101,21 +104,21 @@ public class MigrationStepsTest {
 
     @Before
     public void before() {
-        this.context = new DataMigrationContext(clock);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
     }
 
     @After
     public void after() {
-        createdIndices.forEach(this::deleteIndex);
+        deleteIndex(createdIndices.toArray(DeletableIndex[]::new));
         createdIndices.clear();
     }
 
-    private void createIndex(DoubleAliasIndex...indices) {
+    private void createIndex(int numberOfReplicas, DoubleAliasIndex...indices) {
         BulkRequest bulkRequest = new BulkRequest();
         IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
         PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest("kibana_test_indices_template") //
             .patterns(Collections.singletonList(".kibana*")) //
-            .settings(Settings.builder().put("index.hidden", true));
+            .settings(Settings.builder().put("index.hidden", true).put("index.number_of_replicas", numberOfReplicas));
         cluster.getInternalNodeClient()//
             .admin() //
             .indices() //
@@ -128,6 +131,10 @@ public class MigrationStepsTest {
         }
         cluster.getInternalNodeClient().bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
         cluster.getInternalNodeClient().admin().indices().aliases(indicesAliasesRequest).actionGet();
+    }
+
+    private void createIndex(DoubleAliasIndex...indices) {
+        createIndex(0, indices);
     }
 
     private void createLegacyIndex(LegacyIndex...indices) {
@@ -150,9 +157,13 @@ public class MigrationStepsTest {
         cluster.getInternalNodeClient().admin().indices().aliases(indicesAliasesRequest).actionGet();
     }
 
-    private void deleteIndex(DeletableIndex doubleAliasIndex) {
-        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest(doubleAliasIndex.indexForDeletion());
-        cluster.getInternalNodeClient().admin().indices().delete(deleteIndexRequest).actionGet();
+    private void deleteIndex(DeletableIndex...deletableIndices) {
+        if(deletableIndices.length == 0) {
+            return;
+        }
+        String[] indicesForDeletion = Arrays.stream(deletableIndices).map(DeletableIndex::indexForDeletion).toArray(String[]::new);
+        DeleteIndexRequest request = new DeleteIndexRequest(indicesForDeletion);
+        cluster.getInternalNodeClient().admin().indices().delete(request).actionGet();
     }
 
     @Test
@@ -172,7 +183,8 @@ public class MigrationStepsTest {
         when(multiTenancyConfigurationProvider.getConfig()).thenReturn(Optional.empty());
         when(multiTenancyConfigurationProvider.getTenantNames()).thenReturn(ImmutableSet.empty());
         Client client = cluster.getInternalNodeClient();
-        PopulateTenantsStep populateTenantsStep = new PopulateTenantsStep(multiTenancyConfigurationProvider, adapt(client));
+        StepRepository repository = new StepRepository(adapt(client));
+        PopulateTenantsStep populateTenantsStep = new PopulateTenantsStep(multiTenancyConfigurationProvider, repository);
 
         StepResult result = populateTenantsStep.execute(context);
 
@@ -186,7 +198,8 @@ public class MigrationStepsTest {
         when(multiTenancyConfigurationProvider.getConfig()).thenReturn(Optional.of(feMultiTenancyConfig));
         when(multiTenancyConfigurationProvider.getTenantNames()).thenReturn(ImmutableSet.empty());
         Client client = cluster.getInternalNodeClient();
-        PopulateTenantsStep populateTenantsStep = new PopulateTenantsStep(multiTenancyConfigurationProvider, adapt(client));
+        StepRepository repository = new StepRepository(adapt(client));
+        PopulateTenantsStep populateTenantsStep = new PopulateTenantsStep(multiTenancyConfigurationProvider, repository);
 
         StepResult result = populateTenantsStep.execute(context);
 
@@ -201,9 +214,9 @@ public class MigrationStepsTest {
 
         populateTenantsStep.execute(context);
 
-        ImmutableList<TenantIndex> tenants = context.getTenants();
+        ImmutableList<TenantIndex> tenants = context.getTenantIndices();
         assertThat(tenants, hasSize(1));
-        assertThat(tenants.get(0).isGlobal(), equalTo(true));
+        assertThat(tenants.get(0).belongsToGlobalTenant(), equalTo(true));
     }
 
     @Test
@@ -228,9 +241,9 @@ public class MigrationStepsTest {
         StepResult result = populateTenantsStep.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenants(), hasSize(configuredTenantIndices.size() + 1));
-        assertThat(context.getTenants().size(), greaterThan(20));
-        List<String> tenantsFoundByStep = context.getTenants().stream().map(TenantIndex::tenantName).collect(Collectors.toList());
+        assertThat(context.getTenantIndices(), hasSize(configuredTenantIndices.size() + 1));
+        assertThat(context.getTenantIndices().size(), greaterThan(20));
+        List<String> tenantsFoundByStep = context.getTenantIndices().stream().map(TenantIndex::tenantName).collect(Collectors.toList());
         FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         String[] tenantsFromConfiguration = configurationProvider.getTenantNames().toArray(String[]::new);
         assertThat(tenantsFoundByStep, containsInAnyOrder(tenantsFromConfiguration));
@@ -245,10 +258,10 @@ public class MigrationStepsTest {
         StepResult result = populateTenantsStep.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenants(), hasSize(5));
-        Set<String> privateTenantIndexNames = context.getTenants() //
+        assertThat(context.getTenantIndices(), hasSize(5));
+        Set<String> privateTenantIndexNames = context.getTenantIndices() //
             .stream() //
-            .filter(TenantIndex::isUserPrivateTenant) //
+            .filter(TenantIndex::belongsToUserPrivateTenant) //
             .map(TenantIndex::indexName) //
             .collect(Collectors.toSet());
         assertThat(privateTenantIndexNames, containsInAnyOrder(PRIVATE_USER_KIRK_INDEX.indexName(),
@@ -272,7 +285,7 @@ public class MigrationStepsTest {
         StepResult result = populateTenantsStep.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenants(), hasSize(indices.size()));
+        assertThat(context.getTenantIndices(), hasSize(indices.size()));
     }
 
     @Test
@@ -285,14 +298,15 @@ public class MigrationStepsTest {
         when(multiTenancyConfigurationProvider.getConfig()).thenReturn(Optional.of(feMultiTenancyConfig));
         when(multiTenancyConfigurationProvider.getTenantNames()).thenReturn(ImmutableSet.empty());
         Client client = cluster.getInternalNodeClient();
-        PopulateTenantsStep populateTenantsStep = new PopulateTenantsStep(multiTenancyConfigurationProvider, adapt(client));
+        StepRepository repository = new StepRepository(adapt(client));
+        PopulateTenantsStep populateTenantsStep = new PopulateTenantsStep(multiTenancyConfigurationProvider, repository);
 
         StepResult result = populateTenantsStep.execute(context);
 
         log.debug("Step result: '{}'.", result);
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenants(), hasSize(2));
-        TenantIndex tenantIndex = context.getTenants().stream().filter(TenantIndex::isUserPrivateTenant).findAny().orElseThrow();
+        assertThat(context.getTenantIndices(), hasSize(2));
+        TenantIndex tenantIndex = context.getTenantIndices().stream().filter(TenantIndex::belongsToUserPrivateTenant).findAny().orElseThrow();
         assertThat(tenantIndex.indexName(), containsString(indexNamePrefix));
     }
 
@@ -312,10 +326,10 @@ public class MigrationStepsTest {
 
                 log.debug("Step result: '{}'.", result);
                 assertThat(result.isSuccess(), equalTo(true));
-                assertThat(context.getTenants(), hasSize(2));
-                TenantIndex createdTenant = context.getTenants().stream().filter(tenantIndex -> !tenantIndex.isGlobal()).findAny().orElseThrow();
+                assertThat(context.getTenantIndices(), hasSize(2));
+                TenantIndex createdTenant = context.getTenantIndices().stream().filter(tenantIndex -> !tenantIndex.belongsToGlobalTenant()).findAny().orElseThrow();
                 assertThat(createdTenant.tenantName(), equalTo(newTenantName));
-                assertThat(createdTenant.isUserPrivateTenant(), equalTo(false));
+                assertThat(createdTenant.belongsToUserPrivateTenant(), equalTo(false));
             } finally {
                 response = client.delete("/_searchguard/api/tenants/" + newTenantName);
                 assertThat(response.getStatusCode(), equalTo(SC_OK));
@@ -371,8 +385,8 @@ public class MigrationStepsTest {
         StepResult result = populateTenantsStep.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenants(), hasSize(6));
-        assertThat(context.getTenants().map(TenantIndex::indexName), containsInAnyOrder(".kibana_8.7.0_001",
+        assertThat(context.getTenantIndices(), hasSize(6));
+        assertThat(context.getTenantIndices().map(TenantIndex::indexName), containsInAnyOrder(".kibana_8.7.0_001",
             ".kibana_-152937574_admintenant_8.7.0_001",
             ".kibana_-1799980989_management_8.7.0_001",
             ".kibana_3292183_kirk_8.7.0_001",
@@ -399,23 +413,86 @@ public class MigrationStepsTest {
         StepResult result = populateTenantsStep.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenants(), hasSize(3));
-        String global = context.getTenants().stream().filter(TenantIndex::isGlobal).map(TenantIndex::tenantName).findFirst().orElseThrow();
-        String userPrivateIndex = context.getTenants() //
+        assertThat(context.getTenantIndices(), hasSize(3));
+        String global = context.getTenantIndices().stream().filter(TenantIndex::belongsToGlobalTenant).map(TenantIndex::tenantName).findFirst().orElseThrow();
+        String userPrivateIndex = context.getTenantIndices() //
             .stream() //
-            .filter(TenantIndex::isUserPrivateTenant) //
+            .filter(TenantIndex::belongsToUserPrivateTenant) //
             .map(TenantIndex::indexName) //
             .findFirst() //
             .orElseThrow();
-        String configured = context.getTenants().stream() //
-            .filter(tenant -> !tenant.isGlobal()) //
-            .filter(tenant -> !tenant.isUserPrivateTenant()) //
+        String configured = context.getTenantIndices().stream() //
+            .filter(tenant -> !tenant.belongsToGlobalTenant()) //
+            .filter(tenant -> !tenant.belongsToUserPrivateTenant()) //
             .map(TenantIndex::tenantName) //
             .findFirst() //
             .orElseThrow();
         assertThat(global, equalTo(Tenant.GLOBAL_TENANT_ID));
         assertThat(configured, equalTo("admin_tenant"));
         assertThat(userPrivateIndex, equalTo(".kibana_3292183_kirk_8.7.0_001"));
+    }
+
+    @Test
+    public void shouldDetectIndexInYellowState() {
+        CheckIndicesStateStep step = createCheckIndicesState();
+        createIndex(25, GLOBAL_TENANT_INDEX);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Check index step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.details(), containsString(GLOBAL_TENANT_INDEX.indexName()));
+    }
+
+    @Test
+    public void shouldNotReportErrorWhenIndicesAreInGreenState() {
+        CheckIndicesStateStep step = createCheckIndicesState();
+        var indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX);
+        createIndex(0, indices.toArray(DoubleAliasIndex[]::new));
+        context.setTenantIndices(indices.map(i -> new TenantIndex(i.indexName(), "tenant name id not important here")));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Check index step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    @Test
+    public void shouldReportErrorWhenOnlyOneOfIndicesIsYellow() {
+        CheckIndicesStateStep step = createCheckIndicesState();
+        var indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_LUKASZ_1_INDEX);
+        createIndex(0, indices.toArray(DoubleAliasIndex[]::new));
+        createIndex(25, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
+        indices = indices.with(PRIVATE_USER_KIRK_INDEX);
+        context.setTenantIndices(indices.map(i -> new TenantIndex(i.indexName(), "tenant name id not important here")));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Check index step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.details(), containsString(PRIVATE_USER_KIRK_INDEX.indexName()));
+    }
+
+    @Test
+    public void shouldBeConfiguredToAllowYellowIndices() {
+        CheckIndicesStateStep step = createCheckIndicesState();
+        var indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_LUKASZ_1_INDEX);
+        createIndex(0, indices.toArray(DoubleAliasIndex[]::new));
+        createIndex(25, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
+        indices = indices.with(PRIVATE_USER_KIRK_INDEX);
+        context = new DataMigrationContext(new MigrationConfig(true), clock);
+        context.setTenantIndices(indices.map(i -> new TenantIndex(i.indexName(), "tenant name id not important here")));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Check index step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    private static CheckIndicesStateStep createCheckIndicesState() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        return new CheckIndicesStateStep(new StepRepository(client));
     }
 
     public boolean isIndexCreated(String...indexOrAlias) {
@@ -453,8 +530,13 @@ public class MigrationStepsTest {
 
     private static PopulateTenantsStep createPopulateTenantsStep() {
         FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
+        PrivilegedConfigClient privilegedConfigClient = getPrivilegedClient();
+        return new PopulateTenantsStep(configurationProvider, new StepRepository(privilegedConfigClient));
+    }
+
+    private static PrivilegedConfigClient getPrivilegedClient() {
         Client client = cluster.getInternalNodeClient();
-        return new PopulateTenantsStep(configurationProvider, adapt(client));
+        return adapt(client);
     }
 
     private interface DeletableIndex {

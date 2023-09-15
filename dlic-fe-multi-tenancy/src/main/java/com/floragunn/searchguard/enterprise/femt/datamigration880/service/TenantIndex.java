@@ -12,11 +12,11 @@ public record TenantIndex(String indexName, @Nullable String tenantName) {
     public TenantIndex {
         requireNonEmpty(indexName, "Tenant index name is required");
     }
-    public boolean isGlobal() {
+    public boolean belongsToGlobalTenant() {
         return Tenant.GLOBAL_TENANT_ID.equals(tenantName);
     }
 
-    public boolean isUserPrivateTenant() {
+    public boolean belongsToUserPrivateTenant() {
         return Strings.isNullOrEmpty(tenantName);
     }
 }

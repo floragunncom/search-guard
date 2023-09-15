@@ -45,6 +45,7 @@ public class MigrationStepsExecutorTest {
     public static final String NAME_2 = "I am the second step";
     public static final String MESSAGE_FAILURE_1 = "Step execution failed!";
     public static final String MESSAGE_FAILURE_2 = "Oops, Sth went wrong during migration step execution!";
+    public static final MigrationConfig STRICT_CONFIG = new MigrationConfig(false);
 
     @Captor
     private ArgumentCaptor<MigrationExecutionSummary> summaryCaptor;
@@ -60,7 +61,7 @@ public class MigrationStepsExecutorTest {
 
     @Test(expected = IllegalStateException.class)
     public void shouldNotExecuteMigrationWithoutSteps() {
-        new MigrationStepsExecutor(repository, clock, ImmutableList.empty());
+        new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.empty());
     }
 
     @Test(expected = IllegalStateException.class)
@@ -68,14 +69,14 @@ public class MigrationStepsExecutorTest {
         MigrationStep stepOne = stepMockWithResult(NAME_1, OK, MESSAGE_1);
         MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2);
 
-        new MigrationStepsExecutor(repository, clock, ImmutableList.of(stepOne, stepTwo, null));
+        new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepOne, stepTwo, null));
     }
 
     @Test
     public void shouldExecuteAndPersistMigrationStep() {
         // given
         MigrationStep step = stepMockWithResult(NAME_1, OK, MESSAGE_1);
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(step));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(step));
 
         // when
         MigrationExecutionSummary summary = executor.execute();
@@ -115,7 +116,7 @@ public class MigrationStepsExecutorTest {
         // given
         MigrationStep stepOne = stepMockWithResult(NAME_1, OK, MESSAGE_1);
         MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2);
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(stepOne, stepTwo));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepOne, stepTwo));
 
         // when
         MigrationExecutionSummary summary = executor.execute();
@@ -182,7 +183,7 @@ public class MigrationStepsExecutorTest {
         // given
         MigrationStep stepOne = stepMockWithResult(NAME_1, INDICES_NOT_FOUND_ERROR, MESSAGE_1);
         MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2);
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(stepOne, stepTwo));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepOne, stepTwo));
 
         // when
         MigrationExecutionSummary restSummary = executor.execute();
@@ -227,7 +228,7 @@ public class MigrationStepsExecutorTest {
         MigrationStep stepOne = stepMock(NAME_1);
         when(stepOne.execute(any(DataMigrationContext.class))).thenThrow(new RuntimeException(MESSAGE_FAILURE_1));
         MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2);
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(stepOne, stepTwo));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepOne, stepTwo));
 
         // when
         MigrationExecutionSummary restSummary = executor.execute();
@@ -271,7 +272,7 @@ public class MigrationStepsExecutorTest {
         // given
         MigrationStep stepOne = stepMockWithResult(NAME_1, OK, MESSAGE_1);
         MigrationStep stepTwo = stepMockWithResult(NAME_2, INDICES_NOT_FOUND_ERROR, MESSAGE_2);
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(stepOne, stepTwo));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepOne, stepTwo));
 
         // when
         MigrationExecutionSummary summary = executor.execute();
@@ -339,7 +340,7 @@ public class MigrationStepsExecutorTest {
         MigrationStep stepOne = stepMockWithResult(NAME_1, OK, MESSAGE_1);
         MigrationStep stepTwo = stepMock(NAME_2);
         when(stepTwo.execute(any(DataMigrationContext.class))).thenThrow(new RuntimeException(MESSAGE_FAILURE_1));
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(stepOne, stepTwo));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepOne, stepTwo));
 
         // when
         MigrationExecutionSummary summary = executor.execute();
@@ -406,7 +407,7 @@ public class MigrationStepsExecutorTest {
         List<MigrationStep> stepMocks = IntStream.range(0, 50)//
                 .mapToObj(index -> stepMockWithResult("step_" + index, OK, "Step no. " + index)) //
                 .collect(Collectors.toList());
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(stepMocks));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepMocks));
 
         MigrationExecutionSummary migrationSummary = executor.execute();
 
@@ -423,7 +424,7 @@ public class MigrationStepsExecutorTest {
             .collect(Collectors.toList());
         final int failureStepIndex = 25;
         stepMocks.add(failureStepIndex, stepMockWithResult("Failure step", INDICES_NOT_FOUND_ERROR, MESSAGE_FAILURE_2));
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(stepMocks));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepMocks));
 
         MigrationExecutionSummary migrationSummary = executor.execute();
 
@@ -446,7 +447,7 @@ public class MigrationStepsExecutorTest {
         MigrationStep failureStep = stepMock("Failure step name");
         when(failureStep.execute(any(DataMigrationContext.class))).thenThrow(new IllegalStateException(MESSAGE_FAILURE_1));
         stepMocks.add(failureStepIndex, failureStep);
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(stepMocks));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepMocks));
 
         MigrationExecutionSummary migrationSummary = executor.execute();
 
@@ -465,7 +466,7 @@ public class MigrationStepsExecutorTest {
         ZonedDateTime now = ZonedDateTime.of(LocalDateTime.of(2023, 5, 25, 12, 1), ZoneOffset.UTC);
         this.clock = Clock.fixed(now.toInstant(), ZoneOffset.UTC);
         MigrationStep step = stepMockWithResult("The only step to take", OK, "I am done");
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(step));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(step));
 
         MigrationExecutionSummary migrationSummary = executor.execute();
 
@@ -482,7 +483,7 @@ public class MigrationStepsExecutorTest {
         String message = "Sth went wrong so exception is needed";
         String details = "Descriptive message";
         MigrationStep step = new ThrowExceptionStep(message, INDICES_NOT_FOUND_ERROR, details);
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(repository, clock, ImmutableList.of(step));
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(step));
 
         MigrationExecutionSummary summary = executor.execute();
 

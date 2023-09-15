@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -16,6 +17,7 @@ import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.settings.Settings;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -54,7 +56,8 @@ public class MigrationApiTest {
         for(String alias : aliasNames) {
             String indexName = alias + "_8.7.0_001";
             String shortAlias = alias + "_8.7.0";
-            CreateIndexRequest request = new CreateIndexRequest(indexName).alias(new Alias(alias)).alias(new Alias(shortAlias));
+            CreateIndexRequest request = new CreateIndexRequest(indexName).alias(new Alias(alias)).alias(new Alias(shortAlias))
+                .settings(Settings.builder().put("index.number_of_replicas", 0));
             client.admin().indices().create(request).actionGet();
         }
         // global tenant index
@@ -62,7 +65,8 @@ public class MigrationApiTest {
             .indices() //
             .create(new CreateIndexRequest(".kibana_8.7.0_001") //
                 .alias(new Alias(".kibana_8.7.0")) //
-                .alias(new Alias(".kibana"))) //
+                .alias(new Alias(".kibana")) //
+                .settings(Settings.builder().put("index.number_of_replicas", 0))) //
             .actionGet();
         // user tenant indices
         String[][] userIndicesAndAliases = new String[][] {
@@ -77,7 +81,8 @@ public class MigrationApiTest {
                 .indices() //
                 .create(new CreateIndexRequest(privateUserTenant[0]) //
                     .alias(new Alias(privateUserTenant[1])) //
-                    .alias(new Alias(privateUserTenant[2]))) //
+                    .alias(new Alias(privateUserTenant[2])) //
+                    .settings(Settings.builder().put("index.number_of_replicas", 0))) //
                 .actionGet();
         }
     }
@@ -94,7 +99,8 @@ public class MigrationApiTest {
     @Test
     public void shouldStartMigrationProcess() throws Exception {
         try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
-            HttpResponse response = client.post("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
+            DocNode body = DocNode.EMPTY;
+            HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body.toJsonString());
 
             log.info("Start migration response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));

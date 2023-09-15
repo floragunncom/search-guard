@@ -11,11 +11,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DataMigrationContext {
 
     private final static AtomicInteger instanceCounter = new AtomicInteger(0);
+
+    private final MigrationConfig config;
     private final LocalDateTime startTime;
     private final String migrationId;
-    private ImmutableList<TenantIndex> tenants;
+    private ImmutableList<TenantIndex> tenantIndices;
 
-    public DataMigrationContext(Clock clock) {
+    public DataMigrationContext(MigrationConfig config, Clock clock) {
+        this.config = Objects.requireNonNull(config, "Migration config is required");
         this.startTime = LocalDateTime.now(clock);
         int instanceNumber = instanceCounter.incrementAndGet();
         String time = IndexNameDataFormatter.format(startTime);
@@ -38,12 +41,20 @@ public class DataMigrationContext {
         return migrationId;
     }
 
-    public ImmutableList<TenantIndex> getTenants() {
-        return tenants;
+    public ImmutableList<TenantIndex> getTenantIndices() {
+        return tenantIndices;
     }
 
-    public void setTenants(ImmutableList<TenantIndex> tenants) {
-        Objects.requireNonNull(tenants, "Tenants list must not be null");
-        this.tenants = tenants;
+    public void setTenantIndices(ImmutableList<TenantIndex> tenantIndices) {
+        Objects.requireNonNull(tenantIndices, "Tenants list must not be null");
+        this.tenantIndices = tenantIndices;
+    }
+
+    public ImmutableList<String> getDataIndicesNames() {
+        return tenantIndices.map(TenantIndex::indexName);
+    }
+
+    public boolean areYellowDataIndicesAllowed() {
+        return config.allowYellowDataIndices();
     }
 }

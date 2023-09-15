@@ -46,7 +46,6 @@ public record StepExecutionSummary(long number, LocalDateTime startTime, String 
             return null;
         }
         try {
-            //some ES exceptions causes NPE here
             return Throwables.getStackTraceAsString(ex);
         } catch (Throwable e) {
             return "Cannot obtain stack trace from exception " + ex.getClass().getCanonicalName() + " with message " + ex.getMessage();

@@ -270,7 +270,7 @@ public class IndexMigrationStateRepositoryTest {
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummaryOne);
         var migrationSummary = new MigrationExecutionSummary(startTime, IN_PROGRESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         repository.upsert(ID_3, migrationSummary);
-        OptimisticLock lock = repository.findById(ID_3).get().lockData();
+        OptimisticLock lock = repository.findById(ID_3).orElseThrow().lockData();
         migrationSummary = new MigrationExecutionSummary(startTime.plusHours(1), IN_PROGRESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         repository.upsert(ID_3, migrationSummary);
         StepExecutionSummary stepSummaryTwo = new StepExecutionSummary(STEP_NO_2, startTime, STEP_NAME_2, OK, MESSAGE);

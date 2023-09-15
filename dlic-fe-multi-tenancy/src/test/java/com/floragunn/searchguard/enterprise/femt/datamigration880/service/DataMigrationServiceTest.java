@@ -51,6 +51,7 @@ public class DataMigrationServiceTest {
     public static final String MESSAGE = "I am done!";
     public static final String ERROR_MESSAGE = "Unexpected exception during mock step execution";
     public static final String MIGRATION_ID = "migration_8_8_0";
+    public static final MigrationConfig STRICT_CONFIG = new MigrationConfig(false);
 
     @Mock
     private DataMigrationService dataMigrationService;
@@ -76,7 +77,7 @@ public class DataMigrationServiceTest {
     public void shouldPerformDataMigration() {
         mockOneSuccessfulStep();
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_OK));
@@ -92,7 +93,7 @@ public class DataMigrationServiceTest {
         when(step.name()).thenReturn(STEP_NAME);
         when(stepFactory.createSteps()).thenReturn(ImmutableList.of(step));
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_INTERNAL_SERVER_ERROR));
@@ -108,7 +109,7 @@ public class DataMigrationServiceTest {
         mockOneSuccessfulStep();
         when(repository.isIndexCreated()).thenReturn(false);
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_OK));
@@ -120,7 +121,7 @@ public class DataMigrationServiceTest {
         mockOneSuccessfulStep();
         when(repository.isIndexCreated()).thenReturn(true);
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_OK));
@@ -132,7 +133,7 @@ public class DataMigrationServiceTest {
         when(repository.isIndexCreated()).thenReturn(false);
         doThrow(new IndexAlreadyExistsException("Test index already exists exception", null)).when(repository).createIndex();
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_CONFLICT));
@@ -150,7 +151,7 @@ public class DataMigrationServiceTest {
         MigrationExecutionSummary summary = new MigrationExecutionSummary(past, IN_PROGRESS, null, null, ImmutableList.empty());
         when(repository.findById(MIGRATION_ID)).thenReturn(Optional.of(summary));
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_BAD_REQUEST));
@@ -167,7 +168,7 @@ public class DataMigrationServiceTest {
         when(repository.findById(MIGRATION_ID)).thenReturn(Optional.empty());
         mockOneSuccessfulStep();
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_OK));
@@ -185,7 +186,7 @@ public class DataMigrationServiceTest {
         doThrow(new OptimisticLockException("Test optimistic lock exception", null)) //
             .when(repository).create(eq(MIGRATION_ID), any(MigrationExecutionSummary.class));
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_PRECONDITION_FAILED));
@@ -205,7 +206,7 @@ public class DataMigrationServiceTest {
         when(repository.findById(MIGRATION_ID)).thenReturn(Optional.of(summary));
         mockOneSuccessfulStep();
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_OK));
@@ -228,7 +229,7 @@ public class DataMigrationServiceTest {
             .when(repository) //
             .updateWithLock(eq(MIGRATION_ID), any(MigrationExecutionSummary.class), eq(lockData));
 
-        StandardResponse standardResponse = dataMigrationService.migrateData();
+        StandardResponse standardResponse = dataMigrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Data migration response '{}'", standardResponse.toJsonString());
         assertThat(standardResponse.getStatus(), equalTo(SC_CONFLICT));

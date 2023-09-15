@@ -9,15 +9,11 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
-import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
-import org.elasticsearch.index.IndexNotFoundException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -39,13 +35,12 @@ import static java.util.Objects.requireNonNull;
 class PopulateTenantsStep implements MigrationStep {
 
     private static final Logger log = LogManager.getLogger(PopulateTenantsStep.class);
-
     private final FeMultiTenancyConfigurationProvider configurationProvider;
-    private final PrivilegedConfigClient client;
+    private final StepRepository repository;
 
-    public PopulateTenantsStep(FeMultiTenancyConfigurationProvider configurationProvider, PrivilegedConfigClient client) {
+    public PopulateTenantsStep(FeMultiTenancyConfigurationProvider configurationProvider, StepRepository repository) {
         this.configurationProvider = requireNonNull(configurationProvider, "Multi-tenancy configuration provider is required");
-        this.client = requireNonNull(client, "Privileged client is required");
+        this.repository = requireNonNull(repository, "Step repository is required");
     }
 
     @Override
@@ -75,22 +70,22 @@ class PopulateTenantsStep implements MigrationStep {
             .map(this::resolveIndexAlias) //
             .flatMap(Optional::stream) //
             .collect(Collectors.toList());
-        log.debug("Tenants read from configuration: '{}'", tenants);
+        log.debug("Tenants read from configuration with index names resolved: '{}'", tenants);
         Set<String> tenantIndices = tenants.stream().map(TenantIndex::indexName).collect(Collectors.toSet());
         ImmutableList<TenantIndex> privateTenants = findPrivateTenants(config.getIndex(), tenantIndices);
         tenants.addAll(privateTenants);
         if(tenants.isEmpty()) {
             return new StepResult(INDICES_NOT_FOUND_ERROR, "Indices related to front-end multi tenancy not found.");
         }
-        List<TenantIndex> globalTenants = tenants.stream().filter(TenantIndex::isGlobal).toList();
+        List<TenantIndex> globalTenants = tenants.stream().filter(TenantIndex::belongsToGlobalTenant).toList();
         if(globalTenants.size() != 1) {
             String message = "Definition of exactly one global tenant is expected, but found " + globalTenants.size();
             String globalTenantsString = globalTenants.stream().map(Object::toString).collect(Collectors.joining(", "));
             return new StepResult(GLOBAL_TENANT_NOT_FOUND_ERROR, message, "List of global tenants: " + globalTenantsString);
         }
-        dataMigrationContext.setTenants(ImmutableList.of(tenants));
+        dataMigrationContext.setTenantIndices(ImmutableList.of(tenants));
         String stringTenantList = tenants.stream() //
-            .map(data -> "tenant " + (data.isUserPrivateTenant() ? "__user__" : data.tenantName()) + " -> " + data.indexName()) //
+            .map(data -> "tenant " + (data.belongsToUserPrivateTenant() ? "__user__" : data.tenantName()) + " -> " + data.indexName()) //
             .collect(Collectors.joining(", "));
         String details = "Tenants found for migration: " + stringTenantList;
         String message = "Populates " +  tenants.size() + " tenants' data for migration";
@@ -118,10 +113,11 @@ class PopulateTenantsStep implements MigrationStep {
     }
 
     private Optional<String> getIndexNameByAliasName(String aliasName) {
-        GetIndexRequest request = new GetIndexRequest();
-        request.indices(aliasName);
-        try {
-            GetIndexResponse response = client.admin().indices().getIndex(request).actionGet();
+        Optional<GetIndexResponse> indexResponse = repository.findIndexByName(aliasName);
+        if(indexResponse.isEmpty()) {
+            log.warn("Index '{}' with front-end data does not exist, its data will be not used during migration.", aliasName);
+        }
+        return indexResponse.map(response -> {
             String[] indices = response.getIndices();
             if((indices == null) || (indices.length != 1)) {
                 String message = "Alias " + aliasName + " should be associated with exactly one index";
@@ -134,17 +130,13 @@ class PopulateTenantsStep implements MigrationStep {
             }
             String indexName = indices[0];
             log.debug("Alias '{}' is related to index '{}'.", aliasName, indexName);
-            return Optional.ofNullable(indexName);
-        } catch (IndexNotFoundException ex) {
-            log.warn("Index '{}' with front-end data does not exist, its data will be not used during migration.", aliasName);
-            return Optional.empty();
-        }
+            return indexName;
+        });
     }
 
     private ImmutableList<TenantIndex> findPrivateTenants(String validIndexPrefix, Set<String> alreadyFoundIndices) {
         Pattern pattern = Pattern.compile(Pattern.quote(validIndexPrefix) + "_-?\\d+_[a-z0-9]+\\b");
-        GetIndexRequest request = new GetIndexRequest().indices("*").indicesOptions(IndicesOptions.strictExpandHidden());
-        GetIndexResponse indices = client.admin().indices().getIndex(request).actionGet();
+        GetIndexResponse indices = repository.findAllIndicesIncludingHidden();
         List<TenantIndex> privateTenants = indices.aliases()
             .entrySet()
             .stream()
