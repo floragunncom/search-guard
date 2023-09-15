@@ -18,12 +18,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.StartDataMigrationAction;
 import org.apache.logging.log4j.LogManager;
@@ -75,6 +77,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     private volatile FeMultiTenancyConfig config;
     private volatile RoleBasedTenantAuthorization tenantAuthorization;
     private volatile TenantManager tenantManager;
+    private volatile FeMultiTenancyTenantAccessMapper feMultiTenancyTenantAccessMapper;
 
     private volatile ImmutableSet<String> tenantNames = ImmutableSet.empty();
     private ThreadPool threadPool;
@@ -136,6 +139,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             tenantManager = new TenantManager(tenants.getCEntries().keySet());
             tenantAuthorization = new RoleBasedTenantAuthorization(roles, actionGroups, baseDependencies.getActions(), tenantManager,
                     feMultiTenancyConfig.getMetricsLevel());
+            feMultiTenancyTenantAccessMapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, baseDependencies.getActions());
 
             if (feMultiTenancyConfig != null) {
                 if (feMultiTenancyConfig.isEnabled()) {
@@ -159,8 +163,18 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             }
         });
 
-        return Arrays.asList(privilegesInterceptor, new FeMultiTenancyConfigurationProvider(this));
+        return Arrays.asList(privilegesInterceptor, new FeMultiTenancyConfigurationProvider(this), tenantAccessMapper);
     }
+
+    private final TenantAccessMapper tenantAccessMapper = new TenantAccessMapper() {
+        @Override
+        public Map<String, Boolean> mapTenantsAccess(User user, Set<String> roles) {
+            if (!enabled) {
+                return ImmutableMap.empty();
+            }
+            return feMultiTenancyTenantAccessMapper.mapTenantsAccess(user, roles);
+        }
+    };
 
     private final PrivilegesInterceptor privilegesInterceptor = new PrivilegesInterceptor() {
 

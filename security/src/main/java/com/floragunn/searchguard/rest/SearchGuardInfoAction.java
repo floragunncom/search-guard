@@ -27,6 +27,7 @@ import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Set;
 
+import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,16 +58,16 @@ public class SearchGuardInfoAction extends BaseRestHandler {
 
     private final Logger log = LogManager.getLogger(this.getClass());
     private final AuthorizationService authorizationService;
-    private final PrivilegesEvaluator evaluator;
+    private final TenantAccessMapper tenantAccessMapper;
     private final ThreadContext threadContext;
     private final ClusterService clusterService;
 
     private final AdminDNs adminDNs;
     
-    public SearchGuardInfoAction(Settings settings, RestController controller, AuthorizationService authorizationService, PrivilegesEvaluator evaluator, ThreadPool threadPool, ClusterService clusterService, AdminDNs adminDNs) {
+    public SearchGuardInfoAction(Settings settings, RestController controller, AuthorizationService authorizationService, TenantAccessMapper tenantAccessMapper, ThreadPool threadPool, ClusterService clusterService, AdminDNs adminDNs) {
         super();
         this.threadContext = threadPool.getThreadContext();
-        this.evaluator = evaluator;
+        this.tenantAccessMapper = tenantAccessMapper;
         this.clusterService = clusterService;
         this.authorizationService = authorizationService;
         this.adminDNs = adminDNs;
@@ -114,7 +115,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     builder.field("custom_attribute_names", user==null?null:user.getCustomAttributesMap().keySet());
                     builder.field("attribute_names", user==null?null:user.getStructuredAttributes().keySet());
                     builder.field("sg_roles", sgRoles);
-                    builder.field("sg_tenants", user==null?null:evaluator.mapTenants(user, sgRoles));
+                    builder.field("sg_tenants", user==null?null:tenantAccessMapper.mapTenantsAccess(user, sgRoles));
                     builder.field("principal", (String)threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL));
                     builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
                     
