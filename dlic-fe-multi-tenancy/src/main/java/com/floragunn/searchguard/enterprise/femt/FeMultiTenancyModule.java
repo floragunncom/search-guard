@@ -21,9 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.TenantManager;
@@ -53,7 +51,6 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
-import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.Tenant;
@@ -61,7 +58,6 @@ import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
@@ -163,7 +159,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             }
         });
 
-        return Arrays.asList(privilegesInterceptor, new FeMultiTenancyConfigurationProvider(this), tenantAccessMapper);
+        return Arrays.asList(new FeMultiTenancyConfigurationProvider(this), tenantAccessMapper);
     }
 
     private final TenantAccessMapper tenantAccessMapper = new TenantAccessMapper() {
@@ -174,53 +170,6 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             }
             return feMultiTenancyTenantAccessMapper.mapTenantsAccess(user, roles);
         }
-    };
-
-    private final PrivilegesInterceptor privilegesInterceptor = new PrivilegesInterceptor() {
-
-        @Override
-        public InterceptionResult replaceKibanaIndex(PrivilegesEvaluationContext context, ActionRequest request, Action action,
-                ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
-            // TODO
-            //if (enabled && interceptorImpl != null) {
-            //    return interceptorImpl.replaceKibanaIndex(context, request, action, actionAuthorization);
-            //} else {
-            return InterceptionResult.NORMAL;
-            //}
-        }
-
-        @Override
-        public boolean isEnabled() {
-            return enabled;
-        }
-
-        @Override
-        public String getKibanaIndex() {
-            if (enabled && interceptorImpl != null) {
-                return interceptorImpl.getKibanaIndex();
-            } else {
-                return ".kibana";
-            }
-        }
-
-        @Override
-        public String getKibanaServerUser() {
-            if (enabled && interceptorImpl != null) {
-                return interceptorImpl.getKibanaServerUser();
-            } else {
-                return "kibanaserver";
-            }
-        }
-
-        @Override
-        public Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles, ActionAuthorization actionAuthorization) {
-            if (enabled && interceptorImpl != null) {
-                return interceptorImpl.mapTenants(user, roles);
-            } else {
-                return ImmutableMap.empty();
-            }
-        }
-
     };
 
     private final SyncAuthorizationFilter syncAuthorizationFilter = new SyncAuthorizationFilter() {
