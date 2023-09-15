@@ -86,8 +86,8 @@ public class PrivilegesInterceptorImpl implements SyncAuthorizationFilter {
         this.versionedKibanaIndexPattern = Pattern.compile(
                 "(" + Pattern.quote(this.kibanaIndexName) + toPatternFragment(indexSubNames) + ")" + "(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)?" + "(" + Pattern.quote(TEMP_MIGRATION_INDEX_NAME_POSTFIX) + ")?");
 
-        this.KIBANA_ALL_SAVED_OBJECTS_WRITE = actions.get("kibana:saved_objects/_/write");
-        this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
+        this.KIBANA_ALL_SAVED_OBJECTS_WRITE = KibanaActionsProvider.getKibanaWriteAction(actions);
+        this.KIBANA_ALL_SAVED_OBJECTS_READ = KibanaActionsProvider.getKibanaReadAction(actions);
         this.threadContext = threadContext;
         this.nodeClient = nodeClient;
         this.tenantAuthorization = tenantAuthorization;

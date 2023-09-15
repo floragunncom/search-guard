@@ -115,7 +115,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final AuditLog auditLog;
     private ThreadContext threadContext;
 
-    private PrivilegesInterceptor privilegesInterceptor;
     private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
 
     private final boolean checkSnapshotRestoreWritePrivileges;
@@ -638,14 +637,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         return action0.startsWith("cluster:admin:searchguard:tenant:");
     }
 
-    /**
-     * Only used for authinfo REST API
-     */
-    public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
-        return privilegesInterceptor != null ? privilegesInterceptor.mapTenants(user, ImmutableSet.of(roles), actionAuthorization)
-                : ImmutableMap.empty();
-    }
-
     public Map<String, Boolean> evaluateClusterAndTenantPrivileges(User user, TransportAddress caller, Collection<String> privilegesAskedFor) {
         if (privilegesAskedFor == null || privilegesAskedFor.isEmpty() || user == null) {
             log.debug("Privileges or user empty");
@@ -828,14 +819,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             log.error("Error while handling document whitelist: " + docWhitelistHeader, e);
             return false;
         }
-    }
-
-    public PrivilegesInterceptor getPrivilegesInterceptor() {
-        return privilegesInterceptor;
-    }
-
-    public void setPrivilegesInterceptor(PrivilegesInterceptor privilegesInterceptor) {
-        this.privilegesInterceptor = privilegesInterceptor;
     }
 
     public void setMultiTenancyConfigurationProvider(MultiTenancyConfigurationProvider multiTenancyConfigurationProvider) {

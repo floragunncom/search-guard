@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -89,6 +90,7 @@ public class SearchGuardModulesRegistry {
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForAllOperations;
 
     private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
+    private TenantAccessMapper tenantAccessMapper;
     private Set<String> moduleNames = new HashSet<>();
     private final Set<String> disabledModules;
     private final Settings settings;
@@ -188,14 +190,8 @@ public class SearchGuardModulesRegistry {
             typedComponentRegistry.register(module.getTypedComponents());
         }
 
-        List<Object> multiTenancyConfigurationProviders = result.stream()
-                .filter(o -> MultiTenancyConfigurationProvider.class.isAssignableFrom(o.getClass())).toList();
-
-        if (!multiTenancyConfigurationProviders.isEmpty()) {
-            this.multiTenancyConfigurationProvider = (MultiTenancyConfigurationProvider) multiTenancyConfigurationProviders.get(0);
-        } else {
-            this.multiTenancyConfigurationProvider = MultiTenancyConfigurationProvider.DEFAULT;
-        }
+        this.multiTenancyConfigurationProvider = getMultiTenancyConfigurationProvider(result);
+        this.tenantAccessMapper = getTenantAccessMapper(result);
 
         return result;
     }
@@ -412,6 +408,10 @@ public class SearchGuardModulesRegistry {
         return multiTenancyConfigurationProvider;
     }
 
+    public TenantAccessMapper getTenantAccessMapper() {
+        return tenantAccessMapper;
+    }
+
     private static TypedComponentRegistry createTypedComponentRegistryWithDefaults() {
         TypedComponentRegistry typedComponentRegistry = new TypedComponentRegistry();
 
@@ -436,6 +436,28 @@ public class SearchGuardModulesRegistry {
 
     public List<SearchGuardModule> getModules() {
         return Collections.unmodifiableList(modules);
+    }
+
+    private MultiTenancyConfigurationProvider getMultiTenancyConfigurationProvider(List<Object> componentsList) {
+        List<Object> multiTenancyConfigurationProviders = componentsList.stream()
+                .filter(o -> MultiTenancyConfigurationProvider.class.isAssignableFrom(o.getClass())).toList();
+
+        if (!multiTenancyConfigurationProviders.isEmpty()) {
+            return (MultiTenancyConfigurationProvider) multiTenancyConfigurationProviders.get(0);
+        } else {
+            return MultiTenancyConfigurationProvider.DEFAULT;
+        }
+    }
+
+    private TenantAccessMapper getTenantAccessMapper(List<Object> componentsList) {
+        List<Object> tenantAccessMappers = componentsList.stream()
+                .filter(o -> TenantAccessMapper.class.isAssignableFrom(o.getClass())).toList();
+
+        if (!tenantAccessMappers.isEmpty()) {
+            return (TenantAccessMapper) tenantAccessMappers.get(0);
+        } else {
+            return TenantAccessMapper.NO_OP;
+        }
     }
 
 }
