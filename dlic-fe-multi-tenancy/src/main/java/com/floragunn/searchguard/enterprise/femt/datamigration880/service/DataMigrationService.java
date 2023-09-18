@@ -3,10 +3,13 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.StepsFactory;
 import com.floragunn.searchsupport.action.StandardResponse;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_CREATE_STATUS_DOCUMENT_ERROR;
@@ -21,6 +24,8 @@ import static org.apache.http.HttpStatus.SC_OK;
 import static org.apache.http.HttpStatus.SC_PRECONDITION_FAILED;
 
 public class DataMigrationService {
+
+    private static final Logger log = LogManager.getLogger(DataMigrationService.class);
     public static final String STAGE_NAME_PRECONDITIONS = "preconditions check";
 
     private final MigrationStateRepository migrationStateRepository;
@@ -55,7 +60,13 @@ public class DataMigrationService {
 
     private StandardResponse executeMigrationSteps(MigrationConfig config) {
         Objects.requireNonNull(config, "Migration config is required");
-        MigrationStepsExecutor executor = new MigrationStepsExecutor(config, migrationStateRepository, clock, stepsFactory.createSteps());
+        ImmutableList<MigrationStep> steps = stepsFactory.createSteps();
+        if(log.isInfoEnabled()) {
+            log.info("Front-end data migration step execution order: '{}'", steps.stream() //
+                .map(MigrationStep::name) //
+                .collect(Collectors.joining(", ")));
+        }
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(config, migrationStateRepository, clock, steps);
         MigrationExecutionSummary summary = executor.execute();
         int httpStatus = summary.isSuccessful() ? SC_OK : SC_INTERNAL_SERVER_ERROR;
         return new StandardResponse(httpStatus).data(summary);

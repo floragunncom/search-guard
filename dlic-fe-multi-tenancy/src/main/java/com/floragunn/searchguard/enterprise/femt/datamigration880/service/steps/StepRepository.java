@@ -3,6 +3,8 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.action.support.IndicesOptions;
@@ -41,6 +43,11 @@ class StepRepository {
     public GetIndexResponse findAllIndicesIncludingHidden() {
         GetIndexRequest request = new GetIndexRequest().indices("*").indicesOptions(IndicesOptions.strictExpandHidden());
         return client.admin().indices().getIndex(request).actionGet();
+    }
+
+    public GetSettingsResponse getIndexSettings(String...indices) {
+        GetSettingsRequest request = new GetSettingsRequest().indices(indices);
+        return client.admin().indices().getSettings(request).actionGet();
     }
 
 }

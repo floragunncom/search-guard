@@ -21,6 +21,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasA
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
+import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResponse;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -47,6 +48,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
@@ -82,6 +84,7 @@ public class MigrationStepsTest {
     private static final DoubleAliasIndex PRIVATE_USER_LUKASZ_1_INDEX = new DoubleAliasIndex(".kibana_-1091682490_lukasz_8.7.0_001", ".kibana_-1091682490_lukasz_8.7.0", ".kibana_-1091682490_lukasz"); //lukasz
     private static final DoubleAliasIndex PRIVATE_USER_LUKASZ_2_INDEX = new DoubleAliasIndex(".kibana_739988528_ukasz_8.7.0_001", ".kibana_739988528_ukasz_8.7.0", ".kibana_739988528_ukasz"); //łukasz
     private static final DoubleAliasIndex PRIVATE_USER_LUKASZ_3_INDEX =new DoubleAliasIndex(".kibana_-1091714203_luksz_8.7.0_001", ".kibana_-1091714203_luksz_8.7.0", ".kibana_-1091714203_luksz");//luk@sz
+    public static final String INDEX_TEMPLATE_NAME = "kibana_test_indices_template";
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
@@ -111,14 +114,30 @@ public class MigrationStepsTest {
     public void after() {
         deleteIndex(createdIndices.toArray(DeletableIndex[]::new));
         createdIndices.clear();
+        deleteIndexTemplateIfExists();
     }
 
-    private void createIndex(int numberOfReplicas, DoubleAliasIndex...indices) {
+    private static void deleteIndexTemplateIfExists() {
+        try(Client client = cluster.getInternalNodeClient()) {
+            GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(INDEX_TEMPLATE_NAME).execute().actionGet();
+            if(!response.getIndexTemplates().isEmpty()) {
+                client.admin().indices().prepareDeleteTemplate(INDEX_TEMPLATE_NAME).execute().actionGet();
+            }
+        }
+    }
+
+    private void createIndex(int numberOfReplicas, Settings additionalSettings, DoubleAliasIndex...indices) {
         BulkRequest bulkRequest = new BulkRequest();
         IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
-        PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest("kibana_test_indices_template") //
-            .patterns(Collections.singletonList(".kibana*")) //
-            .settings(Settings.builder().put("index.hidden", true).put("index.number_of_replicas", numberOfReplicas));
+        Settings.Builder settings = Settings.builder()
+            .put("index.hidden", true)
+            .put("index.number_of_replicas", numberOfReplicas);
+        if(additionalSettings != null) {
+            settings.put(additionalSettings);
+        }
+        PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
+            .patterns(Collections.singletonList(".kibana*")) // TODO configured index name prefix?
+            .settings(settings);
         cluster.getInternalNodeClient()//
             .admin() //
             .indices() //
@@ -134,13 +153,13 @@ public class MigrationStepsTest {
     }
 
     private void createIndex(DoubleAliasIndex...indices) {
-        createIndex(0, indices);
+        createIndex(0, null, indices);
     }
 
     private void createLegacyIndex(LegacyIndex...indices) {
         BulkRequest bulkRequest = new BulkRequest();
         IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
-        PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest("kibana_test_indices_template") //
+        PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
             .patterns(Collections.singletonList(".kibana*")) //
             .settings(Settings.builder().put("index.hidden", true));
         cluster.getInternalNodeClient()//
@@ -435,7 +454,7 @@ public class MigrationStepsTest {
     @Test
     public void shouldDetectIndexInYellowState() {
         CheckIndicesStateStep step = createCheckIndicesState();
-        createIndex(25, GLOBAL_TENANT_INDEX);
+        createIndex(25, Settings.EMPTY, GLOBAL_TENANT_INDEX);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
 
         StepResult result = step.execute(context);
@@ -449,8 +468,8 @@ public class MigrationStepsTest {
     public void shouldNotReportErrorWhenIndicesAreInGreenState() {
         CheckIndicesStateStep step = createCheckIndicesState();
         var indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX);
-        createIndex(0, indices.toArray(DoubleAliasIndex[]::new));
-        context.setTenantIndices(indices.map(i -> new TenantIndex(i.indexName(), "tenant name id not important here")));
+        createIndex(0, Settings.EMPTY, indices.toArray(DoubleAliasIndex[]::new));
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(indices));
 
         StepResult result = step.execute(context);
 
@@ -462,10 +481,10 @@ public class MigrationStepsTest {
     public void shouldReportErrorWhenOnlyOneOfIndicesIsYellow() {
         CheckIndicesStateStep step = createCheckIndicesState();
         var indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_LUKASZ_1_INDEX);
-        createIndex(0, indices.toArray(DoubleAliasIndex[]::new));
-        createIndex(25, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
+        createIndex(0, Settings.EMPTY, indices.toArray(DoubleAliasIndex[]::new));
+        createIndex(25, Settings.EMPTY, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
         indices = indices.with(PRIVATE_USER_KIRK_INDEX);
-        context.setTenantIndices(indices.map(i -> new TenantIndex(i.indexName(), "tenant name id not important here")));
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(indices));
 
         StepResult result = step.execute(context);
 
@@ -478,16 +497,123 @@ public class MigrationStepsTest {
     public void shouldBeConfiguredToAllowYellowIndices() {
         CheckIndicesStateStep step = createCheckIndicesState();
         var indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_LUKASZ_1_INDEX);
-        createIndex(0, indices.toArray(DoubleAliasIndex[]::new));
-        createIndex(25, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
+        createIndex(0, Settings.EMPTY, indices.toArray(DoubleAliasIndex[]::new));
+        createIndex(25, Settings.EMPTY, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
         indices = indices.with(PRIVATE_USER_KIRK_INDEX);
         context = new DataMigrationContext(new MigrationConfig(true), clock);
-        context.setTenantIndices(indices.map(i -> new TenantIndex(i.indexName(), "tenant name id not important here")));
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(indices));
 
         StepResult result = step.execute(context);
 
         log.debug("Check index step result '{}'", result);
         assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    @Test
+    public void shouldNotFindBlockedIndices() {
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX);
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX));
+        CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(new StepRepository(getPrivilegedClient()));
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(result.details(), containsString(GLOBAL_TENANT_INDEX.indexName()));
+        assertThat(result.details(), containsString(PRIVATE_USER_KIRK_INDEX.indexName()));
+    }
+
+    @Test
+    public void shouldFindWriteBlockedIndices() throws Exception {
+        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant("management");
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
+        var tenantIndices = doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX,
+            PRIVATE_USER_KIRK_INDEX,
+            managementTenantIndex);
+        context.setTenantIndices(tenantIndices);
+        CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(new StepRepository(getPrivilegedClient()));
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())){
+            HttpResponse response = adminClient.put("/" + managementTenantIndex.indexName() + "/_block/write");
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+        }
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.status(), equalTo(DATA_INDICES_LOCKED_ERROR));
+        assertThat(result.details(), containsString("write"));
+    }
+
+    @Test
+    public void shouldFindReadBlockedIndices() throws Exception {
+        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant("management");
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
+        var tenantIndices = doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX,
+            PRIVATE_USER_KIRK_INDEX,
+            managementTenantIndex);
+        context.setTenantIndices(tenantIndices);
+        CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(new StepRepository(getPrivilegedClient()));
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())){
+            HttpResponse response = adminClient.put("/" + managementTenantIndex.indexName() + "/_block/read");
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+        }
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.status(), equalTo(DATA_INDICES_LOCKED_ERROR));
+        assertThat(result.details(), containsString("read"));
+    }
+
+    @Test
+    public void shouldFindReadOnlyBlockedIndices() throws Exception {
+        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant("management");
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
+        var tenantIndices = doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX,
+            PRIVATE_USER_KIRK_INDEX,
+            managementTenantIndex);
+        context.setTenantIndices(tenantIndices);
+        CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(new StepRepository(getPrivilegedClient()));
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())){
+            HttpResponse response = adminClient.put("/" + managementTenantIndex.indexName() + "/_block/read_only");
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            try {
+
+                StepResult result = step.execute(context);
+
+                assertThat(result.isSuccess(), equalTo(false));
+                assertThat(result.status(), equalTo(DATA_INDICES_LOCKED_ERROR));
+                assertThat(result.details(), containsString("read_only"));
+            } finally {
+                DocNode body = DocNode.of("index.blocks.read_only", false);
+                adminClient.putJson("/" + managementTenantIndex.indexName() + "/_settings", body.toJsonString());
+            }
+        }
+    }
+
+    @Test
+    public void shouldFindMetadataBlockedIndices() throws Exception {
+        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant("management");
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
+        var tenantIndices = doubleAliasIndexToTenantDataWithoutTenantName(managementTenantIndex,
+            GLOBAL_TENANT_INDEX,
+            PRIVATE_USER_KIRK_INDEX);
+        context.setTenantIndices(tenantIndices);
+        CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(new StepRepository(getPrivilegedClient()));
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())) {
+            HttpResponse response = adminClient.put("/" + managementTenantIndex.indexName() + "/_block/metadata");
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            try {
+
+                StepResult result = step.execute(context);
+
+                assertThat(result.isSuccess(), equalTo(false));
+                assertThat(result.status(), equalTo(DATA_INDICES_LOCKED_ERROR));
+                assertThat(result.details(), containsString("metadata"));
+            } finally {
+                DocNode body = DocNode.of("index.blocks.metadata", false);
+                adminClient.putJson("/" + managementTenantIndex.indexName() + "/_settings", body.toJsonString());
+            }
+        }
     }
 
     private static CheckIndicesStateStep createCheckIndicesState() {
@@ -605,5 +731,14 @@ public class MigrationStepsTest {
     public static String getConfiguredIndexPrefix() {
         FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         return configurationProvider.getConfig().orElseThrow().getIndex();
+    }
+
+
+    private static ImmutableList<TenantIndex> doubleAliasIndexToTenantDataWithoutTenantName(ImmutableList<DoubleAliasIndex> indices) {
+        return indices.map(i -> new TenantIndex(i.indexName(), "tenant name id not important here"));
+    }
+
+    private static ImmutableList<TenantIndex> doubleAliasIndexToTenantDataWithoutTenantName(DoubleAliasIndex...indices) {
+        return doubleAliasIndexToTenantDataWithoutTenantName(ImmutableList.ofArray(indices));
     }
 }
