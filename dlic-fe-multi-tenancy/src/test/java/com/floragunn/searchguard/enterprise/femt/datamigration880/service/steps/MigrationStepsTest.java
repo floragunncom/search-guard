@@ -7,6 +7,7 @@ import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.IndexNameDataFormatter;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
@@ -61,8 +62,10 @@ import static org.apache.http.HttpStatus.SC_OK;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.elasticsearch.common.Strings.requireNonEmpty;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
@@ -150,6 +153,15 @@ public class MigrationStepsTest {
         }
         cluster.getInternalNodeClient().bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
         cluster.getInternalNodeClient().admin().indices().aliases(indicesAliasesRequest).actionGet();
+    }
+
+    public void createBackIndex(BackupIndex...indices) {
+        BulkRequest bulkRequest = new BulkRequest();
+        for(BackupIndex index : indices) {
+            bulkRequest.add(new IndexRequest(index.indexName()).source(DocNode.EMPTY));
+            createdIndices.add(index);
+        }
+        cluster.getInternalNodeClient().bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
     }
 
     private void createIndex(DoubleAliasIndex...indices) {
@@ -616,6 +628,72 @@ public class MigrationStepsTest {
         }
     }
 
+    @Test
+    public void shouldNotFindAnyBackupIndices() {
+        PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
+
+        StepResult result = step.execute(context);
+
+        log.info("Step response " + result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(context.getBackupIndices(), empty());
+    }
+
+    @Test
+    public void shouldFindSingleBackupIndex() {
+        PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
+        BackupIndex backupIndex = new BackupIndex(NOW.toLocalDateTime());
+        createBackIndex(backupIndex);
+
+        StepResult result = step.execute(context);
+
+        log.info("Find backup indices result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(context.getBackupIndices(), hasSize(1));
+        assertThat(context.getBackupIndices().get(0), equalTo(backupIndex.indexName()));
+    }
+
+    @Test
+    public void shouldFindManyBackupIndices() {
+        PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusDays(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusDays(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
+        BackupIndex backupIndex6 = new BackupIndex(NOW.toLocalDateTime().minusDays(5));
+        BackupIndex backupIndex7 = new BackupIndex(NOW.toLocalDateTime().minusDays(6));
+        createBackIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5, backupIndex6, backupIndex7);
+
+        StepResult result = step.execute(context);
+
+        log.info("Find backup indices result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(context.getBackupIndices(), hasSize(7));
+        assertThat(context.getBackupIndices(), contains(backupIndex1.indexName(),
+            backupIndex2.indexName(),
+            backupIndex3.indexName(),
+            backupIndex4.indexName(),
+            backupIndex5.indexName(),
+            backupIndex6.indexName(),
+            backupIndex7.indexName()));
+        assertThat(context.getNewestExistingBackupIndex().orElseThrow(), equalTo(backupIndex1.indexName()));
+    }
+
+    @Test
+    public void shouldFindLargeAmountOfBackupIndices() {
+        BackupIndex[] backupIndices = IntStream.range(0, 255) //
+            .mapToObj(index -> new BackupIndex(NOW.minusHours(index).toLocalDateTime())) //
+            .toArray(BackupIndex[]::new);
+        createBackIndex(backupIndices);
+        PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(context.getBackupIndices(), hasSize(backupIndices.length));
+    }
+
     private static CheckIndicesStateStep createCheckIndicesState() {
         PrivilegedConfigClient client = getPrivilegedClient();
         return new CheckIndicesStateStep(new StepRepository(client));
@@ -728,10 +806,23 @@ public class MigrationStepsTest {
         }
     }
 
+    private record BackupIndex(String indexName) implements DeletableIndex {
+
+        public BackupIndex(LocalDateTime backupIndexCreationTime) {
+            this("backup_fe_migration_to_8_8_0_" + IndexNameDataFormatter.format(backupIndexCreationTime));
+        }
+
+        @Override
+        public String indexForDeletion() {
+            return indexName;
+        }
+    }
+
     public static String getConfiguredIndexPrefix() {
         FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         return configurationProvider.getConfig().orElseThrow().getIndex();
     }
+
 
 
     private static ImmutableList<TenantIndex> doubleAliasIndexToTenantDataWithoutTenantName(ImmutableList<DoubleAliasIndex> indices) {

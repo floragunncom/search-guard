@@ -19,7 +19,9 @@ public class StepsFactory {
 
     public ImmutableList<MigrationStep> createSteps() {
         StepRepository repository = new StepRepository(client);
-        return ImmutableList.of(new PopulateTenantsStep(configurationProvider, repository), new CheckIndicesStateStep(repository),
+        return ImmutableList.of(new PopulateTenantsStep(configurationProvider, repository),
+            new PopulateBackupIndicesStep(repository),
+            new CheckIndicesStateStep(repository),
             new CheckIfIndicesAreBlockedStep(repository));
     }
 }
