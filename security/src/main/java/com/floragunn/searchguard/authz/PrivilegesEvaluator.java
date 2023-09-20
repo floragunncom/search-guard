@@ -34,24 +34,16 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
-import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -105,7 +97,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     UNSUPPORTED_RESTORE_SGINDEX_ENABLED);
 
     private static final Logger log = LogManager.getLogger(PrivilegesEvaluator.class);
-    protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final ClusterService clusterService;
     private final AuthorizationService authorizationService;
     private final IndexNameExpressionResolver resolver;
@@ -121,7 +112,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final ActionRequestIntrospector actionRequestIntrospector;
     private final SnapshotRestoreEvaluator snapshotRestoreEvaluator;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
-    private final Client localClient;
     private final Pattern adminOnlyActions;
     private final Pattern adminOnlyIndices;
     private final Actions actions;
@@ -131,12 +121,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private volatile RoleBasedActionAuthorization actionAuthorization = null;
     private volatile TenantManager tenantManager = null;
 
-    // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
-    private String kibanaServerUsername;
-    private String kibanaIndexName;
-    private volatile boolean kibanaIndexTemplateFixApplied = false;
-
-    public PrivilegesEvaluator(Client localClient, ClusterService clusterService, ThreadPool threadPool,
+    public PrivilegesEvaluator(ClusterService clusterService, ThreadPool threadPool,
             ConfigurationRepository configurationRepository, AuthorizationService authorizationService, IndexNameExpressionResolver resolver,
             AuditLog auditLog, StaticSettings settings, ClusterInfoHolder clusterInfoHolder, Actions actions,
             ActionRequestIntrospector actionRequestIntrospector,
@@ -146,7 +131,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.clusterService = clusterService;
         this.resolver = resolver;
         this.auditLog = auditLog;
-        this.localClient = localClient;
         this.authorizationService = authorizationService;
 
         this.threadContext = threadPool.getThreadContext();
@@ -384,8 +368,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
-        ActionFilter additionalActionFilter = null;
-
         if (actionRequestInfo.getResolvedIndices().containsOnlyRemoteIndices()) {
             log.debug(
                     "Request contains only remote indices. We can skip all further checks and let requests be handled by remote cluster: " + action0);
@@ -394,48 +376,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         if (log.isDebugEnabled()) {
             log.debug("requested resolved indextypes: {}", actionRequestInfo);
-        }
-
-        // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
-        if (!kibanaIndexTemplateFixApplied && user.getName().equals(kibanaServerUsername)) {
-            if ((request instanceof ResizeRequest && ((ResizeRequest) request).getSourceIndex().startsWith(kibanaIndexName)
-                    && ((ResizeRequest) request).getSourceIndex().endsWith("_reindex_temp"))
-                    || (request instanceof CreateIndexRequest && ((CreateIndexRequest) request).index().startsWith(kibanaIndexName))) {
-
-                kibanaIndexTemplateFixApplied = true;
-
-                IndexTemplateMetadata template = clusterService.state().getMetadata().getTemplates().get("tenant_template");
-
-                if (template != null && template.patterns().size() > 0 && template.patterns().get(0).startsWith(kibanaIndexName)) {
-                    additionalActionFilter = new ActionFilter() {
-
-                        @Override
-                        public int order() {
-                            return 0;
-                        }
-
-                        @Override
-                        public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action, Request request,
-                                ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
-                            localClient.admin().indices().deleteTemplate(new DeleteIndexTemplateRequest("tenant_template"),
-                                    new ActionListener<AcknowledgedResponse>() {
-
-                                        @Override
-                                        public void onResponse(AcknowledgedResponse response) {
-                                            log.info("Deleted obsolete tenant_template");
-                                            chain.proceed(task, action, request, listener);
-                                        }
-
-                                        @Override
-                                        public void onFailure(Exception e) {
-                                            log.error("Error while deleting tenant_template. Ignoring.", e);
-                                            chain.proceed(task, action, request, listener);
-                                        }
-                                    });
-                        }
-                    };
-                }
-            }
         }
 
         boolean dnfofPossible = authzConfig.isIgnoreUnauthorizedIndices() && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action0)
