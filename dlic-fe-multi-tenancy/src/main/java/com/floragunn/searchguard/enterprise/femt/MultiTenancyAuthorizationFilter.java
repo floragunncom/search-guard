@@ -100,7 +100,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
     @Override
     public SyncAuthorizationFilter.Result apply(PrivilegesEvaluationContext context, ActionListener<?> listener) {
         if (!enabled) {
-            log.trace("PrivilegesInterceptorImpl is disabled");
+            log.trace("MultiTenancyAuthorizationFilter is disabled");
             return SyncAuthorizationFilter.Result.OK;
         }
 
