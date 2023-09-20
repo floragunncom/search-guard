@@ -152,8 +152,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
                 return SyncAuthorizationFilter.Result.DENIED;
             }
         } catch (PrivilegesEvaluationException e) {
-            // TODO
-            log.error(e, e);
+            log.error("Error while evaluating privileges for {}, tenant: {}", user, requestedTenant, e);
             return SyncAuthorizationFilter.Result.DENIED;
         }
     }
