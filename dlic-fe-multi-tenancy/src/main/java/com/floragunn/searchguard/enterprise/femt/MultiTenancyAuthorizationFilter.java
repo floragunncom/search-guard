@@ -216,7 +216,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
             .collect(Collectors.toList());
         if((!multiTenancyRelatedIndices.isEmpty()) && (allQueryIndices.size() != multiTenancyRelatedIndices.size())) {
             String indicesNames = String.join(", ", allQueryIndices);
-            log.debug("Request '{}' is related to multi-tenancy indices and some other indices '{}'", request.getClass(), indicesNames);
+            log.error("Request '{}' is related to multi-tenancy indices and some other indices '{}'", request.getClass(), indicesNames);
         }
         return multiTenancyRelatedIndices;
     }
