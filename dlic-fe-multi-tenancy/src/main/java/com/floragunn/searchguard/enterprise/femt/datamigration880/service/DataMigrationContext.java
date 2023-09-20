@@ -58,7 +58,7 @@ public class DataMigrationContext {
     }
 
     public boolean areYellowDataIndicesAllowed() {
-        return config.allowYellowDataIndices();
+        return config.allowYellowIndices();
     }
 
     public ImmutableList<String> getBackupIndices() {

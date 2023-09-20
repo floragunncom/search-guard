@@ -4,7 +4,6 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.IndexNameDataFormatter;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
-import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,7 +35,7 @@ public class PopulateBackupIndicesStep implements MigrationStep {
 
     @Override
     public StepResult execute(DataMigrationContext context) throws StepException {
-        Optional<GetIndexResponse> responseOptional = repository.findIndexByName(BACKUP_INDEX_NAME_PREFIX + "*");
+        Optional<GetIndexResponse> responseOptional = repository.findIndexByNameOrAlias(BACKUP_INDEX_NAME_PREFIX + "*");
         responseOptional.ifPresentOrElse(response -> {
             List<String> sortedIndices = Arrays.stream(response.getIndices()) //
                 .sorted(this.backupIndexComparator()) // TODO use comparator

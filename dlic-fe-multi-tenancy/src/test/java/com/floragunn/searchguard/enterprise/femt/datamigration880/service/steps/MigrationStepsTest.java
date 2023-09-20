@@ -20,11 +20,13 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResponse;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
@@ -54,6 +56,7 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_DISABLED_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNHEALTHY_INDICES_ERROR;
 import static com.floragunn.searchguard.support.PrivilegedConfigClient.adapt;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static java.time.ZoneOffset.UTC;
@@ -69,6 +72,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.in;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.mockito.Mockito.when;
 
@@ -79,10 +83,9 @@ public class MigrationStepsTest {
 
     private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(2000, 1, 1, 1, 1), UTC);
 
-    private static final DoubleAliasIndex GLOBAL_TENANT_INDEX = new DoubleAliasIndex(".kibana_8.7.0_001", ".kibana_8.7.0", ".kibana");
-    private static final DoubleAliasIndex TASK_MANAGER_INDEX = new DoubleAliasIndex(".kibana_task_manager_8.7.0_001", ".kibana_task_manager_8.7.0", "kibana_task_manager");
-    private static final DoubleAliasIndex EVENT_LOG_INDEX = new DoubleAliasIndex(".kibana-event-log-8.7.0-000001", ".kibana-event-log-8.7.0", ".kibana-event-log");
-    private static final DoubleAliasIndex DATA_INDEX = new DoubleAliasIndex("iot-2020-09", "iot-2020", "iot");
+    public static final String MULTITENANCY_INDEX_PREFIX = ".kibana";
+    private static final DoubleAliasIndex GLOBAL_TENANT_INDEX = new DoubleAliasIndex(".kibana_8.7.0_001", ".kibana_8.7.0",
+        MULTITENANCY_INDEX_PREFIX);
     private static final DoubleAliasIndex PRIVATE_USER_KIRK_INDEX = new DoubleAliasIndex(".kibana_3292183_kirk_8.7.0_001", ".kibana_3292183_kirk_8.7.0", ".kibana_3292183_kirk" );// kirk
     private static final DoubleAliasIndex PRIVATE_USER_LUKASZ_1_INDEX = new DoubleAliasIndex(".kibana_-1091682490_lukasz_8.7.0_001", ".kibana_-1091682490_lukasz_8.7.0", ".kibana_-1091682490_lukasz"); //lukasz
     private static final DoubleAliasIndex PRIVATE_USER_LUKASZ_2_INDEX = new DoubleAliasIndex(".kibana_739988528_ukasz_8.7.0_001", ".kibana_739988528_ukasz_8.7.0", ".kibana_739988528_ukasz"); //łukasz
@@ -124,12 +127,13 @@ public class MigrationStepsTest {
         try(Client client = cluster.getInternalNodeClient()) {
             GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(INDEX_TEMPLATE_NAME).execute().actionGet();
             if(!response.getIndexTemplates().isEmpty()) {
-                client.admin().indices().prepareDeleteTemplate(INDEX_TEMPLATE_NAME).execute().actionGet();
+                var acknowledgedResponse = client.admin().indices().prepareDeleteTemplate(INDEX_TEMPLATE_NAME).execute().actionGet();
+                assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
             }
         }
     }
 
-    private void createIndex(int numberOfReplicas, Settings additionalSettings, DoubleAliasIndex...indices) {
+    private void createIndex(String indexNamesPrefix, int numberOfReplicas, Settings additionalSettings, DoubleAliasIndex...indices) {
         BulkRequest bulkRequest = new BulkRequest();
         IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
         Settings.Builder settings = Settings.builder()
@@ -139,53 +143,82 @@ public class MigrationStepsTest {
             settings.put(additionalSettings);
         }
         PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
-            .patterns(Collections.singletonList(".kibana*")) // TODO configured index name prefix?
+            .patterns(Collections.singletonList(indexNamesPrefix + "*"))
             .settings(settings);
-        cluster.getInternalNodeClient()//
-            .admin() //
-            .indices() //
-            .putTemplate(templateRequest) //
-            .actionGet();
-        for(DoubleAliasIndex index : indices) {
-            bulkRequest.add(new IndexRequest(index.indexName()).source(DocNode.EMPTY));
-            createdIndices.add(index);
-            indicesAliasesRequest.addAliasAction(AliasActions.add().index(index.indexName).aliases(index.longAlias, index.shortAlias));
+        try(Client client = cluster.getInternalNodeClient()) {
+            client.admin() //
+                .indices() //
+                .putTemplate(templateRequest) //
+                .actionGet();
+            for (DoubleAliasIndex index : indices) {
+                String currentIndex = index.indexName();
+                if (!currentIndex.startsWith(indexNamesPrefix)) {
+                    String message = String.join("", "Incorrect name of index ",
+                        currentIndex, ". All created indices must have a common prefix '" + indexNamesPrefix, "'.");
+                    throw new IllegalStateException(message);
+                }
+                bulkRequest.add(new IndexRequest(currentIndex).source(DocNode.EMPTY));
+                createdIndices.add(index);
+                indicesAliasesRequest.addAliasAction(AliasActions.add().index(index.indexName).aliases(index.longAlias, index.shortAlias));
+            }
+            BulkResponse response = client.bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
+            if (response.hasFailures()) {
+                log.error("Create index failure response {}", response.buildFailureMessage());
+            }
+            assertThat(response.hasFailures(), equalTo(false));
+            var acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
+            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
         }
-        cluster.getInternalNodeClient().bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
-        cluster.getInternalNodeClient().admin().indices().aliases(indicesAliasesRequest).actionGet();
     }
 
-    public void createBackIndex(BackupIndex...indices) {
+    private void createBackupIndex(BackupIndex...indices) {
         BulkRequest bulkRequest = new BulkRequest();
         for(BackupIndex index : indices) {
             bulkRequest.add(new IndexRequest(index.indexName()).source(DocNode.EMPTY));
             createdIndices.add(index);
         }
-        cluster.getInternalNodeClient().bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
+
+        try(Client client = cluster.getInternalNodeClient()) {
+            BulkResponse response = client.bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
+            if (response.hasFailures()) {
+                log.error("Create backup index failure response {}", response.buildFailureMessage());
+            }
+            assertThat(response.hasFailures(), equalTo(false));
+        }
     }
 
     private void createIndex(DoubleAliasIndex...indices) {
-        createIndex(0, null, indices);
+        createIndex(MULTITENANCY_INDEX_PREFIX, 0, null, indices);
     }
 
     private void createLegacyIndex(LegacyIndex...indices) {
+        String configuredIndexNamePrefix = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class) //
+            .getConfig() //
+            .orElseThrow() //
+            .getIndex();
+
         BulkRequest bulkRequest = new BulkRequest();
         IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
         PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
-            .patterns(Collections.singletonList(".kibana*")) //
+            .patterns(Collections.singletonList(configuredIndexNamePrefix + "*")) //
             .settings(Settings.builder().put("index.hidden", true));
-        cluster.getInternalNodeClient()//
-            .admin() //
-            .indices() //
-            .putTemplate(templateRequest) //
-            .actionGet();
-        for(LegacyIndex index : indices) {
-            bulkRequest.add(new IndexRequest(index.indexName()).source(DocNode.EMPTY));
-            createdIndices.add(index);
-            indicesAliasesRequest.addAliasAction(AliasActions.add().index(index.indexName).aliases(index.longAlias));
+        try(Client client = cluster.getInternalNodeClient()) {
+            client.admin() //
+                .indices() //
+                .putTemplate(templateRequest) //
+                .actionGet();
+            for (LegacyIndex index : indices) {
+                String currentIndexName = index.indexName();
+                if (!currentIndexName.startsWith(configuredIndexNamePrefix)) {
+                    throw new IllegalStateException("All legacy indices names should start with " + currentIndexName);
+                }
+                bulkRequest.add(new IndexRequest(currentIndexName).source(DocNode.EMPTY));
+                createdIndices.add(index);
+                indicesAliasesRequest.addAliasAction(AliasActions.add().index(index.indexName).aliases(index.longAlias));
+            }
+            client.bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
+            client.admin().indices().aliases(indicesAliasesRequest).actionGet();
         }
-        cluster.getInternalNodeClient().bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
-        cluster.getInternalNodeClient().admin().indices().aliases(indicesAliasesRequest).actionGet();
     }
 
     private void deleteIndex(DeletableIndex...deletableIndices) {
@@ -240,7 +273,11 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldFindGlobalTenantIndex() {
-        createIndex(GLOBAL_TENANT_INDEX, TASK_MANAGER_INDEX, EVENT_LOG_INDEX, DATA_INDEX);
+        DoubleAliasIndex taskManagerIndex = new DoubleAliasIndex(".kibana_task_manager_8.7.0_001", ".kibana_task_manager_8.7.0", "kibana_task_manager");
+        DoubleAliasIndex eventLogIndex = new DoubleAliasIndex(".kibana-event-log-8.7.0-000001", ".kibana-event-log-8.7.0", ".kibana-event-log");
+        DoubleAliasIndex dataIndex = new DoubleAliasIndex("iot-2020-09", "iot-2020", "iot");
+        createIndex(GLOBAL_TENANT_INDEX, taskManagerIndex, eventLogIndex);
+        createIndex("iot", 0, null, dataIndex);
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
 
         populateTenantsStep.execute(context);
@@ -309,7 +346,7 @@ public class MigrationStepsTest {
         List<DoubleAliasIndex> indices = new ArrayList<>();
         indices.add(GLOBAL_TENANT_INDEX);
         indices.addAll(getIndicesForConfiguredTenantsWithoutGlobal());
-        indices.addAll(generatePrivateTenantNames(".kibana", 101));
+        indices.addAll(generatePrivateTenantNames(MULTITENANCY_INDEX_PREFIX, 101));
         createIndex(indices.toArray(DoubleAliasIndex[]::new));
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
 
@@ -323,7 +360,10 @@ public class MigrationStepsTest {
     public void shouldUseIndexPrefixReadFromConfiguration() {
         String indexNamePrefix = "wideopenfindashboard";
         DoubleAliasIndex privateUserTenant = generatePrivateTenantNames(indexNamePrefix, 1).get(0);
-        createIndex(GLOBAL_TENANT_INDEX, privateUserTenant);
+        DoubleAliasIndex globalTenantIndex = new DoubleAliasIndex(indexNamePrefix + "_8.7.0_001",
+            indexNamePrefix + "_8.7.0", indexNamePrefix);
+        createIndex(indexNamePrefix, 0, null, globalTenantIndex);
+        createIndex(indexNamePrefix, 0, null, privateUserTenant);
         when(feMultiTenancyConfig.getIndex()).thenReturn(indexNamePrefix);
         when(feMultiTenancyConfig.isEnabled()).thenReturn(true);
         when(multiTenancyConfigurationProvider.getConfig()).thenReturn(Optional.of(feMultiTenancyConfig));
@@ -465,9 +505,10 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldDetectIndexInYellowState() {
-        CheckIndicesStateStep step = createCheckIndicesState();
-        createIndex(25, Settings.EMPTY, GLOBAL_TENANT_INDEX);
+        CheckIndicesStateStep step = createCheckIndicesStateStep();
+        createIndex(MULTITENANCY_INDEX_PREFIX, 25, Settings.EMPTY, GLOBAL_TENANT_INDEX);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        context.setBackupIndices(ImmutableList.empty());
 
         StepResult result = step.execute(context);
 
@@ -478,10 +519,11 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldNotReportErrorWhenIndicesAreInGreenState() {
-        CheckIndicesStateStep step = createCheckIndicesState();
+        CheckIndicesStateStep step = createCheckIndicesStateStep();
         var indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX);
-        createIndex(0, Settings.EMPTY, indices.toArray(DoubleAliasIndex[]::new));
+        createIndex(MULTITENANCY_INDEX_PREFIX, 0, Settings.EMPTY, indices.toArray(DoubleAliasIndex[]::new));
         context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(indices));
+        context.setBackupIndices(ImmutableList.empty());
 
         StepResult result = step.execute(context);
 
@@ -491,12 +533,13 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldReportErrorWhenOnlyOneOfIndicesIsYellow() {
-        CheckIndicesStateStep step = createCheckIndicesState();
+        CheckIndicesStateStep step = createCheckIndicesStateStep();
         var indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_LUKASZ_1_INDEX);
-        createIndex(0, Settings.EMPTY, indices.toArray(DoubleAliasIndex[]::new));
-        createIndex(25, Settings.EMPTY, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
+        createIndex(MULTITENANCY_INDEX_PREFIX, 0, Settings.EMPTY, indices.toArray(DoubleAliasIndex[]::new));
+        createIndex(MULTITENANCY_INDEX_PREFIX, 25, Settings.EMPTY, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
         indices = indices.with(PRIVATE_USER_KIRK_INDEX);
         context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(indices));
+        context.setBackupIndices(ImmutableList.empty());
 
         StepResult result = step.execute(context);
 
@@ -507,13 +550,14 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldBeConfiguredToAllowYellowIndices() {
-        CheckIndicesStateStep step = createCheckIndicesState();
+        CheckIndicesStateStep step = createCheckIndicesStateStep();
         var indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_LUKASZ_1_INDEX);
-        createIndex(0, Settings.EMPTY, indices.toArray(DoubleAliasIndex[]::new));
-        createIndex(25, Settings.EMPTY, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
+        createIndex(MULTITENANCY_INDEX_PREFIX, 0, Settings.EMPTY, indices.toArray(DoubleAliasIndex[]::new));
+        createIndex(MULTITENANCY_INDEX_PREFIX, 25, Settings.EMPTY, PRIVATE_USER_KIRK_INDEX); // this index should be yellow
         indices = indices.with(PRIVATE_USER_KIRK_INDEX);
         context = new DataMigrationContext(new MigrationConfig(true), clock);
         context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(indices));
+        context.setBackupIndices(ImmutableList.empty());
 
         StepResult result = step.execute(context);
 
@@ -643,7 +687,7 @@ public class MigrationStepsTest {
     public void shouldFindSingleBackupIndex() {
         PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
         BackupIndex backupIndex = new BackupIndex(NOW.toLocalDateTime());
-        createBackIndex(backupIndex);
+        createBackupIndex(backupIndex);
 
         StepResult result = step.execute(context);
 
@@ -663,7 +707,7 @@ public class MigrationStepsTest {
         BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
         BackupIndex backupIndex6 = new BackupIndex(NOW.toLocalDateTime().minusDays(5));
         BackupIndex backupIndex7 = new BackupIndex(NOW.toLocalDateTime().minusDays(6));
-        createBackIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5, backupIndex6, backupIndex7);
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5, backupIndex6, backupIndex7);
 
         StepResult result = step.execute(context);
 
@@ -682,10 +726,10 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldFindLargeAmountOfBackupIndices() {
-        BackupIndex[] backupIndices = IntStream.range(0, 255) //
+        BackupIndex[] backupIndices = IntStream.range(0, 50) //
             .mapToObj(index -> new BackupIndex(NOW.minusHours(index).toLocalDateTime())) //
             .toArray(BackupIndex[]::new);
-        createBackIndex(backupIndices);
+        createBackupIndex(backupIndices);
         PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
 
         StepResult result = step.execute(context);
@@ -694,7 +738,55 @@ public class MigrationStepsTest {
         assertThat(context.getBackupIndices(), hasSize(backupIndices.length));
     }
 
-    private static CheckIndicesStateStep createCheckIndicesState() {
+    @Test
+    public void shouldDetectBackupIndexInYellowStateAndReportErrorWhenYellowIndicesAreForbidden() {
+        BackupIndex backupIndex = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        createIndexInYellowState(backupIndex.indexName());
+        createIndex(GLOBAL_TENANT_INDEX);
+        CheckIndicesStateStep step = createCheckIndicesStateStep();
+        TenantIndex tenantIndex = new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), "Tenant name is irrelevant here");
+        context.setTenantIndices(ImmutableList.of(tenantIndex));
+        context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.status(), equalTo(UNHEALTHY_INDICES_ERROR));
+        String expectedMessage = String.format("Index '%s' status is 'YELLOW'", backupIndex.indexName());
+        assertThat(result.details(), containsString(expectedMessage));
+    }
+
+    @Test
+    public void shouldDetectBackupIndexInYellowStateAndNotReportErrorWhenYellowIndicesAreAllowed() {
+        this.context = new DataMigrationContext(new MigrationConfig(true), clock);
+        BackupIndex backupIndex = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        createIndexInYellowState(backupIndex.indexName());
+        createIndex(GLOBAL_TENANT_INDEX);
+        CheckIndicesStateStep step = createCheckIndicesStateStep();
+        TenantIndex tenantIndex = new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), "Tenant name is irrelevant here");
+        context.setTenantIndices(ImmutableList.of(tenantIndex));
+        context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    private void createIndexInYellowState(String index) {
+        try(Client client = cluster.getInternalNodeClient()) {
+            CreateIndexRequest request = new CreateIndexRequest(index);
+            Settings.Builder settings = Settings.builder() //
+                .put("index.number_of_replicas", 100); // force index yellow state
+            request.settings(settings);
+            CreateIndexResponse createIndexResponse = client.admin().indices().create(request).actionGet();
+            assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
+            this.createdIndices.add(() -> index);
+        }
+    }
+
+    private static CheckIndicesStateStep createCheckIndicesStateStep() {
         PrivilegedConfigClient client = getPrivilegedClient();
         return new CheckIndicesStateStep(new StepRepository(client));
     }

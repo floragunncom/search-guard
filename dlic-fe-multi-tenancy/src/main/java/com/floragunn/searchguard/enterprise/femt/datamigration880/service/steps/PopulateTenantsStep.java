@@ -65,7 +65,7 @@ class PopulateTenantsStep implements MigrationStep {
             .map(name -> new TenantAlias(toInternalIndexName(config, name), name))
             .collect(Collectors.toList());
         log.debug("Tenants found in configuration '{}'.", configuredTenantAliases);
-        TenantAlias globalTenant = new TenantAlias(".kibana_8.7.0", Tenant.GLOBAL_TENANT_ID);
+        TenantAlias globalTenant = new TenantAlias(config.getIndex() + "_8.7.0", Tenant.GLOBAL_TENANT_ID);
         List<TenantIndex> tenants = Stream.concat(Stream.of(globalTenant), configuredTenantAliases.stream()) //
             .map(this::resolveIndexAlias) //
             .flatMap(Optional::stream) //
@@ -113,7 +113,7 @@ class PopulateTenantsStep implements MigrationStep {
     }
 
     private Optional<String> getIndexNameByAliasName(String aliasName) {
-        Optional<GetIndexResponse> indexResponse = repository.findIndexByName(aliasName);
+        Optional<GetIndexResponse> indexResponse = repository.findIndexByNameOrAlias(aliasName);
         if(indexResponse.isEmpty()) {
             log.warn("Index '{}' with front-end data does not exist, its data will be not used during migration.", aliasName);
         }

@@ -5,11 +5,14 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Migrat
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.cluster.block.ClusterBlockException;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
@@ -36,21 +39,19 @@ public class CheckIfIndicesAreBlockedStep implements MigrationStep {
                     success = false;
                     continue;
                 }
-                Settings blocks = settings.getAsSettings("index.blocks");
-                if (blocks == null) {
-                    details.append("Index '").append(index).append("' block settings are not defined. ");
-                    continue;
-                }
-                boolean currentIndexBlocked = false;
-                for (String blockType : List.of("read_only", "read_only_allow_delete", "read", "write", "metadata")) {
-                    Boolean blocked = blocks.getAsBoolean(blockType, false);
+                boolean currentIndexIsBlocked = false;
+                List<String> blockSettingsName = Arrays.stream(IndexMetadata.APIBlock.values()) //
+                    .map(IndexMetadata.APIBlock::settingName) //
+                    .collect(Collectors.toList());
+                for (String blockType : blockSettingsName) {
+                    Boolean blocked = settings.getAsBoolean(blockType, false);
                     if (blocked) {
                         success = false;
-                        currentIndexBlocked = true;
+                        currentIndexIsBlocked = true;
                         details.append("Lock '").append(blockType).append("' is active on index '").append(index).append("'. ");
                     }
                 }
-                if (currentIndexBlocked) {
+                if (currentIndexIsBlocked) {
                     details.append("Index '").append(index).append("' is blocked. ");
                 } else {
                     details.append("Index '").append(index).append("' is lock free. ");

@@ -2,13 +2,10 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
-import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
-import com.floragunn.searchsupport.junit.ThrowableAssert;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,7 +60,7 @@ public class PopulateBackupIndicesStepTest {
 
     @Test
     public void shouldSetEmptyBackupListInContext() {
-        when(repository.findIndexByName(anyString())).thenReturn(Optional.empty());
+        when(repository.findIndexByNameOrAlias(anyString())).thenReturn(Optional.empty());
 
         StepResult result = step.execute(context);
 
@@ -76,7 +73,7 @@ public class PopulateBackupIndicesStepTest {
     @Test
     public void shouldFindOneBackupIndex() {
         when(response.getIndices()).thenReturn(new String[]{ BACKUP_INDEX_1 });
-        when(repository.findIndexByName(anyString())).thenReturn(Optional.of(response));
+        when(repository.findIndexByNameOrAlias(anyString())).thenReturn(Optional.of(response));
 
         StepResult result = step.execute(context);
 
@@ -90,7 +87,7 @@ public class PopulateBackupIndicesStepTest {
     public void shouldFindManyBackupIndicesAndSortThemByDate() {
         final String[] indices = { BACKUP_INDEX_3, BACKUP_INDEX_2, BACKUP_INDEX_4, BACKUP_INDEX_5, BACKUP_INDEX_1 };
         when(response.getIndices()).thenReturn(indices);
-        when(repository.findIndexByName(anyString())).thenReturn(Optional.of(response));
+        when(repository.findIndexByNameOrAlias(anyString())).thenReturn(Optional.of(response));
 
         StepResult result = step.execute(context);
 
@@ -105,7 +102,7 @@ public class PopulateBackupIndicesStepTest {
     public void shouldSortAnotherBackupIndicesNames() {
         final String[] indices = { BACKUP_INDEX_1, BACKUP_INDEX_2, BACKUP_INDEX_3, BACKUP_INDEX_5, BACKUP_INDEX_4 };
         when(response.getIndices()).thenReturn(indices);
-        when(repository.findIndexByName(anyString())).thenReturn(Optional.of(response));
+        when(repository.findIndexByNameOrAlias(anyString())).thenReturn(Optional.of(response));
 
         StepResult result = step.execute(context);
 
@@ -120,7 +117,7 @@ public class PopulateBackupIndicesStepTest {
     public void shouldGetLatestBackupIndexName() {
         final String[] indices = { BACKUP_INDEX_3, BACKUP_INDEX_4, BACKUP_INDEX_2 };
         when(response.getIndices()).thenReturn(indices);
-        when(repository.findIndexByName(anyString())).thenReturn(Optional.of(response));
+        when(repository.findIndexByNameOrAlias(anyString())).thenReturn(Optional.of(response));
 
         StepResult result = step.execute(context);
 
@@ -133,7 +130,7 @@ public class PopulateBackupIndicesStepTest {
     public void shouldDetectIncorrectBackupIndexNamePrefix() {
         final String[] indices = { BACKUP_INDEX_1, BACKUP_INDEX_2, BACKUP_INDEX_3, BACKUP_INDEX_5, BACKUP_INDEX_4, "not_backup_index" };
         when(response.getIndices()).thenReturn(indices);
-        when(repository.findIndexByName(anyString())).thenReturn(Optional.of(response));
+        when(repository.findIndexByNameOrAlias(anyString())).thenReturn(Optional.of(response));
 
         StepException stepException = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
 
@@ -144,7 +141,7 @@ public class PopulateBackupIndicesStepTest {
     public void shouldDetectIncorrectBackupIndexNameDatePart() {
         final String[] indices = { BACKUP_INDEX_1, BACKUP_INDEX_2, BACKUP_INDEX_3,  "backup_fe_migration_to_8_8_0_1980_01_no_td_at_e0"};
         when(response.getIndices()).thenReturn(indices);
-        when(repository.findIndexByName(anyString())).thenReturn(Optional.of(response));
+        when(repository.findIndexByNameOrAlias(anyString())).thenReturn(Optional.of(response));
 
         StepException stepException = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
 
@@ -155,7 +152,7 @@ public class PopulateBackupIndicesStepTest {
     public void shouldDetectIncorrectBackupIndexNameWithNotExistingDate() {
         final String[] indices = { BACKUP_INDEX_1, BACKUP_INDEX_2, BACKUP_INDEX_3,  "backup_fe_migration_to_8_8_0_2000_02_35_01_01_00"};
         when(response.getIndices()).thenReturn(indices);
-        when(repository.findIndexByName(anyString())).thenReturn(Optional.of(response));
+        when(repository.findIndexByNameOrAlias(anyString())).thenReturn(Optional.of(response));
 
         StepException stepException = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
 

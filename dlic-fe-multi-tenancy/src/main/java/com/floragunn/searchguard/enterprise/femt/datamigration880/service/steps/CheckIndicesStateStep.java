@@ -24,8 +24,9 @@ class CheckIndicesStateStep implements MigrationStep {
 
     @Override
     public StepResult execute(DataMigrationContext context) throws StepException {
-        String[] dataIndices = context.getDataIndicesNames().toArray(String[]::new);
-        // TODO check state of backup indices
+        String[] dataIndices = context.getDataIndicesNames()
+            .with(context.getBackupIndices())
+            .toArray(String[]::new);
         StringBuilder stringBuilder = new StringBuilder();
         IndicesStatsResponse response = repository.findIndexState(dataIndices);
         boolean success = true;

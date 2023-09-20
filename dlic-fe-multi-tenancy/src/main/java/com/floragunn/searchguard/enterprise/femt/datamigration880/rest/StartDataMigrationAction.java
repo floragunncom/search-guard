@@ -43,7 +43,7 @@ public class StartDataMigrationAction extends Action<StartDataMigrationAction.St
 
     public static class StartDataMigrationRequest extends Request {
 
-        public static final String FIELD_ALLOW_YELLOW_INDICES = "allow_yellow_data_indices";
+        public static final String FIELD_ALLOW_YELLOW_INDICES = "allow_yellow_indices";
         private final MigrationConfig config;
 
         public StartDataMigrationRequest(UnparsedDocument<?> message) throws ConfigValidationException {
@@ -62,7 +62,7 @@ public class StartDataMigrationAction extends Action<StartDataMigrationAction.St
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.of(FIELD_ALLOW_YELLOW_INDICES, config.allowYellowDataIndices());
+            return ImmutableMap.of(FIELD_ALLOW_YELLOW_INDICES, config.allowYellowIndices());
         }
 
         public MigrationConfig getConfig() {

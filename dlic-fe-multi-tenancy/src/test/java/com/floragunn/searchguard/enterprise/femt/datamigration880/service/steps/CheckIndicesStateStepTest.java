@@ -13,12 +13,16 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Answers;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNHEALTHY_INDICES_ERROR;
 import static java.time.ZoneOffset.UTC;
@@ -26,8 +30,10 @@ import static org.elasticsearch.cluster.health.ClusterHealthStatus.GREEN;
 import static org.elasticsearch.cluster.health.ClusterHealthStatus.RED;
 import static org.elasticsearch.cluster.health.ClusterHealthStatus.YELLOW;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -45,6 +51,7 @@ public class CheckIndicesStateStepTest {
     public static final String TENANT_NAME_3 = "tenant name 3";
     public static final MigrationConfig STRICT_CONFIGURATION = new MigrationConfig(false);
     public static final MigrationConfig LENIENT_CONFIG = new MigrationConfig(true);
+    public static final String BACKUP_INDEX_1 = "backup_index_0001";
 
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private StepRepository repository;
@@ -61,6 +68,7 @@ public class CheckIndicesStateStepTest {
     public void shouldReportErrorWhenIndexStateIsUnavailable() {
         DataMigrationContext context = new DataMigrationContext(STRICT_CONFIGURATION, CLOCK);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1)));
+        context.setBackupIndices(ImmutableList.empty());
         IndicesStatsResponse responseMock = repository.findIndexState(TENANT_INDEX_1);
         when(responseMock.getIndex(TENANT_INDEX_1)).thenReturn(null);
 
@@ -77,6 +85,7 @@ public class CheckIndicesStateStepTest {
     public void shouldReturnSuccessResponseWhenIndexIsInGreenState() {
         DataMigrationContext context = new DataMigrationContext(STRICT_CONFIGURATION, CLOCK);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1)));
+        context.setBackupIndices(ImmutableList.empty());
         IndexStats indexStateMock = repository.findIndexState(TENANT_INDEX_1).getIndex(TENANT_INDEX_1);
         when(indexStateMock.getHealth()).thenReturn(GREEN);
 
@@ -87,9 +96,80 @@ public class CheckIndicesStateStepTest {
     }
 
     @Test
+    public void shouldSearchForDataAndBackupIndexState() {
+        DataMigrationContext context = new DataMigrationContext(STRICT_CONFIGURATION, CLOCK);
+        context.setTenantIndices(ImmutableList.empty());
+        context.setBackupIndices(ImmutableList.of(BACKUP_INDEX_1));
+        IndexStats indexStateMock = repository.findIndexState(BACKUP_INDEX_1).getIndex(BACKUP_INDEX_1);
+        when(indexStateMock.getHealth()).thenReturn(GREEN);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    @Test
+    public void shouldReturnFailureResponseWhenBackupIndexIsInYellowState() {
+        DataMigrationContext context = new DataMigrationContext(STRICT_CONFIGURATION, CLOCK);
+        context.setTenantIndices(ImmutableList.empty());
+        context.setBackupIndices(ImmutableList.of(BACKUP_INDEX_1));
+        IndexStats indexStateMock = repository.findIndexState(BACKUP_INDEX_1).getIndex(BACKUP_INDEX_1);
+        when(indexStateMock.getHealth()).thenReturn(YELLOW);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(false));
+    }
+
+    @Test
+    public void shouldReturnFailureResponseWhenBackupIndexIsInYellowStateAndDataIndexIsInGreenState() {
+        DataMigrationContext context = new DataMigrationContext(STRICT_CONFIGURATION, CLOCK);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1)));
+        context.setBackupIndices(ImmutableList.of(BACKUP_INDEX_1));
+        IndexStats indexStateTenantMock = Mockito.mock(IndexStats.class);
+        IndexStats indexStateBackupMock = Mockito.mock(IndexStats.class);
+        IndicesStatsResponse response = Mockito.mock(IndicesStatsResponse.class);
+        when(repository.findIndexState(Mockito.any())).thenReturn(response);
+        when(response.getIndex(TENANT_INDEX_1)).thenReturn(indexStateTenantMock);
+        when(response.getIndex(BACKUP_INDEX_1)).thenReturn(indexStateBackupMock);
+        when(indexStateTenantMock.getHealth()).thenReturn(GREEN);
+        when(indexStateBackupMock.getHealth()).thenReturn(YELLOW);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.details(), containsString("Index 'backup_index_0001' status is 'YELLOW' but GREEN status is required"));
+    }
+
+    @Test
+    public void shouldReturnFailureResponseWhenBackupIndexIsInGreenStateAndDataIndexIsInYellowState() {
+        DataMigrationContext context = new DataMigrationContext(STRICT_CONFIGURATION, CLOCK);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1)));
+        context.setBackupIndices(ImmutableList.of(BACKUP_INDEX_1));
+        IndexStats indexStateTenantMock = Mockito.mock(IndexStats.class);
+        IndexStats indexStateBackupMock = Mockito.mock(IndexStats.class);
+        IndicesStatsResponse response = Mockito.mock(IndicesStatsResponse.class);
+        when(repository.findIndexState(Mockito.any())).thenReturn(response);
+        when(response.getIndex(TENANT_INDEX_1)).thenReturn(indexStateTenantMock);
+        when(response.getIndex(BACKUP_INDEX_1)).thenReturn(indexStateBackupMock);
+        when(indexStateTenantMock.getHealth()).thenReturn(YELLOW);
+        when(indexStateBackupMock.getHealth()).thenReturn(GREEN);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.details(), containsString("Index 'tenant_index_1' status is 'YELLOW' but GREEN status is required"));
+    }
+
+    @Test
     public void shouldReturnFailureResponseWhenIndexIsInYellowStateInStrictConfiguration() {
         DataMigrationContext context = new DataMigrationContext(STRICT_CONFIGURATION, CLOCK);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1)));
+        context.setBackupIndices(ImmutableList.empty());
         IndexStats indexStateMock = repository.findIndexState(TENANT_INDEX_1).getIndex(TENANT_INDEX_1);
         when(indexStateMock.getHealth()).thenReturn(YELLOW);
 
@@ -106,6 +186,7 @@ public class CheckIndicesStateStepTest {
     public void shouldReturnFailureResponseWhenIndexIsInRedStateInStrictConfiguration() {
         DataMigrationContext context = new DataMigrationContext(STRICT_CONFIGURATION, CLOCK);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1)));
+        context.setBackupIndices(ImmutableList.empty());
         IndexStats indexStateMock = repository.findIndexState(TENANT_INDEX_1).getIndex(TENANT_INDEX_1);
         when(indexStateMock.getHealth()).thenReturn(RED);
 
@@ -122,6 +203,7 @@ public class CheckIndicesStateStepTest {
     public void shouldReturnFailureResponseWhenIndexIsInRedStateInLenientConfiguration() {
         DataMigrationContext context = new DataMigrationContext(LENIENT_CONFIG, CLOCK);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1)));
+        context.setBackupIndices(ImmutableList.empty());
         IndexStats indexStateMock = repository.findIndexState(TENANT_INDEX_1).getIndex(TENANT_INDEX_1);
         when(indexStateMock.getHealth()).thenReturn(RED);
 
@@ -138,6 +220,7 @@ public class CheckIndicesStateStepTest {
     public void shouldReturnSuccessResponseWhenIndexIsInYellowStateInLenientConfiguration() {
         DataMigrationContext context = new DataMigrationContext(LENIENT_CONFIG, CLOCK);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1)));
+        context.setBackupIndices(ImmutableList.empty());
         IndexStats indexStateMock = repository.findIndexState(TENANT_INDEX_1).getIndex(TENANT_INDEX_1);
         when(indexStateMock.getHealth()).thenReturn(YELLOW);
 
@@ -153,6 +236,7 @@ public class CheckIndicesStateStepTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1),
             new TenantIndex(TENANT_INDEX_2, TENANT_NAME_2),
             new TenantIndex(TENANT_INDEX_3, TENANT_NAME_3)));
+        context.setBackupIndices(ImmutableList.empty());
         IndicesStatsResponse responseMock = repository.findIndexState(TENANT_INDEX_1, TENANT_INDEX_2, TENANT_INDEX_3);
         when(responseMock.getIndex(TENANT_INDEX_1).getHealth()).thenReturn(GREEN);
         when(responseMock.getIndex(TENANT_INDEX_2).getHealth()).thenReturn(GREEN);
@@ -170,6 +254,7 @@ public class CheckIndicesStateStepTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1),
             new TenantIndex(TENANT_INDEX_2, TENANT_NAME_2),
             new TenantIndex(TENANT_INDEX_3, TENANT_NAME_3)));
+        context.setBackupIndices(ImmutableList.empty());
         IndicesStatsResponse responseMock = repository.findIndexState(TENANT_INDEX_1, TENANT_INDEX_2, TENANT_INDEX_3);
         when(responseMock.getIndex(TENANT_INDEX_1).getHealth()).thenReturn(GREEN);
         when(responseMock.getIndex(TENANT_INDEX_2).getHealth()).thenReturn(GREEN);
@@ -190,6 +275,7 @@ public class CheckIndicesStateStepTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1),
             new TenantIndex(TENANT_INDEX_2, TENANT_NAME_2),
             new TenantIndex(TENANT_INDEX_3, TENANT_NAME_3)));
+        context.setBackupIndices(ImmutableList.empty());
         IndicesStatsResponse responseMock = repository.findIndexState(TENANT_INDEX_1, TENANT_INDEX_2, TENANT_INDEX_3);
         when(responseMock.getIndex(TENANT_INDEX_1).getHealth()).thenReturn(GREEN);
         when(responseMock.getIndex(TENANT_INDEX_2).getHealth()).thenReturn(YELLOW);
@@ -211,6 +297,7 @@ public class CheckIndicesStateStepTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1),
             new TenantIndex(TENANT_INDEX_2, TENANT_NAME_2),
             new TenantIndex(TENANT_INDEX_3, TENANT_NAME_3)));
+        context.setBackupIndices(ImmutableList.empty());
         IndicesStatsResponse responseMock = repository.findIndexState(TENANT_INDEX_1, TENANT_INDEX_2, TENANT_INDEX_3);
         when(responseMock.getIndex(TENANT_INDEX_1).getHealth()).thenReturn(YELLOW);
         when(responseMock.getIndex(TENANT_INDEX_2).getHealth()).thenReturn(YELLOW);
@@ -228,6 +315,7 @@ public class CheckIndicesStateStepTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1),
             new TenantIndex(TENANT_INDEX_2, TENANT_NAME_2),
             new TenantIndex(TENANT_INDEX_3, TENANT_NAME_3)));
+        context.setBackupIndices(ImmutableList.empty());
         IndicesStatsResponse responseMock = repository.findIndexState(TENANT_INDEX_1, TENANT_INDEX_2, TENANT_INDEX_3);
         when(responseMock.getIndex(TENANT_INDEX_1).getHealth()).thenReturn(GREEN);
         when(responseMock.getIndex(TENANT_INDEX_2).getHealth()).thenReturn(YELLOW);
@@ -248,6 +336,7 @@ public class CheckIndicesStateStepTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1),
             new TenantIndex(TENANT_INDEX_2, TENANT_NAME_2),
             new TenantIndex(TENANT_INDEX_3, TENANT_NAME_3)));
+        context.setBackupIndices(ImmutableList.empty());
         IndicesStatsResponse responseMock = repository.findIndexState(TENANT_INDEX_1, TENANT_INDEX_2, TENANT_INDEX_3);
         when(responseMock.getIndex(TENANT_INDEX_1).getHealth()).thenReturn(GREEN);
         when(responseMock.getIndex(TENANT_INDEX_2).getHealth()).thenReturn(YELLOW);
@@ -270,6 +359,7 @@ public class CheckIndicesStateStepTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(TENANT_INDEX_1, TENANT_NAME_1),
             new TenantIndex(TENANT_INDEX_2, TENANT_NAME_2),
             new TenantIndex(TENANT_INDEX_3, TENANT_NAME_3)));
+        context.setBackupIndices(ImmutableList.empty());
         IndicesStatsResponse responseMock = repository.findIndexState(TENANT_INDEX_1, TENANT_INDEX_2, TENANT_INDEX_3);
         when(responseMock.getIndex(TENANT_INDEX_1).getHealth()).thenReturn(RED);
         when(responseMock.getIndex(TENANT_INDEX_2).getHealth()).thenReturn(RED);
@@ -283,7 +373,6 @@ public class CheckIndicesStateStepTest {
         assertThat(result.details(), containsString(TENANT_INDEX_1));
         assertThat(result.details(), containsString(TENANT_INDEX_2));
         assertThat(result.details(), containsString(TENANT_INDEX_3));
-        assertThat(result.details(), containsString(RED.name()));
         assertThat(result.details(), containsString(RED.name()));
     }
 

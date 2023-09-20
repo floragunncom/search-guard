@@ -100,7 +100,7 @@ public class MigrationApiTest {
     public void shouldStartMigrationProcess() throws Exception {
         try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
             DocNode body = DocNode.EMPTY;
-            HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body.toJsonString());
+            HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
 
             log.info("Start migration response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));

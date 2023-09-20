@@ -25,11 +25,11 @@ class StepRepository {
         this.client = Objects.requireNonNull(client, "Client is required");
     }
 
-    public IndicesStatsResponse findIndexState(String...dataIndices) {
-        return client.admin().indices().stats(new IndicesStatsRequest().indices(dataIndices)).actionGet();
+    public IndicesStatsResponse findIndexState(String...indexNames) {
+        return client.admin().indices().stats(new IndicesStatsRequest().indices(indexNames)).actionGet();
     }
 
-    public Optional<GetIndexResponse> findIndexByName(String indexNameOrAlias) {
+    public Optional<GetIndexResponse> findIndexByNameOrAlias(String indexNameOrAlias) {
         try {
             GetIndexRequest request = new GetIndexRequest();
             request.indices(indexNameOrAlias);
