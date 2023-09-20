@@ -20,7 +20,9 @@ import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.Interce
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -386,7 +388,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
             return ImmutableSet.of(putMappingRequest.getConcreteIndex() != null ? putMappingRequest.getConcreteIndex().getName() : null,
                     putMappingRequest.indices());
         } else if (request instanceof IndicesRequest) {
-            if (((IndicesRequest) request).indices() != null) {
+            if (((IndicesRequest) request).indices() != null && Arrays.stream(((IndicesRequest) request).indices()).noneMatch(Objects::isNull)) {
                 return ImmutableSet.of(Arrays.asList(((IndicesRequest) request).indices()));
             } else {
                 return Collections.emptySet();

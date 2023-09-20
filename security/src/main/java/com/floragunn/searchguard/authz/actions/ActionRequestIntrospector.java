@@ -766,7 +766,12 @@ public class ActionRequestIntrospector {
             Map<String, IndexAbstraction> indicesLookup = state.metadata().getIndicesLookup();
 
             for (String index : localIndices) {
-                String resolved = resolver.resolveDateMathExpression(index);
+                String resolved;
+                if (index == null && localIndices.size() == 1) {
+                    return ImmutableSet.empty();
+                } else {
+                    resolved = resolver.resolveDateMathExpression(index);
+                }
 
                 IndexAbstraction indexAbstraction = indicesLookup.get(resolved);
 
@@ -783,7 +788,7 @@ public class ActionRequestIntrospector {
                     continue;
                 }
 
-                result = result.with(indexAbstraction.getIndices().stream().map(i -> i.getName()).collect(Collectors.toList()));
+                result = result.with(indexAbstraction.getIndices().stream().map(Index::getName).collect(Collectors.toList()));
             }
 
             return result;
