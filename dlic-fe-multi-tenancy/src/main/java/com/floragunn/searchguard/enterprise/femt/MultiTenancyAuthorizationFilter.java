@@ -214,10 +214,10 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         Set<String> allQueryIndices = getIndices(request);
         List<IndexInfo> multiTenancyRelatedIndices = allQueryIndices//
             .stream() //
-            .map(indexName -> checkForExclusivelyUsedKibanaIndexOrAlias(indexName)) //
+            .map(this::checkForExclusivelyUsedKibanaIndexOrAlias) //
             .filter(Objects::nonNull) //
             .collect(Collectors.toList());
-        if((multiTenancyRelatedIndices.size() > 0) && (allQueryIndices.size() != multiTenancyRelatedIndices.size())) {
+        if((!multiTenancyRelatedIndices.isEmpty()) && (allQueryIndices.size() != multiTenancyRelatedIndices.size())) {
             String indicesNames = String.join(", ", allQueryIndices);
             log.debug("Request '{}' is related to multi-tenancy indices and some other indices '{}'", request.getClass(), indicesNames);
         }
