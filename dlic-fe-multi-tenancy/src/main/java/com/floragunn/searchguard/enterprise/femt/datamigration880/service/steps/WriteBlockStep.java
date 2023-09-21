@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.ROLLBACK;
 
 class WriteBlockStep implements MigrationStep {
 
@@ -40,5 +41,15 @@ class WriteBlockStep implements MigrationStep {
     @Override
     public String name() {
         return "write lock step";
+    }
+
+    @Override
+    public StepResult rollback(DataMigrationContext context) throws StepException {
+        ImmutableList<String> dataIndicesNames = context.getDataIndicesNames();
+        if(! dataIndicesNames.isEmpty()) {
+            repository.releaseWriteLock(dataIndicesNames);
+        }
+        String details = "Indices unlocked: " + dataIndicesNames.stream().map(name -> "'" + name + "'").collect(Collectors.joining(", "));
+        return new StepResult(ROLLBACK, "Rollback indices write lock", details);
     }
 }

@@ -3,6 +3,10 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 public enum StepExecutionStatus {
 
     OK(true),
+    /**
+     * Rollback step executed successfully
+     */
+    ROLLBACK(true),
     INDICES_NOT_FOUND_ERROR,
     UNEXPECTED_ERROR,
     STATUS_INDEX_ALREADY_EXISTS,
@@ -19,7 +23,7 @@ public enum StepExecutionStatus {
     INVALID_DATE_IN_BACKUP_INDEX_NAME_ERROR,
     WRITE_BLOCK_ERROR,
     WRITE_UNBLOCK_ERROR,
-    CANNOT_RETIREVE_INDICES_STATE_ERROR;
+    CANNOT_RETRIEVE_INDICES_STATE_ERROR;
 
 
     private final boolean success;

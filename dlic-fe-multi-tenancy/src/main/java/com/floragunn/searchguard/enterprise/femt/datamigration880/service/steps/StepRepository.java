@@ -20,7 +20,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RETIREVE_INDICES_STATE_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RETRIEVE_INDICES_STATE_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_BLOCK_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_UNBLOCK_ERROR;
 
@@ -39,7 +39,7 @@ class StepRepository {
     public IndicesStatsResponse findIndexState(String...indexNames) {
         IndicesStatsResponse response = client.admin().indices().stats(new IndicesStatsRequest().indices(indexNames)).actionGet();
         if(response.getFailedShards() > 0) {
-            throw new StepException("Cannot load current indices state", CANNOT_RETIREVE_INDICES_STATE_ERROR, null);
+            throw new StepException("Cannot load current indices state", CANNOT_RETRIEVE_INDICES_STATE_ERROR, null);
         }
         return response;
     }

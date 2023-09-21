@@ -23,6 +23,7 @@ public class StepsFactory {
             new PopulateBackupIndicesStep(repository),
             new CheckIndicesStateStep(repository),
             new CheckIfIndicesAreBlockedStep(repository),
-            new WriteBlockStep(repository));
+            new WriteBlockStep(repository),
+            new UnblockDataIndicesStep(repository));
     }
 }

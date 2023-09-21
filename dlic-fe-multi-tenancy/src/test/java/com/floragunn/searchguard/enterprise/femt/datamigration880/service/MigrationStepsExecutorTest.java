@@ -22,8 +22,13 @@ import java.util.stream.IntStream;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.IN_PROGRESS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.SUCCESS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_CREATE_STATUS_DOCUMENT_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_UPDATE_STATUS_DOCUMENT_LOCK_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.ROLLBACK;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNEXPECTED_ERROR;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -41,11 +46,14 @@ public class MigrationStepsExecutorTest {
     private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(2000, 1, 1, 1, 1), ZoneOffset.UTC);
     public static final String MESSAGE_1 = "I am done!";
     public static final String MESSAGE_2 = "The second step was executed";
+    public static final String MESSAGE_3 = "The third step was executed";
     public static final String NAME_1 = "I am the first step";
     public static final String NAME_2 = "I am the second step";
+    public static final String NAME_3 = "I am the third step";
     public static final String MESSAGE_FAILURE_1 = "Step execution failed!";
     public static final String MESSAGE_FAILURE_2 = "Oops, Sth went wrong during migration step execution!";
     public static final MigrationConfig STRICT_CONFIG = new MigrationConfig(false);
+    public static final String ROLLBACK_MESSAGE_1 = "nothing to rollback - 1";
 
     @Captor
     private ArgumentCaptor<MigrationExecutionSummary> summaryCaptor;
@@ -285,7 +293,7 @@ public class MigrationStepsExecutorTest {
         assertThat(summary.tempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_01_00"));
 
         ImmutableList<StepExecutionSummary> stages = summary.stages();
-        assertThat(stages, hasSize(2));
+        assertThat(stages, hasSize(3));
         StepExecutionSummary stepExecutionSummary = stages.get(0);
         assertThat(stepExecutionSummary.status(), equalTo(OK));
         assertThat(stepExecutionSummary.message(), equalTo(MESSAGE_1));
@@ -296,10 +304,15 @@ public class MigrationStepsExecutorTest {
         assertThat(stepExecutionSummary.message(), equalTo(MESSAGE_2));
         assertThat(stepExecutionSummary.number(), equalTo(1L));
         assertThat(stepExecutionSummary.name(), equalTo(NAME_2));
+        stepExecutionSummary = stages.get(2);// step one rollback status
+        assertThat(stepExecutionSummary.status(), equalTo(ROLLBACK));
+        assertThat(stepExecutionSummary.message(), equalTo(ROLLBACK_MESSAGE_1));
+        assertThat(stepExecutionSummary.number(), equalTo(0L));
+        assertThat(stepExecutionSummary.name(), equalTo("rollback - " + NAME_1));
 
-        verify(repository, times(2)).upsert(eq("migration_8_8_0"), summaryCaptor.capture());
+        verify(repository, times(3)).upsert(eq("migration_8_8_0"), summaryCaptor.capture());
         List<MigrationExecutionSummary> persistedSummaries = summaryCaptor.getAllValues();
-        assertThat(persistedSummaries, hasSize(2));
+        assertThat(persistedSummaries, hasSize(3));
         // persist invocation after execution of the first step
         MigrationExecutionSummary stepSummary = persistedSummaries.get(0);
         assertThat(stepSummary.status(), equalTo(IN_PROGRESS));
@@ -332,6 +345,33 @@ public class MigrationStepsExecutorTest {
         assertThat(stepExecutionSummary.number(), equalTo(1L));
         assertThat(stepExecutionSummary.name(), equalTo(NAME_2));
         assertThat(stepExecutionSummary.status(), equalTo(INDICES_NOT_FOUND_ERROR));
+
+        // persist invocation after rollback step
+        stepSummary = persistedSummaries.get(2);
+        assertThat(stepSummary.status(), equalTo(FAILURE));
+        assertThat(stepSummary.startTime(), equalTo(NOW.toLocalDateTime()));
+        assertThat(stepSummary.backupIndexName(), equalTo("backup_fe_migration_to_8_8_0_2000_01_01_01_01_00"));
+        assertThat(stepSummary.tempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_01_00"));
+        stages = stepSummary.stages();
+        assertThat(stages, hasSize(3));
+        stepExecutionSummary = stages.get(0);
+        assertThat(stepExecutionSummary.message(), equalTo(MESSAGE_1));
+        assertThat(stepExecutionSummary.number(), equalTo(0L));
+        assertThat(stepExecutionSummary.name(), equalTo(NAME_1));
+        assertThat(stepExecutionSummary.status(), equalTo(OK));
+        stepExecutionSummary = stages.get(1);
+        assertThat(stepExecutionSummary.message(), equalTo(MESSAGE_2));
+        assertThat(stepExecutionSummary.number(), equalTo(1L));
+        assertThat(stepExecutionSummary.name(), equalTo(NAME_2));
+        assertThat(stepExecutionSummary.status(), equalTo(INDICES_NOT_FOUND_ERROR));
+        stepExecutionSummary = stages.get(2);
+        assertThat(stepExecutionSummary.message(), equalTo(ROLLBACK_MESSAGE_1));
+        assertThat(stepExecutionSummary.number(), equalTo(0L));
+        assertThat(stepExecutionSummary.name(), equalTo("rollback - " + NAME_1));
+        assertThat(stepExecutionSummary.status(), equalTo(ROLLBACK));
+
+        verify(stepOne).rollback(any(DataMigrationContext.class));
+        verify(stepTwo, never()).rollback(any(DataMigrationContext.class));
     }
 
     @Test
@@ -353,7 +393,7 @@ public class MigrationStepsExecutorTest {
         assertThat(summary.tempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_01_00"));
 
         ImmutableList<StepExecutionSummary> stages = summary.stages();
-        assertThat(stages, hasSize(2));
+        assertThat(stages, hasSize(3));
         StepExecutionSummary stepExecutionSummary = stages.get(0);
         assertThat(stepExecutionSummary.status(), equalTo(OK));
         assertThat(stepExecutionSummary.message(), equalTo(MESSAGE_1));
@@ -364,10 +404,15 @@ public class MigrationStepsExecutorTest {
         assertThat(stepExecutionSummary.message(), equalTo("Unexpected error: " + MESSAGE_FAILURE_1));
         assertThat(stepExecutionSummary.number(), equalTo(1L));
         assertThat(stepExecutionSummary.name(), equalTo(NAME_2));
+        stepExecutionSummary = stages.get(2);
+        assertThat(stepExecutionSummary.status(), equalTo(ROLLBACK));
+        assertThat(stepExecutionSummary.message(), equalTo(ROLLBACK_MESSAGE_1));
+        assertThat(stepExecutionSummary.number(), equalTo(0L));
+        assertThat(stepExecutionSummary.name(), equalTo("rollback - " + NAME_1));
 
-        verify(repository, times(2)).upsert(eq("migration_8_8_0"), summaryCaptor.capture());
+        verify(repository, times(3)).upsert(eq("migration_8_8_0"), summaryCaptor.capture());
         List<MigrationExecutionSummary> persistedSummaries = summaryCaptor.getAllValues();
-        assertThat(persistedSummaries, hasSize(2));
+        assertThat(persistedSummaries, hasSize(3));
         // persist invocation after execution of the first step
         MigrationExecutionSummary stepSummary = persistedSummaries.get(0);
         assertThat(stepSummary.status(), equalTo(IN_PROGRESS));
@@ -400,6 +445,30 @@ public class MigrationStepsExecutorTest {
         assertThat(stepExecutionSummary.number(), equalTo(1L));
         assertThat(stepExecutionSummary.name(), equalTo(NAME_2));
         assertThat(stepExecutionSummary.status(), equalTo(UNEXPECTED_ERROR));
+
+        // persist invocation after execution of the first step rollback
+        stepSummary = persistedSummaries.get(2);
+        assertThat(stepSummary.status(), equalTo(FAILURE));
+        assertThat(stepSummary.startTime(), equalTo(NOW.toLocalDateTime()));
+        assertThat(stepSummary.backupIndexName(), equalTo("backup_fe_migration_to_8_8_0_2000_01_01_01_01_00"));
+        assertThat(stepSummary.tempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_01_00"));
+        stages = stepSummary.stages();
+        assertThat(stages, hasSize(3));
+        stepExecutionSummary = stages.get(0);
+        assertThat(stepExecutionSummary.message(), equalTo(MESSAGE_1));
+        assertThat(stepExecutionSummary.number(), equalTo(0L));
+        assertThat(stepExecutionSummary.name(), equalTo(NAME_1));
+        assertThat(stepExecutionSummary.status(), equalTo(OK));
+        stepExecutionSummary = stages.get(1);
+        assertThat(stepExecutionSummary.message(), equalTo("Unexpected error: " + MESSAGE_FAILURE_1));
+        assertThat(stepExecutionSummary.number(), equalTo(1L));
+        assertThat(stepExecutionSummary.name(), equalTo(NAME_2));
+        assertThat(stepExecutionSummary.status(), equalTo(UNEXPECTED_ERROR));
+        stepExecutionSummary = stages.get(2);
+        assertThat(stepExecutionSummary.message(), equalTo(ROLLBACK_MESSAGE_1));
+        assertThat(stepExecutionSummary.number(), equalTo(0L));
+        assertThat(stepExecutionSummary.name(), equalTo("rollback - " + NAME_1));
+        assertThat(stepExecutionSummary.status(), equalTo(ROLLBACK));
     }
 
     @Test
@@ -422,20 +491,21 @@ public class MigrationStepsExecutorTest {
         List<MigrationStep> stepMocks = IntStream.range(0, 49)//
             .mapToObj(index -> stepMockWithResult("step_" + index, OK, "Step no. " + index)) //
             .collect(Collectors.toList());
-        final int failureStepIndex = 25;
+        final int failureStepIndex = 40;
         stepMocks.add(failureStepIndex, stepMockWithResult("Failure step", INDICES_NOT_FOUND_ERROR, MESSAGE_FAILURE_2));
         MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(stepMocks));
 
         MigrationExecutionSummary migrationSummary = executor.execute();
 
         assertThat(migrationSummary.status(), equalTo(FAILURE));
-        assertThat(migrationSummary.stages(), hasSize(failureStepIndex + 1));
+        assertThat(migrationSummary.stages(), hasSize(2 * failureStepIndex + 1));
         StepExecutionSummary failureStepSummary = migrationSummary.stages().get(failureStepIndex);
         assertThat(failureStepSummary.status(),equalTo(INDICES_NOT_FOUND_ERROR));
         assertThat(failureStepSummary.message(),equalTo(MESSAGE_FAILURE_2));
-        verify(repository, times(failureStepIndex + 1)).upsert(eq("migration_8_8_0"), any(MigrationExecutionSummary.class));
+        verify(repository, times(2 * failureStepIndex + 1)).upsert(eq("migration_8_8_0"), any(MigrationExecutionSummary.class));
         stepMocks.stream().limit(failureStepIndex + 1).forEach(stepMock -> verify(stepMock).execute(any(DataMigrationContext.class)));
-        stepMocks.stream().skip(failureStepIndex + 1).forEach(stepMock -> verify(stepMock, never()).execute(any(DataMigrationContext.class)));
+        stepMocks.stream().limit(failureStepIndex).forEach(stepMock -> verify(stepMock).rollback(any(DataMigrationContext.class)));
+        stepMocks.stream().skip(failureStepIndex + 1).forEach(stepMock -> verify(stepMock, never()).rollback(any(DataMigrationContext.class)));
     }
 
     @Test
@@ -443,7 +513,7 @@ public class MigrationStepsExecutorTest {
         List<MigrationStep> stepMocks = IntStream.range(0, 49)//
             .mapToObj(index -> stepMockWithResult("step_" + index, OK, "Step no. " + index)) //
             .collect(Collectors.toList());
-        final int failureStepIndex = 25;
+        final int failureStepIndex = 10;
         MigrationStep failureStep = stepMock("Failure step name");
         when(failureStep.execute(any(DataMigrationContext.class))).thenThrow(new IllegalStateException(MESSAGE_FAILURE_1));
         stepMocks.add(failureStepIndex, failureStep);
@@ -452,13 +522,15 @@ public class MigrationStepsExecutorTest {
         MigrationExecutionSummary migrationSummary = executor.execute();
 
         assertThat(migrationSummary.status(), equalTo(FAILURE));
-        assertThat(migrationSummary.stages(), hasSize(failureStepIndex + 1));
+        assertThat(migrationSummary.stages(), hasSize(2 * failureStepIndex + 1)); // multiply by two due to rollback execution
         StepExecutionSummary failureStepSummary = migrationSummary.stages().get(failureStepIndex);
         assertThat(failureStepSummary.status(), equalTo(UNEXPECTED_ERROR));
         assertThat(failureStepSummary.message(), containsString(MESSAGE_FAILURE_1));
-        verify(repository, times(failureStepIndex + 1)).upsert(eq("migration_8_8_0"), any(MigrationExecutionSummary.class));
+        verify(repository, times(2 * failureStepIndex + 1)).upsert(eq("migration_8_8_0"), any(MigrationExecutionSummary.class));
         stepMocks.stream().limit(failureStepIndex + 1).forEach(stepMock -> verify(stepMock).execute(any(DataMigrationContext.class)));
+        stepMocks.stream().limit(failureStepIndex).forEach(stepMock -> verify(stepMock).rollback(any(DataMigrationContext.class)));
         stepMocks.stream().skip(failureStepIndex + 1).forEach(stepMock -> verify(stepMock, never()).execute(any(DataMigrationContext.class)));
+        stepMocks.stream().skip(failureStepIndex + 1).forEach(stepMock -> verify(stepMock, never()).rollback(any(DataMigrationContext.class)));
     }
 
     @Test
@@ -498,16 +570,222 @@ public class MigrationStepsExecutorTest {
         assertThat(storedSummary, equalTo(summary));
     }
 
+    @Test
+    public void shouldNotInvokeRollbackInCaseOfSuccessStepExecution() {
+        // given
+        MigrationStep step = stepMockWithResult(NAME_1, OK, MESSAGE_1);
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, ImmutableList.of(step));
+
+        // when
+        MigrationExecutionSummary summary = executor.execute();
+
+        //then
+        assertThat(summary.status(), equalTo(SUCCESS));
+        verify(step).execute(any(DataMigrationContext.class));
+        verify(step, never()).rollback(any(DataMigrationContext.class));
+    }
+
+    @Test
+    public void shouldNotInvokeRollbackInCaseOfSuccessStepsExecution() {
+        // given
+        MigrationStep stepOne = stepMockWithResult(NAME_1, OK, MESSAGE_1);
+        MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2);
+        MigrationStep stepThree = stepMockWithResult(NAME_3, OK, MESSAGE_3);
+        ImmutableList<MigrationStep> steps = ImmutableList.of(stepOne, stepTwo, stepThree);
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, steps);
+
+        // when
+        MigrationExecutionSummary summary = executor.execute();
+
+        //then
+        assertThat(summary.status(), equalTo(SUCCESS));
+        verify(stepOne, never()).rollback(any(DataMigrationContext.class));
+        verify(stepOne).execute(any(DataMigrationContext.class));
+        verify(stepTwo, never()).rollback(any(DataMigrationContext.class));
+        verify(stepTwo).execute(any(DataMigrationContext.class));
+        verify(stepThree, never()).rollback(any(DataMigrationContext.class));
+        verify(stepThree).execute(any(DataMigrationContext.class));
+        verify(repository, times(3)).upsert(eq("migration_8_8_0"), any(MigrationExecutionSummary.class));
+    }
+
+    @Test
+    public void shouldNotInvokeRollbackInCaseOfFirstStepExecutionFailure() {
+        // given
+        MigrationStep stepOne = stepMockWithResult(NAME_1, CANNOT_UPDATE_STATUS_DOCUMENT_LOCK_ERROR, MESSAGE_1);
+        MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2);
+        MigrationStep stepThree = stepMockWithResult(NAME_3, OK, MESSAGE_3);
+        ImmutableList<MigrationStep> steps = ImmutableList.of(stepOne, stepTwo, stepThree);
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, steps);
+
+        // when
+        MigrationExecutionSummary summary = executor.execute();
+
+        //then
+        assertThat(summary.status(), equalTo(FAILURE));
+        assertThat(summary.stages(), hasSize(1));
+        assertThat(summary.stages().get(0).status(), equalTo(CANNOT_UPDATE_STATUS_DOCUMENT_LOCK_ERROR));
+
+        verify(stepOne, never()).rollback(any(DataMigrationContext.class));
+        verify(stepOne).execute(any(DataMigrationContext.class));
+        verify(stepTwo, never()).rollback(any(DataMigrationContext.class));
+        verify(stepTwo, never()).execute(any(DataMigrationContext.class));
+        verify(stepThree, never()).rollback(any(DataMigrationContext.class));
+        verify(stepThree, never()).execute(any(DataMigrationContext.class));
+        verify(repository, times(1)).upsert(eq("migration_8_8_0"), any(MigrationExecutionSummary.class));
+    }
+
+    @Test
+    public void shouldInvokeMultipleRollbacksInCaseOfExecutionFailure() {
+        // given
+        MigrationStep stepOne = stepMockWithResult(NAME_1, OK, MESSAGE_1);
+        MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2);
+        MigrationStep stepThree = stepMockWithResult(NAME_3, CANNOT_RESOLVE_INDEX_BY_ALIAS, MESSAGE_3);
+        ImmutableList<MigrationStep> steps = ImmutableList.of(stepOne, stepTwo, stepThree);
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, steps);
+
+        // when
+        MigrationExecutionSummary summary = executor.execute();
+
+        //then
+        assertThat(summary.status(), equalTo(FAILURE));
+        assertThat(summary.stages(), hasSize(5));
+        assertThat(summary.stages().get(0).status(), equalTo(OK));
+        assertThat(summary.stages().get(1).status(), equalTo(OK));
+        assertThat(summary.stages().get(2).status(), equalTo(CANNOT_RESOLVE_INDEX_BY_ALIAS));
+        assertThat(summary.stages().get(3).status(), equalTo(ROLLBACK));
+        assertThat(summary.stages().get(3).name(), equalTo("rollback - " + NAME_2));
+        assertThat(summary.stages().get(4).status(), equalTo(ROLLBACK));
+        assertThat(summary.stages().get(4).name(), equalTo("rollback - " + NAME_1));
+
+        verify(stepOne).rollback(any(DataMigrationContext.class));
+        verify(stepOne).execute(any(DataMigrationContext.class));
+        verify(stepTwo).rollback(any(DataMigrationContext.class));
+        verify(stepTwo).execute(any(DataMigrationContext.class));
+        verify(stepThree, never()).rollback(any(DataMigrationContext.class));
+        verify(stepThree).execute(any(DataMigrationContext.class));
+        verify(repository, times(5)).upsert(eq("migration_8_8_0"), any(MigrationExecutionSummary.class));
+    }
+
+    @Test
+    public void shouldNotInterruptRollbacksInCaseOfErrors() {
+        // given
+        MigrationStep stepOne = stepMockWithResult(NAME_1, OK, MESSAGE_1);
+        MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2, CANNOT_CREATE_STATUS_DOCUMENT_ERROR, ROLLBACK_MESSAGE_1);
+        MigrationStep stepThree = stepMockWithResult(NAME_3, DATA_INDICES_LOCKED_ERROR, MESSAGE_3);
+        ImmutableList<MigrationStep> steps = ImmutableList.of(stepOne, stepTwo, stepThree);
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, steps);
+
+        // when
+        MigrationExecutionSummary summary = executor.execute();
+
+        //then
+        assertThat(summary.status(), equalTo(FAILURE));
+        assertThat(summary.stages(), hasSize(5));
+        assertThat(summary.stages().get(0).status(), equalTo(OK));
+        assertThat(summary.stages().get(1).status(), equalTo(OK));
+        assertThat(summary.stages().get(2).status(), equalTo(DATA_INDICES_LOCKED_ERROR));
+        assertThat(summary.stages().get(3).status(), equalTo(CANNOT_CREATE_STATUS_DOCUMENT_ERROR));
+        assertThat(summary.stages().get(3).name(), equalTo("rollback - " + NAME_2));
+        assertThat(summary.stages().get(4).status(), equalTo(ROLLBACK));
+        assertThat(summary.stages().get(4).name(), equalTo("rollback - " + NAME_1));
+
+        verify(stepOne).rollback(any(DataMigrationContext.class));
+        verify(stepOne).execute(any(DataMigrationContext.class));
+        verify(stepTwo).rollback(any(DataMigrationContext.class));
+        verify(stepTwo).execute(any(DataMigrationContext.class));
+        verify(stepThree, never()).rollback(any(DataMigrationContext.class));
+        verify(stepThree).execute(any(DataMigrationContext.class));
+        verify(repository, times(5)).upsert(eq("migration_8_8_0"), summaryCaptor.capture());
+        List<MigrationExecutionSummary> persistedSummaries = summaryCaptor.getAllValues();
+        assertThat(persistedSummaries, hasSize(5));
+        MigrationExecutionSummary summaryAfterFirstStep = persistedSummaries.get(0);
+        assertThat(summaryAfterFirstStep.status(), equalTo(IN_PROGRESS));
+        assertThat(summaryAfterFirstStep.stages().get(0).status(), equalTo(OK));
+        MigrationExecutionSummary summaryAfterSecondStep = persistedSummaries.get(1);
+        assertThat(summaryAfterSecondStep.status(), equalTo(IN_PROGRESS));
+        assertThat(summaryAfterSecondStep.stages().get(1).status(), equalTo(OK));
+        MigrationExecutionSummary summaryAfterThirdStep = persistedSummaries.get(2);
+        assertThat(summaryAfterThirdStep.status(), equalTo(FAILURE));
+        assertThat(summaryAfterThirdStep.stages().get(2).status(), equalTo(DATA_INDICES_LOCKED_ERROR));
+        MigrationExecutionSummary summaryAfterFirstFailedRollback = persistedSummaries.get(3);
+        assertThat(summaryAfterFirstFailedRollback.status(), equalTo(FAILURE));
+        assertThat(summaryAfterFirstFailedRollback.stages().get(3).status(), equalTo(CANNOT_CREATE_STATUS_DOCUMENT_ERROR));
+        assertThat(summaryAfterFirstFailedRollback.stages().get(3).name(), equalTo("rollback - " + NAME_2));
+        MigrationExecutionSummary summaryAfterSecondRollback = persistedSummaries.get(4);
+        assertThat(summaryAfterSecondRollback.status(), equalTo(FAILURE));
+        assertThat(summaryAfterSecondRollback.stages().get(4).status(), equalTo(ROLLBACK));
+        assertThat(summaryAfterSecondRollback.stages().get(4).name(), equalTo("rollback - " + NAME_1));
+    }
+
+    @Test
+    public void shouldNotInterruptRollbacksInCaseOfExceptions() {
+        // given
+        MigrationStep stepOne = stepMockWithResult(NAME_1, OK, MESSAGE_1);
+        MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2);
+        when(stepTwo.rollback(any(DataMigrationContext.class))).thenThrow(IllegalStateException.class);
+        MigrationStep stepThree = stepMockWithResult(NAME_3, DATA_INDICES_LOCKED_ERROR, MESSAGE_3);
+        ImmutableList<MigrationStep> steps = ImmutableList.of(stepOne, stepTwo, stepThree);
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, steps);
+
+        // when
+        MigrationExecutionSummary summary = executor.execute();
+
+        //then
+        assertThat(summary.status(), equalTo(FAILURE));
+        assertThat(summary.stages(), hasSize(5));
+        assertThat(summary.stages().get(0).status(), equalTo(OK));
+        assertThat(summary.stages().get(1).status(), equalTo(OK));
+        assertThat(summary.stages().get(2).status(), equalTo(DATA_INDICES_LOCKED_ERROR));
+        assertThat(summary.stages().get(3).status(), equalTo(UNEXPECTED_ERROR));// rollback error
+        assertThat(summary.stages().get(3).name(), equalTo("rollback - " + NAME_2));
+        assertThat(summary.stages().get(4).status(), equalTo(ROLLBACK));
+        assertThat(summary.stages().get(4).name(), equalTo("rollback - " + NAME_1));
+
+        verify(stepOne).rollback(any(DataMigrationContext.class));
+        verify(stepOne).execute(any(DataMigrationContext.class));
+        verify(stepTwo).rollback(any(DataMigrationContext.class));
+        verify(stepTwo).execute(any(DataMigrationContext.class));
+        verify(stepThree, never()).rollback(any(DataMigrationContext.class));
+        verify(stepThree).execute(any(DataMigrationContext.class));
+
+        verify(repository, times(5)).upsert(eq("migration_8_8_0"), summaryCaptor.capture());
+        List<MigrationExecutionSummary> persistedSummaries = summaryCaptor.getAllValues();
+        assertThat(persistedSummaries, hasSize(5));
+        MigrationExecutionSummary summaryAfterFirstStep = persistedSummaries.get(0);
+        assertThat(summaryAfterFirstStep.status(), equalTo(IN_PROGRESS));
+        assertThat(summaryAfterFirstStep.stages().get(0).status(), equalTo(OK));
+        MigrationExecutionSummary summaryAfterSecondStep = persistedSummaries.get(1);
+        assertThat(summaryAfterSecondStep.status(), equalTo(IN_PROGRESS));
+        assertThat(summaryAfterSecondStep.stages().get(1).status(), equalTo(OK));
+        MigrationExecutionSummary summaryAfterThirdStep = persistedSummaries.get(2);
+        assertThat(summaryAfterThirdStep.status(), equalTo(FAILURE));
+        assertThat(summaryAfterThirdStep.stages().get(2).status(), equalTo(DATA_INDICES_LOCKED_ERROR));
+        MigrationExecutionSummary summaryAfterFirstFailedRollback = persistedSummaries.get(3);
+        assertThat(summaryAfterFirstFailedRollback.status(), equalTo(FAILURE));
+        assertThat(summaryAfterFirstFailedRollback.stages().get(3).status(), equalTo(UNEXPECTED_ERROR));
+        assertThat(summaryAfterFirstFailedRollback.stages().get(3).name(), equalTo("rollback - " + NAME_2));
+        MigrationExecutionSummary summaryAfterSecondRollback = persistedSummaries.get(4);
+        assertThat(summaryAfterSecondRollback.status(), equalTo(FAILURE));
+        assertThat(summaryAfterSecondRollback.stages().get(4).status(), equalTo(ROLLBACK));
+        assertThat(summaryAfterSecondRollback.stages().get(4).name(), equalTo("rollback - " + NAME_1));
+    }
+
     private MigrationStep stepMock(String name) {
         MigrationStep step = Mockito.mock(MigrationStep.class);
         when(step.name()).thenReturn(name);
         return step;
     }
 
-    private MigrationStep stepMockWithResult(String name, StepExecutionStatus status, String message) {
+    private MigrationStep stepMockWithResult(String name, StepExecutionStatus status, String message, StepExecutionStatus rollbackStatus,
+        String rollbackMessage) {
         MigrationStep step = stepMock(name);
         when(step.execute(any(DataMigrationContext.class))).thenReturn(new StepResult(status, message));
+        when(step.rollback(any(DataMigrationContext.class))).thenReturn(new StepResult(rollbackStatus, rollbackMessage));
         return step;
+    }
+
+    private MigrationStep stepMockWithResult(String name, StepExecutionStatus status, String message) {
+        return stepMockWithResult(name, status, message, ROLLBACK, ROLLBACK_MESSAGE_1);
     }
 
 }
