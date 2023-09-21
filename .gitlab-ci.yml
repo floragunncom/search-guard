@@ -32,6 +32,7 @@ stages:
   - "Frontend Int Tests External Features"
   - "Frontend Compat Int Tests 1"
   - "Frontend Compat Int Tests 2"
+  - Veracode Scan
   - release
   - "Deploy Docker Image"
 
@@ -65,9 +66,7 @@ build:
   stage: build
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
   tags:
@@ -84,35 +83,12 @@ build:
     key: mavenrepo
     paths:
       - .m2/repository
-
-veracode_scan:
-  stage: build
-  image: floragunncom/ci-docker-compose-openjdk11:19.03.1
-  interruptible: true
-  allow_failure: true
-  rules:
-    - if: '$CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE == "schedule"'
-      when: always
-    - if: '$FORCE_VERACODE_SCAN'
-      when: always
-    - when: manual
-  services:
-    - docker:19.03-dind
-  tags:
-    - veracode-scan
-  script:
-    - apk add maven
-    - JAVA_HOME=/usr/lib/jvm/java-11-openjdk "dev/scan_veracode.sh"
-  cache:
-    key: mavenrepo
-    paths:
-      - .m2/repository
-
+     
 build_for_tag_version:
   stage: build
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
@@ -146,7 +122,7 @@ test_security:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -171,7 +147,7 @@ test_security_legacy:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -196,7 +172,7 @@ test_ssl:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -221,7 +197,7 @@ test_signals:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -245,7 +221,7 @@ test_scheduler:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -269,7 +245,7 @@ test_support:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -293,7 +269,7 @@ test_dlic_security:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -312,12 +288,12 @@ test_dlic_security:
     paths:
       - .m2/repository
     policy: pull
-    
+
 test_dlic_security_legacy:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -341,7 +317,7 @@ test_dlic_dlsfls:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -360,12 +336,12 @@ test_dlic_dlsfls:
     paths:
       - .m2/repository
     policy: pull
-    
+
 test_dlic_dlsfls_legacy:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -389,7 +365,7 @@ test_dlic_femt:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -413,7 +389,7 @@ test_dlic_auditlog:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -437,7 +413,7 @@ test_dlic_signals:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - when: always
   tags:
@@ -467,9 +443,7 @@ deploy_snapshot:
     - job: build
       artifacts: true
   rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
   before_script:
@@ -525,7 +499,7 @@ deploy_staging:
   stage: package
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
@@ -578,6 +552,7 @@ include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-int-tests.yml'
   - local: 'ci/backend-int-tests-features.yml'
+  - local: 'ci/veracode-scan.yml'  
   - local: 'ci/frontend-int-tests.yml'
   - local: 'ci/frontend-int-tests-features.yml'
   - local: 'ci/frontend-int-tests-external-features.yml'
@@ -587,7 +562,7 @@ include:
 deploy_release:
   stage: release
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
@@ -627,29 +602,30 @@ deploy_docker_image:
       when: on_success
     - if: '$DOCKER_ONLY'
       when: always
+    - when: never
   tags:
     - build
   script:
     - |
       apk update && apk add bash
-      
+
       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-\(.*\)-es-.*$/\1/p')
       ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
-      
+
       echo "Login in into Docker Hub"
       echo ""
       echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
-      
+
       echo ""
       echo "Enable qemu-user-static to support docker multiarch builds with buildx"
       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
-      
+
       SG_FLAVOUR="non-flx"
-      
+
       if [[ $CI_COMMIT_TAG == "sg-flx-"* ]]; then
           SG_FLAVOUR="flx"
           SG_VERSION="$(echo $SG_VERSION | tr -d 'flx-')"
       fi
-      
+
       ./docker/build_and_push.sh "docker.io" "floragunncom" "$SG_FLAVOUR" "$ES_VERSION" "$SG_VERSION"
   allow_failure: false
