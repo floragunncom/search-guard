@@ -91,7 +91,6 @@ veracode_scan:
     when: always
     paths:
       - "plugin/target/releases/*"
-      - "*/plugin"
 
   image: floragunncom/ci-docker-compose-openjdk11:19.03.1
   interruptible: true
