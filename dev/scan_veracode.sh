@@ -14,8 +14,6 @@ export APP_NAME="Search Guard Security Suite 7"
 export SANDBOX_NAME="cipipeline-master"
 export APP_VERSION="master-$CI_PIPELINE_ID-$(date)"
 
-sleep 3600
-echo "sleep"
 set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR/.."

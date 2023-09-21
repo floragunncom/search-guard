@@ -90,8 +90,8 @@ veracode_scan:
   artifacts:
     when: on_success
     paths:
-      - "*/target"
-      - ".m2/repository/com/floragunn/*"  
+      - "plugin/target/releases/*"
+
   image: floragunncom/ci-docker-compose-openjdk11:19.03.1
   interruptible: true
   allow_failure: true
