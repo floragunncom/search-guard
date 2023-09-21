@@ -18,7 +18,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -43,7 +42,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
@@ -70,7 +68,6 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
     private final Pattern versionedKibanaIndexPattern;
     private final boolean enabled;
     private final ThreadContext threadContext;
-    private final Client nodeClient;
     private final ImmutableList<String> indexSubNames = ImmutableList.of("alerting_cases", "analytics", "security_solution", "ingest");
     private final RoleBasedTenantAuthorization tenantAuthorization;
     private final FrontendDataMigrationInterceptor frontendDataMigrationInterceptor;
@@ -89,10 +86,9 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         this.KIBANA_ALL_SAVED_OBJECTS_WRITE = KibanaActionsProvider.getKibanaWriteAction(actions);
         this.KIBANA_ALL_SAVED_OBJECTS_READ = KibanaActionsProvider.getKibanaReadAction(actions);
         this.threadContext = threadContext;
-        this.nodeClient = nodeClient;
         this.tenantAuthorization = tenantAuthorization;
         this.frontendDataMigrationInterceptor = new FrontendDataMigrationInterceptor(threadContext, nodeClient, config);
-        this.requestHandlerFactory = new RequestHandlerFactory(this.nodeClient, this.threadContext);
+        this.requestHandlerFactory = new RequestHandlerFactory(nodeClient, this.threadContext);
         this.tenantManager = tenantManager;
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
@@ -300,42 +296,6 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
 
     public boolean isEnabled() {
         return enabled;
-    }
-
-    public String getKibanaIndex() {
-        return kibanaIndexName;
-    }
-
-    public String getKibanaServerUser() {
-        return kibanaServerUsername;
-    }
-
-    public Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles) {
-        if (user == null) {
-            return ImmutableMap.empty();
-        }
-
-        ImmutableMap.Builder<String, Boolean> result = new ImmutableMap.Builder<>(roles.size());
-        result.put(user.getName(), true);
-
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, roles, null, null, false, null, null);
-
-        for (String tenant : tenantManager.getAllKnownTenantNames()) {
-            try {
-                boolean hasReadPermission = tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, tenant).isOk();
-                boolean hasWritePermission = tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, tenant).isOk();
-
-                if (hasWritePermission) {
-                    result.put(tenant, true);
-                } else if (hasReadPermission) {
-                    result.put(tenant, false);
-                }
-            } catch (PrivilegesEvaluationException e) {
-                log.error("Error while evaluating privileges for " + user + " " + tenant, e);
-            }
-        }
-
-        return result.build();
     }
 
     private String toPatternFragment(Collection<String> indexSuffixes) {
