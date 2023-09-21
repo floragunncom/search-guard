@@ -102,7 +102,7 @@ veracode_scan:
       when: always
     - when: manual
   services:
-    - docker:19.03-dind
+    - docker:20.10.17-dind
   tags:
     - veracode-scan
   script:
