@@ -566,6 +566,16 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
+        public Builder frontendMultiTenancy(TestSgConfig.FrontendMultiTenancy frontendMultiTenancy) {
+            testSgConfig.frontendMultiTenancy(frontendMultiTenancy);
+            return this;
+        }
+
+        public Builder tenants(TestSgConfig.Tenant... tenants) {
+            testSgConfig.tenants(tenants);
+            return this;
+        }
+
         public Builder dlsFls(TestSgConfig.DlsFls dlsfls) {
             testSgConfig.dlsFls(dlsfls);
             return this;
