@@ -54,7 +54,7 @@ public class DataMigrationContext {
     }
 
     public ImmutableList<String> getDataIndicesNames() {
-        return tenantIndices.map(TenantIndex::indexName);
+        return Optional.ofNullable(tenantIndices).orElse(ImmutableList.empty()).map(TenantIndex::indexName);
     }
 
     public boolean areYellowDataIndicesAllowed() {

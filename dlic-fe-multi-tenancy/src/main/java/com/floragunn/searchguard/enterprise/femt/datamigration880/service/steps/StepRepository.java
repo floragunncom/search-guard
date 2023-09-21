@@ -1,17 +1,28 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
+import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RETIREVE_INDICES_STATE_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_BLOCK_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_UNBLOCK_ERROR;
 
 /**
  * The only purpose of this repository is to simplify testing of steps, so that steps does not depend on final class
@@ -26,7 +37,11 @@ class StepRepository {
     }
 
     public IndicesStatsResponse findIndexState(String...indexNames) {
-        return client.admin().indices().stats(new IndicesStatsRequest().indices(indexNames)).actionGet();
+        IndicesStatsResponse response = client.admin().indices().stats(new IndicesStatsRequest().indices(indexNames)).actionGet();
+        if(response.getFailedShards() > 0) {
+            throw new StepException("Cannot load current indices state", CANNOT_RETIREVE_INDICES_STATE_ERROR, null);
+        }
+        return response;
     }
 
     public Optional<GetIndexResponse> findIndexByNameOrAlias(String indexNameOrAlias) {
@@ -50,4 +65,28 @@ class StepRepository {
         return client.admin().indices().getSettings(request).actionGet();
     }
 
+    public void writeBlockIndices(ImmutableList<String> indices) {
+        AddIndexBlockResponse response = client.admin() //
+            .indices() //
+            .prepareAddBlock(IndexMetadata.APIBlock.WRITE, indices.toArray(String[]::new)) //
+            .get();
+        if(!response.isAcknowledged()) {
+            String details = "Indices to block " + indices.stream().map(name -> "'" + name + "'").collect(Collectors.joining(", "));
+            throw new StepException("Cannot block indices", WRITE_BLOCK_ERROR, details);
+        }
+    }
+
+    public void releaseWriteLock(ImmutableList<String> indices) {
+        Settings settings = Settings.builder()
+            .put(IndexMetadata.APIBlock.WRITE.settingName(), false)
+            .build();
+        UpdateSettingsRequest request = new UpdateSettingsRequest(indices.toArray(String[]::new)).settings(settings);
+        AcknowledgedResponse acknowledgedResponse = client.admin().indices().updateSettings(request).actionGet();
+        if(!acknowledgedResponse.isAcknowledged()) {
+            String details = "Indices to unblock " + indices.stream() //
+                .map(name -> "'" + name + "'") //
+                .collect(Collectors.joining(", "));
+            throw new StepException("Cannot unblock indices", WRITE_UNBLOCK_ERROR, details);
+        }
+    }
 }

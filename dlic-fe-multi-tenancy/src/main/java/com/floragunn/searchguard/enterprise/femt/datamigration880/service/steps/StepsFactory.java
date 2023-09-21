@@ -22,6 +22,7 @@ public class StepsFactory {
         return ImmutableList.of(new PopulateTenantsStep(configurationProvider, repository),
             new PopulateBackupIndicesStep(repository),
             new CheckIndicesStateStep(repository),
-            new CheckIfIndicesAreBlockedStep(repository));
+            new CheckIfIndicesAreBlockedStep(repository),
+            new WriteBlockStep(repository));
     }
 }
