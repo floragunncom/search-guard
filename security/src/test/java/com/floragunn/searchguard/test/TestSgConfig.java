@@ -836,7 +836,7 @@ public class TestSgConfig {
         private String description;
 
         public Tenant(String name) {
-            this.name = name;
+            this.name = Objects.requireNonNull(name, "Name is required");
         }
 
 
@@ -858,6 +858,10 @@ public class TestSgConfig {
         public Tenant description(String description) {
             this.description = description;
             return this;
+        }
+
+        public String getName() {
+            return name;
         }
 
         public NestedValueMap toJsonMap() {
