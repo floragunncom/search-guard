@@ -2,6 +2,7 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
@@ -30,6 +31,7 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
 import org.junit.Before;
@@ -777,6 +779,193 @@ public class MigrationStepsTest {
 
         log.debug("Step result '{}'", result);
         assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    @Test
+    public void shouldImposeWriteBlockOnDataIndices() {
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX);
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), "not important")));
+        context.setBackupIndices(ImmutableList.empty());
+        WriteBlockStep step = new WriteBlockStep(new StepRepository(getPrivilegedClient()));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Write lock step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        // the below index is not present is migration context, therefore write block is not imposed
+        assertThat(isDocumentInsertionPossible(PRIVATE_USER_KIRK_INDEX.indexName()), equalTo(true));
+    }
+
+    @Test
+    public void shouldImposeWriteBlockOnDataAndBackupIndices() {
+        createIndex(GLOBAL_TENANT_INDEX);
+        BackupIndex backupIndex = new BackupIndex(NOW.toLocalDateTime());
+        createBackupIndex(backupIndex);
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        assertThat(isDocumentInsertionPossible(backupIndex.indexName()), equalTo(true));
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), "not important")));
+        context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
+        WriteBlockStep step = new WriteBlockStep(new StepRepository(getPrivilegedClient()));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Write lock step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndex.indexName()), equalTo(false));
+    }
+
+    @Test
+    public void shouldImposeWriteBlockOnMultipleIndices() {
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX);
+        BackupIndex backupIndexOne = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndexTwo = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        createBackupIndex(backupIndexOne, backupIndexTwo);
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        assertThat(isDocumentInsertionPossible(PRIVATE_USER_KIRK_INDEX.indexName()), equalTo(true));
+        assertThat(isDocumentInsertionPossible(backupIndexOne.indexName()), equalTo(true));
+        assertThat(isDocumentInsertionPossible(backupIndexTwo.indexName()), equalTo(true));
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX));
+        context.setBackupIndices(ImmutableList.of(backupIndexOne.indexName(), backupIndexTwo.indexName()));
+        WriteBlockStep step = new WriteBlockStep(new StepRepository(getPrivilegedClient()));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Write lock step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(PRIVATE_USER_KIRK_INDEX.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndexOne.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndexTwo.indexName()), equalTo(false));
+    }
+
+    @Test
+    public void shouldReLockBackupIndex() {
+        StepRepository repository = new StepRepository(getPrivilegedClient());
+        createIndex(GLOBAL_TENANT_INDEX);
+        BackupIndex backupIndex = new BackupIndex(NOW.toLocalDateTime());
+        createBackupIndex(backupIndex);
+        repository.writeBlockIndices(ImmutableList.of(backupIndex.indexName()));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        assertThat(isDocumentInsertionPossible(backupIndex.indexName()), equalTo(false));
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), "not important")));
+        context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
+        WriteBlockStep step = new WriteBlockStep(repository);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Write lock step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndex.indexName()), equalTo(false));
+    }
+
+    @Test
+    public void shouldReleaseWriteBlockOnOneDataIndexWhenStepIsRollback() {
+        StepRepository repository = new StepRepository(getPrivilegedClient());
+        WriteBlockStep step = new WriteBlockStep(repository);
+        createIndex(GLOBAL_TENANT_INDEX);
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
+
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX));
+
+
+        StepResult result = step.rollback(context);
+
+        log.debug("Write lock step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+
+    }
+
+    @Test
+    public void shouldReleaseWriteBlockOnMultipleIndicesWhenStepIsRollback() {
+        StepRepository repository = new StepRepository(getPrivilegedClient());
+        WriteBlockStep step = new WriteBlockStep(repository);
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX);
+        BackupIndex backupIndexOne = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndexTwo = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        createBackupIndex(backupIndexOne, backupIndexTwo);
+        ImmutableList<String> indicesToBlock = ImmutableList.<DeletableIndex>of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, backupIndexOne, backupIndexTwo)
+            .map(DeletableIndex::indexForDeletion);
+        repository.writeBlockIndices(indicesToBlock);
+
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(PRIVATE_USER_KIRK_INDEX.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndexOne.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndexTwo.indexName()), equalTo(false));
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX));
+        context.setBackupIndices(ImmutableList.of(backupIndexOne.indexName(), backupIndexTwo.indexName()));
+
+        StepResult result = step.rollback(context);
+
+        log.debug("Write lock step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        assertThat(isDocumentInsertionPossible(PRIVATE_USER_KIRK_INDEX.indexName()), equalTo(true));
+        assertThat(isDocumentInsertionPossible(backupIndexOne.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndexTwo.indexName()), equalTo(false));
+    }
+
+    @Test
+    public void shouldReleaseWriteBlockOnOneDataIndex() {
+        StepRepository repository = new StepRepository(getPrivilegedClient());
+        UnblockDataIndicesStep step = new UnblockDataIndicesStep(repository);
+        createIndex(GLOBAL_TENANT_INDEX);
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
+
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX));
+
+
+        StepResult result = step.execute(context);
+
+        log.debug("Write lock step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+
+    }
+
+    @Test
+    public void shouldReleaseWriteBlockOnMultipleIndices() {
+        StepRepository repository = new StepRepository(getPrivilegedClient());
+        UnblockDataIndicesStep step = new UnblockDataIndicesStep(repository);
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX);
+        BackupIndex backupIndexOne = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndexTwo = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        createBackupIndex(backupIndexOne, backupIndexTwo);
+        ImmutableList<String> indicesToBlock = ImmutableList.<DeletableIndex>of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, backupIndexOne, backupIndexTwo)
+                .map(DeletableIndex::indexForDeletion);
+        repository.writeBlockIndices(indicesToBlock);
+
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(PRIVATE_USER_KIRK_INDEX.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndexOne.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndexTwo.indexName()), equalTo(false));
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX));
+        context.setBackupIndices(ImmutableList.of(backupIndexOne.indexName(), backupIndexTwo.indexName()));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Write lock step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        assertThat(isDocumentInsertionPossible(PRIVATE_USER_KIRK_INDEX.indexName()), equalTo(true));
+        assertThat(isDocumentInsertionPossible(backupIndexOne.indexName()), equalTo(false));
+        assertThat(isDocumentInsertionPossible(backupIndexTwo.indexName()), equalTo(false));
+    }
+
+    private boolean isDocumentInsertionPossible(String indexName) {
+        try(Client client = cluster.getInternalNodeClient()) {
+            IndexRequest request = new IndexRequest(indexName).source(ImmutableMap.of("new", "document"));
+            client.index(request).actionGet();
+            return true;
+        } catch (ClusterBlockException clusterBlockException) {
+            return false;
+        }
     }
 
     private void createIndexInYellowState(String index) {

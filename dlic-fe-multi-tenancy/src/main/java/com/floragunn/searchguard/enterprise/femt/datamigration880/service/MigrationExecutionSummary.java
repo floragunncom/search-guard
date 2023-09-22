@@ -4,6 +4,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 import org.elasticsearch.common.time.DateFormatter;
 
 import javax.annotation.Nullable;
@@ -56,7 +57,7 @@ public record MigrationExecutionSummary(LocalDateTime startTime, ExecutionStatus
     public Object toBasicObject() {
         String formattedStartTime = DATE_FORMATTER.format(startTime);
         ImmutableList<ImmutableMap<String, Object>> stepList = stages.map(StepExecutionSummary::toBasicObject);
-        return ImmutableMap.of(FIELD_START_TIME, formattedStartTime, FIELD_STATUS, status.name().toLowerCase(),
+        return OrderedImmutableMap.ofNonNull(FIELD_START_TIME, formattedStartTime, FIELD_STATUS, status.name().toLowerCase(),
             FIELD_TEMP_INDEX_NAME, tempIndexName, FIELD_BACKUP_INDEX_NAME, backupIndexName, FIELD_STAGES, stepList);
     }
 
