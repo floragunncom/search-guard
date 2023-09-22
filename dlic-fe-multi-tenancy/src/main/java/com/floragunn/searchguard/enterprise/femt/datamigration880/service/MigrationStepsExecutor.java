@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.StepException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -13,21 +14,23 @@ import java.util.Objects;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.IN_PROGRESS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.SUCCESS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNEXPECTED_ERROR;
 
-class DataMigrationExecutor {
+class MigrationStepsExecutor {
 
-    private static final Logger log = LogManager.getLogger(DataMigrationExecutor.class);
+    private static final Logger log = LogManager.getLogger(MigrationStepsExecutor.class);
     static final String MIGRATION_ID = "migration_8_8_0";
 
     private final MigrationStateRepository migrationStateRepository;
-
     private final Clock clock;
     private final ImmutableList<MigrationStep> steps;
+    private final MigrationConfig config;
 
-    DataMigrationExecutor(MigrationStateRepository migrationStateRepository, Clock clock, ImmutableList<MigrationStep> steps) {
+    MigrationStepsExecutor(MigrationConfig config, MigrationStateRepository migrationStateRepository, Clock clock, ImmutableList<MigrationStep> steps) {
         this.migrationStateRepository = Objects.requireNonNull(migrationStateRepository, "Migration state repository is required");
         this.clock = Objects.requireNonNull(clock, "Clock is required");
         this.steps = Objects.requireNonNull(steps, "Steps list is required");
+        this.config = Objects.requireNonNull(config, "Migration config is required");
         if(steps.isEmpty()) {
             throw new IllegalStateException("Step list cannot be empty");
         }
@@ -37,7 +40,7 @@ class DataMigrationExecutor {
     }
 
     public MigrationExecutionSummary execute() {
-        DataMigrationContext dataMigrationContext = new DataMigrationContext(clock);
+        DataMigrationContext dataMigrationContext = new DataMigrationContext(config, clock);
         List<StepExecutionSummary> accomplishedSteps = new ArrayList<>();
         for(int i = 0; i < steps.size(); ++i) {
             MigrationStep step = steps.get(i);
@@ -51,14 +54,19 @@ class DataMigrationExecutor {
                 ExecutionStatus status = lastStep ? (result.isSuccess() ? SUCCESS : FAILURE) : (result.isSuccess() ? IN_PROGRESS : FAILURE);
                 var migrationSummary = persistState(dataMigrationContext, accomplishedSteps, status);
                 log.info("Step '{}' executed with result '{}", step.name(), result);
-                if(lastStep || (!SUCCESS.equals(result.status()))) {
+                if(lastStep || result.isFailure()) {
                     return migrationSummary;
                 }
+            } catch (StepException ex) {
+                String stepName = step.name();
+                var stepSummary = new StepExecutionSummary(i, stepStartTime, stepName, ex.getStatus(), ex.getMessage(), ex.getDetails());
+                accomplishedSteps.add(stepSummary);
+                return persistState(dataMigrationContext, accomplishedSteps, FAILURE);
             } catch (Exception ex) {
                 String stepName = step.name();
                 String message = "Unexpected error: " + ex.getMessage();
-                accomplishedSteps.add(new StepExecutionSummary(i, stepStartTime, stepName, FAILURE, message));
-                log.error("Unexpected error occured during execution of data migration step '{}' which is '{}'.", i, stepName, ex);
+                accomplishedSteps.add(new StepExecutionSummary(i, stepStartTime, stepName, UNEXPECTED_ERROR, message, ex));
+                log.error("Unexpected error occurred during execution of data migration step '{}' which is '{}'.", i, stepName, ex);
                 return persistState(dataMigrationContext, accomplishedSteps, FAILURE);
             }
         }
@@ -68,12 +76,12 @@ class DataMigrationExecutor {
     private MigrationExecutionSummary persistState(
         DataMigrationContext dataMigrationContext, List<StepExecutionSummary> accomplishedSteps,
         ExecutionStatus status) {
-        MigrationExecutionSummary migrationExecutionSummary = createMigrationSummary(dataMigrationContext, accomplishedSteps, status);
+        MigrationExecutionSummary migrationExecutionSummary = createExecutionSummary(dataMigrationContext, accomplishedSteps, status);
         migrationStateRepository.upsert(MIGRATION_ID, migrationExecutionSummary);
         return migrationExecutionSummary;
     }
 
-    private static MigrationExecutionSummary createMigrationSummary(
+    private static MigrationExecutionSummary createExecutionSummary(
         DataMigrationContext dataMigrationContext,
         List<StepExecutionSummary> accomplishedSteps,
         ExecutionStatus status) {

@@ -281,6 +281,13 @@
       </dependency>
 
       <dependency>
+        <groupId>org.awaitility</groupId>
+        <artifactId>awaitility</artifactId>
+        <version>4.2.0</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
         <groupId>org.elasticsearch</groupId>
         <artifactId>elasticsearch-ssl-config</artifactId>
         <version>${elasticsearch.version}</version>
@@ -388,13 +395,6 @@
         <artifactId>search-guard-flx-support</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>org.awaitility</groupId>
-        <artifactId>awaitility</artifactId>
-        <version>4.2.0</version>
-        <scope>test</scope>
       </dependency>
 
     </dependencies>
