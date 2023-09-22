@@ -13,7 +13,7 @@ import java.time.ZoneOffset;
 import java.util.Objects;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.MappingTypes.*;
 
-public record StepExecutionSummary(long number, LocalDateTime startTime, String name, ExecutionStatus status, String message,
+public record StepExecutionSummary(long number, LocalDateTime startTime, String name, StepExecutionStatus status, String message,
                                    @Nullable String details)
     implements Document<StepExecutionSummary> {
 
@@ -33,11 +33,11 @@ public record StepExecutionSummary(long number, LocalDateTime startTime, String 
             FIELD_MESSAGE, MAPPING_TEXT_WITH_KEYWORD)//
             .with(FIELD_DETAILS, MAPPING_TEXT_WITH_KEYWORD));
 
-    public StepExecutionSummary(long number, LocalDateTime startTime, String name, ExecutionStatus status, String message) {
+    public StepExecutionSummary(long number, LocalDateTime startTime, String name, StepExecutionStatus status, String message) {
         this(number, startTime, name, status, message, (String) null);
     }
 
-    public StepExecutionSummary(long number, LocalDateTime startTime, String name, ExecutionStatus status, String message, Throwable details) {
+    public StepExecutionSummary(long number, LocalDateTime startTime, String name, StepExecutionStatus status, String message, Throwable details) {
         this(number, startTime, name, status, message, stacktractToString(details));
     }
 
@@ -46,7 +46,6 @@ public record StepExecutionSummary(long number, LocalDateTime startTime, String 
             return null;
         }
         try {
-            //some ES exceptions causes NPE here
             return Throwables.getStackTraceAsString(ex);
         } catch (Throwable e) {
             return "Cannot obtain stack trace from exception " + ex.getClass().getCanonicalName() + " with message " + ex.getMessage();
@@ -61,7 +60,8 @@ public record StepExecutionSummary(long number, LocalDateTime startTime, String 
     }
 
     StepExecutionSummary(long number, LocalDateTime startTime, String name, StepResult stepResult) {
-        this(number, startTime, name, Objects.requireNonNull(stepResult, "Step result is required").status(), stepResult.message());
+        this(number, startTime, name, Objects.requireNonNull(stepResult, "Step result is required").status(), stepResult.message(),
+            stepResult.details());
     }
 
     @Override
@@ -74,7 +74,7 @@ public record StepExecutionSummary(long number, LocalDateTime startTime, String 
     public static StepExecutionSummary parse(DocNode docNode) {
         try {
             LocalDateTime startTime = LocalDateTime.from(DATE_FORMATTER.parse(docNode.getAsString(FIELD_START_TIME)));
-            ExecutionStatus status = ExecutionStatus.valueOf(docNode.getAsString(FIELD_STATUS).toUpperCase());
+            StepExecutionStatus status = StepExecutionStatus.valueOf(docNode.getAsString(FIELD_STATUS).toUpperCase());
             return new StepExecutionSummary(docNode.getNumber(FIELD_NO).longValue(), startTime, docNode.getAsString(FIELD_NAME), status,
                 docNode.getAsString(FIELD_MESSAGE), docNode.getAsString(FIELD_DETAILS));
         } catch (ConfigValidationException e) {

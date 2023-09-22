@@ -3,21 +3,29 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.StepsFactory;
 import com.floragunn.searchsupport.action.StandardResponse;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.SUCCESS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_CREATE_STATUS_DOCUMENT_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_UPDATE_STATUS_DOCUMENT_LOCK_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MIGRATION_ALREADY_IN_PROGRESS_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.STATUS_INDEX_ALREADY_EXISTS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
 import static org.apache.http.HttpStatus.SC_CONFLICT;
-import static org.apache.http.HttpStatus.SC_GONE;
 import static org.apache.http.HttpStatus.SC_INTERNAL_SERVER_ERROR;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.apache.http.HttpStatus.SC_PRECONDITION_FAILED;
 
 public class DataMigrationService {
+
+    private static final Logger log = LogManager.getLogger(DataMigrationService.class);
     public static final String STAGE_NAME_PRECONDITIONS = "preconditions check";
 
     private final MigrationStateRepository migrationStateRepository;
@@ -25,74 +33,84 @@ public class DataMigrationService {
     private final StepsFactory stepsFactory;
     private final Clock clock;
 
-    public DataMigrationService(MigrationStateRepository migrationStateRepository, StepsFactory stepsFactory, Clock clock) {
+    public DataMigrationService(MigrationStateRepository migrationStateRepository, StepsFactory stepsFactory,
+        Clock clock) {
         this.migrationStateRepository = Objects.requireNonNull(migrationStateRepository, "Migration state repository is required");
         this.stepsFactory = Objects.requireNonNull(stepsFactory, "Step factory is required");
         this.clock = Objects.requireNonNull(clock, "Clock is required");
     }
 
-    public StandardResponse migrateData() {
+    public StandardResponse migrateData(MigrationConfig config) {
+        Objects.requireNonNull(config, "Migration config is required");
         try {
             if (!migrationStateRepository.isIndexCreated()) {
                 migrationStateRepository.createIndex();
             }
-            return migrationStateRepository.findById(DataMigrationExecutor.MIGRATION_ID) //
-                .map(this::restartMigration) //
-                .orElseGet(this::performFirstMigrationStart);
+            return migrationStateRepository.findById(MigrationStepsExecutor.MIGRATION_ID) //
+                .map(summary -> restartMigration(config, summary)) //
+                .orElseGet(() -> performFirstMigrationStart(config));
         } catch (IndexAlreadyExistsException e) {
             String message = """
                     Cannot create index to store migration related data./
                     Possibly another data migration process was started in parallel.
                     """.trim();
-            return errorResponse(SC_CONFLICT, message, e);
+            return errorResponse(SC_CONFLICT, STATUS_INDEX_ALREADY_EXISTS, message, e);
         }
     }
 
-    private StandardResponse executeMigrationSteps() {
-        DataMigrationExecutor executor = new DataMigrationExecutor(migrationStateRepository, clock, stepsFactory.createSteps());
+    private StandardResponse executeMigrationSteps(MigrationConfig config) {
+        Objects.requireNonNull(config, "Migration config is required");
+        ImmutableList<MigrationStep> steps = stepsFactory.createSteps();
+        if(log.isInfoEnabled()) {
+            log.info("Front-end data migration step execution order: '{}'", steps.stream() //
+                .map(MigrationStep::name) //
+                .collect(Collectors.joining(", ")));
+        }
+        MigrationStepsExecutor executor = new MigrationStepsExecutor(config, migrationStateRepository, clock, steps);
         MigrationExecutionSummary summary = executor.execute();
         int httpStatus = summary.isSuccessful() ? SC_OK : SC_INTERNAL_SERVER_ERROR;
         return new StandardResponse(httpStatus).data(summary);
     }
 
-    private StandardResponse performFirstMigrationStart() {
+    private StandardResponse performFirstMigrationStart(MigrationConfig config) {
+        Objects.requireNonNull(config, "Migration config is required");
         LocalDateTime now = LocalDateTime.now(clock);
         MigrationExecutionSummary summary = migrationStartedSummary(now, "The first start of data migration process");
         try {
-            migrationStateRepository.create(DataMigrationExecutor.MIGRATION_ID, summary);
-            return executeMigrationSteps();
+            migrationStateRepository.create(MigrationStepsExecutor.MIGRATION_ID, summary);
+            return executeMigrationSteps(config);
         } catch (OptimisticLockException e) {
             String message = "Another migration process has just been started.";
-            return errorResponse(SC_PRECONDITION_FAILED, message, e);
+            return errorResponse(SC_PRECONDITION_FAILED, CANNOT_CREATE_STATUS_DOCUMENT_ERROR, message, e);
         }
     }
 
-    private StandardResponse restartMigration(MigrationExecutionSummary migration) {
+    private StandardResponse restartMigration(MigrationConfig config, MigrationExecutionSummary migrationSummary) {
         LocalDateTime now = LocalDateTime.now(clock);
-        if(migration.isMigrationInProgress(now)) {
-            String message = "Data migration started previously at " + migration.startTime() +
+        if(migrationSummary.isMigrationInProgress(now)) {
+            String message = "Data migration started previously at " + migrationSummary.startTime() +
                 " is already in progress. Cannot run more than one migration process at the time.";
-            return errorResponse(SC_BAD_REQUEST, message, null);
+            return errorResponse(SC_BAD_REQUEST, MIGRATION_ALREADY_IN_PROGRESS_ERROR, message, null);
         }
         MigrationExecutionSummary restartedMigration = migrationStartedSummary(now, "Migration restarted");
         try {
-            migrationStateRepository.updateWithLock(DataMigrationExecutor.MIGRATION_ID, restartedMigration, migration.lockData());
-            return executeMigrationSteps();
+            migrationStateRepository.updateWithLock(MigrationStepsExecutor.MIGRATION_ID, restartedMigration, migrationSummary.lockData());
+            return executeMigrationSteps(config);
         } catch (OptimisticLockException ex) {
             String errorMessage = "Another instance of data migration process is just starting, aborting.";
-            return errorResponse(SC_CONFLICT, errorMessage, ex);
+            return errorResponse(SC_CONFLICT, CANNOT_UPDATE_STATUS_DOCUMENT_LOCK_ERROR, errorMessage, ex);
         }
     }
 
     private MigrationExecutionSummary migrationStartedSummary(LocalDateTime now, String message) {
-        StepExecutionSummary preconditionStage = new StepExecutionSummary(0, now, STAGE_NAME_PRECONDITIONS, SUCCESS, message);
+        StepExecutionSummary preconditionStage = new StepExecutionSummary(0, now, STAGE_NAME_PRECONDITIONS, OK, message);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(preconditionStage);
         return new MigrationExecutionSummary(now, ExecutionStatus.IN_PROGRESS, null, null, stages);
     }
 
-    private StandardResponse errorResponse(int httpStatus, String message, Throwable ex) {
+    private StandardResponse errorResponse(int httpStatus, StepExecutionStatus status, String message, Throwable ex) {
         LocalDateTime now = LocalDateTime.now(clock);
-        var stages = ImmutableList.of(new StepExecutionSummary(0, now, STAGE_NAME_PRECONDITIONS, FAILURE, message, ex));
+        var stages = ImmutableList.of(new StepExecutionSummary(0, now, STAGE_NAME_PRECONDITIONS, status, message, ex));
         MigrationExecutionSummary summary = new MigrationExecutionSummary(now, FAILURE, null, null, stages);
         return new StandardResponse(httpStatus).data(summary);
     }

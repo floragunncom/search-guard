@@ -22,6 +22,7 @@
       <groupId>com.floragunn.org.opensaml</groupId>
       <artifactId>opensaml-xmlsec-impl-patched</artifactId>
     </dependency>
+
     <dependency>
       <groupId>com.onelogin</groupId>
       <artifactId>java-saml</artifactId>

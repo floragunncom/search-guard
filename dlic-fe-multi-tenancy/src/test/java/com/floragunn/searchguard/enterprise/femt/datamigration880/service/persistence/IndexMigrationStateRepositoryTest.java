@@ -26,6 +26,7 @@ import java.util.Optional;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.IN_PROGRESS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.SUCCESS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -119,13 +120,13 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldCreateDocumentWithIdOne() {
         repository.createIndex();
         LocalDateTime startTime = LocalDateTime.of(2004, 5, 1, 0, 0);
-        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, IN_PROGRESS, MESSAGE);
+        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, OK, MESSAGE);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
         var migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
 
         repository.create(ID_1, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_1).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_1).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummary));
     }
 
@@ -133,7 +134,7 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldCreateTwoDocuments() {
         repository.createIndex();
         LocalDateTime startTime = LocalDateTime.of(2004, 5, 1, 0, 0);
-        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, IN_PROGRESS, MESSAGE);
+        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, OK, MESSAGE);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
         var migrationSummaryOne = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         var migrationSummaryTwo = new MigrationExecutionSummary(startTime, FAILURE, null, null, stages);
@@ -141,9 +142,9 @@ public class IndexMigrationStateRepositoryTest {
 
         repository.create(ID_2, migrationSummaryTwo);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_2).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_2).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummaryTwo));
-        loadedSummary = repository.findById(ID_1).get();
+        loadedSummary = repository.findById(ID_1).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummaryOne));
     }
 
@@ -151,16 +152,16 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldReportErrorWhenCreatedDocumentAlreadyExists() {
         repository.createIndex();
         LocalDateTime startTime = LocalDateTime.of(2004, 5, 1, 0, 0);
-        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, IN_PROGRESS, MESSAGE);
+        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, OK, MESSAGE);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
         var migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         var migrationSummaryTwo = new MigrationExecutionSummary(startTime, FAILURE, null, null, stages);
         repository.upsert(ID_1, migrationSummary);
-        OptimisticLock optimisticLock = repository.findById(ID_1).get().lockData();
+        OptimisticLock optimisticLock = repository.findById(ID_1).orElseThrow().lockData();
 
         assertThatThrown(() -> repository.create(ID_1, migrationSummaryTwo), instanceOf(OptimisticLockException.class));
 
-        OptimisticLock lockDataAfterUpdate = repository.findById(ID_1).get().lockData();
+        OptimisticLock lockDataAfterUpdate = repository.findById(ID_1).orElseThrow().lockData();
         assertThat(lockDataAfterUpdate, equalTo(optimisticLock));
     }
 
@@ -168,13 +169,13 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldStoreDocumentWithIdOne() {
         repository.createIndex();
         LocalDateTime startTime = LocalDateTime.of(2004, 5, 1, 0, 0);
-        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, IN_PROGRESS, MESSAGE);
+        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, OK, MESSAGE);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
         var migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
 
         repository.upsert(ID_1, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_1).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_1).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummary));
     }
 
@@ -182,13 +183,13 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldStoreDocumentWithIdTwo() {
         repository.createIndex();
         LocalDateTime startTime = LocalDateTime.of(2004, 5, 1, 0, 1);
-        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, IN_PROGRESS, MESSAGE);
+        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, OK, MESSAGE);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
         var migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
 
         repository.upsert(ID_2, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_2).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_2).orElseThrow();
         assertThat(loadedSummary, equalTo(migrationSummary));
     }
 
@@ -205,12 +206,12 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldLoadPrimaryTermAndSeqNo() {
         repository.createIndex();
         LocalDateTime startTime = LocalDateTime.of(2004, 5, 1, 0, 1);
-        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, IN_PROGRESS, MESSAGE);
+        StepExecutionSummary stepSummary = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, OK, MESSAGE);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
         var migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         repository.upsert(ID_3, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).orElseThrow();
 
         OptimisticLock lock = loadedSummary.lockData();
         assertThat(lock, notNullValue());
@@ -222,17 +223,17 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldUpdateMigrationSummary() {
         repository.createIndex();
         LocalDateTime startTime = LocalDateTime.of(2004, 5, 1, 0, 1);
-        StepExecutionSummary stepSummaryOne = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, IN_PROGRESS, MESSAGE);
+        StepExecutionSummary stepSummaryOne = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, OK, MESSAGE);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummaryOne);
         var migrationSummary = new MigrationExecutionSummary(startTime, IN_PROGRESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         repository.upsert(ID_3, migrationSummary);
-        StepExecutionSummary stepSummaryTwo = new StepExecutionSummary(STEP_NO_2, startTime, STEP_NAME_2, SUCCESS, MESSAGE);
+        StepExecutionSummary stepSummaryTwo = new StepExecutionSummary(STEP_NO_2, startTime, STEP_NAME_2, OK, MESSAGE);
         stages = ImmutableList.of(stepSummaryOne, stepSummaryTwo);
         migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
 
         repository.upsert(ID_3, migrationSummary);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).orElseThrow();
         assertThat(loadedSummary.status(), equalTo(SUCCESS));
         assertThat(loadedSummary.stages(), hasSize(2));
         assertThat(loadedSummary.stages().get(0).name(), equalTo(STEP_NAME_1));
@@ -243,18 +244,18 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldUpdateMigrationSummaryWithOptimisticLock() {
         repository.createIndex();
         LocalDateTime startTime = LocalDateTime.of(2004, 5, 1, 0, 1);
-        StepExecutionSummary stepSummaryOne = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, IN_PROGRESS, MESSAGE);
+        StepExecutionSummary stepSummaryOne = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, OK, MESSAGE);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummaryOne);
         var migrationSummary = new MigrationExecutionSummary(startTime, IN_PROGRESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         repository.upsert(ID_3, migrationSummary);
-        OptimisticLock lock = repository.findById(ID_3).get().lockData();
-        StepExecutionSummary stepSummaryTwo = new StepExecutionSummary(STEP_NO_2, startTime, STEP_NAME_2, SUCCESS, MESSAGE);
+        OptimisticLock lock = repository.findById(ID_3).orElseThrow().lockData();
+        StepExecutionSummary stepSummaryTwo = new StepExecutionSummary(STEP_NO_2, startTime, STEP_NAME_2, OK, MESSAGE);
         stages = ImmutableList.of(stepSummaryOne, stepSummaryTwo);
         migrationSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
 
         repository.updateWithLock(ID_3, migrationSummary, lock);
 
-        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).get();
+        MigrationExecutionSummary loadedSummary = repository.findById(ID_3).orElseThrow();
         assertThat(loadedSummary.status(), equalTo(SUCCESS));
         assertThat(loadedSummary.stages(), hasSize(2));
         assertThat(loadedSummary.stages().get(0).name(), equalTo(STEP_NAME_1));
@@ -265,14 +266,14 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldNotUpdateMigrationSummaryWithOptimisticLock() {
         repository.createIndex();
         LocalDateTime startTime = LocalDateTime.of(2004, 5, 1, 0, 1);
-        StepExecutionSummary stepSummaryOne = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, IN_PROGRESS, MESSAGE);
+        StepExecutionSummary stepSummaryOne = new StepExecutionSummary(STEP_NO_1, startTime, STEP_NAME_1, OK, MESSAGE);
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummaryOne);
         var migrationSummary = new MigrationExecutionSummary(startTime, IN_PROGRESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         repository.upsert(ID_3, migrationSummary);
-        OptimisticLock lock = repository.findById(ID_3).get().lockData();
+        OptimisticLock lock = repository.findById(ID_3).orElseThrow().lockData();
         migrationSummary = new MigrationExecutionSummary(startTime.plusHours(1), IN_PROGRESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
         repository.upsert(ID_3, migrationSummary);
-        StepExecutionSummary stepSummaryTwo = new StepExecutionSummary(STEP_NO_2, startTime, STEP_NAME_2, SUCCESS, MESSAGE);
+        StepExecutionSummary stepSummaryTwo = new StepExecutionSummary(STEP_NO_2, startTime, STEP_NAME_2, OK, MESSAGE);
         stages = ImmutableList.of(stepSummaryOne, stepSummaryTwo);
         var updatedSummary = new MigrationExecutionSummary(startTime, SUCCESS, TEMP_INDEX_NAME, BACKUP_INDEX_NAME, stages);
 

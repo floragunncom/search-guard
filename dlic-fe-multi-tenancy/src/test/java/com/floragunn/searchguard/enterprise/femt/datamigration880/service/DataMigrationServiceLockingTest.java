@@ -33,11 +33,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containSubstring;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNEXPECTED_ERROR;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
 import static org.apache.http.HttpStatus.SC_CONFLICT;
-import static org.apache.http.HttpStatus.SC_GONE;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.apache.http.HttpStatus.SC_PRECONDITION_FAILED;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -50,6 +50,7 @@ public class DataMigrationServiceLockingTest {
     private static final Logger log = LogManager.getLogger(DataMigrationServiceLockingTest.class);
 
     private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(2010, 1, 1, 12, 1), ZoneOffset.UTC);
+    public static final MigrationConfig STRICT_CONFIG = new MigrationConfig(false);
 
     private ExecutorService executor;
 
@@ -88,13 +89,13 @@ public class DataMigrationServiceLockingTest {
         when(stepFactory1.createSteps()).thenReturn(ImmutableList.of(new WaitStep().enoughWaiting()));
         DataMigrationService migrationService = new DataMigrationService(repository, stepFactory1, Clock.systemUTC());
 
-        StandardResponse response = migrationService.migrateData();
+        StandardResponse response = migrationService.migrateData(STRICT_CONFIG);
 
         assertThat(response.getStatus(), equalTo(SC_OK));
     }
 
     @Test(timeout = 10_000)
-    public void shouldNotAttemptToRerunMigrationTooEarly() throws InterruptedException, DocumentParseException {
+    public void shouldNotAttemptToRerunMigrationTooEarly() throws DocumentParseException {
         Clock nowClock = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
         Clock pastClock = Clock.offset(nowClock, Duration.ofSeconds(-1));
         //two services which represents two cluster nodes
@@ -103,21 +104,21 @@ public class DataMigrationServiceLockingTest {
         SyncStep syncStep = new SyncStep();
         WaitStep waitStep = new WaitStep();
         when(stepFactory1.createSteps()).thenReturn(ImmutableList.of(syncStep, waitStep));
-        executor.submit(migrationService1::migrateData);
+        executor.submit(() -> migrationService1.migrateData(STRICT_CONFIG));
         syncStep.waitUntilStepExecution();// From this point the first migration is executed until invocation of waitStep.enoughWaiting()
 
         //try to run another migration in parallel
-        StandardResponse response = migrationService2.migrateData();
+        StandardResponse response = migrationService2.migrateData(STRICT_CONFIG);
 
         String jsonString = response.toJsonString();
         log.debug("Status and body from the second data migration run in parallel: '{}', '{}'", response.getStatus(), jsonString);
         assertThat(response.getStatus(), equalTo(SC_BAD_REQUEST));
         DocNode responseBody = DocNode.parse(Format.JSON).from(jsonString);
         assertThat(responseBody, containsValue("$.data.status", "failure"));
-        assertThat(responseBody, containSubstring("$.data.stages[0].message", "at 2010-01-01T12:00:59 is already in progress. Cannot run more than one migration"));
+        assertThat(responseBody, containsValue("$.data.stages[0].status", "migration_already_in_progress_error"));
         waitStep.enoughWaiting();//the first migration process can be finished very soon
         //verify that execution of the first data migration process is executed and accomplished correctly
-        Awaitility.await().until(() -> repository.findById("migration_8_8_0").get().status(), equalTo(ExecutionStatus.SUCCESS));
+        Awaitility.await().until(() -> repository.findById("migration_8_8_0").orElseThrow().status(), equalTo(ExecutionStatus.SUCCESS));
     }
 
     @Test
@@ -133,14 +134,13 @@ public class DataMigrationServiceLockingTest {
         Clock fixed = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
         DataMigrationService migrationService = new DataMigrationService(migrationStateRepository, stepFactory1, fixed);
 
-        StandardResponse response = migrationService.migrateData();
+        StandardResponse response = migrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Parallel index creation caused response '{}'.", response.toJsonString());
         assertThat(response.getStatus(), equalTo(SC_CONFLICT));
         DocNode responseBody = DocNode.parse(Format.JSON).from(response.toJsonString());
         assertThat(responseBody, containsValue("$.data.status", "failure"));
-        assertThat(responseBody, containSubstring("$.data.stages[0].message", "Cannot create index"));
-        assertThat(responseBody, containSubstring("$.data.stages[0].message", "was started in parallel"));
+        assertThat(responseBody, containsValue("$.data.stages[0].status", "status_index_already_exists"));
     }
 
     @Test
@@ -158,7 +158,7 @@ public class DataMigrationServiceLockingTest {
             private MigrationExecutionSummary createMigrationSummary() {
                 LocalDateTime localDateTime = NOW.toLocalDateTime();
                 StepExecutionSummary stepSummary = new StepExecutionSummary(0, localDateTime, "created by another process",
-                        ExecutionStatus.SUCCESS, "I am race condition winner!");
+                        StepExecutionStatus.OK, "I am race condition winner!");
                 ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
                 return new MigrationExecutionSummary(localDateTime, ExecutionStatus.IN_PROGRESS, null, null, stages, null);
             }
@@ -166,13 +166,13 @@ public class DataMigrationServiceLockingTest {
         Clock fixed = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
         DataMigrationService migrationService = new DataMigrationService(migrationStateRepository, stepFactory1, fixed);
 
-        StandardResponse response = migrationService.migrateData();
+        StandardResponse response = migrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Parallel index creation caused response '{}'.", response.toJsonString());
         assertThat(response.getStatus(), equalTo(SC_PRECONDITION_FAILED));
         DocNode responseBody = DocNode.parse(Format.JSON).from(response.toJsonString());
         assertThat(responseBody, containsValue("$.data.status", "failure"));
-        assertThat(responseBody, containsValue("$.data.stages[0].message", "Another migration process has just been started."));
+        assertThat(responseBody, containsValue("$.data.stages[0].status", "cannot_create_status_document_error"));
     }
 
     @Test
@@ -180,7 +180,7 @@ public class DataMigrationServiceLockingTest {
         repository.createIndex();
         // let's force migration re-run mode. So store data related to previously failed migration process
         LocalDateTime now = NOW.toLocalDateTime();
-        var stepSummary = new StepExecutionSummary(0, now, "precondition check", ExecutionStatus.FAILURE, "Sth. went wrong.");
+        var stepSummary = new StepExecutionSummary(0, now, "precondition check", UNEXPECTED_ERROR, "Sth. went wrong.");
         ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
         repository.upsert("migration_8_8_0", new MigrationExecutionSummary(now, ExecutionStatus.FAILURE, null, null, stages));
         // this repository simulates optimistic lock failure, when migration status document is updated
@@ -196,7 +196,7 @@ public class DataMigrationServiceLockingTest {
             private MigrationExecutionSummary createMigrationSummary() {
                 LocalDateTime localDateTime = NOW.toLocalDateTime();
                 StepExecutionSummary stepSummary = new StepExecutionSummary(0, localDateTime, "created by another process",
-                    ExecutionStatus.SUCCESS, "Optimistic lock broken");
+                    OK, "Optimistic lock broken");
                 ImmutableList<StepExecutionSummary> stages = ImmutableList.of(stepSummary);
                 return new MigrationExecutionSummary(localDateTime, ExecutionStatus.IN_PROGRESS, null, null, stages, null);
             }
@@ -204,13 +204,13 @@ public class DataMigrationServiceLockingTest {
         Clock fixed = Clock.fixed(NOW.toInstant(), ZoneOffset.UTC);
         DataMigrationService migrationService = new DataMigrationService(migrationStateRepository, stepFactory1, fixed);
 
-        StandardResponse response = migrationService.migrateData();
+        StandardResponse response = migrationService.migrateData(STRICT_CONFIG);
 
         log.debug("Optimistic lock failure response '{}'.", response.toJsonString());
         assertThat(response.getStatus(), equalTo(SC_CONFLICT));
         DocNode responseBody = DocNode.parse(Format.JSON).from(response.toJsonString());
         assertThat(responseBody, containsValue("$.data.status", "failure"));
-        assertThat(responseBody, containsValue("$.data.stages[0].message", "Another instance of data migration process is just starting, aborting."));
+        assertThat(responseBody, containsValue("$.data.stages[0].status", "cannot_update_status_document_lock_error"));
     }
 
     private static class SyncStep implements MigrationStep {
@@ -224,7 +224,7 @@ public class DataMigrationServiceLockingTest {
         @Override
         public StepResult execute(DataMigrationContext dataMigrationContext) {
             this.countDownLatch.countDown();
-            return new StepResult(ExecutionStatus.SUCCESS, "Synchronized on countDownLatch");
+            return new StepResult(OK, "Synchronized on countDownLatch");
         }
 
         @Override
@@ -264,7 +264,7 @@ public class DataMigrationServiceLockingTest {
                     throw new RuntimeException(message);
                 }
                 log.debug("Finish waiting in migration '{}'", dataMigrationContext.getMigrationId());
-                return new StepResult(ExecutionStatus.SUCCESS, "Waited so long...");
+                return new StepResult(OK, "Waited so long...");
             } catch (InterruptedException e) {
                 String message = "Unexpected interruption of waiting";
                 log.error(message);
