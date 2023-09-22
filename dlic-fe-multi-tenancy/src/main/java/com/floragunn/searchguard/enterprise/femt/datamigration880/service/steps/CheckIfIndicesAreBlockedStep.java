@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 
-public class CheckIfIndicesAreBlockedStep implements MigrationStep {
+class CheckIfIndicesAreBlockedStep implements MigrationStep {
 
     private final StepRepository repository;
 

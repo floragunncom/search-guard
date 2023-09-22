@@ -4,6 +4,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.google.common.base.Throwables;
 import org.elasticsearch.common.time.DateFormatter;
 
@@ -67,8 +68,9 @@ public record StepExecutionSummary(long number, LocalDateTime startTime, String 
     @Override
     public ImmutableMap<String, Object> toBasicObject() {
         String formattedStartTime = DATE_FORMATTER.format(startTime);
-        return ImmutableMap.<String, Object>of(FIELD_NO, number, FIELD_START_TIME, formattedStartTime, FIELD_NAME, name, FIELD_STATUS,
-            status.name().toLowerCase(), FIELD_MESSAGE, message).with(FIELD_DETAILS, details);
+        return OrderedImmutableMap.<String, Object>ofNonNull(FIELD_NO, number, FIELD_START_TIME, formattedStartTime, FIELD_NAME, name,
+            FIELD_STATUS, status.name().toLowerCase(), FIELD_MESSAGE, message) //
+            .with(FIELD_DETAILS, details);
     }
 
     public static StepExecutionSummary parse(DocNode docNode) {

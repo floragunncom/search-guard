@@ -23,7 +23,7 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INVALID_DATE_IN_BACKUP_INDEX_NAME_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 
-public class PopulateBackupIndicesStep implements MigrationStep {
+class PopulateBackupIndicesStep implements MigrationStep {
 
     private static final Logger log = LogManager.getLogger(PopulateBackupIndicesStep.class);
 
@@ -38,7 +38,7 @@ public class PopulateBackupIndicesStep implements MigrationStep {
         Optional<GetIndexResponse> responseOptional = repository.findIndexByNameOrAlias(BACKUP_INDEX_NAME_PREFIX + "*");
         responseOptional.ifPresentOrElse(response -> {
             List<String> sortedIndices = Arrays.stream(response.getIndices()) //
-                .sorted(this.backupIndexComparator()) // TODO use comparator
+                .sorted(this.backupIndexComparator())
                 .collect(Collectors.toList());
             context.setBackupIndices(ImmutableList.of(sortedIndices));
         }, () -> context.setBackupIndices(ImmutableList.empty()));

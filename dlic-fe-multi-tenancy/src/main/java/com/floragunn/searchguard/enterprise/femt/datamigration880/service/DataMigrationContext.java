@@ -54,7 +54,15 @@ public class DataMigrationContext {
     }
 
     public ImmutableList<String> getDataIndicesNames() {
-        return tenantIndices.map(TenantIndex::indexName);
+        return Optional.ofNullable(tenantIndices).orElse(ImmutableList.empty()).map(TenantIndex::indexName);
+    }
+
+    public String getGlobalTenantIndexName() {
+        return tenantIndices.stream() //
+            .filter(TenantIndex::belongsToGlobalTenant) //
+            .map(TenantIndex::indexName) //
+            .findAny() //
+            .orElseThrow(() -> new IllegalStateException("Global tenant not found!"));
     }
 
     public boolean areYellowDataIndicesAllowed() {
