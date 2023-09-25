@@ -73,8 +73,8 @@ public class MultiTenancyRequestMappingTest {
         try (GenericRestClient client = cluster.getRestClient(USER)) {
             GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId);
             GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id, tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
         }
     }
@@ -89,15 +89,15 @@ public class MultiTenancyRequestMappingTest {
             //source = false
             GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?_source=false");
             GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?_source=false", tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
 
             //source = true
             responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?_source=true");
             responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?_source=true", tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
         }
     }
@@ -112,15 +112,15 @@ public class MultiTenancyRequestMappingTest {
             //include and exclude
             GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?_source_includes=a*&_source_excludes=ab");
             GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?_source_includes=a*&_source_excludes=ab", tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
 
             //only include
             responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?_source=a*");
             responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?_source=a*", tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
         }
     }
@@ -153,15 +153,15 @@ public class MultiTenancyRequestMappingTest {
             //stored fields = false
             GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?stored_fields=false");
             GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?stored_fields=false", tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
 
             //stored fields = true
             responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?stored_fields=true");
             responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?stored_fields=true", tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
         }
     }
@@ -177,17 +177,121 @@ public class MultiTenancyRequestMappingTest {
             //correct routing
             GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?routing=" + routing);
             GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?routing=" + routing, tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
 
             //wrong routing
             routing = routing.concat("-fake");
             responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?routing=" + routing);
             responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?routing=" + routing, tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withPreferenceParam() throws Exception {
+        String id = "123";
+        String scopedId = scopedId(id);
+
+        String preference = "_local";
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //correct preference
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?preference=" + preference);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?preference=" + preference, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+
+            //wrong preference
+            preference = preference.concat("-fake");
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?preference=" + preference);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?preference=" + preference, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withRealtimeParam() throws Exception {
+        String id = "123";
+        String scopedId = scopedId(id);
+
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //realtime true
+            String realtime = "true";
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?realtime=" + realtime);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?realtime=" + realtime, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+
+            //realtime false
+            realtime = "false";
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?realtime=" + realtime);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?realtime=" + realtime, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withRefreshParam() throws Exception {
+        String id = "123";
+        String scopedId = scopedId(id);
+
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //refresh true
+            String refresh = "true";
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?refresh=" + refresh);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?refresh=" + refresh, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+
+            //refresh false
+            refresh = "false";
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?refresh=" + refresh);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?refresh=" + refresh, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withVersionParam() throws Exception {
+        String id = "123";
+        String scopedId = scopedId(id);
+
+        IndexResponse indexResponse = addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        long docVersion = indexResponse.getVersion();
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid version
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?version=" + docVersion + "&version_type=external_gte");
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?version=" + docVersion + "&version_type=external_gte", tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+
+            //invalid version
+            docVersion++;
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?version=" + docVersion);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?version=" + docVersion, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
         }
     }
 
