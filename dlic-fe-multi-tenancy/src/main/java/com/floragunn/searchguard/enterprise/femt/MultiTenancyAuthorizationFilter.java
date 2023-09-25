@@ -75,7 +75,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
     private final TenantManager tenantManager;
 
     public MultiTenancyAuthorizationFilter(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, TenantManager tenantManager,
-                                           Actions actions, ThreadContext threadContext, Client nodeClient) {
+                                           Actions actions, ThreadContext threadContext, Client nodeClient, RequestHandlerFactory requestHandlerFactory) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -88,7 +88,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         this.threadContext = threadContext;
         this.tenantAuthorization = tenantAuthorization;
         this.frontendDataMigrationInterceptor = new FrontendDataMigrationInterceptor(threadContext, nodeClient, config);
-        this.requestHandlerFactory = new RequestHandlerFactory(nodeClient, this.threadContext);
+        this.requestHandlerFactory = requestHandlerFactory;
         this.tenantManager = tenantManager;
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }

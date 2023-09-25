@@ -31,10 +31,10 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
     private final ThreadContext threadContext;
     private final MultiGetMapper multiGetMapper;
 
-    public MultiGetRequestHandler(Client nodeClient, ThreadContext threadContext) {
+    public MultiGetRequestHandler(Client nodeClient, ThreadContext threadContext, MultiGetMapper multiGetMapper) {
         this.nodeClient = nodeClient;
         this.threadContext = threadContext;
-        this.multiGetMapper = new MultiGetMapper();
+        this.multiGetMapper = multiGetMapper;
     }
 
     @Override

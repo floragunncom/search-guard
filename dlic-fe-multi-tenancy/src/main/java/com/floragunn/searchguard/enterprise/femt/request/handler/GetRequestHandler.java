@@ -31,10 +31,10 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
     private final ThreadContext threadContext;
     private final GetMapper getMapper;
 
-    public GetRequestHandler(Client nodeClient, ThreadContext threadContext) {
+    public GetRequestHandler(Client nodeClient, ThreadContext threadContext, GetMapper getMapper) {
         this.nodeClient = nodeClient;
         this.threadContext = threadContext;
-        this.getMapper = new GetMapper();
+        this.getMapper = getMapper;
     }
 
     @Override

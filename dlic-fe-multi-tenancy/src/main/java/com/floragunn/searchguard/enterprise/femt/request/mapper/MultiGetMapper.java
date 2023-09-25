@@ -16,8 +16,8 @@ public class MultiGetMapper {
     private final static Logger log = LogManager.getLogger(MultiGetMapper.class);
     private final GetMapper getMapper;
 
-    public MultiGetMapper() {
-        getMapper = new GetMapper();
+    public MultiGetMapper(GetMapper getMapper) {
+        this.getMapper = getMapper;
     }
 
     public MultiGetRequest toScopedMultiGetRequest(MultiGetRequest request, String tenant) {
