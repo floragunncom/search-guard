@@ -126,7 +126,7 @@ public class MultiTenancyRequestMappingTest {
     }
 
     @Test
-    public void getRequest_withStoredFieldsParams() throws Exception {
+    public void getRequest_withStoredFieldsParam() throws Exception {
         String id = "123";
         String scopedId = scopedId(id);
         DocNode indexMappings = DocNode.parse(Format.JSON).from("""
@@ -167,6 +167,31 @@ public class MultiTenancyRequestMappingTest {
     }
 
     @Test
+    public void getRequest_withRoutingParam() throws Exception {
+        String id = "123";
+        String scopedId = scopedId(id);
+        String routing = "test-routing";
+        addDocumentToIndex(scopedId, "routing", DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //correct routing
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?routing=" + routing);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?routing=" + routing, tenantHeader());
+            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+
+            //wrong routing
+            routing = routing.concat("-fake");
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?routing=" + routing);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?routing=" + routing, tenantHeader());
+            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
     public void getRequest_docDoesDoesNotExist() throws Exception {
         String id = "123";
         String scopedId = scopedId(id);
@@ -192,12 +217,17 @@ public class MultiTenancyRequestMappingTest {
         return new BasicHeader("sg_tenant", HR_TENANT.getName());
     }
 
-    private IndexResponse addDocumentToIndex(String id, DocNode doc) {
+    private IndexResponse addDocumentToIndex(String id, String routing, DocNode doc) {
         try (Client client = cluster.getInternalNodeClient()) {
-            IndexResponse indexResponse = client.index(new IndexRequest(KIBANA_INDEX).id(id).source(doc).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)).actionGet();
+            IndexResponse indexResponse = client.index(new IndexRequest(KIBANA_INDEX).id(id).source(doc)
+                    .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).routing(routing)).actionGet();
             assertThat(indexResponse.status().getStatus(), equalTo(HttpStatus.SC_CREATED));
             return indexResponse;
         }
+    }
+
+    private IndexResponse addDocumentToIndex(String id, DocNode doc) {
+        return addDocumentToIndex(id, null, doc);
     }
 
     private void updateIndexMappings(DocNode mapping) {
