@@ -19,7 +19,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext.BACKUP_INDEX_NAME_PREFIX;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INVALID_BACKUP_INDEX_NAME;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INVALID_BACKUP_INDEX_NAME_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INVALID_DATE_IN_BACKUP_INDEX_NAME_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 
@@ -59,7 +59,7 @@ class PopulateBackupIndicesStep implements MigrationStep {
         if(!indexName.startsWith(BACKUP_INDEX_NAME_PREFIX)) {
             String message = "Backup index name does not start with prefix " + BACKUP_INDEX_NAME_PREFIX;
             String details = "Invalid index name '" + indexName + "'";
-            throw new StepException(message, INVALID_BACKUP_INDEX_NAME, details);
+            throw new StepException(message, INVALID_BACKUP_INDEX_NAME_ERROR, details);
         }
         String datePart = indexName.substring(BACKUP_INDEX_NAME_PREFIX.length());
         try {

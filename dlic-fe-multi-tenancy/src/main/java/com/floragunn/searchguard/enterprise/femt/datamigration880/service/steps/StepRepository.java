@@ -1,9 +1,14 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
@@ -13,9 +18,11 @@ import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -23,6 +30,7 @@ import java.util.stream.Collectors;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RETRIEVE_INDICES_STATE_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_BLOCK_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_UNBLOCK_ERROR;
+import static org.elasticsearch.index.mapper.MapperService.INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING;
 
 /**
  * The only purpose of this repository is to simplify testing of steps, so that steps does not depend on final class
@@ -45,6 +53,7 @@ class StepRepository {
     }
 
     public Optional<GetIndexResponse> findIndexByNameOrAlias(String indexNameOrAlias) {
+        Strings.requireNonEmpty(indexNameOrAlias, "Index or alias name is required");
         try {
             GetIndexRequest request = new GetIndexRequest();
             request.indices(indexNameOrAlias);
@@ -87,6 +96,30 @@ class StepRepository {
                 .map(name -> "'" + name + "'") //
                 .collect(Collectors.joining(", "));
             throw new StepException("Cannot unblock indices", WRITE_UNBLOCK_ERROR, details);
+        }
+    }
+
+    public GetMappingsResponse findIndexMappings(String indexName) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
+        return client.admin().indices().getMappings(new GetMappingsRequest().indices(indexName)).actionGet();
+    }
+
+    public void createIndex(String name, int numberOfShards, int numberOfReplicas, long mappingsTotalFieldsLimit,
+        Map<String, Object> mappingSources) {
+        Strings.requireNonEmpty(name, "Index name is required");
+        Objects.requireNonNull(mappingSources, "Mappings for index creation are required");
+        Settings settings = Settings.builder() //
+                .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, numberOfShards) //
+                .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, numberOfReplicas) //
+                .put(INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), mappingsTotalFieldsLimit)
+                .build();
+        CreateIndexRequest request = new CreateIndexRequest() //
+            .index(name) //
+            .settings(settings) //
+            .mapping(mappingSources);
+        CreateIndexResponse response = client.admin().indices().create(request).actionGet();
+        if(!response.isAcknowledged()) {
+            throw new StepException("Cannot create index " + name, StepExecutionStatus.CANNOT_CREATE_INDEX_ERROR, null);
         }
     }
 }

@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INVALID_BACKUP_INDEX_NAME;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INVALID_BACKUP_INDEX_NAME_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INVALID_DATE_IN_BACKUP_INDEX_NAME_ERROR;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static java.time.ZoneOffset.UTC;
@@ -134,7 +134,7 @@ public class PopulateBackupIndicesStepTest {
 
         StepException stepException = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
 
-        assertThat(stepException.getStatus(), equalTo(INVALID_BACKUP_INDEX_NAME));
+        assertThat(stepException.getStatus(), equalTo(INVALID_BACKUP_INDEX_NAME_ERROR));
     }
 
     @Test

@@ -23,7 +23,7 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.IN_PROGRESS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.SUCCESS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_CREATE_STATUS_DOCUMENT_ERROR;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_UPDATE_STATUS_DOCUMENT_LOCK_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
@@ -639,7 +639,7 @@ public class MigrationStepsExecutorTest {
         // given
         MigrationStep stepOne = stepMockWithResult(NAME_1, OK, MESSAGE_1);
         MigrationStep stepTwo = stepMockWithResult(NAME_2, OK, MESSAGE_2);
-        MigrationStep stepThree = stepMockWithResult(NAME_3, CANNOT_RESOLVE_INDEX_BY_ALIAS, MESSAGE_3);
+        MigrationStep stepThree = stepMockWithResult(NAME_3, CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR, MESSAGE_3);
         ImmutableList<MigrationStep> steps = ImmutableList.of(stepOne, stepTwo, stepThree);
         MigrationStepsExecutor executor = new MigrationStepsExecutor(STRICT_CONFIG, repository, clock, steps);
 
@@ -651,7 +651,7 @@ public class MigrationStepsExecutorTest {
         assertThat(summary.stages(), hasSize(5));
         assertThat(summary.stages().get(0).status(), equalTo(OK));
         assertThat(summary.stages().get(1).status(), equalTo(OK));
-        assertThat(summary.stages().get(2).status(), equalTo(CANNOT_RESOLVE_INDEX_BY_ALIAS));
+        assertThat(summary.stages().get(2).status(), equalTo(CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR));
         assertThat(summary.stages().get(3).status(), equalTo(ROLLBACK));
         assertThat(summary.stages().get(3).name(), equalTo("rollback - " + NAME_2));
         assertThat(summary.stages().get(4).status(), equalTo(ROLLBACK));
