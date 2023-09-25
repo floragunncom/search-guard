@@ -24,14 +24,9 @@ class WriteBlockStep implements MigrationStep {
     @Override
     public StepResult execute(DataMigrationContext context) throws StepException {
         ImmutableList<String> existingBackupIndices = context.getBackupIndices();
-        List<String> blockedIndices = new ArrayList<>();
-        if(!existingBackupIndices.isEmpty()) {
-            blockedIndices.addAll(existingBackupIndices);
-            repository.writeBlockIndices(existingBackupIndices);
-        }
-        ImmutableList<String> dataIndices = context.getDataIndicesNames();
-        blockedIndices.addAll(dataIndices);
-        repository.writeBlockIndices(dataIndices);
+        List<String> blockedIndices = new ArrayList<>(existingBackupIndices);
+        blockedIndices.addAll(context.getDataIndicesNames());
+        repository.writeBlockIndices(ImmutableList.of(blockedIndices));
         String details = "Writes blocked indices " + blockedIndices.stream() //
             .map(name -> "'" + name + "'") //
             .collect(Collectors.joining(", "));
