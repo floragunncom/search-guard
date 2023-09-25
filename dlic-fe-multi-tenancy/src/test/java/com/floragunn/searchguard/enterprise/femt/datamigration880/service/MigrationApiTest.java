@@ -104,6 +104,7 @@ public class MigrationApiTest {
 
             log.info("Start migration response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
+
         }
     }
 

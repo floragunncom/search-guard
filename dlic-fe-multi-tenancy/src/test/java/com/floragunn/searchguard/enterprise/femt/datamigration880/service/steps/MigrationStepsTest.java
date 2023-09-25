@@ -1,6 +1,8 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -24,6 +26,9 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResponse;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -32,6 +37,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.block.ClusterBlockException;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
 import org.junit.Before;
@@ -44,6 +50,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,20 +60,23 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_DISABLED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNHEALTHY_INDICES_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MarkerNodeRemoval.withoutMigrationMarker;
 import static com.floragunn.searchguard.support.PrivilegedConfigClient.adapt;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static java.time.ZoneOffset.UTC;
 import static org.apache.http.HttpStatus.SC_CREATED;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.elasticsearch.common.Strings.requireNonEmpty;
+import static org.elasticsearch.index.mapper.MapperService.INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -433,7 +443,7 @@ public class MigrationStepsTest {
 
                 var ex = (StepException) assertThatThrown(() -> populateTenantsStep.execute(context), instanceOf(StepException.class));
 
-                assertThat(ex.getStatus(), equalTo(CANNOT_RESOLVE_INDEX_BY_ALIAS));
+                assertThat(ex.getStatus(), equalTo(CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR));
             } finally {
                 client.admin().indices().delete(new DeleteIndexRequest(additionalIndex));
             }
@@ -492,7 +502,12 @@ public class MigrationStepsTest {
 
         assertThat(result.isSuccess(), equalTo(true));
         assertThat(context.getTenantIndices(), hasSize(3));
-        String global = context.getTenantIndices().stream().filter(TenantIndex::belongsToGlobalTenant).map(TenantIndex::tenantName).findFirst().orElseThrow();
+        String global = context.getTenantIndices() //
+            .stream() //
+            .filter(TenantIndex::belongsToGlobalTenant) //
+            .map(TenantIndex::tenantName) //
+            .findFirst() //
+            .orElseThrow();
         String userPrivateIndex = context.getTenantIndices() //
             .stream() //
             .filter(TenantIndex::belongsToUserPrivateTenant) //
@@ -958,9 +973,248 @@ public class MigrationStepsTest {
         assertThat(isDocumentInsertionPossible(backupIndexTwo.indexName()), equalTo(false));
     }
 
+    @Test
+    public void shouldGenerateTempIndexName() {
+        Clock clock = Clock.fixed(NOW.toInstant(), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_01_00"));
+
+        clock = Clock.fixed(NOW.toInstant().plus(2, ChronoUnit.HOURS), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_03_01_00"));
+
+        clock = Clock.fixed(NOW.toInstant().plus(5, ChronoUnit.HOURS), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_06_01_00"));
+
+        clock = Clock.fixed(NOW.toInstant().plus(8, ChronoUnit.DAYS), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2000_01_09_01_01_00"));
+
+        clock = Clock.fixed(NOW.toInstant().plus(30, ChronoUnit.SECONDS), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_01_30"));
+
+        clock = Clock.fixed(NOW.toInstant().plus(57, ChronoUnit.SECONDS), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_01_57"));
+
+        clock = Clock.fixed(NOW.toInstant().plus(40, ChronoUnit.MINUTES), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_41_00"));
+
+        clock = Clock.fixed(NOW.toInstant().plus(47, ChronoUnit.MINUTES), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_48_00"));
+
+        clock = Clock.fixed(NOW.plusYears(9).toInstant(), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2009_01_01_01_01_00"));
+
+        clock = Clock.fixed(NOW.plusYears(23).plusMonths(8).plusDays(24).plusHours(11).plusSeconds(15).toInstant(), UTC);
+        this.context = new DataMigrationContext(new MigrationConfig(false), clock);
+        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2023_09_25_12_01_15"));
+    }
+
+    @Test
+    public void shouldCreateTempIndexWithoutSourceMappings() {
+        createIndex(GLOBAL_TENANT_INDEX);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
+        deleteTempIndexAfterTest(context);
+        StepRepository stepRepository = new StepRepository(getPrivilegedClient());
+        CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
+    }
+
+    @Test
+    public void shouldCreateTempIndexWithoutMappingsWithGivenNumberOfShardsAndReplicas() {
+        StepRepository stepRepository = new StepRepository(getPrivilegedClient());
+        createdIndices.add(GLOBAL_TENANT_INDEX);
+        final int shards = 2;
+        final int replicas = 3;
+        final long fieldLimit = 104;
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), shards, replicas, fieldLimit, Collections.emptyMap());
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
+        deleteTempIndexAfterTest(context);
+        CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
+        Settings tempIndexSettings = getIndexSettings(context.getTempIndexName());
+        log.debug("Temp index settings '{}'", tempIndexSettings);
+        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, -1), equalTo(shards));
+        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, -1), equalTo(replicas));
+        assertThat(tempIndexSettings.getAsLong(INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), -1L), equalTo(fieldLimit));
+    }
+
+    @Test
+    public void shouldCreateTempIndexWithoutMappingsWithGivenNumberOfShardsAndReplicas_case2() {
+        StepRepository stepRepository = new StepRepository(getPrivilegedClient());
+        createdIndices.add(GLOBAL_TENANT_INDEX);
+        final int shards = 1;
+        final int replicas = 2;
+        final long fieldLimit = 1024;
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), shards, replicas, fieldLimit, Collections.emptyMap());
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
+        deleteTempIndexAfterTest(context);
+        CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
+        Settings tempIndexSettings = getIndexSettings(context.getTempIndexName());
+        log.debug("Temp index settings '{}'", tempIndexSettings);
+        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, -1), equalTo(shards));
+        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, -1), equalTo(replicas));
+        assertThat(tempIndexSettings.getAsLong(INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), -1L), equalTo(fieldLimit));
+    }
+
+    @Test
+    public void shouldCreateTempIndexWithoutMappingsWithGivenNumberOfShardsAndReplicas_case3() {
+        StepRepository stepRepository = new StepRepository(getPrivilegedClient());
+        createdIndices.add(GLOBAL_TENANT_INDEX);
+        final int shards = 1;
+        final int replicas = 3;
+        final long fieldLimit = 1500;
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), shards, replicas, fieldLimit, Collections.emptyMap());
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
+        deleteTempIndexAfterTest(context);
+        CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
+        Settings tempIndexSettings = getIndexSettings(context.getTempIndexName());
+        log.debug("Temp index settings '{}'", tempIndexSettings);
+        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, -1), equalTo(shards));
+        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, -1), equalTo(replicas));
+        assertThat(tempIndexSettings.getAsLong(INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), -1L), equalTo(fieldLimit));
+    }
+
+    @Test
+    public void shouldCreateTempIndexWithExtendedMappings() throws DocumentParseException {
+        StepRepository stepRepository = new StepRepository(getPrivilegedClient());
+        createdIndices.add(GLOBAL_TENANT_INDEX);
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 500, DocNode.EMPTY);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
+        deleteTempIndexAfterTest(context);
+        CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Create temp index step result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
+        DocNode actualMappings = getIndexMetadata(context.getTempIndexName());
+        log.debug("Temp index mappings '{}'", actualMappings.toJsonString());
+        assertThat(actualMappings, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
+    }
+
+    @Test
+    public void shouldCreateTempIndexWithMappings_simple() throws DocumentParseException {
+        StepRepository stepRepository = new StepRepository(getPrivilegedClient());
+        createdIndices.add(GLOBAL_TENANT_INDEX);
+        DocNode desiredMappings = DocNode.parse(Format.JSON).from(TestMappings.SIMPLE);
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 500, desiredMappings);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
+        deleteTempIndexAfterTest(context);
+        CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Create temp index step result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
+        DocNode actualMappings = getIndexMetadata(context.getTempIndexName());
+        log.debug("Temp index mappings '{}'", actualMappings.toJsonString());
+        assertThat(actualMappings, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
+        actualMappings = withoutMigrationMarker(actualMappings);
+        assertThat(actualMappings.equals(desiredMappings), equalTo(true));
+    }
+
+    @Test
+    public void shouldCreateTempIndexWithMappings_medium() throws DocumentParseException {
+        StepRepository stepRepository = new StepRepository(getPrivilegedClient());
+        createdIndices.add(GLOBAL_TENANT_INDEX);
+        DocNode desiredMappings = DocNode.parse(Format.JSON).from(TestMappings.MEDIUM);
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 500, desiredMappings);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
+        deleteTempIndexAfterTest(context);
+        CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Create temp index step result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
+        DocNode actualMappings = getIndexMetadata(context.getTempIndexName());
+        log.debug("Temp index mappings '{}'", actualMappings.toJsonString());
+        assertThat(actualMappings, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
+        actualMappings = withoutMigrationMarker(actualMappings);
+        assertThat(actualMappings.equals(desiredMappings), equalTo(true));
+    }
+
+    @Test
+    public void shouldCreateTempIndexWithMappings_hard() throws DocumentParseException {
+        StepRepository stepRepository = new StepRepository(getPrivilegedClient());
+        createdIndices.add(GLOBAL_TENANT_INDEX);
+        DocNode desiredMappings = DocNode.parse(Format.JSON).from(TestMappings.HARD);
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 1500, desiredMappings);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
+        deleteTempIndexAfterTest(context);
+        CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Create temp index step result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
+        DocNode actualMappings = getIndexMetadata(context.getTempIndexName());
+        log.debug("Temp index mappings '{}'", actualMappings.toJsonString());
+        assertThat(actualMappings, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
+        actualMappings = withoutMigrationMarker(actualMappings);
+        assertThat(actualMappings.equals(desiredMappings), equalTo(true));
+    }
+
+    public Settings getIndexSettings(String index) {
+        try(Client client = cluster.getInternalNodeClient()) {
+            GetSettingsRequest request = new GetSettingsRequest().indices(index);
+            return client.admin().indices().getSettings(request).actionGet().getIndexToSettings().get(index);
+        }
+    }
+
+    public DocNode getIndexMetadata(String indexName) {
+        try(Client client = cluster.getInternalNodeClient()) {
+            GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest()).actionGet();
+            return DocNode.wrap(response.getMappings().get(indexName).getSourceAsMap());
+        }
+    }
+
+    private void deleteTempIndexAfterTest(DataMigrationContext context) {
+        this.createdIndices.add(context::getTempIndexName);
+    }
+
     private boolean isDocumentInsertionPossible(String indexName) {
         try(Client client = cluster.getInternalNodeClient()) {
-            IndexRequest request = new IndexRequest(indexName).source(ImmutableMap.of("new", "document"));
+            IndexRequest request = new IndexRequest(indexName) //
+                .source(ImmutableMap.of("new", "document")) //
+                .setRefreshPolicy(IMMEDIATE);
             client.index(request).actionGet();
             return true;
         } catch (ClusterBlockException clusterBlockException) {
@@ -1028,6 +1282,7 @@ public class MigrationStepsTest {
         Client client = cluster.getInternalNodeClient();
         return adapt(client);
     }
+
 
     private interface DeletableIndex {
         String indexForDeletion();

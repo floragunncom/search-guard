@@ -15,7 +15,7 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_CREATE_STATUS_DOCUMENT_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_UPDATE_STATUS_DOCUMENT_LOCK_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MIGRATION_ALREADY_IN_PROGRESS_ERROR;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.STATUS_INDEX_ALREADY_EXISTS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.STATUS_INDEX_ALREADY_EXISTS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
 import static org.apache.http.HttpStatus.SC_CONFLICT;
@@ -54,7 +54,7 @@ public class DataMigrationService {
                     Cannot create index to store migration related data./
                     Possibly another data migration process was started in parallel.
                     """.trim();
-            return errorResponse(SC_CONFLICT, STATUS_INDEX_ALREADY_EXISTS, message, e);
+            return errorResponse(SC_CONFLICT, STATUS_INDEX_ALREADY_EXISTS_ERROR, message, e);
         }
     }
 

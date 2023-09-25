@@ -140,7 +140,7 @@ public class DataMigrationServiceLockingTest {
         assertThat(response.getStatus(), equalTo(SC_CONFLICT));
         DocNode responseBody = DocNode.parse(Format.JSON).from(response.toJsonString());
         assertThat(responseBody, containsValue("$.data.status", "failure"));
-        assertThat(responseBody, containsValue("$.data.stages[0].status", "status_index_already_exists"));
+        assertThat(responseBody, containsValue("$.data.stages[0].status", "status_index_already_exists_error"));
     }
 
     @Test

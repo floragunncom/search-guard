@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
@@ -126,7 +126,7 @@ class PopulateTenantsStep implements MigrationStep {
                     .flatMap(Arrays::stream) //
                     .map(indexName -> "'" + indexName + "'") //
                     .collect(Collectors.joining(", "));
-                throw new StepException(message, CANNOT_RESOLVE_INDEX_BY_ALIAS, details);
+                throw new StepException(message, CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR, details);
             }
             String indexName = indices[0];
             log.debug("Alias '{}' is related to index '{}'.", aliasName, indexName);
