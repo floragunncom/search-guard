@@ -301,10 +301,10 @@ public class MultiTenancyRequestMappingTest {
         String scopedId = scopedId(id);
         try (GenericRestClient client = cluster.getRestClient(USER)) {
 
-            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?stored_fields=false");
-            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id + "?stored_fields=false", tenantHeader());
-            assertThat(responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + id, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
             assertThat(responseWithoutTenant.getBody().replaceAll(scopedId, id), equalTo(responseWithTenant.getBody()));
         }
     }
