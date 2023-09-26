@@ -25,6 +25,7 @@ public class StepsFactory {
             new CheckIfIndicesAreBlockedStep(repository),
             new WriteBlockStep(repository),
             new CreateTempIndexStep(repository),
+            new CopyDataToTempIndexStep(repository, configurationProvider),
             new UnblockDataIndicesStep(repository));
     }
 }
