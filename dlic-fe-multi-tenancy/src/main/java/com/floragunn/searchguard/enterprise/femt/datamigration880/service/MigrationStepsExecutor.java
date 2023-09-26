@@ -123,7 +123,6 @@ class MigrationStepsExecutor {
         }
     }
 
-
     private MigrationExecutionSummary persistState(DataMigrationContext dataMigrationContext,
         List<StepExecutionSummary> accomplishedSteps,
         ExecutionStatus status) {

@@ -56,7 +56,7 @@ public class TenantManager {
         return configuredTenants.with(Tenant.GLOBAL_TENANT_ID);
     }
 
-    private String toInternalTenantName(String tenant) {
+    public static String toInternalTenantName(String tenant) {
         if (tenant == null) {
             throw new ElasticsearchException("tenant must not be null here");
         }

@@ -9,7 +9,9 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.FrontendObjectCatalog;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.IndexNameDataFormatter;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
@@ -33,12 +35,19 @@ import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResp
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -60,8 +69,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DOCUMENT_ALREADY_MIGRATED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_AND_PRIVATE_TENANT_CONFLICT_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
@@ -101,8 +112,10 @@ public class MigrationStepsTest {
     private static final DoubleAliasIndex PRIVATE_USER_KIRK_INDEX = new DoubleAliasIndex(".kibana_3292183_kirk_8.7.0_001", ".kibana_3292183_kirk_8.7.0", ".kibana_3292183_kirk" );// kirk
     private static final DoubleAliasIndex PRIVATE_USER_LUKASZ_1_INDEX = new DoubleAliasIndex(".kibana_-1091682490_lukasz_8.7.0_001", ".kibana_-1091682490_lukasz_8.7.0", ".kibana_-1091682490_lukasz"); //lukasz
     private static final DoubleAliasIndex PRIVATE_USER_LUKASZ_2_INDEX = new DoubleAliasIndex(".kibana_739988528_ukasz_8.7.0_001", ".kibana_739988528_ukasz_8.7.0", ".kibana_739988528_ukasz"); //łukasz
-    private static final DoubleAliasIndex PRIVATE_USER_LUKASZ_3_INDEX =new DoubleAliasIndex(".kibana_-1091714203_luksz_8.7.0_001", ".kibana_-1091714203_luksz_8.7.0", ".kibana_-1091714203_luksz");//luk@sz
+    private static final DoubleAliasIndex PRIVATE_USER_LUKASZ_3_INDEX = new DoubleAliasIndex(".kibana_-1091714203_luksz_8.7.0_001", ".kibana_-1091714203_luksz_8.7.0", ".kibana_-1091714203_luksz");//luk@sz
     public static final String INDEX_TEMPLATE_NAME = "kibana_test_indices_template";
+    public static final String CREATE_INDEX_ID = "CREATE_INDEX_ID";
+    public static final String TENANT_MANAGEMENT = "management";
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
@@ -121,6 +134,8 @@ public class MigrationStepsTest {
     @Mock
     private FeMultiTenancyConfig feMultiTenancyConfig;
 
+    private PrivilegedConfigClient privilegedConfigClient;
+
     private final List<DeletableIndex> createdIndices = new ArrayList<>();
 
     @Before
@@ -132,7 +147,17 @@ public class MigrationStepsTest {
     public void after() {
         deleteIndex(createdIndices.toArray(DeletableIndex[]::new));
         createdIndices.clear();
+        if(isIndexCreated(context.getTempIndexName())) {
+            deleteIndex(context::getTempIndexName);
+        }
         deleteIndexTemplateIfExists();
+    }
+
+    @After
+    public void closeClient() {
+        if(this.privilegedConfigClient != null) {
+            this.privilegedConfigClient.close();
+        }
     }
 
     private static void deleteIndexTemplateIfExists() {
@@ -146,7 +171,8 @@ public class MigrationStepsTest {
     }
 
     private void createIndex(String indexNamesPrefix, int numberOfReplicas, Settings additionalSettings, DoubleAliasIndex...indices) {
-        BulkRequest bulkRequest = new BulkRequest();
+        BulkRequest bulkRequestCreateIndices = new BulkRequest();
+        BulkRequest bulkRequestClearIndices = new BulkRequest();
         IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
         Settings.Builder settings = Settings.builder()
             .put("index.hidden", true)
@@ -158,10 +184,11 @@ public class MigrationStepsTest {
             .patterns(Collections.singletonList(indexNamesPrefix + "*"))
             .settings(settings);
         try(Client client = cluster.getInternalNodeClient()) {
-            client.admin() //
+            AcknowledgedResponse createTemplateResponse = client.admin() //
                 .indices() //
                 .putTemplate(templateRequest) //
                 .actionGet();
+            assertThat(createTemplateResponse.isAcknowledged(), equalTo(true));
             for (DoubleAliasIndex index : indices) {
                 String currentIndex = index.indexName();
                 if (!currentIndex.startsWith(indexNamesPrefix)) {
@@ -169,17 +196,23 @@ public class MigrationStepsTest {
                         currentIndex, ". All created indices must have a common prefix '" + indexNamesPrefix, "'.");
                     throw new IllegalStateException(message);
                 }
-                bulkRequest.add(new IndexRequest(currentIndex).source(DocNode.EMPTY));
+                bulkRequestCreateIndices.add(new IndexRequest(currentIndex).id(CREATE_INDEX_ID).source(DocNode.EMPTY));
                 createdIndices.add(index);
                 indicesAliasesRequest.addAliasAction(AliasActions.add().index(index.indexName).aliases(index.longAlias, index.shortAlias));
+                bulkRequestClearIndices.add(new DeleteRequest(currentIndex, CREATE_INDEX_ID));
             }
-            BulkResponse response = client.bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
+            BulkResponse response = client.bulk(bulkRequestCreateIndices.setRefreshPolicy(IMMEDIATE)).actionGet();
             if (response.hasFailures()) {
                 log.error("Create index failure response {}", response.buildFailureMessage());
             }
             assertThat(response.hasFailures(), equalTo(false));
             var acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
             assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+            response = client.bulk(bulkRequestClearIndices).actionGet();
+            if (response.hasFailures()) {
+                log.error("Cannot clear newly created indices {}", response.buildFailureMessage());
+            }
+            assertThat(response.hasFailures(), equalTo(false));
         }
     }
 
@@ -244,7 +277,10 @@ public class MigrationStepsTest {
         }
         String[] indicesForDeletion = Arrays.stream(deletableIndices).map(DeletableIndex::indexForDeletion).toArray(String[]::new);
         DeleteIndexRequest request = new DeleteIndexRequest(indicesForDeletion);
-        cluster.getInternalNodeClient().admin().indices().delete(request).actionGet();
+        try(Client client = cluster.getInternalNodeClient()) {
+            AcknowledgedResponse acknowledgedResponse = client.admin().indices().delete(request).actionGet();
+            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+        }
     }
 
     @Test
@@ -302,6 +338,16 @@ public class MigrationStepsTest {
         ImmutableList<TenantIndex> tenants = context.getTenantIndices();
         assertThat(tenants, hasSize(1));
         assertThat(tenants.get(0).belongsToGlobalTenant(), equalTo(true));
+    }
+
+    @Test
+    public void shouldReportErrorInCaseOfConflictBetweenUserPrivateTenantAndGlobalTenant() {
+        createIndex(GLOBAL_TENANT_INDEX, DoubleAliasIndex.forTenant("SGS_GLOBAL_TENANT"));
+        PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
+
+        var stepException = (StepException) assertThatThrown(() -> populateTenantsStep.execute(context), instanceOf(StepException.class));
+
+        assertThat(stepException.getStatus(), equalTo(GLOBAL_AND_PRIVATE_TENANT_CONFLICT_ERROR));
     }
 
     @Test
@@ -429,7 +475,7 @@ public class MigrationStepsTest {
     public void shouldReportErrorWhenAliasIsAssociatedWithTooManyIndices() {
         createIndex(GLOBAL_TENANT_INDEX);
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
-        DoubleAliasIndex index = DoubleAliasIndex.forTenant("management");
+        DoubleAliasIndex index = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
         String additionalIndex = index.indexName() + "_another_index";
         try(Client client = cluster.getInternalNodeClient()) {
             client.admin().indices().create(new CreateIndexRequest(index.indexName())).actionGet();
@@ -463,7 +509,7 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldChooseIndicesRelatedToNewestVersion() {
-        ImmutableList<DoubleAliasIndex> indices = ImmutableList.of("admin_tenant", "management", "kirk", "spock", "łuk@sz") //
+        ImmutableList<DoubleAliasIndex> indices = ImmutableList.of("admin_tenant", TENANT_MANAGEMENT, "kirk", "spock", "łuk@sz") //
             .map(DoubleAliasIndex::forTenant) //
             .with(GLOBAL_TENANT_INDEX);
         createIndex(indices.toArray(DoubleAliasIndex[]::new));
@@ -602,7 +648,7 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldFindWriteBlockedIndices() throws Exception {
-        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant("management");
+        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
         createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
         var tenantIndices = doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX,
             PRIVATE_USER_KIRK_INDEX,
@@ -623,7 +669,7 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldFindReadBlockedIndices() throws Exception {
-        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant("management");
+        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
         createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
         var tenantIndices = doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX,
             PRIVATE_USER_KIRK_INDEX,
@@ -644,7 +690,7 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldFindReadOnlyBlockedIndices() throws Exception {
-        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant("management");
+        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
         createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
         var tenantIndices = doubleAliasIndexToTenantDataWithoutTenantName(GLOBAL_TENANT_INDEX,
             PRIVATE_USER_KIRK_INDEX,
@@ -670,7 +716,7 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldFindMetadataBlockedIndices() throws Exception {
-        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant("management");
+        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
         createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
         var tenantIndices = doubleAliasIndexToTenantDataWithoutTenantName(managementTenantIndex,
             GLOBAL_TENANT_INDEX,
@@ -1021,7 +1067,6 @@ public class MigrationStepsTest {
         createIndex(GLOBAL_TENANT_INDEX);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        deleteTempIndexAfterTest(context);
         StepRepository stepRepository = new StepRepository(getPrivilegedClient());
         CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
 
@@ -1035,13 +1080,12 @@ public class MigrationStepsTest {
     public void shouldCreateTempIndexWithoutMappingsWithGivenNumberOfShardsAndReplicas() {
         StepRepository stepRepository = new StepRepository(getPrivilegedClient());
         createdIndices.add(GLOBAL_TENANT_INDEX);
-        final int shards = 2;
+        final int primaryShards = 2;
         final int replicas = 3;
         final long fieldLimit = 104;
-        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), shards, replicas, fieldLimit, Collections.emptyMap());
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), primaryShards, replicas, fieldLimit, Collections.emptyMap());
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        deleteTempIndexAfterTest(context);
         CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
 
         StepResult result = step.execute(context);
@@ -1050,7 +1094,7 @@ public class MigrationStepsTest {
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
         Settings tempIndexSettings = getIndexSettings(context.getTempIndexName());
         log.debug("Temp index settings '{}'", tempIndexSettings);
-        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, -1), equalTo(shards));
+        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, -1), equalTo(primaryShards));
         assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, -1), equalTo(replicas));
         assertThat(tempIndexSettings.getAsLong(INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), -1L), equalTo(fieldLimit));
     }
@@ -1059,13 +1103,12 @@ public class MigrationStepsTest {
     public void shouldCreateTempIndexWithoutMappingsWithGivenNumberOfShardsAndReplicas_case2() {
         StepRepository stepRepository = new StepRepository(getPrivilegedClient());
         createdIndices.add(GLOBAL_TENANT_INDEX);
-        final int shards = 1;
+        final int primaryShards = 1;
         final int replicas = 2;
         final long fieldLimit = 1024;
-        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), shards, replicas, fieldLimit, Collections.emptyMap());
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), primaryShards, replicas, fieldLimit, Collections.emptyMap());
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        deleteTempIndexAfterTest(context);
         CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
 
         StepResult result = step.execute(context);
@@ -1074,7 +1117,7 @@ public class MigrationStepsTest {
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
         Settings tempIndexSettings = getIndexSettings(context.getTempIndexName());
         log.debug("Temp index settings '{}'", tempIndexSettings);
-        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, -1), equalTo(shards));
+        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, -1), equalTo(primaryShards));
         assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, -1), equalTo(replicas));
         assertThat(tempIndexSettings.getAsLong(INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), -1L), equalTo(fieldLimit));
     }
@@ -1083,13 +1126,12 @@ public class MigrationStepsTest {
     public void shouldCreateTempIndexWithoutMappingsWithGivenNumberOfShardsAndReplicas_case3() {
         StepRepository stepRepository = new StepRepository(getPrivilegedClient());
         createdIndices.add(GLOBAL_TENANT_INDEX);
-        final int shards = 1;
+        final int primaryShards = 1;
         final int replicas = 3;
         final long fieldLimit = 1500;
-        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), shards, replicas, fieldLimit, Collections.emptyMap());
+        stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), primaryShards, replicas, fieldLimit, Collections.emptyMap());
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        deleteTempIndexAfterTest(context);
         CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
 
         StepResult result = step.execute(context);
@@ -1098,19 +1140,18 @@ public class MigrationStepsTest {
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
         Settings tempIndexSettings = getIndexSettings(context.getTempIndexName());
         log.debug("Temp index settings '{}'", tempIndexSettings);
-        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, -1), equalTo(shards));
+        assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, -1), equalTo(primaryShards));
         assertThat(tempIndexSettings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, -1), equalTo(replicas));
         assertThat(tempIndexSettings.getAsLong(INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING.getKey(), -1L), equalTo(fieldLimit));
     }
 
     @Test
-    public void shouldCreateTempIndexWithExtendedMappings() throws DocumentParseException {
+    public void shouldCreateTempIndexWithExtendedMappings() {
         StepRepository stepRepository = new StepRepository(getPrivilegedClient());
         createdIndices.add(GLOBAL_TENANT_INDEX);
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 500, DocNode.EMPTY);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        deleteTempIndexAfterTest(context);
         CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
 
         StepResult result = step.execute(context);
@@ -1131,7 +1172,6 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 500, desiredMappings);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        deleteTempIndexAfterTest(context);
         CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
 
         StepResult result = step.execute(context);
@@ -1154,7 +1194,6 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 500, desiredMappings);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        deleteTempIndexAfterTest(context);
         CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
 
         StepResult result = step.execute(context);
@@ -1177,7 +1216,6 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 1500, desiredMappings);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        deleteTempIndexAfterTest(context);
         CreateTempIndexStep step = new CreateTempIndexStep(stepRepository);
 
         StepResult result = step.execute(context);
@@ -1192,6 +1230,217 @@ public class MigrationStepsTest {
         assertThat(actualMappings.equals(desiredMappings), equalTo(true));
     }
 
+    @Test
+    public void shouldTransferLargeNumberOfDocuments_FromSingleDataIndex() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        createIndex(GLOBAL_TENANT_INDEX);
+        final int countOfDocuments = 1005;
+        String[] spaceNames = IntStream.range(0, countOfDocuments).mapToObj(index -> "space_no_" + index).toArray(String[]::new);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), spaceNames);
+        StepRepository stepRepository = new StepRepository(client);
+        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
+        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(countDocumentInIndex(context.getTempIndexName()), equalTo((long)countOfDocuments));
+    }
+
+    @Test
+    public void shouldTransferLargeNumberOfDocuments_FromFewDataIndex() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        ImmutableList<DoubleAliasIndex> indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenant);
+        createIndex(indices.toArray(DoubleAliasIndex[]::new));
+        final int countOfDocuments = 1004;
+        indices.map(DoubleAliasIndex::indexName).forEach(indexName -> {
+            String[] spaceNames = IntStream.range(0, countOfDocuments) //
+                .mapToObj(index -> indexName + "space_no_" + index) //
+                .toArray(String[]::new);
+            catalog.insertSpace(indexName, spaceNames);
+        });
+        StepRepository stepRepository = new StepRepository(client);
+        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
+        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+        context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(indices));
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(countDocumentInIndex(context.getTempIndexName()), equalTo((long)countOfDocuments * indices.size()));
+    }
+
+    @Test
+    public void shouldStoreSameDocumentsInTempIndex() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        ImmutableList<DoubleAliasIndex> indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenant);
+        createIndex(indices.toArray(DoubleAliasIndex[]::new));
+        indices.map(DoubleAliasIndex::indexName).forEach(indexName -> catalog.insertSpace(indexName, indexName));
+        StepRepository stepRepository = new StepRepository(client);
+        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
+        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+        ImmutableList<TenantIndex> tenantIndices = ImmutableList.of(
+            new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID), //
+            new TenantIndex(PRIVATE_USER_KIRK_INDEX.indexName(), null), //
+            new TenantIndex(managementTenant.indexName(), TENANT_MANAGEMENT)
+        );
+        context.setTenantIndices(tenantIndices);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        String id = "space:.kibana_8.7.0_001";
+        DocNode globalDocument = getDocumentSource(GLOBAL_TENANT_INDEX.indexName(), id).orElseThrow();
+        id = "space:.kibana_3292183_kirk_8.7.0_001";
+        DocNode privateDocument = getDocumentSource(PRIVATE_USER_KIRK_INDEX.indexName(), id).orElseThrow();
+        id = "space:.kibana_-1799980989_management_8.7.0_001";
+        DocNode managementDocument = getDocumentSource(managementTenant.indexName(),id ).orElseThrow();
+        id = "space:.kibana_8.7.0_001__sg_ten__-1216324346_sgsglobaltenant";
+        DocNode migratedGlobal = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        id = "space:.kibana_3292183_kirk_8.7.0_001__sg_ten__3292183_kirk";
+        DocNode migratedPrivate = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        id = "space:.kibana_-1799980989_management_8.7.0_001__sg_ten__-1799980989_management";
+        DocNode migratedManagement = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        assertThat(migratedGlobal, equalTo(globalDocument));
+        assertThat(migratedPrivate, equalTo(privateDocument));
+        assertThat(migratedManagement, equalTo(managementDocument));
+        //TODO check how DocNode equals method works
+    }
+
+    @Test
+    public void shouldDetectThatIndexContainsAlreadyMigratedDocumentsAndReportError() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        createIndex(GLOBAL_TENANT_INDEX);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        String scopedId = RequestResponseTenantData.scopedId("alreadyMigratedSpace", Tenant.GLOBAL_TENANT_ID);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "alreadyMigratedSpace", scopedId);
+        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
+        StepRepository stepRepository = new StepRepository(client);
+        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+
+        StepException stepException = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
+
+        assertThat(stepException.getStatus(), equalTo(DOCUMENT_ALREADY_MIGRATED_ERROR));
+    }
+
+    @Test
+    public void shouldAssignTenantScopeToSavedObjectId() {
+        try(PrivilegedConfigClient client = getPrivilegedClient()) {
+            FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+            DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+            createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX,
+                PRIVATE_USER_LUKASZ_2_INDEX, PRIVATE_USER_LUKASZ_3_INDEX);
+            catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "global_tenant_space");
+            catalog.insertSpace(managementTenant.indexName(), "management_tenant_space");
+            catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "kirk_private_tenant_space");
+            catalog.insertSpace(PRIVATE_USER_LUKASZ_1_INDEX.indexName(), "lukasz_1_private_tenant_space");
+            catalog.insertSpace(PRIVATE_USER_LUKASZ_2_INDEX.indexName(), "lukasz_2_private_tenant_space");
+            catalog.insertSpace(PRIVATE_USER_LUKASZ_3_INDEX.indexName(), "lukasz_3_private_tenant_space");
+            ImmutableList<TenantIndex> tenantIndices = ImmutableList.of(
+                new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID), //
+                new TenantIndex(managementTenant.indexName(), TENANT_MANAGEMENT), //
+                new TenantIndex(PRIVATE_USER_KIRK_INDEX.indexName(), null), //
+                new TenantIndex(PRIVATE_USER_LUKASZ_1_INDEX.indexName(), null), //
+                new TenantIndex(PRIVATE_USER_LUKASZ_2_INDEX.indexName(), null), //
+                new TenantIndex(PRIVATE_USER_LUKASZ_3_INDEX.indexName(), null)
+            );
+            context.setTenantIndices(tenantIndices);
+            FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
+            StepRepository stepRepository = new StepRepository(client);
+            CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+
+            StepResult result = step.execute(context);
+
+            assertThat(result.isSuccess(), equalTo(true));
+            assertThatDocumentExists(context.getTempIndexName(), "space:global_tenant_space__sg_ten__-1216324346_sgsglobaltenant");
+            assertThatDocumentExists(context.getTempIndexName(), "space:management_tenant_space__sg_ten__-1799980989_management");
+            assertThatDocumentExists(context.getTempIndexName(), "space:kirk_private_tenant_space__sg_ten__3292183_kirk");
+            assertThatDocumentExists(context.getTempIndexName(), "space:lukasz_1_private_tenant_space__sg_ten__-1091682490_lukasz");
+            assertThatDocumentExists(context.getTempIndexName(), "space:lukasz_2_private_tenant_space__sg_ten__739988528_ukasz");
+            assertThatDocumentExists(context.getTempIndexName(), "space:lukasz_3_private_tenant_space__sg_ten__-1091714203_luksz");
+        }
+    }
+
+    @Test
+    public void shouldPreventIdColisions() {
+        try(PrivilegedConfigClient client = getPrivilegedClient()) {
+            FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+            DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+            createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX,
+                PRIVATE_USER_LUKASZ_2_INDEX, PRIVATE_USER_LUKASZ_3_INDEX);
+            catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "colliding_space_id");
+            catalog.insertSpace(managementTenant.indexName(), "colliding_space_id");
+            catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "colliding_space_id");
+            catalog.insertSpace(PRIVATE_USER_LUKASZ_1_INDEX.indexName(), "colliding_space_id");
+            catalog.insertSpace(PRIVATE_USER_LUKASZ_2_INDEX.indexName(), "colliding_space_id");
+            catalog.insertSpace(PRIVATE_USER_LUKASZ_3_INDEX.indexName(), "colliding_space_id");
+            ImmutableList<TenantIndex> tenantIndices = ImmutableList.of(
+                new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID), //
+                new TenantIndex(managementTenant.indexName(), TENANT_MANAGEMENT), //
+                new TenantIndex(PRIVATE_USER_KIRK_INDEX.indexName(), null), //
+                new TenantIndex(PRIVATE_USER_LUKASZ_1_INDEX.indexName(), null), //
+                new TenantIndex(PRIVATE_USER_LUKASZ_2_INDEX.indexName(), null), //
+                new TenantIndex(PRIVATE_USER_LUKASZ_3_INDEX.indexName(), null)
+            );
+            context.setTenantIndices(tenantIndices);
+            FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
+            StepRepository stepRepository = new StepRepository(client);
+            CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+
+            StepResult result = step.execute(context);
+
+            assertThat(result.isSuccess(), equalTo(true));
+            assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__-1216324346_sgsglobaltenant");
+            assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__-1799980989_management");
+            assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__3292183_kirk");
+            assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__-1091682490_lukasz");
+            assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__739988528_ukasz");
+            assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__-1091714203_luksz");
+        }
+    }
+
+    private static void assertThatDocumentExists(String index, String documentId) {
+        try(Client client = cluster.getInternalNodeClient()) {
+            GetRequest request = new GetRequest(index, documentId);
+            GetResponse response = client.get(request).actionGet();
+            String reason = "Document with id '" + documentId + "' does not exist in index '" + index + "'.";
+            assertThat(reason, response.isExists(), equalTo(true));
+        }
+    }
+
+    public Optional<DocNode> getDocumentSource(String indexName, String documentId) {
+        try(Client client = cluster.getInternalNodeClient()) {
+            GetResponse response = client.get(new GetRequest(indexName, documentId)).actionGet();
+            return Optional.ofNullable(response)//
+                .filter(GetResponse::isExists) //
+                .map(GetResponse::getSourceAsString) //
+                .map(source -> {
+                    try {
+                        return DocNode.parse(Format.JSON).from(source);
+                    } catch (DocumentParseException e) {
+                        throw new RuntimeException("Cannot parse document '" + documentId + "' from index '" + indexName + "' source.");
+                    }
+                });
+        }
+    }
+
+    private long countDocumentInIndex(String indexName) {
+        try(Client client = cluster.getInternalNodeClient()) {
+            SearchRequest request = new SearchRequest(indexName);
+            request.source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()));
+            SearchResponse response = client.search(request).actionGet();
+            assertThat(response.getFailedShards(), equalTo(0));
+            return response.getHits().getTotalHits().value;
+        }
+    }
+
     public Settings getIndexSettings(String index) {
         try(Client client = cluster.getInternalNodeClient()) {
             GetSettingsRequest request = new GetSettingsRequest().indices(index);
@@ -1204,10 +1453,6 @@ public class MigrationStepsTest {
             GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest()).actionGet();
             return DocNode.wrap(response.getMappings().get(indexName).getSourceAsMap());
         }
-    }
-
-    private void deleteTempIndexAfterTest(DataMigrationContext context) {
-        this.createdIndices.add(context::getTempIndexName);
     }
 
     private boolean isDocumentInsertionPossible(String indexName) {
@@ -1234,9 +1479,8 @@ public class MigrationStepsTest {
         }
     }
 
-    private static CheckIndicesStateStep createCheckIndicesStateStep() {
-        PrivilegedConfigClient client = getPrivilegedClient();
-        return new CheckIndicesStateStep(new StepRepository(client));
+    private  CheckIndicesStateStep createCheckIndicesStateStep() {
+        return new CheckIndicesStateStep(new StepRepository(getPrivilegedClient()));
     }
 
     public boolean isIndexCreated(String...indexOrAlias) {
@@ -1272,15 +1516,19 @@ public class MigrationStepsTest {
         return indexNamePrefix + "_" + tenantName.hashCode() + "_" + tenantName.toLowerCase().replaceAll("[^a-z0-9]+", "");
     }
 
-    private static PopulateTenantsStep createPopulateTenantsStep() {
+    private PopulateTenantsStep createPopulateTenantsStep() {
         FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         PrivilegedConfigClient privilegedConfigClient = getPrivilegedClient();
         return new PopulateTenantsStep(configurationProvider, new StepRepository(privilegedConfigClient));
     }
 
-    private static PrivilegedConfigClient getPrivilegedClient() {
+    private PrivilegedConfigClient getPrivilegedClient() {
+        if(this.privilegedConfigClient != null) {
+            return this.privilegedConfigClient;
+        }
         Client client = cluster.getInternalNodeClient();
-        return adapt(client);
+        this.privilegedConfigClient = adapt(client);
+        return this.privilegedConfigClient;
     }
 
 

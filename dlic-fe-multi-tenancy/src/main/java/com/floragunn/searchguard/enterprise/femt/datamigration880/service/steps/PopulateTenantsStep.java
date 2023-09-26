@@ -2,11 +2,13 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import org.apache.logging.log4j.LogManager;
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_AND_PRIVATE_TENANT_CONFLICT_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
@@ -106,7 +109,7 @@ class PopulateTenantsStep implements MigrationStep {
         if (tenant == null) {
             throw new ElasticsearchException("tenant must not be null here");
         }
-        String tenantInfoPart = "_" + tenant.hashCode() + "_" + tenant.toLowerCase().replaceAll("[^a-z0-9]+", "");
+        String tenantInfoPart = "_" + TenantManager.toInternalTenantName(tenant);
         String prefix = config.getIndex();
         StringBuilder result = new StringBuilder(prefix).append(tenantInfoPart);
         return result.toString();
@@ -146,6 +149,17 @@ class PopulateTenantsStep implements MigrationStep {
             .map(entry -> new TenantIndex(entry.getKey(), null))
             .collect(Collectors.toList());
         log.debug("Private tenant related index found: '{}'", privateTenants);
+        List<String> privateTenantsInConflictWithGlobalTenant = privateTenants.stream() //
+                .map(TenantIndex::indexName) //
+                .filter(name -> name.contains("_sgsglobaltenant_")) //
+                .collect(Collectors.toList());
+        if(!privateTenantsInConflictWithGlobalTenant.isEmpty()) {
+            String message = "Found user private tenant which is in name conflict with the global tenant";
+            String details = "Indices " + privateTenantsInConflictWithGlobalTenant.stream() //
+                .map(name -> "'" + name + "'") //
+                .collect(Collectors.joining(", "));
+            throw new StepException(message, GLOBAL_AND_PRIVATE_TENANT_CONFLICT_ERROR, details);
+        }
         return ImmutableList.of(privateTenants);
     }
 

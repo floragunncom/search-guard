@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
@@ -50,40 +51,50 @@ public class MigrationApiTest {
         Set<String> aliasNames = configuration.getCEntries()
             .keySet()
             .stream()
+            .filter(tenantName -> !Tenant.GLOBAL_TENANT_ID.equals(tenantName))
             .map(tenantName -> toInternalIndexName(".kibana", tenantName))
             .collect(Collectors.toSet());
-        Client client = cluster.getInternalNodeClient();
-        for(String alias : aliasNames) {
-            String indexName = alias + "_8.7.0_001";
-            String shortAlias = alias + "_8.7.0";
-            CreateIndexRequest request = new CreateIndexRequest(indexName).alias(new Alias(alias)).alias(new Alias(shortAlias))
-                .settings(Settings.builder().put("index.number_of_replicas", 0));
-            client.admin().indices().create(request).actionGet();
-        }
-        // global tenant index
-        client.admin()
-            .indices() //
-            .create(new CreateIndexRequest(".kibana_8.7.0_001") //
-                .alias(new Alias(".kibana_8.7.0")) //
-                .alias(new Alias(".kibana")) //
-                .settings(Settings.builder().put("index.number_of_replicas", 0))) //
-            .actionGet();
-        // user tenant indices
-        String[][] userIndicesAndAliases = new String[][] {
-            //{"index name", "long alias", "short alias"}
-            {".kibana_3292183_kirk_8.7.0_001", ".kibana_3292183_kirk_8.7.0", ".kibana_3292183_kirk" },// kirk
-            {".kibana_-1091682490_lukasz_8.7.0_001", ".kibana_-1091682490_lukasz_8.7.0", ".kibana_-1091682490_lukasz"}, //lukasz
-            {".kibana_739988528_ukasz_8.7.0_001", ".kibana_739988528_ukasz_8.7.0", ".kibana_739988528_ukasz"}, //łukasz
-            {".kibana_-1091714203_luksz_8.7.0_001", ".kibana_-1091714203_luksz_8.7.0", ".kibana_-1091714203_luksz"}//luk@sz
-        };
-        for(String[] privateUserTenant : userIndicesAndAliases) {
-            client.admin()
-                .indices() //
-                .create(new CreateIndexRequest(privateUserTenant[0]) //
-                    .alias(new Alias(privateUserTenant[1])) //
-                    .alias(new Alias(privateUserTenant[2])) //
+        try(Client client = cluster.getInternalNodeClient()) {
+            FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(client));
+            for (String alias : aliasNames) {
+                String indexName = alias + "_8.7.0_001";
+                String shortAlias = alias + "_8.7.0";
+                CreateIndexRequest request = new CreateIndexRequest(indexName).alias(new Alias(alias)) //
+                        .alias(new Alias(shortAlias)) //
+                        .settings(Settings.builder().put("index.number_of_replicas", 0));
+                CreateIndexResponse response = client.admin().indices().create(request).actionGet();
+                assertThat(response.isAcknowledged(), equalTo(true));
+                catalog.insertSpace(indexName, "default", "custom", "detailed");
+            }
+            // global tenant index
+            String globalTenantIndexName = ".kibana_8.7.0_001";
+            CreateIndexResponse response = client.admin().indices() //
+                .create(new CreateIndexRequest(globalTenantIndexName) //
+                    .alias(new Alias(".kibana_8.7.0")) //
+                    .alias(new Alias(".kibana")) //
                     .settings(Settings.builder().put("index.number_of_replicas", 0))) //
                 .actionGet();
+            assertThat(response.isAcknowledged(), equalTo(true));
+            catalog.insertSpace(globalTenantIndexName, "default", "custom", "detailed", "superglobal");
+            // user tenant indices
+            String[][] userIndicesAndAliases = new String[][] {
+                //{"index name", "long alias", "short alias"}
+                { ".kibana_3292183_kirk_8.7.0_001", ".kibana_3292183_kirk_8.7.0", ".kibana_3292183_kirk" },// kirk
+                { ".kibana_-1091682490_lukasz_8.7.0_001", ".kibana_-1091682490_lukasz_8.7.0", ".kibana_-1091682490_lukasz" }, //lukasz
+                { ".kibana_739988528_ukasz_8.7.0_001", ".kibana_739988528_ukasz_8.7.0", ".kibana_739988528_ukasz" }, //łukasz
+                { ".kibana_-1091714203_luksz_8.7.0_001", ".kibana_-1091714203_luksz_8.7.0", ".kibana_-1091714203_luksz" }//luk@sz
+            };
+            for (String[] privateUserTenant : userIndicesAndAliases) {
+                String indexName = privateUserTenant[0];
+                CreateIndexResponse createIndexResponse = client.admin().indices() //
+                    .create(new CreateIndexRequest(indexName) //
+                        .alias(new Alias(privateUserTenant[1])) //
+                        .alias(new Alias(privateUserTenant[2])) //
+                        .settings(Settings.builder().put("index.number_of_replicas", 0))) //
+                    .actionGet();
+                assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
+                catalog.insertSpace(indexName, "default", "super_private");
+            }
         }
     }
 
@@ -104,7 +115,6 @@ public class MigrationApiTest {
 
             log.info("Start migration response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-
         }
     }
 

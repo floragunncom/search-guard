@@ -6,12 +6,18 @@ import org.elasticsearch.index.query.QueryBuilders;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 public class RequestResponseTenantData {
 
+    private final static Pattern INDEX_NAME_TENANT_PART = Pattern.compile("_(?<tenantName>-?\\d+_[^_]+)_.+");
+
     private static final String SG_TENANT_FIELD = "sg_tenant";
     private static final String TENAND_SEPARATOR_IN_ID = "__sg_ten__";
+    public static final String TENANT_NAME_GROUP = "tenantName";
 
     private RequestResponseTenantData() {}
 
@@ -77,4 +83,13 @@ public class RequestResponseTenantData {
         return queryBuilder.should(QueryBuilders.termQuery(SG_TENANT_FIELD, tenant));
     }
 
+    public static Optional<String> scopedIdForPrivateTenantIndexName(String id, String indexName, String indexNamePrefix) {
+        String indexNameWithoutPrefix = indexName.substring(indexNamePrefix.length());
+        Matcher matcher = INDEX_NAME_TENANT_PART.matcher(indexNameWithoutPrefix);
+        if(matcher.matches()) {
+            String tenantNameExtractedFromIndexName = matcher.group(TENANT_NAME_GROUP);
+            return Optional.of(id + TENAND_SEPARATOR_IN_ID + tenantNameExtractedFromIndexName);
+        }
+        return Optional.empty();
+    }
 }

@@ -3,8 +3,13 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.client.SearchScroller;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.flush.FlushRequest;
+import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
@@ -15,18 +20,30 @@ import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_BULK_CREATE_DOCUMENT_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_REFRESH_INDEX_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RETRIEVE_INDICES_STATE_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_BLOCK_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_UNBLOCK_ERROR;
@@ -37,6 +54,8 @@ import static org.elasticsearch.index.mapper.MapperService.INDEX_MAPPING_TOTAL_F
  * {@link com.floragunn.searchguard.support.PrivilegedConfigClient} which cannot be simply mock with Mockito library.
  */
 class StepRepository {
+
+    private static final Logger log = LogManager.getLogger(StepRepository.class);
 
     private final PrivilegedConfigClient client;
 
@@ -120,6 +139,43 @@ class StepRepository {
         CreateIndexResponse response = client.admin().indices().create(request).actionGet();
         if(!response.isAcknowledged()) {
             throw new StepException("Cannot create index " + name, StepExecutionStatus.CANNOT_CREATE_INDEX_ERROR, null);
+        }
+    }
+
+    public void forEachDocumentInIndex(String indexName, int batchSize, Consumer<ImmutableList<SearchHit>> consumer) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
+        SearchScroller searchScroller = new SearchScroller(client);
+        SearchRequest request = new SearchRequest(indexName);
+        request.source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(batchSize));
+        searchScroller.scroll(request, TimeValue.timeValueMinutes(3), Function.identity(), consumer);
+    }
+
+    public BulkResponse bulkCreate(String indexName, Map<String, Map<String, Object>> documents) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
+        Objects.requireNonNull(documents, "Documents to create are required.");
+        String sortedDocumentsIds = documents.keySet().stream().sorted().map(id -> "'" + id + "'").collect(Collectors.joining(", "));
+        log.info("Index '{}', bulk create documents {}", indexName, sortedDocumentsIds);
+        BulkRequest bulkRequest = new BulkRequest(indexName);
+        for(Map.Entry<String, Map<String, Object>> currentDocument : documents.entrySet()) {
+            IndexRequest indexRequest = new IndexRequest(indexName);
+            indexRequest.create(true);
+            indexRequest.id(currentDocument.getKey());
+            indexRequest.source(currentDocument.getValue());
+            bulkRequest.add(indexRequest);
+        }
+        BulkResponse response = client.bulk(bulkRequest).actionGet();
+        if(response.hasFailures()) {
+            String details = "Index name '" + indexName + "', document ids " + sortedDocumentsIds +  ", error details "
+                + response.buildFailureMessage();
+            throw new StepException("Cannot create document in index", CANNOT_BULK_CREATE_DOCUMENT_ERROR, details);
+        }
+        return response;
+    }
+
+    public void flushIndex(String indexName) {
+        FlushResponse flushResponse = client.admin().indices().flush(new FlushRequest(indexName)).actionGet();
+        if(flushResponse.getFailedShards() > 0) {
+            throw new StepException("Cannot flush index '" + indexName + "'.", CANNOT_REFRESH_INDEX_ERROR, null);
         }
     }
 }
