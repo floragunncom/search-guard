@@ -90,6 +90,7 @@ public class BulkMapper {
                 } else {
                     log.error("Rewriting item - unhandled item type {}", item.getClass().getName());
                 }
+                newDocWriteResponse.setForcedRefresh(docWriteResponse.forcedRefresh());
                 newItems[i] = BulkItemResponse.success(item.getItemId(), item.getOpType(), newDocWriteResponse);
             }
         }
