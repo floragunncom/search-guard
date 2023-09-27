@@ -23,6 +23,8 @@ import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
+import java.util.Objects;
+
 import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.SG_FILTER_LEVEL_FEMT_DONE;
 
 public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
@@ -32,9 +34,9 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
     private final MultiGetMapper multiGetMapper;
 
     public MultiGetRequestHandler(Client nodeClient, ThreadContext threadContext, MultiGetMapper multiGetMapper) {
-        this.nodeClient = nodeClient;
-        this.threadContext = threadContext;
-        this.multiGetMapper = multiGetMapper;
+        this.nodeClient = Objects.requireNonNull(nodeClient, "nodeClient is required");
+        this.threadContext = Objects.requireNonNull(threadContext, "threadContext is required");
+        this.multiGetMapper = Objects.requireNonNull(multiGetMapper, "multiGetMapper is required");
     }
 
     @Override
