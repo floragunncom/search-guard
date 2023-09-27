@@ -23,6 +23,8 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
+import java.util.Objects;
+
 import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.SG_FILTER_LEVEL_FEMT_DONE;
 
 public class BulkRequestHandler extends RequestHandler<BulkRequest> {
@@ -31,8 +33,8 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
     private final ThreadContext threadContext;
     private final BulkMapper bulkMapper;
     public BulkRequestHandler(Client nodeClient, ThreadContext threadContext) {
-        this.nodeClient = nodeClient;
-        this.threadContext = threadContext;
+        this.nodeClient = Objects.requireNonNull(nodeClient, "nodeClient is required");
+        this.threadContext = Objects.requireNonNull(threadContext, "threadContext is required");
         this.bulkMapper = new BulkMapper();
     }
 

@@ -17,6 +17,7 @@ import org.elasticsearch.indices.IndicesService;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class GetMapper {
 
@@ -26,8 +27,8 @@ public class GetMapper {
     private final IndicesService indicesService;
 
     public GetMapper(ClusterService clusterService, IndicesService indicesService) {
-        this.clusterService = clusterService;
-        this.indicesService = indicesService;
+        this.clusterService = Objects.requireNonNull(clusterService, "clusterService is required");
+        this.indicesService = Objects.requireNonNull(indicesService, "indicesService is required");
     }
 
     public GetRequest toScopedGetRequest(GetRequest request, String tenant) {

@@ -9,6 +9,7 @@ import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetResponse;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 
 public class MultiGetMapper {
@@ -17,7 +18,7 @@ public class MultiGetMapper {
     private final GetMapper getMapper;
 
     public MultiGetMapper(GetMapper getMapper) {
-        this.getMapper = getMapper;
+        this.getMapper = Objects.requireNonNull(getMapper, "getMapper is required");
     }
 
     public MultiGetRequest toScopedMultiGetRequest(MultiGetRequest request, String tenant) {
