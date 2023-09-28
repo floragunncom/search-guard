@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.floragunn.signals.actions.summary.LoadOperatorSummaryAction;
+import com.floragunn.signals.actions.summary.LoadOperatorSummaryHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
@@ -130,7 +132,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
                     new AckAndGetWatchApiAction(settings), CreateOrReplaceTruststoreAction.REST_API, FindOneTruststoreAction.REST_API,
-                    DeleteTruststoreAction.REST_API, FindAllTruststoresAction.REST_API);
+                    DeleteTruststoreAction.REST_API, FindAllTruststoresAction.REST_API, LoadOperatorSummaryAction.REST_API);
         } else {
             return Collections.emptyList();
         }
@@ -139,7 +141,6 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         if (enabled) {
-
             return Arrays.asList(new ActionHandler<>(AckAndGetWatchAction.INSTANCE, TransportAckAndGetWatchAction.class),
                 new ActionHandler<>(AckWatchAction.INSTANCE, TransportAckWatchAction.class),
                     new ActionHandler<>(GetWatchAction.INSTANCE, TransportGetWatchAction.class),
@@ -167,8 +168,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(FindOneTruststoreAction.INSTANCE, FindOneTruststoreAction.FindOneTruststoreHandler.class),
                     new ActionHandler<>(FindAllTruststoresAction.INSTANCE, FindAllTruststoresAction.FindAllTruststoresHandler.class),
                     new ActionHandler<>(DeleteTruststoreAction.INSTANCE, DeleteTruststoreAction.DeleteTruststoreHandler.class),
-                    new ActionHandler<>(TransportTruststoreUpdatedAction.TruststoreUpdatedActionType.INSTANCE, TransportTruststoreUpdatedAction.class)
-
+                    new ActionHandler<>(TransportTruststoreUpdatedAction.TruststoreUpdatedActionType.INSTANCE, TransportTruststoreUpdatedAction.class),
+                    new ActionHandler<>(LoadOperatorSummaryAction.INSTANCE, LoadOperatorSummaryHandler.class)
             );
         } else {
             return Collections.emptyList();

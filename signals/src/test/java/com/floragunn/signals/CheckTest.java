@@ -237,7 +237,7 @@ public class CheckTest {
         try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura")) {
             try {
                 Watch watch = new WatchBuilder("put_test").cronTrigger("* * * * * ?").search("testsource").query("{\"match_all\" : {} }")
-                        .attr("size", 1).as("testsearch").then().index("testsink_" + watchId1).name("testsink").build();
+                        .size(1).as("testsearch").then().index("testsink_" + watchId1).name("testsink").build();
                 HttpResponse response = restClient.putJson(watchPath1, watch);
 
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
