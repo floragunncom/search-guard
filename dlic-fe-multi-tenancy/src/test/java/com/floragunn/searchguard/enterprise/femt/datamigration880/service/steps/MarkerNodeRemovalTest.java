@@ -2,19 +2,12 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 
-import java.time.Clock;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
-import static java.time.ZoneOffset.UTC;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.not;
 

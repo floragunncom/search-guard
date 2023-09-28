@@ -97,7 +97,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -117,6 +116,7 @@ public class MigrationStepsTest {
     public static final String INDEX_TEMPLATE_NAME = "kibana_test_indices_template";
     public static final String CREATE_INDEX_ID = "CREATE_INDEX_ID";
     public static final String TENANT_MANAGEMENT = "management";
+    public static final String TEMP_INDEX_NAME = "data_migration_temp_fe_2000_01_01_01_01_00";
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
@@ -1024,7 +1024,7 @@ public class MigrationStepsTest {
     public void shouldGenerateTempIndexName() {
         Clock clock = Clock.fixed(NOW.toInstant(), UTC);
         this.context = new DataMigrationContext(new MigrationConfig(false), clock);
-        assertThat(context.getTempIndexName(), equalTo("data_migration_temp_fe_2000_01_01_01_01_00"));
+        assertThat(context.getTempIndexName(), equalTo(TEMP_INDEX_NAME));
 
         clock = Clock.fixed(NOW.toInstant().plus(2, ChronoUnit.HOURS), UTC);
         this.context = new DataMigrationContext(new MigrationConfig(false), clock);
@@ -1299,7 +1299,7 @@ public class MigrationStepsTest {
         StepResult result = step.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(countDocumentInIndex("data_migration_temp_fe_2000_01_01_01_01_00"), equalTo(6L));
+        assertThat(countDocumentInIndex(TEMP_INDEX_NAME), equalTo(6L));
         String id = "space:.kibana_8.7.0_001";
         String globalDocument = getDocumentSource(GLOBAL_TENANT_INDEX.indexName(), id).orElseThrow();
         id = "space:.kibana_3292183_kirk_8.7.0_001";
@@ -1307,11 +1307,11 @@ public class MigrationStepsTest {
         id = "space:.kibana_-1799980989_management_8.7.0_001";
         String managementDocument = getDocumentSource(managementTenant.indexName(),id ).orElseThrow();
         id = "space:.kibana_8.7.0_001__sg_ten__-1216324346_sgsglobaltenant";
-        String migratedGlobal = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        String migratedGlobal = getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
         id = "space:.kibana_3292183_kirk_8.7.0_001__sg_ten__3292183_kirk";
-        String migratedPrivate = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        String migratedPrivate = getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
         id = "space:.kibana_-1799980989_management_8.7.0_001__sg_ten__-1799980989_management";
-        String migratedManagement = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        String migratedManagement = getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
         assertThat(migratedGlobal, equalTo(globalDocument));
         assertThat(migratedPrivate, equalTo(privateDocument));
         assertThat(migratedManagement, equalTo(managementDocument));
@@ -1322,11 +1322,11 @@ public class MigrationStepsTest {
         id = "index-pattern::iot-3";
         managementDocument = getDocumentSource(managementTenant.indexName(), id).orElseThrow();
         id = "index-pattern::iot-1__sg_ten__-1216324346_sgsglobaltenant";
-        migratedGlobal = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        migratedGlobal = getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
         id = "index-pattern::iot-2__sg_ten__3292183_kirk";
-        migratedPrivate = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        migratedPrivate = getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
         id = "index-pattern::iot-3__sg_ten__-1799980989_management";
-        migratedManagement = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        migratedManagement = getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
         assertThat(migratedGlobal, equalTo(globalDocument));
         assertThat(migratedPrivate, equalTo(privateDocument));
         assertThat(migratedManagement, equalTo(managementDocument));
@@ -1423,6 +1423,36 @@ public class MigrationStepsTest {
             assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__739988528_ukasz");
             assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__-1091714203_luksz");
         }
+    }
+
+    @Test
+    public void shouldDeleteTempIndex() {
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX, managementTenant);
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusDays(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusDays(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5);
+        PrivilegedConfigClient client = getPrivilegedClient();
+        client.admin().indices().create(new CreateIndexRequest(TEMP_INDEX_NAME)).actionGet();
+        DeleteTempIndexStep step = new DeleteTempIndexStep(new StepRepository(client));
+        assertThat(isIndexCreated(TEMP_INDEX_NAME), equalTo(true));
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(isIndexCreated(TEMP_INDEX_NAME), equalTo(false));
+        assertThat(isIndexCreated(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        assertThat(isIndexCreated(PRIVATE_USER_KIRK_INDEX.indexName()), equalTo(true));
+        assertThat(isIndexCreated(PRIVATE_USER_LUKASZ_1_INDEX.indexName()), equalTo(true));
+        assertThat(isIndexCreated(managementTenant.indexName()), equalTo(true));
+        assertThat(isIndexCreated(backupIndex1.indexName()), equalTo(true));
+        assertThat(isIndexCreated(backupIndex2.indexName()), equalTo(true));
+        assertThat(isIndexCreated(backupIndex3.indexName()), equalTo(true));
+        assertThat(isIndexCreated(backupIndex4.indexName()), equalTo(true));
+        assertThat(isIndexCreated(backupIndex5.indexName()), equalTo(true));
     }
 
     private static void assertThatDocumentExists(String index, String documentId) {

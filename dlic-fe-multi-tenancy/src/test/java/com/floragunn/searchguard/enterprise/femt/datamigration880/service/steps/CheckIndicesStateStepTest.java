@@ -13,8 +13,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Answers;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -22,7 +20,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
-import java.util.Arrays;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNHEALTHY_INDICES_ERROR;
 import static java.time.ZoneOffset.UTC;
@@ -30,10 +27,8 @@ import static org.elasticsearch.cluster.health.ClusterHealthStatus.GREEN;
 import static org.elasticsearch.cluster.health.ClusterHealthStatus.RED;
 import static org.elasticsearch.cluster.health.ClusterHealthStatus.YELLOW;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)

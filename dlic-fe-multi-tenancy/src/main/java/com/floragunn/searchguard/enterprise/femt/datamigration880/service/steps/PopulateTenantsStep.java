@@ -8,7 +8,6 @@ import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
-import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import org.apache.logging.log4j.LogManager;
@@ -152,7 +151,7 @@ class PopulateTenantsStep implements MigrationStep {
         List<String> privateTenantsInConflictWithGlobalTenant = privateTenants.stream() //
                 .map(TenantIndex::indexName) //
                 .filter(name -> name.contains("_sgsglobaltenant_")) //
-                .collect(Collectors.toList());
+                .toList();
         if(!privateTenantsInConflictWithGlobalTenant.isEmpty()) {
             String message = "Found user private tenant which is in name conflict with the global tenant";
             String details = "Indices " + privateTenantsInConflictWithGlobalTenant.stream() //

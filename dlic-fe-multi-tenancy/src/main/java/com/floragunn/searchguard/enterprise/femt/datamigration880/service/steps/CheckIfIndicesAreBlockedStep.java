@@ -12,7 +12,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
@@ -42,7 +41,7 @@ class CheckIfIndicesAreBlockedStep implements MigrationStep {
                 boolean currentIndexIsBlocked = false;
                 List<String> blockSettingsName = Arrays.stream(IndexMetadata.APIBlock.values()) //
                     .map(IndexMetadata.APIBlock::settingName) //
-                    .collect(Collectors.toList());
+                    .toList();
                 for (String blockType : blockSettingsName) {
                     Boolean blocked = settings.getAsBoolean(blockType, false);
                     if (blocked) {

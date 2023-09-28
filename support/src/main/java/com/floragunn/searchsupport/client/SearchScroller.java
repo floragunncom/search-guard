@@ -3,7 +3,6 @@ package com.floragunn.searchsupport.client;
 import com.floragunn.fluent.collections.ImmutableList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.checkerframework.checker.units.qual.A;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -12,7 +11,6 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.search.SearchHit;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -95,7 +93,7 @@ public class SearchScroller {
                     }
                     resultConsumer.accept(ImmutableList.of(mutableResultList));
                     searchResponse = client.prepareSearchScroll(searchResponse.getScrollId()) //
-                        .setScroll(new TimeValue(10000)) // TODO add parameter
+                        .setScroll(scrollTime)
                         .execute() //
                         .actionGet();
                 } while (searchResponse.getHits().getHits().length != 0);
