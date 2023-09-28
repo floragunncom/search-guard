@@ -16,9 +16,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TimeZone;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.watch.common.TlsConfig;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.mockito.Mockito;
@@ -28,6 +31,10 @@ import org.quartz.TimeOfDay;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
@@ -74,6 +81,7 @@ public class WatchBuilder {
     SeverityMapping severityMapping;
     DurationExpression throttlePeriod;
 
+    final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private boolean active = true;
 
     public WatchBuilder(String name) {
@@ -92,7 +100,14 @@ public class WatchBuilder {
         return this;
     }
 
-    public WatchBuilder atMsInterval(long msInterval) throws ParseException {
+    public WatchBuilder triggerNow() {
+        this.triggers.add(TriggerBuilder.newTrigger().withSchedule(
+                SimpleScheduleBuilder.simpleSchedule().withRepeatCount(0).withIntervalInMilliseconds(250))
+            .build());
+        return this;
+    }
+
+    public WatchBuilder atMsInterval(long msInterval) {
         this.triggers.add(TriggerBuilder.newTrigger()
                 .withSchedule(SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(msInterval)).build());
         return this;
@@ -587,21 +602,31 @@ public class WatchBuilder {
         private String[] indices;
         private String body;
         private String query;
-        private DocNode bodyNode = DocNode.EMPTY;
-        
+
+        private String aggregation;
+        private ObjectNode bodyNode = WatchBuilder.OBJECT_MAPPER.createObjectNode();
+
         SearchBuilder(WatchBuilder parent, String... indices) {
             this.parent = parent;
             this.indices = indices;
         }
 
         public SearchBuilder attr(String key, String value) {
-            bodyNode = bodyNode.with(key, value);
+            bodyNode.put(key, value);
             return this;
         }
 
         public SearchBuilder attr(String key, int value) {
-            bodyNode = bodyNode.with(key, value);
+            bodyNode.put(key, value);
             return this;
+        }
+
+        /**
+         * Define max number of results returned by query
+         * @param size max number of results returned by query
+         */
+        public SearchBuilder size(int size) {
+            return attr("size", size);
         }
 
         public SearchBuilder query(String query) {
@@ -609,7 +634,12 @@ public class WatchBuilder {
             return this;
         }
 
-        public WatchBuilder as(String name) throws DocumentParseException, IOException {
+        public SearchBuilder aggregation(DocNode aggregation) {
+            this.aggregation = Objects.requireNonNull(aggregation, "Aggregation doc node is required").toJsonString();
+            return this;
+        }
+
+        public WatchBuilder as(String name) throws JsonProcessingException, IOException {
 
             if (body == null) {
                 body = buildBody();
@@ -622,8 +652,15 @@ public class WatchBuilder {
             return parent;
         }
 
-        private String buildBody() throws DocumentParseException, IOException {
-            return DocNode.of("query", DocNode.parse(Format.JSON).from(this.query)).toString();
+        private String buildBody() throws JsonProcessingException, IOException {
+            if(!Strings.isNullOrEmpty(this.query)) {
+                JsonNode jsonNode = WatchBuilder.OBJECT_MAPPER.readTree(this.query);
+                bodyNode.set("query", jsonNode);
+            }
+            if(!Strings.isNullOrEmpty(this.aggregation)) {
+                bodyNode.set("aggs", WatchBuilder.OBJECT_MAPPER.readTree(this.aggregation));
+            }
+            return WatchBuilder.OBJECT_MAPPER.writeValueAsString(bodyNode);
         }
     }
 
@@ -642,9 +679,10 @@ public class WatchBuilder {
             return this;
         }
 
-        public WatchBuilder as(String name) throws DocumentParseException, IOException {
+        public WatchBuilder as(String name) throws JsonProcessingException, IOException {
 
-            Map<String, Object> map = DocNode.parse(Format.JSON).from(this.data).toMap();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = WatchBuilder.OBJECT_MAPPER.convertValue(WatchBuilder.OBJECT_MAPPER.readTree(this.data), Map.class);
 
             StaticInput simpleInput = new StaticInput(this.name != null ? this.name : name, name, map);
 
@@ -664,7 +702,7 @@ public class WatchBuilder {
             this.script = script;
         }
 
-        public WatchBuilder as(String name) throws DocumentParseException, IOException {
+        public WatchBuilder as(String name) throws JsonProcessingException, IOException {
 
             Transform transform = new Transform(name, name, script, "painless", Collections.emptyMap());
 

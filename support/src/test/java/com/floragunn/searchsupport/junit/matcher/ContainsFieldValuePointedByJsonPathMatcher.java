@@ -42,7 +42,7 @@ class ContainsFieldValuePointedByJsonPathMatcher extends TypeSafeDiagnosingMatch
             return true;
         } catch (PathNotFoundException e) {
             log.debug("Patch {} not found in DocNode {}.", jsonPath, docNode, e);
-            mismatchDescription.appendText("path ").appendValue(jsonPath).appendText(" does not exists in doc node ")
+            mismatchDescription.appendText(" path ").appendValue(jsonPath).appendText(" does not exists in doc node ")
                 .appendValue(docNode.toJsonString());
             return false;
         }
