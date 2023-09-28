@@ -15,6 +15,8 @@ import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse;
+import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
+import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
@@ -34,6 +36,7 @@ import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.xcontent.XContentType;
 
 import java.util.Map;
 import java.util.Objects;
@@ -150,17 +153,17 @@ class StepRepository {
         searchScroller.scroll(request, TimeValue.timeValueMinutes(3), Function.identity(), consumer);
     }
 
-    public BulkResponse bulkCreate(String indexName, Map<String, Map<String, Object>> documents) {
+    public BulkResponse bulkCreate(String indexName, Map<String, String> documents) {
         Strings.requireNonEmpty(indexName, "Index name is required");
         Objects.requireNonNull(documents, "Documents to create are required.");
         String sortedDocumentsIds = documents.keySet().stream().sorted().map(id -> "'" + id + "'").collect(Collectors.joining(", "));
         log.info("Index '{}', bulk create documents {}", indexName, sortedDocumentsIds);
         BulkRequest bulkRequest = new BulkRequest(indexName);
-        for(Map.Entry<String, Map<String, Object>> currentDocument : documents.entrySet()) {
+        for(Map.Entry<String, String> currentDocument : documents.entrySet()) {
             IndexRequest indexRequest = new IndexRequest(indexName);
             indexRequest.create(true);
             indexRequest.id(currentDocument.getKey());
-            indexRequest.source(currentDocument.getValue());
+            indexRequest.source(currentDocument.getValue(), XContentType.JSON);
             bulkRequest.add(indexRequest);
         }
         BulkResponse response = client.bulk(bulkRequest).actionGet();
@@ -173,9 +176,17 @@ class StepRepository {
     }
 
     public void flushIndex(String indexName) {
-        FlushResponse flushResponse = client.admin().indices().flush(new FlushRequest(indexName)).actionGet();
+        FlushRequest request = new FlushRequest(indexName);
+        FlushResponse flushResponse = client.admin().indices().flush(request).actionGet();
         if(flushResponse.getFailedShards() > 0) {
             throw new StepException("Cannot flush index '" + indexName + "'.", CANNOT_REFRESH_INDEX_ERROR, null);
+        }
+    }
+
+    public void refreshIndex(String indexName) {
+        RefreshResponse refreshResponse = client.admin().indices().refresh(new RefreshRequest(indexName)).actionGet();
+        if(refreshResponse.getFailedShards() > 0) {
+            throw new StepException("Cannot refresh index '" + indexName + "'.", StepExecutionStatus.CANNOT_REFRESH_INDEX_ERROR, null);
         }
     }
 }

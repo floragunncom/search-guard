@@ -97,6 +97,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -1282,6 +1283,9 @@ public class MigrationStepsTest {
         ImmutableList<DoubleAliasIndex> indices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenant);
         createIndex(indices.toArray(DoubleAliasIndex[]::new));
         indices.map(DoubleAliasIndex::indexName).forEach(indexName -> catalog.insertSpace(indexName, indexName));
+        catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), "iot-1");
+        catalog.insertIndexPattern(PRIVATE_USER_KIRK_INDEX.indexName(), "iot-2");
+        catalog.insertIndexPattern(managementTenant.indexName(), "iot-3");
         StepRepository stepRepository = new StepRepository(client);
         FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
@@ -1295,22 +1299,37 @@ public class MigrationStepsTest {
         StepResult result = step.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
+        assertThat(countDocumentInIndex("data_migration_temp_fe_2000_01_01_01_01_00"), equalTo(6L));
         String id = "space:.kibana_8.7.0_001";
-        DocNode globalDocument = getDocumentSource(GLOBAL_TENANT_INDEX.indexName(), id).orElseThrow();
+        String globalDocument = getDocumentSource(GLOBAL_TENANT_INDEX.indexName(), id).orElseThrow();
         id = "space:.kibana_3292183_kirk_8.7.0_001";
-        DocNode privateDocument = getDocumentSource(PRIVATE_USER_KIRK_INDEX.indexName(), id).orElseThrow();
+        String privateDocument = getDocumentSource(PRIVATE_USER_KIRK_INDEX.indexName(), id).orElseThrow();
         id = "space:.kibana_-1799980989_management_8.7.0_001";
-        DocNode managementDocument = getDocumentSource(managementTenant.indexName(),id ).orElseThrow();
+        String managementDocument = getDocumentSource(managementTenant.indexName(),id ).orElseThrow();
         id = "space:.kibana_8.7.0_001__sg_ten__-1216324346_sgsglobaltenant";
-        DocNode migratedGlobal = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        String migratedGlobal = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
         id = "space:.kibana_3292183_kirk_8.7.0_001__sg_ten__3292183_kirk";
-        DocNode migratedPrivate = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        String migratedPrivate = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
         id = "space:.kibana_-1799980989_management_8.7.0_001__sg_ten__-1799980989_management";
-        DocNode migratedManagement = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        String migratedManagement = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
         assertThat(migratedGlobal, equalTo(globalDocument));
         assertThat(migratedPrivate, equalTo(privateDocument));
         assertThat(migratedManagement, equalTo(managementDocument));
-        //TODO check how DocNode equals method works
+        id = "index-pattern::iot-1";
+        globalDocument = getDocumentSource(GLOBAL_TENANT_INDEX.indexName(), id).orElseThrow();
+        id = "index-pattern::iot-2";
+        privateDocument = getDocumentSource(PRIVATE_USER_KIRK_INDEX.indexName(), id).orElseThrow();
+        id = "index-pattern::iot-3";
+        managementDocument = getDocumentSource(managementTenant.indexName(), id).orElseThrow();
+        id = "index-pattern::iot-1__sg_ten__-1216324346_sgsglobaltenant";
+        migratedGlobal = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        id = "index-pattern::iot-2__sg_ten__3292183_kirk";
+        migratedPrivate = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        id = "index-pattern::iot-3__sg_ten__-1799980989_management";
+        migratedManagement = getDocumentSource("data_migration_temp_fe_2000_01_01_01_01_00", id).orElseThrow();
+        assertThat(migratedGlobal, equalTo(globalDocument));
+        assertThat(migratedPrivate, equalTo(privateDocument));
+        assertThat(migratedManagement, equalTo(managementDocument));
     }
 
     @Test
@@ -1415,19 +1434,12 @@ public class MigrationStepsTest {
         }
     }
 
-    public Optional<DocNode> getDocumentSource(String indexName, String documentId) {
+    public Optional<String> getDocumentSource(String indexName, String documentId) {
         try(Client client = cluster.getInternalNodeClient()) {
             GetResponse response = client.get(new GetRequest(indexName, documentId)).actionGet();
-            return Optional.ofNullable(response)//
+            return Optional.ofNullable(response) //
                 .filter(GetResponse::isExists) //
-                .map(GetResponse::getSourceAsString) //
-                .map(source -> {
-                    try {
-                        return DocNode.parse(Format.JSON).from(source);
-                    } catch (DocumentParseException e) {
-                        throw new RuntimeException("Cannot parse document '" + documentId + "' from index '" + indexName + "' source.");
-                    }
-                });
+                .map(GetResponse::getSourceAsString);
         }
     }
 

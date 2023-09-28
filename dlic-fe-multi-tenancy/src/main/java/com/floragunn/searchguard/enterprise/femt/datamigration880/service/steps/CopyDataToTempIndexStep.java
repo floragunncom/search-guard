@@ -43,7 +43,7 @@ class CopyDataToTempIndexStep implements MigrationStep {
         for(TenantIndex tenantIndex : context.getTenantIndices()) {
             log.info("Start moving documents to temp index for tenant '{}'.", tenantIndex);
             repository.forEachDocumentInIndex(tenantIndex.indexName(), 100, searchHits -> {
-                Map<String, Map<String, Object>> map = new HashMap<>();
+                Map<String, String> map = new HashMap<>();
                 for(SearchHit hit : searchHits) {
                     String scopedId = scopeId(hit, tenantIndex, indexNamePrefix);
                     log.debug("Scoped id '{}' assigned to document '{}' from index '{}'", scopedId, hit.getId(), hit.getIndex());
@@ -51,7 +51,7 @@ class CopyDataToTempIndexStep implements MigrationStep {
                         String details = "Document with id '" + hit.getId() + "' already exists in index '" + tenantIndex.indexName() + "'.";
                         throw new StepException("Document already exists", DOCUMENT_ALREADY_EXISTS_ERROR, details);
                     }
-                    Map<String, Object> source = hit.getSourceAsMap();
+                    String source = hit.getSourceAsString();
                     map.put(scopedId, source);
                 }
                 if(!map.isEmpty()) {
@@ -61,6 +61,7 @@ class CopyDataToTempIndexStep implements MigrationStep {
                 }
             });
         }
+        repository.refreshIndex(context.getTempIndexName());
         repository.flushIndex(context.getTempIndexName());
         long count = documentCounter.get();
         String details = "Stored '" + count + "' documents in temp index '" + context.getTempIndexName() + "'.";

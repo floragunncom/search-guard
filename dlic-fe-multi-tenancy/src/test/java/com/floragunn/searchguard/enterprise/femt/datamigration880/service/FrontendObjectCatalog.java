@@ -36,6 +36,21 @@ public class FrontendObjectCatalog {
         assertThat(response.hasFailures(), equalTo(false));
     }
 
+    public void insertIndexPattern(String indexName, String...titles) {
+        BulkRequest bulkRequest = new BulkRequest();
+        bulkRequest.setRefreshPolicy(IMMEDIATE);
+        for(String currentName : titles) {
+            IndexRequest indexRequest = new IndexRequest(indexName);
+            String indexPatternId = "index-pattern::" + currentName;
+            indexRequest.id(indexPatternId);
+            String spaceJson = indexPatternForTitle(currentName);
+            indexRequest.source(spaceJson, XContentType.JSON);
+            bulkRequest.add(indexRequest);
+        }
+        BulkResponse response = client.bulk(bulkRequest).actionGet();
+        assertThat(response.hasFailures(), equalTo(false));
+    }
+
     private String spaceForName(String spaceName) {
         return """
             {
@@ -55,5 +70,34 @@ public class FrontendObjectCatalog {
             	"created_at": "2023-07-20T15:21:07.913Z"
             }
             """.replace("%%%NAME%%%", spaceName);
+    }
+
+    private String indexPatternForTitle(String title) {
+        return """
+            {
+            	"index-pattern": {
+            		"fieldFormatMap": "{}",
+            		"runtimeFieldMap": "{}",
+            		"fieldAttrs": "{}",
+            		"sourceFilters": "[]",
+            		"typeMeta": "{}",
+            		"timeFieldName": "@timestamp",
+            		"name": ".alerts-security.alerts-admin_space_2,apm-*-transaction*,auditbeat-*,endgame-*,filebeat-*,logs-*,packetbeat-*,traces-apm*,winlogbeat-*,-*elastic-cloud-logs-*",
+            		"title": "%%%TITLE%%%",
+            		"fields": "[]",
+            		"allowNoIndex": true
+            	},
+            	"references": [],
+            	"updated_at": "2023-07-21T14:34:38.651Z",
+            	"managed": false,
+            	"typeMigrationVersion": "8.0.0",
+            	"coreMigrationVersion": "8.8.0",
+            	"created_at": "2023-07-21T14:34:38.651Z",
+            	"type": "index-pattern",
+            	"namespaces": [
+            		"admin_space_2"
+            	]
+            }
+            """.replace("%%%TITLE%%%", title);
     }
 }
