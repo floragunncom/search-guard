@@ -26,6 +26,7 @@ public class StepsFactory {
             new WriteBlockStep(repository),
             new CreateTempIndexStep(repository),
             new CopyDataToTempIndexStep(repository, configurationProvider),
-            new UnblockDataIndicesStep(repository));
+            new UnblockDataIndicesStep(repository),
+            new DeleteTempIndexStep(repository));
     }
 }

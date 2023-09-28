@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
 import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
@@ -38,6 +39,7 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -46,6 +48,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_BULK_CREATE_DOCUMENT_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_DELETE_INDEX_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_REFRESH_INDEX_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RETRIEVE_INDICES_STATE_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_BLOCK_ERROR;
@@ -67,6 +70,7 @@ class StepRepository {
     }
 
     public IndicesStatsResponse findIndexState(String...indexNames) {
+        Objects.requireNonNull(indexNames, "Indices are required");
         IndicesStatsResponse response = client.admin().indices().stats(new IndicesStatsRequest().indices(indexNames)).actionGet();
         if(response.getFailedShards() > 0) {
             throw new StepException("Cannot load current indices state", CANNOT_RETRIEVE_INDICES_STATE_ERROR, null);
@@ -92,11 +96,13 @@ class StepRepository {
     }
 
     public GetSettingsResponse getIndexSettings(String...indices) {
+        Objects.requireNonNull(indices, "Indices are required");
         GetSettingsRequest request = new GetSettingsRequest().indices(indices);
         return client.admin().indices().getSettings(request).actionGet();
     }
 
     public void writeBlockIndices(ImmutableList<String> indices) {
+        Objects.requireNonNull(indices, "Indices list is required");
         AddIndexBlockResponse response = client.admin() //
             .indices() //
             .prepareAddBlock(IndexMetadata.APIBlock.WRITE, indices.toArray(String[]::new)) //
@@ -108,6 +114,7 @@ class StepRepository {
     }
 
     public void releaseWriteLock(ImmutableList<String> indices) {
+        Objects.requireNonNull(indices, "Indices list is required");
         Settings settings = Settings.builder()
             .put(IndexMetadata.APIBlock.WRITE.settingName(), false)
             .build();
@@ -146,14 +153,15 @@ class StepRepository {
     }
 
     public void forEachDocumentInIndex(String indexName, int batchSize, Consumer<ImmutableList<SearchHit>> consumer) {
-        Strings.requireNonEmpty(indexName, "Index name is required");
+        Strings.requireNonEmpty(indexName, "Index name is required.");
+        Objects.requireNonNull(consumer, "Search hits consumer is required.");
         SearchScroller searchScroller = new SearchScroller(client);
         SearchRequest request = new SearchRequest(indexName);
         request.source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(batchSize));
         searchScroller.scroll(request, TimeValue.timeValueMinutes(3), Function.identity(), consumer);
     }
 
-    public BulkResponse bulkCreate(String indexName, Map<String, String> documents) {
+    public void bulkCreate(String indexName, Map<String, String> documents) {
         Strings.requireNonEmpty(indexName, "Index name is required");
         Objects.requireNonNull(documents, "Documents to create are required.");
         String sortedDocumentsIds = documents.keySet().stream().sorted().map(id -> "'" + id + "'").collect(Collectors.joining(", "));
@@ -172,10 +180,10 @@ class StepRepository {
                 + response.buildFailureMessage();
             throw new StepException("Cannot create document in index", CANNOT_BULK_CREATE_DOCUMENT_ERROR, details);
         }
-        return response;
     }
 
     public void flushIndex(String indexName) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
         FlushRequest request = new FlushRequest(indexName);
         FlushResponse flushResponse = client.admin().indices().flush(request).actionGet();
         if(flushResponse.getFailedShards() > 0) {
@@ -184,9 +192,18 @@ class StepRepository {
     }
 
     public void refreshIndex(String indexName) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
         RefreshResponse refreshResponse = client.admin().indices().refresh(new RefreshRequest(indexName)).actionGet();
         if(refreshResponse.getFailedShards() > 0) {
             throw new StepException("Cannot refresh index '" + indexName + "'.", StepExecutionStatus.CANNOT_REFRESH_INDEX_ERROR, null);
+        }
+    }
+
+    public void deleteIndices(String...indices) {
+        AcknowledgedResponse acknowledgedResponse = client.admin().indices().delete(new DeleteIndexRequest(indices)).actionGet();
+        if(!acknowledgedResponse.isAcknowledged()) {
+            String details = "Indices: " + Arrays.stream(indices).map(name -> "'" + name + "'").collect(Collectors.joining(", "));
+            throw new StepException("Cannot delete indices " , CANNOT_DELETE_INDEX_ERROR, details);
         }
     }
 }
