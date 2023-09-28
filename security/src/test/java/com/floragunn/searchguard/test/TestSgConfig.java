@@ -25,6 +25,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -584,6 +585,20 @@ public class TestSgConfig {
 
     }
 
+    public static class TenantPermission {
+        private final List<String> tenantPatterns;//tenant_patterns
+        private final List<String> allowedActions; //allowed_actions
+
+        public TenantPermission(List<String> tenantPatterns, List<String> allowedActions) {
+            this.tenantPatterns = Objects.requireNonNull(tenantPatterns, "Tenant patterns must not be null");
+            this.allowedActions = Objects.requireNonNull(allowedActions, "Tenant allowed actions must not be null");
+        }
+
+        NestedValueMap asNestedValueMap() {
+            return NestedValueMap.of("tenant_patterns", tenantPatterns, "allowed_actions", allowedActions);
+        }
+    }
+
     public static class Role {
         public static Role ALL_ACCESS = new Role("all_access").clusterPermissions("*").indexPermissions("*").on("*");
 
@@ -594,10 +609,20 @@ public class TestSgConfig {
         private List<IndexPermission> indexPermissions = new ArrayList<>();
         private List<ExcludedIndexPermission> excludedIndexPermissions = new ArrayList<>();
 
+        private List<TenantPermission> tenantPermissions = new ArrayList<>();//tenant_permissions
+
         public Role(String name) {
             this.name = name;
         }
 
+        public Role tenantPermission(Collection<String> tenantPatterns, Collection<String> allowedActions) {
+            tenantPermissions.add(new TenantPermission(new ArrayList<>(tenantPatterns), new ArrayList<>(allowedActions)));
+            return this;
+        }
+
+        public Role tenantPermission(String tenantPattern, String...allowedActions) {
+            return tenantPermission(Collections.singletonList(tenantPattern), Arrays.asList(allowedActions));
+        }
 
         public Role clusterPermissions(String... clusterPermissions) {
             this.clusterPermissions.addAll(asList(clusterPermissions));
@@ -645,6 +670,11 @@ public class TestSgConfig {
             if (this.excludedIndexPermissions.size() > 0) {
                 map.put(new NestedValueMap.Path(name, "exclude_index_permissions"), this.excludedIndexPermissions.stream()
                     .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "actions", p.actions)).collect(Collectors.toList()));
+            }
+            if (this.tenantPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "tenant_permissions"), this.tenantPermissions.stream()
+                    .map(TenantPermission::asNestedValueMap)
+                    .collect(Collectors.toList()));
             }
             return map;
         }

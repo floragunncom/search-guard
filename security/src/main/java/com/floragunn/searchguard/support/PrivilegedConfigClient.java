@@ -23,6 +23,7 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.FilterClient;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 
@@ -31,7 +32,7 @@ import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.searchsupport.diag.LogContextPreservingActionListener;
 
 public final class PrivilegedConfigClient extends FilterClient {
-    
+
     private PrivilegedConfigClient(Client in) {
         super(in);
     }

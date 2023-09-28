@@ -1,0 +1,148 @@
+package com.floragunn.signals.actions.summary;
+
+import static java.util.Objects.requireNonNull;
+
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.signals.actions.summary.SortParser.SortByField;
+import com.floragunn.signals.actions.summary.WatchFilter.Range;
+import java.util.List;
+import org.elasticsearch.action.ActionFuture;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.MatchQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.RangeQueryBuilder;
+import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.FieldSortBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
+import org.elasticsearch.search.sort.SortOrder;
+
+class WatchStateRepository {
+    private static final String PROP = "properties";
+    private static final String FIELDS = "fields";
+    private final String stateIndexName;
+    private final PrivilegedConfigClient privilegedConfigClient;
+
+    public WatchStateRepository(String stateIndexName, PrivilegedConfigClient privilegedConfigClient) {
+        this.stateIndexName = requireNonNull(stateIndexName);
+        this.privilegedConfigClient = requireNonNull(privilegedConfigClient);
+    }
+
+    public SearchResponse search(WatchFilter watchFilter,  List<SortByField> sorting) {
+        requireNonNull(watchFilter, "Watch filter is required");
+        requireNonNull(sorting, "Sorting is required");
+        GetMappingsResponse mappings = getMappings();
+        DocNode docNode = extractFieldNames(mappings);
+        return searchWithFilteringOutMissingSortingFields(watchFilter, sorting, docNode);
+    }
+
+    private SearchResponse searchWithFilteringOutMissingSortingFields(WatchFilter watchFilter, List<SortByField> sorting,
+        DocNode fieldsDefinedInMappings) {
+
+        SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
+        for(SortByField field : sorting) {
+            // filter out fields non-existing in fields mapping
+            // https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/241
+            if (!checkPropertyExists(fieldsDefinedInMappings, field.getDocumentFieldName())){
+                continue;
+            }
+            SortOrder order = field.isAscending() ? SortOrder.ASC : SortOrder.DESC;
+            FieldSortBuilder sortBuilder = SortBuilders.fieldSort(field.getDocumentFieldName()).order(order);
+            sourceBuilder.sort(sortBuilder);
+        }
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        buildStatusCodeQuery(watchFilter, boolQueryBuilder);
+        buildWatchIdQuery(watchFilter, boolQueryBuilder);
+        buildSeverityQuery(watchFilter, boolQueryBuilder);
+        if(watchFilter.containsLevelNumeric()) {
+            buildRangeOrTermQuery(boolQueryBuilder, watchFilter.getLevelNumeric(), "last_execution.severity.level_numeric");
+        }
+        sourceBuilder.query(boolQueryBuilder);
+        SearchRequest request = new SearchRequest(stateIndexName).source(sourceBuilder);
+        return privilegedConfigClient.search(request).actionGet();
+    }
+
+    private static void buildRangeOrTermQuery(BoolQueryBuilder boolQueryBuilder, Range<?> range, String field) {
+        QueryBuilder rangeQuery;
+        if(range.containsEqualTo()) {
+            rangeQuery = QueryBuilders.termQuery(field, range.getEqualTo());
+        } else {
+            RangeQueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery(field);
+            if(range.containsLessThan()) {
+                rangeQueryBuilder = rangeQueryBuilder.lt(range.getLessThan());
+            }
+            if(range.containsGreaterThan()) {
+                rangeQueryBuilder = rangeQueryBuilder.gt(range.getGreaterThan());
+            }
+            rangeQuery = rangeQueryBuilder;
+        }
+        boolQueryBuilder.must(rangeQuery);
+    }
+
+    private static void buildSeverityQuery(WatchFilter watchFilter, BoolQueryBuilder boolQueryBuilder) {
+        if(watchFilter.containsSeverities()) {
+            BoolQueryBuilder orQueryBuilder = QueryBuilders.boolQuery();
+            for(String severity : watchFilter.getSeverities()) {
+                TermQueryBuilder query = QueryBuilders.termQuery("last_status.severity", severity);
+                orQueryBuilder.should(query);
+            }
+            boolQueryBuilder.must(orQueryBuilder);
+        }
+    }
+
+    private static void buildWatchIdQuery(WatchFilter watchFilter, BoolQueryBuilder boolQueryBuilder) {
+        if(watchFilter.containsWatchId()) {
+            MatchQueryBuilder watchIdQuery = QueryBuilders.matchQuery("last_execution.watch.id", watchFilter.getWatchId());
+            boolQueryBuilder.must(watchIdQuery);
+        }
+    }
+
+    private static void buildStatusCodeQuery(WatchFilter watchFilter, BoolQueryBuilder boolQueryBuilder) {
+        if(watchFilter.containsWatchStatusFilter()) {
+            BoolQueryBuilder orQueryBuilder = QueryBuilders.boolQuery();
+            for(String status : watchFilter.getWatchStatusCodes()) {
+                TermQueryBuilder query = QueryBuilders.termQuery(SummaryToWatchFieldMapper.getSearchFieldName("status_code"), status);
+                orQueryBuilder.should(query);
+            }
+            boolQueryBuilder.must(orQueryBuilder);
+        }
+    }
+
+    private GetMappingsResponse getMappings() {
+        ActionFuture<GetMappingsResponse> mappings =
+            privilegedConfigClient.admin().indices().getMappings(new GetMappingsRequest().indices(stateIndexName));
+        return mappings.actionGet();
+    }
+
+    private DocNode extractFieldNames(GetMappingsResponse response) {
+        try {
+            return DocNode.wrap(response.mappings().get(stateIndexName).get("_doc").sourceAsMap().get(PROP));
+        } catch (NullPointerException npe) {
+            return DocNode.EMPTY;
+        }
+    }
+
+    private boolean checkPropertyExists(DocNode node, String field) {
+        if (node.isEmpty()) {
+            return false;
+        }
+        String[] path = field.split("\\.");
+        if ("actions".equals(path[0])) {
+            if (path.length == 3) {
+                return node.getAsNode(path[0], PROP, path[1], PROP).containsKey(path[2]);
+            } else {
+                return node.getAsNode(path[0], PROP, path[1], PROP, path[2], PROP, path[3], FIELDS)
+                    .containsKey(path[4]);
+            }
+        } else {
+            return node.getAsNode(path[0], PROP, path[1], FIELDS).containsKey(path[2])
+                || node.getAsNode(path[0], PROP, path[1], PROP).containsKey(path[2]);
+        }
+    }
+}
