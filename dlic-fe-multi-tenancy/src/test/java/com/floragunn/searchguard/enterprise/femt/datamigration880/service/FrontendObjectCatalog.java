@@ -1,12 +1,14 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.xcontent.XContentType;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
@@ -21,7 +23,8 @@ public class FrontendObjectCatalog {
         this.client = Objects.requireNonNull(client, "Client is required");
     }
 
-    public void insertSpace(String indexName, String...names) {
+    public ImmutableList<String> insertSpace(String indexName, String...names) {
+        List<String> spacesIds = new ArrayList<>();
         BulkRequest bulkRequest = new BulkRequest();
         bulkRequest.setRefreshPolicy(IMMEDIATE);
         for(String currentName : names) {
@@ -31,12 +34,15 @@ public class FrontendObjectCatalog {
             String spaceJson = spaceForName(currentName);
             indexRequest.source(spaceJson, XContentType.JSON);
             bulkRequest.add(indexRequest);
+            spacesIds.add(spaceId);
         }
         BulkResponse response = client.bulk(bulkRequest).actionGet();
         assertThat(response.hasFailures(), equalTo(false));
+        return ImmutableList.of(spacesIds);
     }
 
-    public void insertIndexPattern(String indexName, String...titles) {
+    public ImmutableList<String> insertIndexPattern(String indexName, String...titles) {
+        List<String> indexPatternsIds = new ArrayList<>();
         BulkRequest bulkRequest = new BulkRequest();
         bulkRequest.setRefreshPolicy(IMMEDIATE);
         for(String currentName : titles) {
@@ -46,9 +52,11 @@ public class FrontendObjectCatalog {
             String spaceJson = indexPatternForTitle(currentName);
             indexRequest.source(spaceJson, XContentType.JSON);
             bulkRequest.add(indexRequest);
+            indexPatternsIds.add(indexPatternId);
         }
         BulkResponse response = client.bulk(bulkRequest).actionGet();
         assertThat(response.hasFailures(), equalTo(false));
+        return ImmutableList.of(indexPatternsIds);
     }
 
     private String spaceForName(String spaceName) {

@@ -20,6 +20,8 @@ public class DataMigrationContext {
     private ImmutableList<TenantIndex> tenantIndices;
     private ImmutableList<String> backupIndices;
 
+    private Boolean backupCreated;
+
     public DataMigrationContext(MigrationConfig config, Clock clock) {
         this.config = Objects.requireNonNull(config, "Migration config is required");
         this.startTime = LocalDateTime.now(clock);
@@ -79,5 +81,13 @@ public class DataMigrationContext {
 
     public Optional<String> getNewestExistingBackupIndex() {
         return Optional.ofNullable(backupIndices).filter(list -> !list.isEmpty()).map(list -> list.get(0));
+    }
+
+    public Boolean getBackupCreated() {
+        return backupCreated;
+    }
+
+    public void setBackupCreated(Boolean backupCreated) {
+        this.backupCreated = backupCreated;
     }
 }

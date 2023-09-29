@@ -47,7 +47,6 @@ public class MigrationApiTest {
     public static void beforeClass() {
         ConfigurationRepository configRepository = cluster.getInjectable(ConfigurationRepository.class);
         SgDynamicConfiguration<Tenant> configuration = configRepository.getConfiguration(CType.TENANTS);
-        // TODO handle creation index for global tenant
         Set<String> aliasNames = configuration.getCEntries()
             .keySet()
             .stream()
