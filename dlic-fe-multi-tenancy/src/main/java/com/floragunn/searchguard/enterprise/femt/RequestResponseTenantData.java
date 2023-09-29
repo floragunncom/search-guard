@@ -17,7 +17,7 @@ public class RequestResponseTenantData {
 
     private static final String SG_TENANT_FIELD = "sg_tenant";
     private static final String TENAND_SEPARATOR_IN_ID = "__sg_ten__";
-    public static final String TENANT_NAME_GROUP = "tenantName";
+    private static final String TENANT_NAME_GROUP = "tenantName";
 
     private RequestResponseTenantData() {}
 
@@ -88,7 +88,7 @@ public class RequestResponseTenantData {
         Matcher matcher = INDEX_NAME_TENANT_PART.matcher(indexNameWithoutPrefix);
         if(matcher.matches()) {
             String tenantNameExtractedFromIndexName = matcher.group(TENANT_NAME_GROUP);
-            return Optional.of(id + TENAND_SEPARATOR_IN_ID + tenantNameExtractedFromIndexName);
+            return Optional.of(scopedId(id, tenantNameExtractedFromIndexName));
         }
         return Optional.empty();
     }
