@@ -27,6 +27,7 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -35,6 +36,9 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.ReindexAction;
+import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
@@ -48,9 +52,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_BULK_CREATE_DOCUMENT_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_COUNT_DOCUMENTS;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_DELETE_INDEX_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_REFRESH_INDEX_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RETRIEVE_INDICES_STATE_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_BULK_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_SEARCH_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_TIMEOUT_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_BLOCK_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.WRITE_UNBLOCK_ERROR;
 import static org.elasticsearch.index.mapper.MapperService.INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING;
@@ -205,5 +213,49 @@ class StepRepository {
             String details = "Indices: " + Arrays.stream(indices).map(name -> "'" + name + "'").collect(Collectors.joining(", "));
             throw new StepException("Cannot delete indices " , CANNOT_DELETE_INDEX_ERROR, details);
         }
+    }
+
+    public BulkByScrollResponse reindexData(String sourceIndexName, String destinationIndexName) {
+        Strings.requireNonEmpty(sourceIndexName, "Source index name is required");
+        Strings.requireNonEmpty(destinationIndexName, "Destination index name is required");
+        log.info("Try to reindex data from '{}' to '{}'", sourceIndexName, destinationIndexName);
+        ReindexRequest reindexRequest = new ReindexRequest();
+        reindexRequest.setSourceBatchSize(100);
+        reindexRequest.setSourceIndices(sourceIndexName);
+        reindexRequest.setDestIndex(destinationIndexName);
+        reindexRequest.setDestOpType("create");
+        reindexRequest.setRefresh(true);
+        reindexRequest.setAbortOnVersionConflict(true);
+        reindexRequest.setScroll(TimeValue.timeValueMinutes(5));
+        BulkByScrollResponse response = client.execute(ReindexAction.INSTANCE, reindexRequest).actionGet();
+        log.debug("Reindex from '{}' to '{}' response '{}'",sourceIndexName, destinationIndexName, response);
+        if(!response.getBulkFailures().isEmpty()) {
+            String message = "Cannot reindex data from '" + sourceIndexName + "' to '" + destinationIndexName + "' due to bulk failures";
+            throw new StepException(message, REINDEX_BULK_ERROR, null);
+        }
+        if(! response.getSearchFailures().isEmpty()) {
+            String message = "Cannot reindex data from '" + sourceIndexName + "' to '" + destinationIndexName + "' due to search failures";
+            throw new StepException(message, REINDEX_SEARCH_ERROR, null);
+        }
+        if(response.isTimedOut()) {
+            String message = "Cannot reindex data from '" + sourceIndexName + "' to '" + destinationIndexName + "' due to timeout";
+            throw new StepException(message, REINDEX_TIMEOUT_ERROR, null);
+        }
+        return response;
+    }
+
+    public long countDocuments(String indexName) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
+        SearchRequest request = new SearchRequest(indexName);
+        SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource()
+            .size(0)
+            .trackTotalHits(true) // <-- this is extramural important line
+            .query(QueryBuilders.matchAllQuery());
+        request.source(sourceBuilder);
+        SearchResponse response = client.search(request).actionGet();
+        if(response.getFailedShards() > 0) {
+            throw new StepException("Cannot count documents in index '" + indexName + "'", CANNOT_COUNT_DOCUMENTS, null);
+        }
+        return response.getHits().getTotalHits().value;
     }
 }

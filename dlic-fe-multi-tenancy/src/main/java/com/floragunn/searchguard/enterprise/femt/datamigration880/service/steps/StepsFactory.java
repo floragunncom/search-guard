@@ -19,13 +19,15 @@ public class StepsFactory {
 
     public ImmutableList<MigrationStep> createSteps() {
         StepRepository repository = new StepRepository(client);
+        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
         return ImmutableList.of(new PopulateTenantsStep(configurationProvider, repository),
             new PopulateBackupIndicesStep(repository),
             new CheckIndicesStateStep(repository),
             new CheckIfIndicesAreBlockedStep(repository),
             new WriteBlockStep(repository),
-            new CreateTempIndexStep(repository),
+            new CreateTempIndexStep(duplicator),
             new CopyDataToTempIndexStep(repository, configurationProvider),
+            new CreateBackupStep(repository, duplicator),
             new UnblockDataIndicesStep(repository),
             new DeleteTempIndexStep(repository));
     }
