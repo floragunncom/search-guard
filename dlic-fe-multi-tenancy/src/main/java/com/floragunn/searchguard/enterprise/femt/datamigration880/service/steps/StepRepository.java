@@ -158,7 +158,7 @@ class StepRepository {
         SearchScroller searchScroller = new SearchScroller(client);
         SearchRequest request = new SearchRequest(indexName);
         request.source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(batchSize));
-        searchScroller.scroll(request, TimeValue.timeValueMinutes(3), Function.identity(), consumer);
+        searchScroller.scroll(request, TimeValue.timeValueMinutes(5), Function.identity(), consumer);
     }
 
     public void bulkCreate(String indexName, Map<String, String> documents) {
