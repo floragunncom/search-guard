@@ -14,6 +14,7 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.FrontendObjectCatalog;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.IndexNameDataFormatter;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -37,6 +38,7 @@ import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateReque
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -73,6 +75,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_CONTAINS_MIGRATED_DATA_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_DOES_NOT_EXIST_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_IS_EMPTY_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DOCUMENT_ALREADY_MIGRATED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
@@ -229,16 +235,23 @@ public class MigrationStepsTest {
     }
 
     private void createBackupIndex(BackupIndex...indices) {
-        BulkRequest bulkRequest = new BulkRequest();
+        BulkRequest bulkRequestIndex = new BulkRequest();
+        BulkRequest bulkRequestDelete = new BulkRequest();
         for(BackupIndex index : indices) {
-            bulkRequest.add(new IndexRequest(index.indexName()).source(DocNode.EMPTY));
+            bulkRequestIndex.add(new IndexRequest(index.indexName()).id(CREATE_INDEX_ID).source(DocNode.EMPTY));
             createdIndices.add(index);
+            bulkRequestDelete.add(new DeleteRequest(index.indexName(), CREATE_INDEX_ID));
         }
 
         try(Client client = cluster.getInternalNodeClient()) {
-            BulkResponse response = client.bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
+            BulkResponse response = client.bulk(bulkRequestIndex.setRefreshPolicy(IMMEDIATE)).actionGet();
             if (response.hasFailures()) {
                 log.error("Create backup index failure response {}", response.buildFailureMessage());
+            }
+            assertThat(response.hasFailures(), equalTo(false));
+            response = client.bulk(bulkRequestDelete.setRefreshPolicy(IMMEDIATE)).actionGet();
+            if (response.hasFailures()) {
+                log.error("Create backup index failure, cannot clean index, response {}", response.buildFailureMessage());
             }
             assertThat(response.hasFailures(), equalTo(false));
         }
@@ -778,7 +791,7 @@ public class MigrationStepsTest {
     }
 
     @Test
-    public void shouldFindManyBackupIndices() {
+    public void shouldFindManyBackupIndices_1() {
         PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
         BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
         BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
@@ -787,6 +800,114 @@ public class MigrationStepsTest {
         BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
         BackupIndex backupIndex6 = new BackupIndex(NOW.toLocalDateTime().minusDays(5));
         BackupIndex backupIndex7 = new BackupIndex(NOW.toLocalDateTime().minusDays(6));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5, backupIndex6, backupIndex7);
+
+        StepResult result = step.execute(context);
+
+        log.info("Find backup indices result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(context.getBackupIndices(), hasSize(7));
+        assertThat(context.getBackupIndices(), contains(backupIndex1.indexName(),
+            backupIndex2.indexName(),
+            backupIndex3.indexName(),
+            backupIndex4.indexName(),
+            backupIndex5.indexName(),
+            backupIndex6.indexName(),
+            backupIndex7.indexName()));
+        assertThat(context.getNewestExistingBackupIndex().orElseThrow(), equalTo(backupIndex1.indexName()));
+    }
+
+    @Test
+    public void shouldFindManyBackupIndices_2() {
+        PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusSeconds(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusMinutes(1));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusHours(1));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        BackupIndex backupIndex6 = new BackupIndex(NOW.toLocalDateTime().minusWeeks(1));
+        BackupIndex backupIndex7 = new BackupIndex(NOW.toLocalDateTime().minusMonths(1));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5, backupIndex6, backupIndex7);
+
+        StepResult result = step.execute(context);
+
+        log.info("Find backup indices result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(context.getBackupIndices(), hasSize(7));
+        assertThat(context.getBackupIndices(), contains(backupIndex1.indexName(),
+            backupIndex2.indexName(),
+            backupIndex3.indexName(),
+            backupIndex4.indexName(),
+            backupIndex5.indexName(),
+            backupIndex6.indexName(),
+            backupIndex7.indexName()));
+        assertThat(context.getNewestExistingBackupIndex().orElseThrow(), equalTo(backupIndex1.indexName()));
+    }
+
+    @Test
+    public void shouldFindManyBackupIndices_3() {
+        PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusSeconds(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusSeconds(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusSeconds(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusSeconds(4));
+        BackupIndex backupIndex6 = new BackupIndex(NOW.toLocalDateTime().minusSeconds(5));
+        BackupIndex backupIndex7 = new BackupIndex(NOW.toLocalDateTime().minusSeconds(6));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5, backupIndex6, backupIndex7);
+
+        StepResult result = step.execute(context);
+
+        log.info("Find backup indices result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(context.getBackupIndices(), hasSize(7));
+        assertThat(context.getBackupIndices(), contains(backupIndex1.indexName(),
+            backupIndex2.indexName(),
+            backupIndex3.indexName(),
+            backupIndex4.indexName(),
+            backupIndex5.indexName(),
+            backupIndex6.indexName(),
+            backupIndex7.indexName()));
+        assertThat(context.getNewestExistingBackupIndex().orElseThrow(), equalTo(backupIndex1.indexName()));
+    }
+
+    @Test
+    public void shouldFindManyBackupIndices_4() {
+        PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusYears(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusYears(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusYears(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusYears(4));
+        BackupIndex backupIndex6 = new BackupIndex(NOW.toLocalDateTime().minusYears(5));
+        BackupIndex backupIndex7 = new BackupIndex(NOW.toLocalDateTime().minusYears(6));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5, backupIndex6, backupIndex7);
+
+        StepResult result = step.execute(context);
+
+        log.info("Find backup indices result '{}'.", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(context.getBackupIndices(), hasSize(7));
+        assertThat(context.getBackupIndices(), contains(backupIndex1.indexName(),
+            backupIndex2.indexName(),
+            backupIndex3.indexName(),
+            backupIndex4.indexName(),
+            backupIndex5.indexName(),
+            backupIndex6.indexName(),
+            backupIndex7.indexName()));
+        assertThat(context.getNewestExistingBackupIndex().orElseThrow(), equalTo(backupIndex1.indexName()));
+    }
+
+    @Test
+    public void shouldFindManyBackupIndices_5() {
+        PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(new StepRepository(getPrivilegedClient()));
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime().plusMonths(1));
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusHours(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusHours(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusHours(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusHours(4));
+        BackupIndex backupIndex6 = new BackupIndex(NOW.toLocalDateTime().minusHours(5));
+        BackupIndex backupIndex7 = new BackupIndex(NOW.toLocalDateTime().minusHours(6));
         createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5, backupIndex6, backupIndex7);
 
         StepResult result = step.execute(context);
@@ -1486,7 +1607,27 @@ public class MigrationStepsTest {
         CreateBackupStep step = new CreateBackupStep(repository, duplicator);
         createIndex(GLOBAL_TENANT_INDEX);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
 
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(context.getBackupCreated(), equalTo(true));
+        assertThat(isIndexCreated(BACKUP_INDEX_NAME), equalTo(true));
+        assertThatDocumentExists(BACKUP_INDEX_NAME, "space:default");
+    }
+
+    @Test
+    public void shouldCreateBackupOfWriteBlockIndex() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        StepRepository repository = new StepRepository(client);
+        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        CreateBackupStep step = new CreateBackupStep(repository, duplicator);
+        createIndex(GLOBAL_TENANT_INDEX);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
+        assertThat(isDocumentInsertionPossible(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
 
         StepResult result = step.execute(context);
@@ -1508,6 +1649,7 @@ public class MigrationStepsTest {
         createIndex(GLOBAL_TENANT_INDEX);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
         addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName());
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
 
         StepResult result = step.execute(context);
@@ -1574,6 +1716,7 @@ public class MigrationStepsTest {
         String[] patternNames = IntStream.range(0, documentNumber).mapToObj(i -> "index_pattern_no_" + i).toArray(String[]::new);
         ImmutableList<String> patternsIds = catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), patternNames);
         assertThat(countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(2L * documentNumber));
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
 
         StepResult result = step.execute(context);
@@ -1603,6 +1746,7 @@ public class MigrationStepsTest {
         String[] patternNames = IntStream.range(0, documentNumber).mapToObj(i -> "index_pattern_no_" + i).toArray(String[]::new);
         ImmutableList<String> patternsIds = catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), patternNames);
         assertThat(countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(2L * documentNumber));
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
 
         StepResult result = step.execute(context);
@@ -1629,6 +1773,7 @@ public class MigrationStepsTest {
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "backup-test-space");
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(false));
+        stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
         CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsDuplicator(stepRepository));
 
         StepResult result = step.execute(context);
@@ -1652,6 +1797,7 @@ public class MigrationStepsTest {
         client.index(new IndexRequest(GLOBAL_TENANT_INDEX.indexName()).source(DocNode.EMPTY)).actionGet();
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(false));
+        stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
         CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsDuplicator(stepRepository));
 
         StepResult result = step.execute(context);
@@ -1674,6 +1820,7 @@ public class MigrationStepsTest {
         client.index(new IndexRequest(GLOBAL_TENANT_INDEX.indexName()).source(DocNode.EMPTY)).actionGet();
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(false));
+        stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
         CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsDuplicator(stepRepository));
 
         StepResult result = step.execute(context);
@@ -1696,6 +1843,7 @@ public class MigrationStepsTest {
         client.index(new IndexRequest(GLOBAL_TENANT_INDEX.indexName()).source(DocNode.EMPTY)).actionGet();
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(false));
+        stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
         CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsDuplicator(stepRepository));
 
         StepResult result = step.execute(context);
@@ -1708,7 +1856,124 @@ public class MigrationStepsTest {
         assertThat(actualMappings, equalTo(desiredMappings));
     }
 
-    // TODO verify if backup index has the same mappings as source index
+    @Test
+    public void shouldWriteBlockBackupIndex() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        StepRepository repository = new StepRepository(client);
+        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        CreateBackupStep step = new CreateBackupStep(repository, duplicator);
+        createIndex(GLOBAL_TENANT_INDEX);
+        String createdDocumentId = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default").get(0);
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        DeleteRequest deleteRequest = new DeleteRequest(context.getBackupIndexName(), createdDocumentId).setRefreshPolicy(IMMEDIATE);
+        assertThatThrown(() -> client.delete(deleteRequest).actionGet(), instanceOf(ClusterBlockException.class));
+        assertThatDocumentExists(context.getBackupIndexName(), createdDocumentId);
+    }
+
+    @Test
+    public void shouldNotCheckPreviousBackupIfBackupWasCreatedInTheCurrentMigrationProcess() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        StepRepository repository = new StepRepository(client);
+        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+        context.setBackupCreated(true);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Verify previous backup step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    @Test
+    public void shouldReportErrorWhenIndexWithPreviousBackupWasNotFound() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        StepRepository repository = new StepRepository(client);
+        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+        context.setBackupCreated(false);
+
+        StepException exception = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
+
+        assertThat(exception.getStatus(), equalTo(BACKUP_NOT_FOUND_ERROR));
+    }
+
+    @Test
+    public void shouldReportErrorWhenIndexWithPreviousBackupWasFoundButNotExist() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        StepRepository repository = new StepRepository(client);
+        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+        context.setBackupCreated(false);
+        context.setBackupIndices(ImmutableList.of("backup_index_which_does_not_exist"));
+
+        StepException exception = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
+
+        assertThat(exception.getStatus(), equalTo(BACKUP_DOES_NOT_EXIST_ERROR));
+    }
+
+    @Test
+    public void shouldReportErrorWhenIndexWithPreviousBackupIsEmpty() {
+        BackupIndex backupIndex = new BackupIndex(NOW.toLocalDateTime().minusHours(6).minusMinutes(5).minusSeconds(4));
+        createBackupIndex(backupIndex);
+        PrivilegedConfigClient client = getPrivilegedClient();
+        context.setBackupCreated(false);
+        context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
+        StepRepository repository = new StepRepository(client);
+        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Verify previous backup step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.status(), equalTo(BACKUP_IS_EMPTY_ERROR));
+    }
+
+    @Test
+    public void shouldSuccessfullyVerifyBackupIndex() {
+        BackupIndex backupIndex = new BackupIndex(NOW.toLocalDateTime().minusHours(6).minusMinutes(5).minusSeconds(4));
+        createBackupIndex(backupIndex);
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        catalog.insertSpace(backupIndex.indexName(), "default");
+        context.setBackupCreated(false);
+        context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
+        StepRepository repository = new StepRepository(client);
+        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Verify previous backup step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    @Test
+    public void shouldReportErrorWhenBackupIndexContainsDataMigrationMarker() {
+        BackupIndex backupIndex = new BackupIndex(NOW.toLocalDateTime().minusHours(6).minusMinutes(5).minusSeconds(4));
+        createBackupIndex(backupIndex);
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        catalog.insertSpace(backupIndex.indexName(), "default");
+        addDataMigrationMarkerToTheIndex(backupIndex.indexName());
+        context.setBackupCreated(false);
+        context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
+        StepRepository repository = new StepRepository(client);
+        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Verify previous backup step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.status(), equalTo(BACKUP_CONTAINS_MIGRATED_DATA_ERROR));
+    }
 
     @Test
     public void shouldProvideTotalCountOfDocumentInIndexForLargeNumberOfDocuments() {
@@ -1721,6 +1986,7 @@ public class MigrationStepsTest {
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), spaceNames);
 
         long numberOfDocuments = repository.countDocuments(GLOBAL_TENANT_INDEX.indexName());
+
         assertThat(numberOfDocuments, equalTo((long)documentNumber));
     }
 

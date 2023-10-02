@@ -28,6 +28,7 @@ public class StepsFactory {
             new CreateTempIndexStep(duplicator),
             new CopyDataToTempIndexStep(repository, configurationProvider),
             new CreateBackupStep(repository, duplicator),
+            new VerifyPreviousBackupStep(repository, duplicator),
             new UnblockDataIndicesStep(repository),
             new DeleteTempIndexStep(repository));
     }
