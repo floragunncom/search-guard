@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
@@ -52,6 +53,7 @@ class CreateBackupStep implements MigrationStep {
                 + "', actual number of documents " + documentsInDestination + " in index '" + backupDestination + "'.";
             return new StepResult(MISSING_DOCUMENTS_IN_BACKUP_ERROR, message, description);
         }
+        repository.writeBlockIndices(ImmutableList.of(backupDestination));
         context.setBackupCreated(true);
         return new StepResult(OK, "Backup created", details.toString());
     }
