@@ -29,6 +29,7 @@ public class StepsFactory {
             new CopyDataToTempIndexStep(repository, configurationProvider),
             new CreateBackupStep(repository, duplicator),
             new VerifyPreviousBackupStep(repository, duplicator),
+            new AddMigrationMarkerToGlobalTenantIndexStep(duplicator),
             new UnblockDataIndicesStep(repository),
             new DeleteTempIndexStep(repository));
     }
