@@ -9,6 +9,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 
 import java.util.HashMap;
@@ -36,6 +37,8 @@ class IndexSettingsDuplicator {
 
     public BasicIndexSettings createIndexWithDuplicatedSettings(String indexSettingsSource, String newIndexForCreation,
         boolean insertDuplicateMarker) {
+        Strings.requireNonEmpty(indexSettingsSource, "Index name setting source is required");
+        Strings.requireNonEmpty(newIndexForCreation, "New index name for creation is required");
         GetSettingsResponse settingsResponse = stepRepository.getIndexSettings(indexSettingsSource);
         Settings settings = extractSettings(settingsResponse, indexSettingsSource);
         int numberOfShards = settings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1);
@@ -61,6 +64,7 @@ class IndexSettingsDuplicator {
     }
 
     public boolean isDuplicate(String indexName) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
         Map<String, Object> mappings = Optional.ofNullable(stepRepository.findIndexMappings(indexName)) //
             .map(GetMappingsResponse::getMappings) //
             .map(mappingsMap -> mappingsMap.get(indexName)) //
@@ -74,6 +78,13 @@ class IndexSettingsDuplicator {
             throw new StepException("Mappings for the index are not defined", EMPTY_MAPPINGS_ERROR, details);
         }
         return properties.containsKey(DUPLICATE_MARKER);
+    }
+
+    public void markAsDuplicate(String indexName) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
+        HashMap<String, Object> sources = new HashMap<>();
+        extendMappingsWithMigrationMarker(sources);
+        stepRepository.updateMappings(indexName, sources);
     }
 
     private static Settings extractSettings(GetSettingsResponse response, String indexName) {

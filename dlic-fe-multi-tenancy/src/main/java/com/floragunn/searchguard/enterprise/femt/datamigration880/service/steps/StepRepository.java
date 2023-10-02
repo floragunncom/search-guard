@@ -15,6 +15,7 @@ import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
@@ -56,6 +57,7 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_DELETE_INDEX_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_REFRESH_INDEX_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RETRIEVE_INDICES_STATE_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_UPDATE_MAPPINGS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_BULK_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_SEARCH_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_TIMEOUT_ERROR;
@@ -257,5 +259,15 @@ class StepRepository {
             throw new StepException("Cannot count documents in index '" + indexName + "'", CANNOT_COUNT_DOCUMENTS, null);
         }
         return response.getHits().getTotalHits().value;
+    }
+
+    public void updateMappings(String indexName, Map<String, ?> sources) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
+        PutMappingRequest request = new PutMappingRequest().indices(indexName).source(sources);
+        AcknowledgedResponse acknowledgedResponse = client.admin().indices().putMapping(request).actionGet();
+        if(!acknowledgedResponse.isAcknowledged()) {
+            String details = "Cannot update mappings of index '" + indexName + "'";
+            throw new StepException("Cannot delete indices " , CANNOT_UPDATE_MAPPINGS_ERROR, details);
+        }
     }
 }
