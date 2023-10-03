@@ -77,6 +77,7 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_DOES_NOT_EXIST_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_IS_EMPTY_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_NOT_FOUND_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DELETE_ALL_BULK_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DOCUMENT_ALREADY_MIGRATED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
@@ -2079,8 +2080,94 @@ public class MigrationStepsTest {
         assertThat(mappingNode, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
     }
 
+    @Test
+    public void shouldBlockSingleDocumentDeletion() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        StepRepository repository = new StepRepository(client);
+        createIndex(GLOBAL_TENANT_INDEX);
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        String id = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default").get(0);
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
+        assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), id);
+        DeleteRequest deleteRequest = new DeleteRequest(GLOBAL_TENANT_INDEX.indexName(), id);
+
+        assertThatThrown(() -> client.delete(deleteRequest).actionGet(), instanceOf(ClusterBlockException.class));
+
+        assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), id);
+    }
+
+    @Test
+    public void shouldBlockMultipleDocumentsDeletion() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        StepRepository repository = new StepRepository(client);
+        createIndex(GLOBAL_TENANT_INDEX);
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        String id = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "one", "two", "three").get(0);
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
+        assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), id);
+
+        StepException exception = (StepException) assertThatThrown(() -> repository.deleteAllDocuments(GLOBAL_TENANT_INDEX.indexName()), //
+            instanceOf(StepException.class));
+
+        assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), id);
+        assertThat(exception.getStatus(), equalTo(DELETE_ALL_BULK_ERROR));
+    }
+
+    @Test
+    public void shouldDeleteManyDocumentFromGlobalTenantIndex() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        StepRepository repository = new StepRepository(client);
+        createIndex(GLOBAL_TENANT_INDEX);
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        final int numberOfDocuments = 25_000;
+        String[] names = IntStream.range(0, numberOfDocuments).mapToObj(i -> "space_no_" + i).toArray(String[]::new);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), names);
+        repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
+        assertThat(countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo((long)numberOfDocuments));
+        DeleteGlobalIndexContentStep step = new DeleteGlobalIndexContentStep(repository);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+
+        StepResult result = step.execute(context);
+
+        log.debug("Delete global index content step result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(0L));
+    }
+
+    @Test
+    public void shouldDeleteOnlyDocumentsFromGlobalIndex() {
+        DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        var doubleAliasIndices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
+        createIndex(doubleAliasIndices.toArray(DoubleAliasIndex[]::new));
+        var tenantIndices = ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)) //
+            .with(new TenantIndex(PRIVATE_USER_KIRK_INDEX.indexName(), null)) //
+            .with(new TenantIndex(managementTenantIndex.indexName(), TENANT_MANAGEMENT));
+        context.setTenantIndices(tenantIndices);
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusYears(1));
+        createBackupIndex(backupIndex1, backupIndex2);
+        context.setBackupIndices(ImmutableList.of(backupIndex1.indexName(), backupIndex2.indexName()));
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "global");
+        catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "private");
+        catalog.insertSpace(managementTenantIndex.indexName(), "management");
+        catalog.insertSpace(backupIndex1.indexName(), "backup_1");
+        catalog.insertSpace(backupIndex2.indexName(), "backup_2");
+        DeleteGlobalIndexContentStep step = new DeleteGlobalIndexContentStep(new StepRepository(client));
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(0L));
+        assertThat(countDocumentInIndex(PRIVATE_USER_KIRK_INDEX.indexName()), equalTo(1L));
+        assertThat(countDocumentInIndex(managementTenantIndex.indexName()), equalTo(1L));
+        assertThat(countDocumentInIndex(backupIndex1.indexName()), equalTo(1L));
+        assertThat(countDocumentInIndex(backupIndex2.indexName()), equalTo(1L));
+    }
+
     private DocNode getIndexMappingsAsDocNode(String indexName) {
-        try(Client client = cluster.getInternalNodeClient()) {
+        try (Client client = cluster.getInternalNodeClient()) {
             GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest().indices(indexName)).actionGet();
             Map<String, Object> source = Optional.of(response) //
                 .map(GetMappingsResponse::getMappings) //
@@ -2302,7 +2389,7 @@ public class MigrationStepsTest {
 
 
     private static ImmutableList<TenantIndex> doubleAliasIndexToTenantDataWithoutTenantName(ImmutableList<DoubleAliasIndex> indices) {
-        return indices.map(i -> new TenantIndex(i.indexName(), "tenant name id not important here"));
+        return indices.map(i -> new TenantIndex(i.indexName(), "tenant name is not important here"));
     }
 
     private static ImmutableList<TenantIndex> doubleAliasIndexToTenantDataWithoutTenantName(DoubleAliasIndex...indices) {
