@@ -19,7 +19,7 @@ class AddMigrationMarkerToGlobalTenantIndexStep implements MigrationStep {
     @Override
     public StepResult execute(DataMigrationContext context) throws StepException {
         String indexName = context.getGlobalTenantIndexName();
-        if(indexSettingsManager.isMigrationMarker(indexName)) {
+        if(indexSettingsManager.isMigrationMarkerPresent(indexName)) {
             return new StepResult(OK, "Migration marker already present in index '" + indexName + "'");
         }
         indexSettingsManager.addMigrationMarker(indexName);

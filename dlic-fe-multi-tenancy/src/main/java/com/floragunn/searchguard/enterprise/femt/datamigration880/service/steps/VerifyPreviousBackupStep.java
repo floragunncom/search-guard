@@ -35,7 +35,7 @@ class VerifyPreviousBackupStep implements MigrationStep {
                 return new StepResult(BACKUP_IS_EMPTY_ERROR, "Backup index '" + backupIndexName + "' contains '" + numberOfDocuments
                     + "' documents");
             }
-            if(indexSettingsManager.isMigrationMarker(backupIndexName)) {
+            if(indexSettingsManager.isMigrationMarkerPresent(backupIndexName)) {
                 String details = "Index name '" + backupIndexName + "'";
                 return new StepResult(BACKUP_CONTAINS_MIGRATED_DATA_ERROR, "Backup index contain migrated data", details);
             }
