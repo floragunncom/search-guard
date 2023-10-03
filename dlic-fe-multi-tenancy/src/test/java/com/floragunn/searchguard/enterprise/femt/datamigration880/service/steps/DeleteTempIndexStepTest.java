@@ -18,6 +18,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 @RunWith(Parameterized.class)
 public class DeleteTempIndexStepTest {
@@ -60,12 +61,14 @@ public class DeleteTempIndexStepTest {
 
     @Test
     public void shouldDeleteOnlyTempIndex() {
-        Mockito.when(context.getTempIndexName()).thenReturn(indexNameParameter);
+        when(context.getTempIndexName()).thenReturn(indexNameParameter);
 
         StepResult result = step.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
         verify(repository).deleteIndices(indexNameParameter);
         verifyNoMoreInteractions(repository);
+        verify(context).getTempIndexName();
+        verifyNoMoreInteractions(context);
     }
 }

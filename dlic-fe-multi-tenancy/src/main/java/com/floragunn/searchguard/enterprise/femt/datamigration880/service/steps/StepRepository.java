@@ -38,6 +38,8 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.DeleteByQueryAction;
+import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.elasticsearch.index.reindex.ReindexAction;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.search.SearchHit;
@@ -58,6 +60,8 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_REFRESH_INDEX_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RETRIEVE_INDICES_STATE_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_UPDATE_MAPPINGS_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DELETE_ALL_BULK_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DELETE_ALL_SEARCH_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_BULK_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_SEARCH_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_TIMEOUT_ERROR;
@@ -72,6 +76,7 @@ import static org.elasticsearch.index.mapper.MapperService.INDEX_MAPPING_TOTAL_F
 class StepRepository {
 
     private static final Logger log = LogManager.getLogger(StepRepository.class);
+    public static final int BATCH_SIZE = 100;
 
     private final PrivilegedConfigClient client;
 
@@ -222,7 +227,7 @@ class StepRepository {
         Strings.requireNonEmpty(destinationIndexName, "Destination index name is required");
         log.info("Try to reindex data from '{}' to '{}'", sourceIndexName, destinationIndexName);
         ReindexRequest reindexRequest = new ReindexRequest();
-        reindexRequest.setSourceBatchSize(100);
+        reindexRequest.setSourceBatchSize(BATCH_SIZE);
         reindexRequest.setSourceIndices(sourceIndexName);
         reindexRequest.setDestIndex(destinationIndexName);
         reindexRequest.setDestOpType("create");
@@ -269,5 +274,28 @@ class StepRepository {
             String details = "Cannot update mappings of index '" + indexName + "'";
             throw new StepException("Cannot delete indices " , CANNOT_UPDATE_MAPPINGS_ERROR, details);
         }
+    }
+
+    public BulkByScrollResponse deleteAllDocuments(String indexName) {
+        Strings.requireNonEmpty(indexName, "Index name is required");
+        DeleteByQueryRequest request = new DeleteByQueryRequest(indexName);
+        request.setQuery(QueryBuilders.matchAllQuery());
+        request.setRefresh(true);
+        request.setBatchSize(BATCH_SIZE);
+        request.setScroll(TimeValue.timeValueMinutes(5));
+        BulkByScrollResponse response = client.execute(DeleteByQueryAction.INSTANCE, request).actionGet();
+        if(!response.getBulkFailures().isEmpty()) {
+            String message = "Cannot delete all documents from index '" + indexName + "' due to bulk error";
+            throw new StepException(message, DELETE_ALL_BULK_ERROR, null);
+        }
+        if(! response.getSearchFailures().isEmpty()) {
+            String message = "Cannot delete all documents from index '" + indexName + "' due to search error";
+            throw new StepException(message, DELETE_ALL_SEARCH_ERROR, null);
+        }
+        if(response.isTimedOut()) {
+            String message = "Cannot delete all documents from index '" + indexName + "' due to timeout";
+            throw new StepException(message, REINDEX_TIMEOUT_ERROR, null);
+        }
+        return response;
     }
 }
