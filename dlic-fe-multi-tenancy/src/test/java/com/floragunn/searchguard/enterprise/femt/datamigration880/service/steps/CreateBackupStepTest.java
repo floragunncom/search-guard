@@ -1,20 +1,15 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
-import com.floragunn.searchguard.test.TestSgConfig;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.Clock;
@@ -42,7 +37,7 @@ public class CreateBackupStepTest {
     @Mock
     private StepRepository repository;
     @Mock
-    private IndexSettingsDuplicator duplicator;
+    private IndexSettingsManager indexSettingsManager;
 
     @Mock
     private BulkByScrollResponse response;
@@ -55,7 +50,7 @@ public class CreateBackupStepTest {
     @Before
     public void before() {
         this.context = new DataMigrationContext(new MigrationConfig(false), CLOCK);
-        this.step = new CreateBackupStep(repository, duplicator);
+        this.step = new CreateBackupStep(repository, indexSettingsManager);
     }
 
     @Test
@@ -67,7 +62,7 @@ public class CreateBackupStepTest {
 
         assertThat(result.isSuccess(), equalTo(true));
         assertThat(context.getBackupCreated(), equalTo(true));
-        verify(duplicator).createIndexWithDuplicatedSettings(INDEX_NAME_GLOBAL_TENANT, BACKUP_DESTINATION, false);
+        verify(indexSettingsManager).createIndexWithClonedSettings(INDEX_NAME_GLOBAL_TENANT, BACKUP_DESTINATION, false);
     }
 
     @Test

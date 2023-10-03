@@ -15,22 +15,22 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 class CreateBackupStep implements MigrationStep {
 
     private final StepRepository repository;
-    private final IndexSettingsDuplicator duplicator;
+    private final IndexSettingsManager indexSettingsManager;
 
-    public CreateBackupStep(StepRepository repository, IndexSettingsDuplicator duplicator) {
+    public CreateBackupStep(StepRepository repository, IndexSettingsManager indexSettingsManager) {
         this.repository = Objects.requireNonNull(repository, "Step repository is required");
-        this.duplicator = Objects.requireNonNull(duplicator, "Index setting duplicator is required");
+        this.indexSettingsManager = Objects.requireNonNull(indexSettingsManager, "Index setting duplicator is required");
     }
 
     @Override
     public StepResult execute(DataMigrationContext context) throws StepException {
         String backupSource = context.getGlobalTenantIndexName();
         context.setBackupCreated(false);
-        if(duplicator.isDuplicate(backupSource)) {
+        if(indexSettingsManager.isMigrationMarker(backupSource)) {
             return new StepResult(OK, "Backup creation omitted", "Index '" + backupSource + "' contains already migrated data");
         }
         String backupDestination = context.getBackupIndexName();
-        duplicator.createIndexWithDuplicatedSettings(backupSource, backupDestination, false);
+        indexSettingsManager.createIndexWithClonedSettings(backupSource, backupDestination, false);
         BulkByScrollResponse response = repository.reindexData(backupSource, backupDestination);
         StringBuilder details = new StringBuilder("Backup of ").append(response.getTotal()).append(" documents created, ") //
             .append("it took ").append(response.getTook()).append(", ") //
