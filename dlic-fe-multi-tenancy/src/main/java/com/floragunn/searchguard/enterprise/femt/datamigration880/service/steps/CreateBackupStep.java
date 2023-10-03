@@ -26,7 +26,7 @@ class CreateBackupStep implements MigrationStep {
     public StepResult execute(DataMigrationContext context) throws StepException {
         String backupSource = context.getGlobalTenantIndexName();
         context.setBackupCreated(false);
-        if(indexSettingsManager.isMigrationMarker(backupSource)) {
+        if(indexSettingsManager.isMigrationMarkerPresent(backupSource)) {
             return new StepResult(OK, "Backup creation omitted", "Index '" + backupSource + "' contains already migrated data");
         }
         String backupDestination = context.getBackupIndexName();

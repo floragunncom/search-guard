@@ -62,7 +62,7 @@ class IndexSettingsManager {
         return new BasicIndexSettings(numberOfShards, numberOfReplicas, mappingsTotalFieldsLimit, mappingsString);
     }
 
-    public boolean isMigrationMarker(String indexName) {
+    public boolean isMigrationMarkerPresent(String indexName) {
         Strings.requireNonEmpty(indexName, "Index name is required");
         Map<String, Object> mappings = Optional.ofNullable(stepRepository.findIndexMappings(indexName)) //
             .map(GetMappingsResponse::getMappings) //

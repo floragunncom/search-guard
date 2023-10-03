@@ -1757,7 +1757,7 @@ public class MigrationStepsTest {
     }
 
     @Test
-    public void shouldCreateBackupIndexWithoutMappingsWithGivenNumberOfShardsAndReplicas() {
+    public void shouldCreateBackupIndexWithGivenNumberOfShardsAndReplicas() {
         PrivilegedConfigClient client = getPrivilegedClient();
         StepRepository stepRepository = new StepRepository(client);
         createdIndices.add(GLOBAL_TENANT_INDEX);
@@ -1994,7 +1994,7 @@ public class MigrationStepsTest {
         createIndex(GLOBAL_TENANT_INDEX);
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
-        assertThat(settingsManager.isMigrationMarker(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        assertThat(settingsManager.isMigrationMarkerPresent(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(settingsManager);
 
@@ -2002,7 +2002,7 @@ public class MigrationStepsTest {
 
         log.debug("Step result '{}'", result);
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(settingsManager.isMigrationMarker(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        assertThat(settingsManager.isMigrationMarkerPresent(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
         GetMappingsResponse indexMappings = repository.findIndexMappings(GLOBAL_TENANT_INDEX.indexName());
         Map<String, Object> mappings = indexMappings.getMappings().get(GLOBAL_TENANT_INDEX.indexName()).getSourceAsMap();
         log.debug("Extended index mappings with migration marker '{}'", mappings);
@@ -2020,7 +2020,7 @@ public class MigrationStepsTest {
         createIndex(doubleAliasIndices.toArray(DoubleAliasIndex[]::new));
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
-        assertThat(settingsManager.isMigrationMarker(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        assertThat(settingsManager.isMigrationMarkerPresent(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
         var tenantIndices = ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)) //
             .with(new TenantIndex(PRIVATE_USER_KIRK_INDEX.indexName(), null)) //
             .with(new TenantIndex(managementTenantIndex.indexName(), TENANT_MANAGEMENT));
@@ -2031,7 +2031,7 @@ public class MigrationStepsTest {
 
         log.debug("Step result '{}'", result);
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(settingsManager.isMigrationMarker(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        assertThat(settingsManager.isMigrationMarkerPresent(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
         DocNode mappingNode = getIndexMappingsAsDocNode(GLOBAL_TENANT_INDEX.indexName());
         assertThat(mappingNode, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
         mappingNode = getIndexMappingsAsDocNode(PRIVATE_USER_KIRK_INDEX.indexName());
