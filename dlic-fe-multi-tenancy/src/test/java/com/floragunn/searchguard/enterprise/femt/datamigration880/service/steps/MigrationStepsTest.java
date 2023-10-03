@@ -14,7 +14,6 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.FrontendObjectCatalog;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.IndexNameDataFormatter;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
-import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -38,7 +37,6 @@ import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateReque
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -52,7 +50,6 @@ import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -101,7 +98,6 @@ import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDI
 import static org.elasticsearch.common.Strings.requireNonEmpty;
 import static org.elasticsearch.index.mapper.MapperService.INDEX_MAPPING_TOTAL_FIELDS_LIMIT_SETTING;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -369,7 +365,7 @@ public class MigrationStepsTest {
 
     @Test
     public void shouldReportErrorInCaseOfConflictBetweenUserPrivateTenantAndGlobalTenant() {
-        createIndex(GLOBAL_TENANT_INDEX, DoubleAliasIndex.forTenant("SGS_GLOBAL_TENANT"));
+        createIndex(GLOBAL_TENANT_INDEX, DoubleAliasIndex.forTenant(Tenant.GLOBAL_TENANT_ID));
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
 
         var stepException = (StepException) assertThatThrown(() -> populateTenantsStep.execute(context), instanceOf(StepException.class));
@@ -1203,7 +1199,7 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
         StepRepository stepRepository = new StepRepository(getPrivilegedClient());
-        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsDuplicator(stepRepository));
+        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
@@ -1221,7 +1217,7 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), primaryShards, replicas, fieldLimit, Collections.emptyMap());
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsDuplicator(stepRepository));
+        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
@@ -1244,7 +1240,7 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), primaryShards, replicas, fieldLimit, Collections.emptyMap());
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsDuplicator(stepRepository));
+        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
@@ -1267,7 +1263,7 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), primaryShards, replicas, fieldLimit, Collections.emptyMap());
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsDuplicator(stepRepository));
+        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
@@ -1287,14 +1283,14 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 500, DocNode.EMPTY);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsDuplicator(stepRepository));
+        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
         log.debug("Create temp index step result '{}'.", result);
         assertThat(result.isSuccess(), equalTo(true));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
-        DocNode actualMappings = getIndexMetadata(context.getTempIndexName());
+        DocNode actualMappings = getIndexMappingsAsDocNode(context.getTempIndexName());
         log.debug("Temp index mappings '{}'", actualMappings.toJsonString());
         assertThat(actualMappings, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
     }
@@ -1307,14 +1303,14 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 500, desiredMappings);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsDuplicator(stepRepository));
+        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
         log.debug("Create temp index step result '{}'.", result);
         assertThat(result.isSuccess(), equalTo(true));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
-        DocNode actualMappings = getIndexMetadata(context.getTempIndexName());
+        DocNode actualMappings = getIndexMappingsAsDocNode(context.getTempIndexName());
         log.debug("Temp index mappings '{}'", actualMappings.toJsonString());
         assertThat(actualMappings, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
         actualMappings = withoutMigrationMarker(actualMappings);
@@ -1329,14 +1325,14 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 500, desiredMappings);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsDuplicator(stepRepository));
+        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
         log.debug("Create temp index step result '{}'.", result);
         assertThat(result.isSuccess(), equalTo(true));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
-        DocNode actualMappings = getIndexMetadata(context.getTempIndexName());
+        DocNode actualMappings = getIndexMappingsAsDocNode(context.getTempIndexName());
         log.debug("Temp index mappings '{}'", actualMappings.toJsonString());
         assertThat(actualMappings, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
         actualMappings = withoutMigrationMarker(actualMappings);
@@ -1351,14 +1347,14 @@ public class MigrationStepsTest {
         stepRepository.createIndex(GLOBAL_TENANT_INDEX.indexName(), 1, 1, 1500, desiredMappings);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(false));
-        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsDuplicator(stepRepository));
+        CreateTempIndexStep step = new CreateTempIndexStep(new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
         log.debug("Create temp index step result '{}'.", result);
         assertThat(result.isSuccess(), equalTo(true));
         assertThat(isIndexCreated(context.getTempIndexName()), equalTo(true));
-        DocNode actualMappings = getIndexMetadata(context.getTempIndexName());
+        DocNode actualMappings = getIndexMappingsAsDocNode(context.getTempIndexName());
         log.debug("Temp index mappings '{}'", actualMappings.toJsonString());
         assertThat(actualMappings, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
         actualMappings = withoutMigrationMarker(actualMappings);
@@ -1590,10 +1586,10 @@ public class MigrationStepsTest {
     @Test
     public void shouldNotCreateBackupOfIndexWithoutMappingsAndReportError() {
         StepRepository repository = new StepRepository(getPrivilegedClient());
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
         createIndex(GLOBAL_TENANT_INDEX);
-        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), "SGS_GLOBAL_TENANT")));
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
 
         StepException exception = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
 
@@ -1605,8 +1601,8 @@ public class MigrationStepsTest {
         PrivilegedConfigClient client = getPrivilegedClient();
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
         createIndex(GLOBAL_TENANT_INDEX);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
@@ -1624,8 +1620,8 @@ public class MigrationStepsTest {
         PrivilegedConfigClient client = getPrivilegedClient();
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
         createIndex(GLOBAL_TENANT_INDEX);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
         repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
@@ -1646,8 +1642,8 @@ public class MigrationStepsTest {
         PrivilegedConfigClient client = getPrivilegedClient();
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
         createIndex(GLOBAL_TENANT_INDEX);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
         addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName());
@@ -1709,8 +1705,8 @@ public class MigrationStepsTest {
         PrivilegedConfigClient client = getPrivilegedClient();
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
         createIndex(GLOBAL_TENANT_INDEX);
         final int documentNumber = 12_101;
         String[] spaceNames = IntStream.range(0, documentNumber).mapToObj(i -> "space_no_" + i).toArray(String[]::new);
@@ -1729,9 +1725,7 @@ public class MigrationStepsTest {
         assertThat(countDocumentInIndex(BACKUP_INDEX_NAME), equalTo(documentNumber * 2L));
         assertThat(spacesIds, hasSize(documentNumber));
         assertThat(patternsIds, hasSize(documentNumber));
-        Stream.concat(spacesIds.stream(), patternsIds.stream()).forEach(id -> {
-            assertThatDocumentExists(BACKUP_INDEX_NAME, id);
-        });
+        Stream.concat(spacesIds.stream(), patternsIds.stream()).forEach(id -> assertThatDocumentExists(BACKUP_INDEX_NAME, id));
     }
 
     @Test
@@ -1739,8 +1733,8 @@ public class MigrationStepsTest {
         PrivilegedConfigClient client = getPrivilegedClient();
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
         createIndex(GLOBAL_TENANT_INDEX);
         final int documentNumber = 51;
         String[] spaceNames = IntStream.range(0, documentNumber).mapToObj(i -> "space_no_" + i).toArray(String[]::new);
@@ -1776,7 +1770,7 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(false));
         stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
-        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsDuplicator(stepRepository));
+        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
@@ -1800,14 +1794,14 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(false));
         stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
-        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsDuplicator(stepRepository));
+        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
         log.debug("Create backup index step result '{}'.", result);
         assertThat(result.isSuccess(), equalTo(true));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(true));
-        DocNode actualMappings = getIndexMetadata(context.getBackupIndexName());
+        DocNode actualMappings = getIndexMappingsAsDocNode(context.getBackupIndexName());
         log.debug("Backup index mappings '{}'", actualMappings.toJsonString());
         assertThat(actualMappings, equalTo(desiredMappings));
     }
@@ -1823,14 +1817,14 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(false));
         stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
-        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsDuplicator(stepRepository));
+        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
         log.debug("Create backup index step result '{}'.", result);
         assertThat(result.isSuccess(), equalTo(true));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(true));
-        DocNode actualMappings = getIndexMetadata(context.getBackupIndexName());
+        DocNode actualMappings = getIndexMappingsAsDocNode(context.getBackupIndexName());
         log.debug("Backup index mappings '{}'", actualMappings.toJsonString());
         assertThat(actualMappings, equalTo(desiredMappings));
     }
@@ -1846,14 +1840,14 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(false));
         stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
-        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsDuplicator(stepRepository));
+        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
         log.debug("Create backup index step result '{}'.", result);
         assertThat(result.isSuccess(), equalTo(true));
         assertThat(isIndexCreated(context.getBackupIndexName()), equalTo(true));
-        DocNode actualMappings = getIndexMetadata(context.getBackupIndexName());
+        DocNode actualMappings = getIndexMappingsAsDocNode(context.getBackupIndexName());
         log.debug("Backup index mappings '{}'", actualMappings.toJsonString());
         assertThat(actualMappings, equalTo(desiredMappings));
     }
@@ -1863,8 +1857,8 @@ public class MigrationStepsTest {
         PrivilegedConfigClient client = getPrivilegedClient();
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
         createIndex(GLOBAL_TENANT_INDEX);
         String createdDocumentId = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default").get(0);
         repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
@@ -1882,8 +1876,8 @@ public class MigrationStepsTest {
     public void shouldNotCheckPreviousBackupIfBackupWasCreatedInTheCurrentMigrationProcess() {
         PrivilegedConfigClient client = getPrivilegedClient();
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, settingsManager);
         context.setBackupCreated(true);
 
         StepResult result = step.execute(context);
@@ -1896,8 +1890,8 @@ public class MigrationStepsTest {
     public void shouldReportErrorWhenIndexWithPreviousBackupWasNotFound() {
         PrivilegedConfigClient client = getPrivilegedClient();
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, settingsManager);
         context.setBackupCreated(false);
 
         StepException exception = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
@@ -1909,8 +1903,8 @@ public class MigrationStepsTest {
     public void shouldReportErrorWhenIndexWithPreviousBackupWasFoundButNotExist() {
         PrivilegedConfigClient client = getPrivilegedClient();
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, settingsManager);
         context.setBackupCreated(false);
         context.setBackupIndices(ImmutableList.of("backup_index_which_does_not_exist"));
 
@@ -1927,8 +1921,8 @@ public class MigrationStepsTest {
         context.setBackupCreated(false);
         context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, settingsManager);
 
         StepResult result = step.execute(context);
 
@@ -1947,8 +1941,8 @@ public class MigrationStepsTest {
         context.setBackupCreated(false);
         context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, settingsManager);
 
         StepResult result = step.execute(context);
 
@@ -1967,8 +1961,8 @@ public class MigrationStepsTest {
         context.setBackupCreated(false);
         context.setBackupIndices(ImmutableList.of(backupIndex.indexName()));
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
-        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, duplicator);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
+        VerifyPreviousBackupStep step = new VerifyPreviousBackupStep(repository, settingsManager);
 
         StepResult result = step.execute(context);
 
@@ -1996,19 +1990,19 @@ public class MigrationStepsTest {
     public void shouldAddMigrationMarkerToGlobalTenantIndex() {
         PrivilegedConfigClient client = getPrivilegedClient();
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
         createIndex(GLOBAL_TENANT_INDEX);
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
-        assertThat(duplicator.isDuplicate(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        assertThat(settingsManager.isMigrationMarker(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
-        AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(duplicator);
+        AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(settingsManager);
 
         StepResult result = step.execute(context);
 
         log.debug("Step result '{}'", result);
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(duplicator.isDuplicate(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        assertThat(settingsManager.isMigrationMarker(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
         GetMappingsResponse indexMappings = repository.findIndexMappings(GLOBAL_TENANT_INDEX.indexName());
         Map<String, Object> mappings = indexMappings.getMappings().get(GLOBAL_TENANT_INDEX.indexName()).getSourceAsMap();
         log.debug("Extended index mappings with migration marker '{}'", mappings);
@@ -2020,29 +2014,29 @@ public class MigrationStepsTest {
     public void shouldAddMigrationMarkerOnlyToGlobalIndex() {
         PrivilegedConfigClient client = getPrivilegedClient();
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
         DoubleAliasIndex managementTenantIndex = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
         var doubleAliasIndices = ImmutableList.of(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
         createIndex(doubleAliasIndices.toArray(DoubleAliasIndex[]::new));
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
-        assertThat(duplicator.isDuplicate(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
+        assertThat(settingsManager.isMigrationMarker(GLOBAL_TENANT_INDEX.indexName()), equalTo(false));
         var tenantIndices = ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)) //
             .with(new TenantIndex(PRIVATE_USER_KIRK_INDEX.indexName(), null)) //
             .with(new TenantIndex(managementTenantIndex.indexName(), TENANT_MANAGEMENT));
         context.setTenantIndices(tenantIndices);
-        AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(duplicator);
+        AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(settingsManager);
 
         StepResult result = step.execute(context);
 
         log.debug("Step result '{}'", result);
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(duplicator.isDuplicate(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
-        DocNode mappingNode = getIndexMappingsAsDocNode(repository, GLOBAL_TENANT_INDEX.indexName());
+        assertThat(settingsManager.isMigrationMarker(GLOBAL_TENANT_INDEX.indexName()), equalTo(true));
+        DocNode mappingNode = getIndexMappingsAsDocNode(GLOBAL_TENANT_INDEX.indexName());
         assertThat(mappingNode, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
-        mappingNode = getIndexMappingsAsDocNode(repository, PRIVATE_USER_KIRK_INDEX.indexName());
+        mappingNode = getIndexMappingsAsDocNode(PRIVATE_USER_KIRK_INDEX.indexName());
         assertThat(mappingNode, not(containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean")));
-        mappingNode = getIndexMappingsAsDocNode(repository, managementTenantIndex.indexName());
+        mappingNode = getIndexMappingsAsDocNode(managementTenantIndex.indexName());
         assertThat(mappingNode, not(containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean")));
     }
 
@@ -2050,13 +2044,13 @@ public class MigrationStepsTest {
     public void shouldNotAddMigrationMarkerToGlobalIndexWhenMarkerIsAlreadyPresent() {
         PrivilegedConfigClient client = getPrivilegedClient();
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
         createIndex(GLOBAL_TENANT_INDEX);
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
         addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName());
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
-        AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(duplicator);
+        AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(settingsManager);
 
         StepResult result = step.execute(context);
 
@@ -2069,27 +2063,32 @@ public class MigrationStepsTest {
     public void shouldAddMigrationMarkerToBlockedIndex() {
         PrivilegedConfigClient client = getPrivilegedClient();
         StepRepository repository = new StepRepository(client);
-        IndexSettingsDuplicator duplicator = new IndexSettingsDuplicator(repository);
+        IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
         createIndex(GLOBAL_TENANT_INDEX);
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
         repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
-        AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(duplicator);
+        AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(settingsManager);
 
         StepResult result = step.execute(context);
 
         log.debug("Step result '{}'", result);
         assertThat(result.isSuccess(), equalTo(true));
-        DocNode mappingNode = getIndexMappingsAsDocNode(repository, GLOBAL_TENANT_INDEX.indexName());
+        DocNode mappingNode = getIndexMappingsAsDocNode(GLOBAL_TENANT_INDEX.indexName());
         assertThat(mappingNode, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
     }
 
-    private static DocNode getIndexMappingsAsDocNode(StepRepository repository, String indexName) {
-        GetMappingsResponse indexMappings = repository.findIndexMappings(indexName);
-        Map<String, Object> source = indexMappings.getMappings().get(indexName).getSourceAsMap();
-        log.debug("Index '{}' mappings '{}'", indexName, source);
-        return DocNode.wrap(source);
+    private DocNode getIndexMappingsAsDocNode(String indexName) {
+        try(Client client = cluster.getInternalNodeClient()) {
+            GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest().indices(indexName)).actionGet();
+            Map<String, Object> source = Optional.of(response) //
+                .map(GetMappingsResponse::getMappings) //
+                .map(map -> map.get(indexName)) //
+                .map(MappingMetadata::getSourceAsMap) //
+                .orElseGet(Collections::emptyMap);
+            return DocNode.wrap(source);
+        }
     }
 
     private void addDataMigrationMarkerToTheIndex(String indexName) {
@@ -2140,13 +2139,6 @@ public class MigrationStepsTest {
         try(Client client = cluster.getInternalNodeClient()) {
             GetSettingsRequest request = new GetSettingsRequest().indices(index);
             return client.admin().indices().getSettings(request).actionGet().getIndexToSettings().get(index);
-        }
-    }
-
-    public DocNode getIndexMetadata(String indexName) {
-        try(Client client = cluster.getInternalNodeClient()) {
-            GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest()).actionGet();
-            return DocNode.wrap(response.getMappings().get(indexName).getSourceAsMap());
         }
     }
 

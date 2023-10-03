@@ -15,11 +15,11 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 class VerifyPreviousBackupStep implements MigrationStep {
 
     private final StepRepository repository;
-    private final IndexSettingsDuplicator duplicator;
+    private final IndexSettingsManager indexSettingsManager;
 
-    public VerifyPreviousBackupStep(StepRepository repository, IndexSettingsDuplicator duplicator) {
+    public VerifyPreviousBackupStep(StepRepository repository, IndexSettingsManager settingsManager) {
         this.repository = Objects.requireNonNull(repository, "Step repository is required is required");
-        this.duplicator = Objects.requireNonNull(duplicator, "Index setting duplicator is required");
+        this.indexSettingsManager = Objects.requireNonNull(settingsManager, "Index setting manager is required");
     }
 
     @Override
@@ -35,7 +35,7 @@ class VerifyPreviousBackupStep implements MigrationStep {
                 return new StepResult(BACKUP_IS_EMPTY_ERROR, "Backup index '" + backupIndexName + "' contains '" + numberOfDocuments
                     + "' documents");
             }
-            if(duplicator.isDuplicate(backupIndexName)) {
+            if(indexSettingsManager.isMigrationMarker(backupIndexName)) {
                 String details = "Index name '" + backupIndexName + "'";
                 return new StepResult(BACKUP_CONTAINS_MIGRATED_DATA_ERROR, "Backup index contain migrated data", details);
             }

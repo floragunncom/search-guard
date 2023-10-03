@@ -10,19 +10,19 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 
 class AddMigrationMarkerToGlobalTenantIndexStep implements MigrationStep {
 
-    private final IndexSettingsDuplicator duplicator;
+    private final IndexSettingsManager indexSettingsManager;
 
-    public AddMigrationMarkerToGlobalTenantIndexStep(IndexSettingsDuplicator duplicator) {
-        this.duplicator = Objects.requireNonNull(duplicator, "Index settings duplicator is required");
+    public AddMigrationMarkerToGlobalTenantIndexStep(IndexSettingsManager indexSettingsManager) {
+        this.indexSettingsManager = Objects.requireNonNull(indexSettingsManager, "Index settings manager is required");
     }
 
     @Override
     public StepResult execute(DataMigrationContext context) throws StepException {
         String indexName = context.getGlobalTenantIndexName();
-        if(duplicator.isDuplicate(indexName)) {
+        if(indexSettingsManager.isMigrationMarker(indexName)) {
             return new StepResult(OK, "Migration marker already present in index '" + indexName + "'");
         }
-        duplicator.markAsDuplicate(indexName);
+        indexSettingsManager.addMigrationMarker(indexName);
         return new StepResult(OK, "Migration marker added to index", "Migration marker added to index '" + indexName + "'");
     }
 

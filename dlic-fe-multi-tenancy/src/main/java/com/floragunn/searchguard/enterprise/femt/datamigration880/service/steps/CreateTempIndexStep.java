@@ -10,18 +10,18 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 
 class CreateTempIndexStep implements MigrationStep {
 
-    private final IndexSettingsDuplicator duplicator;
+    private final IndexSettingsManager indexSettingsManager;
 
-    public CreateTempIndexStep(IndexSettingsDuplicator duplicator) {
-        this.duplicator = Objects.requireNonNull(duplicator, "Index settings duplicator is required");
+    public CreateTempIndexStep(IndexSettingsManager indexSettingsManager) {
+        this.indexSettingsManager = Objects.requireNonNull(indexSettingsManager, "Index settings duplicator is required");
     }
 
     @Override
     public StepResult execute(DataMigrationContext context) throws StepException {
         String globalTenantIndexName = context.getGlobalTenantIndexName();
         String tempIndexName = context.getTempIndexName();
-        IndexSettingsDuplicator.BasicIndexSettings settings = duplicator //
-            .createIndexWithDuplicatedSettings(globalTenantIndexName, tempIndexName, true);
+        IndexSettingsManager.BasicIndexSettings settings = indexSettingsManager //
+            .createIndexWithClonedSettings(globalTenantIndexName, tempIndexName, true);
         String message = "Temporary index '" + tempIndexName + "' created with " + settings.numberOfShards() + " shards, replicas "
             + settings.numberOfReplicas() + " and total mapping fields limit " + settings.mappingsTotalFieldsLimit();
         String details = "Temp index mappings " + settings.mappings();
