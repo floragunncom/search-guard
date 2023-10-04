@@ -14,4 +14,13 @@ public interface MigrationStep {
         return new StepResult(ROLLBACK, "nothing to be rollback");
     }
 
+    default boolean isZero(long...numbers) {
+        for(long current : numbers) {
+            if(current != 0L) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 }

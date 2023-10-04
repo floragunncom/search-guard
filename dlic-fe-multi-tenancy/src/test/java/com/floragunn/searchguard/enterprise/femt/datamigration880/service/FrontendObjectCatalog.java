@@ -10,6 +10,7 @@ import org.elasticsearch.xcontent.XContentType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.IntStream;
 
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -41,6 +42,13 @@ public class FrontendObjectCatalog {
         return ImmutableList.of(spacesIds);
     }
 
+    public ImmutableList<String> insertSpace(String indexName, int countOfDocuments) {
+        String[] spaceNames = IntStream.range(0, countOfDocuments) //
+            .mapToObj(index -> indexName + "space_no_" + index) //
+            .toArray(String[]::new);
+        return insertSpace(indexName, spaceNames);
+    }
+
     public ImmutableList<String> insertIndexPattern(String indexName, String...titles) {
         List<String> indexPatternsIds = new ArrayList<>();
         BulkRequest bulkRequest = new BulkRequest();
@@ -57,6 +65,13 @@ public class FrontendObjectCatalog {
         BulkResponse response = client.bulk(bulkRequest).actionGet();
         assertThat(response.hasFailures(), equalTo(false));
         return ImmutableList.of(indexPatternsIds);
+    }
+
+    public ImmutableList<String> insertIndexPattern(String indexName, int numberOfDocuments) {
+        String[] indexPatternNames = IntStream.range(0, numberOfDocuments) //
+            .mapToObj(index -> indexName + "index_pattern_no_" + index) //
+            .toArray(String[]::new);
+        return insertIndexPattern(indexName, indexPatternNames);
     }
 
     private String spaceForName(String spaceName) {

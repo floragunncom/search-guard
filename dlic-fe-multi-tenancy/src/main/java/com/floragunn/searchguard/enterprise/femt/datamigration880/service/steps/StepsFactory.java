@@ -31,6 +31,7 @@ public class StepsFactory {
             new VerifyPreviousBackupStep(repository, settingsManager),
             new AddMigrationMarkerToGlobalTenantIndexStep(settingsManager),
             new DeleteGlobalIndexContentStep(repository),
+            new CopyDataToGlobalIndexStep(repository),
             new UnblockDataIndicesStep(repository),
             new DeleteTempIndexStep(repository));
     }
