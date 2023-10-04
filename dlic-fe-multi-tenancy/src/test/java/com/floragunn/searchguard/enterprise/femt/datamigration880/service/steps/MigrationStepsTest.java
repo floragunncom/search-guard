@@ -109,6 +109,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -2164,6 +2165,51 @@ public class MigrationStepsTest {
         assertThat(countDocumentInIndex(managementTenantIndex.indexName()), equalTo(1L));
         assertThat(countDocumentInIndex(backupIndex1.indexName()), equalTo(1L));
         assertThat(countDocumentInIndex(backupIndex2.indexName()), equalTo(1L));
+    }
+
+    @Test
+    public void shouldCopyAllFromTempIndexIntoGlobalTenantIndex() {
+        createIndex(GLOBAL_TENANT_INDEX);
+        PrivilegedConfigClient client = getPrivilegedClient();
+        StepRepository repository = new StepRepository(client);
+        CopyDataToGlobalIndexStep step = new CopyDataToGlobalIndexStep(repository);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        repository.createIndex(context.getTempIndexName(), 1, 0, 1500, Collections.emptyMap());
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        final int numberOfDocuments = 12_500;
+        catalog.insertSpace(context.getTempIndexName(), numberOfDocuments);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Copy documents to global tenant index result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        assertThat(countDocumentInIndex(context.getTempIndexName()), equalTo((long)numberOfDocuments));
+    }
+
+    @Test
+    public void shouldCopyExactDocumentToGlobalTenantIndex() {
+        createIndex(GLOBAL_TENANT_INDEX);
+        PrivilegedConfigClient client = getPrivilegedClient();
+        StepRepository repository = new StepRepository(client);
+        CopyDataToGlobalIndexStep step = new CopyDataToGlobalIndexStep(repository);
+        context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
+        repository.createIndex(context.getTempIndexName(), 1, 0, 1500, Collections.emptyMap());
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        final int numberOfDocuments = 3;
+        ImmutableList<String> spacesIds = catalog.insertSpace(context.getTempIndexName(), numberOfDocuments);
+        ImmutableList<String> patternIds = catalog.insertIndexPattern(context.getTempIndexName(), numberOfDocuments);
+
+        StepResult result = step.execute(context);
+
+        log.debug("Copy documents to global tenant index result '{}'", result);
+        assertThat(result.isSuccess(), equalTo(true));
+        ImmutableList<String> documentsToCompare = spacesIds.with(patternIds);
+        assertThat(documentsToCompare, hasSize(numberOfDocuments * 2));
+        for(String documentId : documentsToCompare) {
+            String sourceDocument = getDocumentSource(context.getTempIndexName(), documentId).orElseThrow();
+            String documentCopy = getDocumentSource(context.getGlobalTenantIndexName(), documentId).orElseThrow();
+            assertThat(documentCopy, equalTo(sourceDocument));
+        }
     }
 
     private DocNode getIndexMappingsAsDocNode(String indexName) {

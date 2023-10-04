@@ -58,15 +58,6 @@ class CreateBackupStep implements MigrationStep {
         return new StepResult(OK, "Backup created", details.toString());
     }
 
-    private boolean isZero(long...numbers) {
-        for(long current : numbers) {
-            if(current != 0L) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     @Override
     public String name() {
         return "create backup";
