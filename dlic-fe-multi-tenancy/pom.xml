@@ -85,5 +85,36 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+    <!--    dependencies required to run painless scripts    -->
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>lang-painless</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>elasticsearch-scripting-painless-spi</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-commons</artifactId>
+      <version>${org_ow2_asm.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>${org_antlr.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-util</artifactId>
+      <version>${org_ow2_asm.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!--    end of dependencies required to run painless scripts    -->
   </dependencies>
 </project>

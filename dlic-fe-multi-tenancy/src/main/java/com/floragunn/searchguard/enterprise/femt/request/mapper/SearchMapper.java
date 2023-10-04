@@ -52,6 +52,8 @@ public class SearchMapper {
             rewrittenSearchHitArray[i].setRank(originalSearchHitArray[i].getRank());
             rewrittenSearchHitArray[i].shard(originalSearchHitArray[i].getShard());
             rewrittenSearchHitArray[i].version(originalSearchHitArray[i].getVersion());
+            rewrittenSearchHitArray[i].score(originalSearchHitArray[i].getScore());
+            rewrittenSearchHitArray[i].explanation(originalSearchHitArray[i].getExplanation());
         }
 
         SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());
