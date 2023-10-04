@@ -1,0 +1,2429 @@
+/*
+ * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
+
+package com.floragunn.searchguard.enterprise.femt.request;
+
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.TenantManager;
+import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.user.User;
+import org.apache.http.Header;
+import org.apache.http.HttpStatus;
+import org.apache.http.message.BasicHeader;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.support.WriteRequest;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.core.Tuple;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Test;
+
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+
+public class MultiTenancyRequestMappingTest {
+
+    private static final String DOC_ID = "123";
+    private static final String KIBANA_INDEX = ".kibana";
+    private static final String KIBANA_SERVER_USER = "kibana_server";
+    private static final TestSgConfig.Tenant HR_TENANT = new TestSgConfig.Tenant("hr_tenant");
+    private static final TestSgConfig.User USER = new TestSgConfig.User("user")
+            .roles(new TestSgConfig.Role("tenant_access").tenantPermission("*").on(HR_TENANT.getName()).clusterPermissions("*").indexPermissions("*").on(KIBANA_INDEX+"*"));
+
+    private final TenantManager tenantManager = new TenantManager(ImmutableSet.of(HR_TENANT.getName()));
+
+    @ClassRule
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled()
+            .nodeSettings("action.destructive_requires_name", false)
+            .enterpriseModulesEnabled()
+            .user(USER)
+            .frontendMultiTenancy(new TestSgConfig.FrontendMultiTenancy(true).index(KIBANA_INDEX).serverUser(KIBANA_SERVER_USER))
+            .tenants(HR_TENANT)
+            .build();
+
+    @Before
+    public void createTestIndex() {
+        try (Client client = cluster.getInternalNodeClient()) {
+            String mapping = """
+                {
+                  "properties": {
+                    "sg_tenant": {
+                      "type": "keyword"
+                    }
+                  }
+                }
+                """;
+            AcknowledgedResponse createIndexResponse = client.admin().indices()
+                    .create(new CreateIndexRequest(KIBANA_INDEX).mapping(mapping)).actionGet();
+            assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
+        }
+    }
+
+    @After
+    public void deleteTestIndex() {
+        deleteIndex(KIBANA_INDEX + "*");
+    }
+
+    @Test
+    public void getRequest_withoutParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("a", "a", "b", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withSourceParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("a", "a", "b", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //source = false
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?_source=false");
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?_source=false", tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+
+            //source = true
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?_source=true");
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?_source=true", tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withSourceIncludesAndSourceExcludesParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //include and exclude
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?_source_includes=a*&_source_excludes=ab"
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?_source_includes=a*&_source_excludes=ab", tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+
+            //only include
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?_source=a*");
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?_source=a*", tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withStoredFieldsParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode indexMappings = DocNode.parse(Format.JSON).from("""
+                {
+                  "properties": {
+                    "aa": {
+                      "type": "text",
+                      "store": true
+                    },
+                    "ab": {
+                      "type": "text",
+                      "store": true
+                    },
+                    "bb": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """);
+        updateIndexMappings(indexMappings);
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid stored fields
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?stored_fields=aa,ab");
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?stored_fields=aa,ab", tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+
+            //invalid stored fields
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?stored_fields=bb");
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?stored_fields=bb", tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withRoutingParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        String routing = "test-routing";
+        addDocumentToIndex(scopedId, routing, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //correct routing
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?routing=" + routing);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?routing=" + routing, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+
+            //wrong routing
+            routing = routing.concat("-fake");
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?routing=" + routing);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?routing=" + routing, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withPreferenceParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+
+        String preference = "_local";
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //correct preference
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?preference=" + preference);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?preference=" + preference, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+
+            //wrong preference
+            preference = preference.concat("-fake");
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?preference=" + preference);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?preference=" + preference, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withRealtimeParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //realtime true
+            String realtime = "true";
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?realtime=" + realtime);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?realtime=" + realtime, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+
+            //realtime false
+            realtime = "false";
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?realtime=" + realtime);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?realtime=" + realtime, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withRefreshParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //refresh true
+            String refresh = "true";
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?refresh=" + refresh);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?refresh=" + refresh, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+
+            //refresh false
+            refresh = "false";
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?refresh=" + refresh);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?refresh=" + refresh, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void getRequest_withVersionParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+
+        IndexResponse indexResponse = addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        long docVersion = indexResponse.getVersion();
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid version
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?version=" + docVersion + "&version_type=external_gte"
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?version=" + docVersion + "&version_type=external_gte", tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+
+            //invalid version
+            docVersion++;
+            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?version=" + docVersion);
+            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?version=" + docVersion, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void getRequest_docDoesDoesNotExist() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId);
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void updateRequest_withoutParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            DocNode updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId), updateReqBody
+            );
+
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID), updateReqBody, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void updateRequest_withoutParams_usingScript() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", 1);
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            String script = """
+                    {
+                      "script" : {
+                        "source": "ctx._source.a += params.add_to_a",
+                        "lang": "painless",
+                        "params" : {
+                          "add_to_a" : 4
+                        }
+                      }
+                    }
+                    """;
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId), script
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID), script, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void updateRequest_docDoesNotExist() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            DocNode updateReqBody = DocNode.of("doc", doc);
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId), updateReqBody
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID), updateReqBody, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void updateRequest_withIfSeqNoAndIfPrimaryTermParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
+        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        long seqNo = indexResponse.getSeqNo();
+        long primaryTerm = indexResponse.getPrimaryTerm();
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid seqNo and primary term
+            DocNode updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" +
+                            scopedId + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
+                    updateReqBody
+            );
+
+            GetResponse getResponse = getDocById(scopedId);
+            seqNo = getResponse.getSeqNo();
+            primaryTerm = getResponse.getPrimaryTerm();
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" +
+                            DOC_ID + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
+                    updateReqBody, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //invalid seq no and primary term
+            seqNo *= 10;
+            primaryTerm *= 10;
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" +
+                            scopedId + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
+                    updateReqBody
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" +
+                            DOC_ID + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm), updateReqBody,
+                    tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void updateRequest_withRequireAliasParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
+        addDocumentToIndex(scopedId, doc);
+        String aliasName = KIBANA_INDEX.concat("_1.1.1");
+        addAliasToIndex(aliasName);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //alias required, alias name provided
+            String requireAlias = "true";
+            DocNode updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + aliasName + "/_update/" + scopedId + "?require_alias=" + requireAlias),
+                    updateReqBody
+            );
+
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + aliasName + "/_update/" + DOC_ID + "?require_alias=" + requireAlias),
+                    updateReqBody, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //alias required, index name provided
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId + "?require_alias=" + requireAlias),
+                    updateReqBody
+            );
+
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID + "?require_alias=" + requireAlias),
+                    updateReqBody, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void updateRequest_withRefreshParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //refresh true
+            String refresh = "true";
+            DocNode updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId + "?refresh=" + refresh),
+                    updateReqBody
+            );
+
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID + "?refresh=" + refresh),
+                    updateReqBody, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //refresh false
+            refresh = "false";
+            updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId + "?refresh=" + refresh),
+                    updateReqBody
+            );
+
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID + "?refresh=" + refresh),
+                    updateReqBody, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void updateRequest_withRoutingParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
+        String routing = "test-routing";
+        addDocumentToIndex(scopedId, routing, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //correct routing
+            DocNode updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId + "?routing=" + routing),
+                    updateReqBody
+            );
+
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID + "?routing=" + routing),
+                    updateReqBody, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //wrong routing
+            routing = routing.concat("-fake");
+            updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId + "?routing=" + routing),
+                    updateReqBody
+            );
+
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID + "?routing=" + routing),
+                    updateReqBody, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void updateRequest_withSourceParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            DocNode updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId + "?_source=ab,b*"), updateReqBody
+            );
+
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID + "?_source=ab,b*"), updateReqBody, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void updateRequest_withSourceIncludesAndSourceExcludesParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            DocNode updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId + "?_source_includes=ab&_source_excludes=bb"),
+                    updateReqBody
+            );
+
+            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID + "?_source_includes=ab&_source_excludes=bb"),
+                    updateReqBody, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void indexRequest_withoutParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //with id
+            //should act same as with op_type=index param
+            DocNode requestBody = doc.with("a", "new value");
+            GenericRestClient.HttpResponse responseWithoutTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + scopedId),
+                    requestBody
+            );
+
+            requestBody = doc.with("a", "another new value");
+            GenericRestClient.HttpResponse responseWithTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + DOC_ID),
+                    requestBody, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //without id
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/"),
+                    doc
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/"),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(
+                    responseBodyWithoutAutoIncrementedFields(responseWithoutTenant).without("_id").toJsonString(),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).without("_id").toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void indexRequest_withoutParams_createEndpoint() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //should act same as with op_type=create param
+
+            //doc with id does not exist
+            GenericRestClient.HttpResponse responseWithoutTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_create/" + "unscoped_id"),
+                    doc
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_create/" + "scoped_id"),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(
+                    responseBodyWithoutAutoIncrementedFields(responseWithoutTenant).without("_id").toJsonString(),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).without("_id").toJsonString())
+            );
+
+            //doc with id already exists
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_create/" + scopedId),
+                    doc
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_create/" + DOC_ID),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void indexRequest_withIfSeqNoAndIfPrimaryTermParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        long seqNo = indexResponse.getSeqNo();
+        long primaryTerm = indexResponse.getPrimaryTerm();
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid seq no and primary term
+            GenericRestClient.HttpResponse responseWithoutTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
+                    doc
+            );
+
+            GetResponse getResponse = getDocById(scopedId);
+            seqNo = getResponse.getSeqNo();
+            primaryTerm = getResponse.getPrimaryTerm();
+
+            GenericRestClient.HttpResponse responseWithTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //invalid seqNo and primary term
+            seqNo *= 10;
+            primaryTerm *= 10;
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + scopedId +
+                            "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
+                    doc
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + DOC_ID +
+                            "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void indexRequest_withRefreshParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //refresh true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?refresh=" + true),
+                    doc
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?refresh=" + true),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //refresh false
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + scopedId +
+                            "?refresh=" + false),
+                    doc
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + DOC_ID +
+                            "?refresh=" + false),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void indexRequest_withRoutingParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        String routing = "test-routing";
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        addDocumentToIndex(scopedId, routing, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //existing routing
+            GenericRestClient.HttpResponse responseWithoutTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?routing=" + routing),
+                    doc
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?routing=" + routing),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //not existing routing
+            routing = routing.concat("-missing-1");
+            responseWithoutTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?routing=" + routing),
+                    doc
+            );
+
+            deleteDoc(scopedId, routing);
+
+            responseWithTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?routing=" + routing),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void indexRequest_withVersionParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        long version = indexResponse.getVersion() + 1;
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid version
+            GenericRestClient.HttpResponse responseWithoutTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?version=" + version + "&version_type=external"),
+                    doc
+            );
+
+            version += 1;
+
+            GenericRestClient.HttpResponse responseWithTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?version=" + version + "&version_type=external"),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //invalid version
+            version = 1;
+
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + scopedId +
+                            "?version=" + version + "&version_type=external"),
+                    doc
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + DOC_ID +
+                            "?version=" + version + "&version_type=external"),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void indexRequest_withRequireAliasParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        addDocumentToIndex(scopedId, doc);
+        String aliasName = KIBANA_INDEX.concat("_1.1.1");
+        addAliasToIndex(aliasName);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //alias required, alias name provided
+            GenericRestClient.HttpResponse responseWithoutTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + aliasName + "/_doc/" + scopedId + "?require_alias=true"),
+                    doc
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.putJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + aliasName + "/_doc/" + DOC_ID + "?require_alias=true"),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //alias required, index name provided
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?require_alias=true"),
+                    doc
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?require_alias=true"),
+                    doc, tenantHeader()
+            );
+
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void deleteRequest_withoutParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            GenericRestClient.HttpResponse responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + scopedId));
+
+            addDocumentToIndex(scopedId, doc);
+
+            GenericRestClient.HttpResponse responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_doc/" + DOC_ID), tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void deleteRequest_withIfSeqNoAndIfPrimaryTermParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        long seqNo = indexResponse.getSeqNo();
+        long primaryTerm = indexResponse.getPrimaryTerm();
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid seq no and primary term
+            GenericRestClient.HttpResponse responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm)
+            );
+
+            indexResponse = addDocumentToIndex(scopedId, doc);
+            seqNo = indexResponse.getSeqNo();
+            primaryTerm = indexResponse.getPrimaryTerm();
+
+            GenericRestClient.HttpResponse responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //invalid seq no and primary term
+            indexResponse = addDocumentToIndex(scopedId, doc);
+            seqNo = indexResponse.getSeqNo() * 10;
+            primaryTerm = indexResponse.getPrimaryTerm() * 10;
+
+            responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm)
+            );
+
+            responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void deleteRequest_withRefreshParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //refresh true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?refresh=" + true)
+            );
+
+            addDocumentToIndex(scopedId, doc);
+
+            GenericRestClient.HttpResponse responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?refresh=" + true),
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //refresh false
+            addDocumentToIndex(scopedId, doc);
+
+            responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId +  "?refresh=" + false)
+            );
+
+            addDocumentToIndex(scopedId, doc);
+
+            responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?refresh=" + false),
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void deleteRequest_withRoutingParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        String routing = "test-routing";
+        addDocumentToIndex(scopedId, routing, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid routing
+            GenericRestClient.HttpResponse responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?routing=" + routing)
+            );
+
+            addDocumentToIndex(scopedId,  routing, doc);
+
+            GenericRestClient.HttpResponse responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?routing=" + routing),
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //invalid routing
+            addDocumentToIndex(scopedId,  routing, doc);
+            routing = routing.concat("-fake");
+
+            responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId +  "?routing=" + routing)
+            );
+
+            responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?routing=" + routing),
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void deleteRequest_withVersionParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", "a", "b", "b");
+        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        long version = indexResponse.getVersion();
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid version
+            GenericRestClient.HttpResponse responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId + "?version_type=external_gte&version=" + version)
+            );
+
+            indexResponse = addDocumentToIndex(scopedId, doc);
+            version = indexResponse.getVersion();
+
+            GenericRestClient.HttpResponse responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?version_type=external_gte&version=" + version),
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+
+            //invalid version
+            addDocumentToIndex(scopedId, doc);
+            version = 1;
+
+            responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId +  "?version_type=external_gte&version=" + version)
+            );
+
+            responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?version_type=external_gte&version=" + version),
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
+        }
+    }
+
+    @Test
+    public void deleteRequest_docDoesNotExist() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            GenericRestClient.HttpResponse responseWithoutTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + scopedId)
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.delete(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_doc/" + DOC_ID),
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void clusterSearchShardsRequest_withoutParams() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards"
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards",
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_INTERNAL_SERVER_ERROR));
+            assertThat(responseWithoutTenant.getBody(), containsString(KIBANA_INDEX));
+            assertThat(responseWithTenant.getBody(), containsString("security_exception"));
+        }
+    }
+
+    @Test
+    public void clusterSearchShardsRequest_withAllowNoIndicesParam() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            String indexPattern = KIBANA_INDEX + "_1.1.1";
+            //allow no indices true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + indexPattern + "/_search_shards?allow_no_indices=" + true
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + indexPattern + "/_search_shards?allow_no_indices=" + true,
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_INTERNAL_SERVER_ERROR));
+            assertThat(responseWithoutTenant.getBody(), not(containsString(KIBANA_INDEX)));
+            assertThat(responseWithTenant.getBody(), containsString("security_exception"));
+
+            //allow no indices false
+            responseWithoutTenant = client.get(
+                    "/" + indexPattern + "/_search_shards?allow_no_indices=" + false
+            );
+
+            responseWithTenant = client.get(
+                    "/" + indexPattern + "/_search_shards?allow_no_indices=" + false,
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_INTERNAL_SERVER_ERROR));
+            assertThat(responseWithTenant.getBody(), containsString("security_exception"));
+        }
+    }
+
+    @Test
+    public void clusterSearchShardsRequest_withIgnoreUnavailableParam() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            String indexPattern = KIBANA_INDEX + "_1.1.1";
+            //ignore unavailable true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + indexPattern + "/_search_shards?ignore_unavailable=" + true
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + indexPattern + "/_search_shards?ignore_unavailable=" + true,
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_INTERNAL_SERVER_ERROR));
+            assertThat(responseWithoutTenant.getBody(), not(containsString(KIBANA_INDEX)));
+            assertThat(responseWithTenant.getBody(), containsString("security_exception"));
+
+            //ignore unavailable false
+            responseWithoutTenant = client.get(
+                    "/" + indexPattern + "/_search_shards?ignore_unavailable=" + false
+            );
+
+            responseWithTenant = client.get(
+                    "/" + indexPattern + "/_search_shards?ignore_unavailable=" + false,
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_INTERNAL_SERVER_ERROR));
+            assertThat(responseWithTenant.getBody(), containsString("security_exception"));
+        }
+    }
+
+    @Test
+    public void clusterSearchShardsRequest_withLocalParam() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //local true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards?local=" + true
+            );
+
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards?local=" + true,
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_INTERNAL_SERVER_ERROR));
+            assertThat(responseWithoutTenant.getBody(), containsString(KIBANA_INDEX));
+            assertThat(responseWithTenant.getBody(), containsString("security_exception"));
+
+            //local false
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards?local=" + false
+            );
+
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards?local=" + false,
+                    tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_INTERNAL_SERVER_ERROR));
+            assertThat(responseWithoutTenant.getBody(), containsString(KIBANA_INDEX));
+            assertThat(responseWithTenant.getBody(), containsString("security_exception"));
+        }
+    }
+
+    @Test
+    public void clusterSearchShardsRequest_withPreferenceParam() throws Exception {
+        String preference = "_local";
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //correct preference
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards?preference=" + preference
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards?preference=" + preference, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_INTERNAL_SERVER_ERROR));
+            assertThat(responseWithoutTenant.getBody(), containsString(KIBANA_INDEX));
+            assertThat(responseWithTenant.getBody(), containsString("security_exception"));
+
+            //wrong preference
+            preference = preference.concat("-fake");
+
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards?preference=" + preference
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search_shards?preference=" + preference, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_INTERNAL_SERVER_ERROR));
+            assertThat(responseWithTenant.getBody(), containsString("security_exception"));
+        }
+    }
+
+    @Test
+    public void multiGetRequest_withoutParams() throws Exception {
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        addDocumentToIndex(firstScopedId, DocNode.of("a", "first"));
+        addDocumentToIndex(secondScopedId, DocNode.of("a", "second"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget", multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget", multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void multiGetRequest_withPreferenceParam() throws Exception {
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        addDocumentToIndex(firstScopedId, DocNode.of("a", "first"));
+        addDocumentToIndex(secondScopedId, DocNode.of("a", "second"));
+
+        String preference = "_local";
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //correct preference
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?preference=" + preference, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?preference=" + preference, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+
+            //wrong preference
+            preference = preference.concat("-fake");
+            responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?preference=" + preference, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?preference=" + preference, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), containsString("error"));
+            assertThat(responseWithTenant.getBody(), containsString("error"));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void multiGetRequest_withRealtimeParam() throws Exception {
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        addDocumentToIndex(firstScopedId, DocNode.of("a", "first"));
+        addDocumentToIndex(secondScopedId, DocNode.of("a", "second"));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //realtime true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?realtime=" + true, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?realtime=" + true, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+
+            //realtime false
+            responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?realtime=" + false, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?realtime=" + false, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void multiGetRequest_withRefreshParam() throws Exception {
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        addDocumentToIndex(firstScopedId, DocNode.of("a", "first"));
+        addDocumentToIndex(secondScopedId, DocNode.of("a", "second"));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //refresh true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?refresh=" + true, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?refresh=" + true, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+
+            //refresh false
+            responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?refresh=" + false, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?refresh=" + false, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void multiGetRequest_withRoutingParam() throws Exception {
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        String routing = "test-routing";
+        addDocumentToIndex(firstScopedId, routing, DocNode.of("a", "first"));
+        addDocumentToIndex(secondScopedId, routing, DocNode.of("a", "second"));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //correct routing
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?routing=" + routing, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?routing=" + routing, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+
+            //wrong routing
+            routing = routing.concat("-fake");
+            responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?routing=" + routing, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?routing=" + routing, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), containsString("\"found\":false"));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void multiGetRequest_withStoredFieldsParam() throws Exception {
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        DocNode indexMappings = DocNode.parse(Format.JSON).from("""
+                {
+                  "properties": {
+                    "aa": {
+                      "type": "text",
+                      "store": true
+                    },
+                    "ab": {
+                      "type": "text",
+                      "store": true
+                    },
+                    "bb": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """);
+        updateIndexMappings(indexMappings);
+        addDocumentToIndex(firstScopedId, DocNode.of("aa", "aa-first", "ab", "ab-first", "bb", "bb-first"));
+        addDocumentToIndex(secondScopedId, DocNode.of("aa", "aa-second", "ab", "ab-second", "bb", "bb-second"));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //valid stored fields
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?stored_fields=aa,ab", multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?stored_fields=aa,ab", multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+
+            //invalid stored fields
+            responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?stored_fields=bb", multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?stored_fields=bb", multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void multiGetRequest_withSourceParam() throws Exception {
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        addDocumentToIndex(firstScopedId, DocNode.of("a", "first"));
+        addDocumentToIndex(secondScopedId, DocNode.of("a", "second"));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //source = false
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?_source=" + false, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?_source=" + false, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+
+            //source = true
+            responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?_source=" + true, multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?_source=" + true, multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void multiGequest_withSourceIncludesAndSourceExcludesParams() throws Exception {
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        addDocumentToIndex(firstScopedId, DocNode.of("a", "a-first", "ab", "ab-first", "c", "c-first"));
+        addDocumentToIndex(secondScopedId, DocNode.of("a", "a-second", "ab", "ab-second", "c", "c-second"));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //include and exclude
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?_source_includes=a*&_source_excludes=ab", multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?_source_includes=a*&_source_excludes=ab", multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+
+            //only include
+            responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?_source=a*", multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget?_source=a*", multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void multiGetRequest_docsDoNotExist() throws Exception {
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        String thirdId = "3";
+        String thirdScopedId = scopedId(thirdId);
+        String fourthId = "4";
+        String fourthScopedId = scopedId(fourthId);
+        addDocumentToIndex(firstScopedId, DocNode.of("aa", "aa-first", "ab", "ab-first", "bb", "bb-first"));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //one of docs does not exist
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget", multiGetReqBody(firstScopedId, secondScopedId)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget", multiGetReqBody(firstId, secondId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+
+            //all docs do not exist
+            responseWithoutTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget", multiGetReqBody(thirdScopedId, fourthScopedId)
+            );
+            responseWithTenant = client.postJson(
+                    "/" + KIBANA_INDEX + "/_mget", multiGetReqBody(thirdId, fourthId), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, thirdId, fourthId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void multiGetRequest_indexDoNotExist() throws Exception {
+        String firstMissingIndex = KIBANA_INDEX.concat("_1.1.1");
+        String secondMissingIndex = KIBANA_INDEX.concat("_2.2.2");
+        String firstId = "1";
+        String firstScopedId = scopedId(firstId);
+        String secondId = "2";
+        String secondScopedId = scopedId(secondId);
+        addDocumentToIndex(firstScopedId, DocNode.of("aa", "aa-first"));
+        addDocumentToIndex(secondScopedId, DocNode.of("aa", "aa-second"));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            //one of indices does not exist
+            GenericRestClient.HttpResponse responseWithoutTenant = client.postJson(
+                    "/_mget", multiGetReqBody(Tuple.tuple(KIBANA_INDEX, Arrays.asList(firstScopedId, secondScopedId)),
+                            Tuple.tuple(firstMissingIndex, Arrays.asList(firstScopedId, secondScopedId)))
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.postJson(
+                    "/_mget", multiGetReqBody(Tuple.tuple(KIBANA_INDEX, Arrays.asList(firstId, secondId)),
+                            Tuple.tuple(firstMissingIndex, Arrays.asList(firstId, secondId))), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+
+            //all indices do not exist
+            responseWithoutTenant = client.postJson(
+                    "/_mget", multiGetReqBody(Tuple.tuple(firstMissingIndex, Arrays.asList(firstScopedId, secondScopedId)),
+                            Tuple.tuple(secondMissingIndex, Arrays.asList(firstScopedId, secondScopedId)))
+            );
+            responseWithTenant = client.postJson(
+                    "/_mget", multiGetReqBody(Tuple.tuple(firstMissingIndex, Arrays.asList(firstId, secondId)),
+                            Tuple.tuple(secondMissingIndex, Arrays.asList(firstId, secondId))), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(unscopeResponseBody(responseWithoutTenant, firstId, secondId), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void searchRequest_withoutParams() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("a", "a", "sg_tenant", internalTenantName()));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_search/");
+            GenericRestClient.HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_search/", tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withAllowNoIndicesParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("a", "a", "sg_tenant", internalTenantName()));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            //allow no indices true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + ",*_1.1.1" + "/_search?allow_no_indices=" + true
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + ",*_1.1.1" + "/_search?allow_no_indices=" + true, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString())
+            );
+
+            //allow no indices false
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + ",*_1.1.1" + "/_search/?allow_no_indices=" + false
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + ",*_1.1.1" + "/_search/?allow_no_indices=" + false, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withDocValueFieldsParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        DocNode indexMappings = DocNode.parse(Format.JSON).from("""
+                {
+                  "properties": {
+                    "aa": {
+                      "type": "keyword"
+                    },
+                    "ab": {
+                      "type": "keyword"
+                    }
+                  }
+                }
+                """);
+        updateIndexMappings(indexMappings);
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "ab", "sg_tenant", internalTenantName()));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?docvalue_fields=a*"
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?docvalue_fields=a*", tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withExplainParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "sg_tenant", internalTenantName()));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            //explain false
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?explain=" + false
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?explain=" + false, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString())
+            );
+
+            //explain true
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?explain=" + true
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?explain=" + true, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getBody(), containsString("_explanation"));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getBody(), containsString("_explanation"));
+            assertThat(
+                    unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
+                    not(equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString()))
+            );
+            //todo _explanation may differ since we're adding query for sg_tenant field
+            assertThat(
+                    unscopeResponseBody(
+                            removeAttributesFromSearchHits(
+                                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), "_explanation"), DOC_ID
+                    ),
+                    equalTo(removeAttributesFromSearchHits(
+                            responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant), "_explanation")
+                            .toJsonString()
+                    )
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withIgnoreUnavailableParam() throws Exception {
+        String indexName = KIBANA_INDEX.concat("_1.1.1");
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            //ignore unavailable true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + indexName + "/_search?ignore_unavailable=" + true
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + indexName + "/_search?ignore_unavailable=" + true, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //ignore unavailable false
+            responseWithoutTenant = client.get(
+                    "/" + indexName + "/_search?ignore_unavailable=" + false
+            );
+            responseWithTenant = client.get(
+                    "/" + indexName + "/_search?ignore_unavailable=" + false, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody()));
+        }
+    }
+
+    @Test
+    public void searchRequest_withSeqNoPrimaryTermParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "sg_tenant", internalTenantName()));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            //seq no primary term true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?seq_no_primary_term=" + true
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?seq_no_primary_term=" + true, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //seq no primary term false
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?seq_no_primary_term=" + false
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?seq_no_primary_term=" + false, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withSizeSortAndFromParams() throws Exception {
+        IntStream.rangeClosed(1, 10).forEach( docNo -> {
+            String id = String.valueOf(docNo);
+            addDocumentToIndex(scopedId(id), DocNode.of("field", docNo, "sg_tenant", internalTenantName()));
+        });
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            //size 3, sort desc
+            int size = 3;
+            String sort = "field:desc";
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //size 4, sort desc, from 5
+            size = 4;
+            sort = "field:desc";
+            int from = 5;
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort + "&from=" + from
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort + "&from=" + from, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //size 5, sort asc
+            size = 5;
+            sort = "field:asc";
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //size 20, sort desc
+            size = 20;
+            sort = "field:desc";
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //size 15, sort asc, from 2
+            size = 15;
+            sort = "field:asc";
+            from = 2;
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort + "&from=" + from
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?size=" + size + "&sort=" + sort + "&from=" + from, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withSourceParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "sg_tenant", internalTenantName()));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            //source true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?_source=" + true
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?_source=" + true, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //source false
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?_source=" + false
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?_source=" + false, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withSourceIncludesAndSourceExcludesParams() throws Exception {
+        IntStream.rangeClosed(1, 10).forEach( docNo -> {
+            String id = String.valueOf(docNo);
+            addDocumentToIndex(
+                    scopedId(id), DocNode.of("a", "a" + docNo, "ab", "ab" + docNo,
+                            "c", "c" + docNo, "sg_tenant", internalTenantName())
+            );
+        });
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            //include and exclude
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?_source_includes=a*,c&_source_excludes=ab"
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?_source_includes=a*,c&_source_excludes=ab", tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //only include
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?_source=a*"
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?_source=a*", tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withStoredFieldsParam() throws Exception {
+        DocNode indexMappings = DocNode.parse(Format.JSON).from("""
+                {
+                  "properties": {
+                    "aa": {
+                      "type": "text",
+                      "store": true
+                    },
+                    "ab": {
+                      "type": "text",
+                      "store": true
+                    },
+                    "bb": {
+                      "type": "text"
+                    }
+                  }
+                }
+                """);
+        updateIndexMappings(indexMappings);
+        IntStream.rangeClosed(1, 10).forEach( docNo -> {
+            String id = String.valueOf(docNo);
+            addDocumentToIndex(
+                    scopedId(id), DocNode.of("aa", "a" + docNo, "ab", "ab" + docNo,
+                            "bb", "bb" + docNo, "sg_tenant", internalTenantName())
+            );
+        });
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            //valid stored fields
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?stored_fields=aa,ab"
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?stored_fields=aa,ab", tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //invalid stored fields
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?stored_fields=bb"
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?stored_fields=bb", tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withVersionParam() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("aa", "a", "sg_tenant", internalTenantName()));
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            //version true
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?version=" + true
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?version=" + true, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //version false
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?version=" + false
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?version=" + false, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+        }
+    }
+
+    @Test
+    public void searchRequest_withQParam() throws Exception {
+        IntStream.rangeClosed(1, 10).forEach( docNo -> {
+            String id = String.valueOf(docNo);
+            addDocumentToIndex(
+                    scopedId(id), DocNode.of("field", docNo, "sg_tenant", internalTenantName())
+            );
+        });
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            GenericRestClient.HttpResponse responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?q=" + URLEncoder.encode("field:[2 TO 5]", StandardCharsets.UTF_8)
+            );
+            GenericRestClient.HttpResponse responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?q=" + URLEncoder.encode("field:[2 TO 5]", StandardCharsets.UTF_8), tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+
+            //version false
+            responseWithoutTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?version=" + false
+            );
+            responseWithTenant = client.get(
+                    "/" + KIBANA_INDEX + "/_search?version=" + false, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
+                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
+            );
+        }
+    }
+
+    private DocNode responseBodyWithoutAutoIncrementedFields(GenericRestClient.HttpResponse response) throws Exception {
+        ImmutableSet<String> autoIncrementedFields = ImmutableSet.of("_version", "_seq_no");
+        String regexPattern = String.format("\"(%s)\":\"?[\\w\\d]\"?,", String.join("|", autoIncrementedFields));
+        String responseWithoutAutoIncrementedFields = response.getBody().replaceAll(regexPattern, "");
+        return DocNode.parse(Format.JSON).from(responseWithoutAutoIncrementedFields);
+    }
+
+    private DocNode responseBodyWithoutFieldsWhichMayDifferForSearchRequests(GenericRestClient.HttpResponse response) throws Exception {
+        //todo _score and max_score may differ since we're adding query for sg_tenant field
+        ImmutableSet<String> excludedFields = ImmutableSet.of("took", "_score", "max_score");
+        String regexPattern = String.format("\"(%s)\":\"?[\\w\\d\\.]*\"?,", String.join("|", excludedFields));
+        String responseWithoutExcludedFields = response.getBody().replaceAll(regexPattern, "");
+        return DocNode.parse(Format.JSON).from(responseWithoutExcludedFields);
+    }
+
+    private DocNode removeAttributesFromSearchHits(DocNode searchResponseBody, String... attributes) {
+        DocNode hits = searchResponseBody.getAsNode("hits");
+        List<DocNode> hitEntries = hits.getAsListOfNodes("hits");
+        List<DocNode> hitEntriesWithoutAttributes = hitEntries.stream().map(entry -> {
+            for (String attribute : attributes) {
+                entry = entry.without(attribute);
+            }
+            return entry;
+        }).toList();
+        hits = hits.with("hits", hitEntriesWithoutAttributes);
+        return searchResponseBody.with("hits", hits);
+    }
+
+    private String unscopeResponseBody(GenericRestClient.HttpResponse response, String... ids) throws Exception {
+        return unscopeResponseBody(response.getBodyAsDocNode(), ids);
+    }
+
+    private String unscopeResponseBody(DocNode response, String... ids) {
+        String responseJson = response.toJsonString();
+        for (String id : ids) {
+            responseJson = responseJson.replaceAll(scopedId(id), id);
+        }
+        return responseJson;
+    }
+
+    private String scopedId(String id) {
+        return RequestResponseTenantData.scopedId(id, internalTenantName());
+    }
+
+    private String internalTenantName() {
+        return tenantManager.toInternalTenantName(User.forUser(USER.getName()).requestedTenant(HR_TENANT.getName()).build());
+    }
+
+    private Header tenantHeader() {
+        return new BasicHeader("sg_tenant", HR_TENANT.getName());
+    }
+
+    private IndexResponse addDocumentToIndex(String id, String routing, DocNode doc) {
+        try (Client client = cluster.getInternalNodeClient()) {
+            IndexResponse indexResponse = client.index(new IndexRequest(KIBANA_INDEX).id(id).source(doc)
+                    .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).routing(routing)).actionGet();
+            assertThat(indexResponse.status().getStatus(), equalTo(HttpStatus.SC_CREATED));
+            return indexResponse;
+        }
+    }
+
+    private IndexResponse addDocumentToIndex(String id, DocNode doc) {
+        return addDocumentToIndex(id, null, doc);
+    }
+
+    private GetResponse getDocById(String id) {
+        try (Client client = cluster.getInternalNodeClient()) {
+            GetResponse getResponse = client.get(new GetRequest(KIBANA_INDEX).id(id)).actionGet();
+            assertThat(getResponse.isExists(), equalTo(true));
+            return getResponse;
+        }
+    }
+
+    private void addAliasToIndex(String aliasName) {
+        try (Client client = cluster.getInternalNodeClient()) {
+            IndicesAliasesRequest.AliasActions addAlias = IndicesAliasesRequest.AliasActions.add().index(KIBANA_INDEX).alias(aliasName);
+            AcknowledgedResponse acknowledgedResponse = client.admin().indices()
+                    .aliases(new IndicesAliasesRequest().addAliasAction(addAlias))
+                    .actionGet();
+            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+        }
+    }
+
+    private void updateIndexMappings(DocNode mapping) {
+        try (Client client = cluster.getInternalNodeClient()) {
+            AcknowledgedResponse response = client.admin().indices().putMapping(new PutMappingRequest(KIBANA_INDEX).source(mapping)).actionGet();
+            assertThat(response.isAcknowledged(), equalTo(true));
+        }
+    }
+
+    private void deleteIndex(String indexNamePattern) {
+        try (Client client = cluster.getInternalNodeClient()) {
+            AcknowledgedResponse deleteIndexResponse = client.admin().indices().delete(new DeleteIndexRequest(indexNamePattern)).actionGet();
+            assertThat(deleteIndexResponse.isAcknowledged(), equalTo(true));
+        }
+    }
+
+    private void deleteDoc(String id, String routing) {
+        try (Client client = cluster.getInternalNodeClient()) {
+            DeleteResponse deleteResponse = client.delete(new DeleteRequest(KIBANA_INDEX).id(id).routing(routing)).actionGet();
+            assertThat(deleteResponse.status().getStatus(), equalTo(HttpStatus.SC_OK));
+        }
+    }
+
+    private DocNode multiGetReqBody(String... docIds) {
+        return DocNode.of("ids", docIds);
+    }
+
+    private DocNode multiGetReqBody(Tuple<String, List<String>>... indicesAndDocIds) {
+        List<DocNode> docs = Stream.of(indicesAndDocIds)
+                .flatMap(indexAndDocIds -> indexAndDocIds.v2().stream()
+                        .map(docId -> DocNode.of("_index", indexAndDocIds.v1(), "_id", docId))
+                )
+                .toList();
+        return DocNode.of("docs", docs);
+    }
+
+    private String appendWaitForAllActiveShardsParam(String requestPath) {
+        final String waitForActiveShardsParam = "wait_for_active_shards";
+        final String waitForAllActiveShardsParam = waitForActiveShardsParam.concat("=all");
+        try {
+            URI actualPath = new URI(requestPath);
+            if (Strings.isNullOrEmpty(actualPath.getQuery())) {
+                return String.format("%s%s%s", requestPath, "?", waitForAllActiveShardsParam);
+            } else if (actualPath.getQuery().contains(waitForActiveShardsParam)) {
+                return requestPath;
+            } else {
+                return String.format("%s%s%s", requestPath, "&", waitForAllActiveShardsParam);
+            }
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    };
+}

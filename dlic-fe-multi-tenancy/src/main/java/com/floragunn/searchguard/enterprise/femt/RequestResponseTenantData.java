@@ -16,7 +16,7 @@ public class RequestResponseTenantData {
     private final static Pattern INDEX_NAME_TENANT_PART = Pattern.compile("_(?<tenantName>-?\\d+_[^_]+)_.+");
 
     private static final String SG_TENANT_FIELD = "sg_tenant";
-    private static final String TENAND_SEPARATOR_IN_ID = "__sg_ten__";
+    private static final String TENANT_SEPARATOR_IN_ID = "__sg_ten__";
     private static final String TENANT_NAME_GROUP = "tenantName";
 
     private RequestResponseTenantData() {}
@@ -25,11 +25,11 @@ public class RequestResponseTenantData {
         return SG_TENANT_FIELD;
     }
     public static String scopedId(String id, String tenant) {
-        return id + TENAND_SEPARATOR_IN_ID + tenant;
+        return id + TENANT_SEPARATOR_IN_ID + tenant;
     }
 
     public static String unscopedId(String id) {
-        int i = id.indexOf(TENAND_SEPARATOR_IN_ID);
+        int i = id.indexOf(TENANT_SEPARATOR_IN_ID);
 
         if (i != -1) {
             return id.substring(0, i);
@@ -39,7 +39,7 @@ public class RequestResponseTenantData {
     }
 
     public static String scopeIdIfNeeded(String id, String tenant) {
-        if(id.contains(TENAND_SEPARATOR_IN_ID)) {
+        if(id.contains(TENANT_SEPARATOR_IN_ID)) {
             return scopedId(unscopedId(id), tenant);
         }
         return scopedId(id, tenant);
@@ -49,12 +49,12 @@ public class RequestResponseTenantData {
         if(id == null) {
             return false;
         }
-        return id.contains(TENAND_SEPARATOR_IN_ID) && (!id.endsWith(TENAND_SEPARATOR_IN_ID));
+        return id.contains(TENANT_SEPARATOR_IN_ID) && (!id.endsWith(TENANT_SEPARATOR_IN_ID));
     }
 
     public static String extractTenantFromId(String id) {
         if(isScopedId(id)) {
-            return id.substring(id.indexOf(TENAND_SEPARATOR_IN_ID) + TENAND_SEPARATOR_IN_ID.length());
+            return id.substring(id.indexOf(TENANT_SEPARATOR_IN_ID) + TENANT_SEPARATOR_IN_ID.length());
         } else {
             return null;
         }
