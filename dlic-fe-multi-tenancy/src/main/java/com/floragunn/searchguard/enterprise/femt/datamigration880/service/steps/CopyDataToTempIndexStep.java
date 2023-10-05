@@ -1,6 +1,8 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authz.TenantManager;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
@@ -14,7 +16,10 @@ import org.elasticsearch.search.SearchHit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_FROM_PREVIOUS_MIGRATION_NOT_AVAILABLE_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_INDICES_CONTAIN_MIGRATION_MARKER;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DOCUMENT_ALREADY_MIGRATED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DOCUMENT_ALREADY_EXISTS_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INCORRECT_INDEX_NAME_PREFIX_ERROR;
@@ -29,18 +34,21 @@ class CopyDataToTempIndexStep implements MigrationStep {
     private final StepRepository repository;
     private final FeMultiTenancyConfigurationProvider configurationProvider;
 
-    CopyDataToTempIndexStep(StepRepository repository, FeMultiTenancyConfigurationProvider configurationProvider) {
+    private final IndexSettingsManager indexSettingsManager;
+
+    CopyDataToTempIndexStep(StepRepository repository, FeMultiTenancyConfigurationProvider configurationProvider,
+        IndexSettingsManager indexSettingsManager) {
         this.repository = requireNonNull(repository, "Step repository is required");
         this.configurationProvider = requireNonNull(configurationProvider, "Multi tenancy configuration provider is required");
+        this.indexSettingsManager = requireNonNull(indexSettingsManager, "Index settings manager is required");
     }
 
     @Override
     public StepResult execute(DataMigrationContext context) throws StepException {
         AtomicLong documentCounter = new AtomicLong(0);
         String indexNamePrefix = configurationProvider.getKibanaIndex();
-        //TODO this steps must recognize if backup index or global index should be used. This should be implemented when step related
-        // to backup index creation is ready
-        for(TenantIndex tenantIndex : context.getTenantIndices()) {
+        ImmutableList<TenantIndex> sourceIndices = chooseSourceIndices(context);
+        for(TenantIndex tenantIndex : sourceIndices) {
             log.info("Start moving documents to temp index for tenant '{}'.", tenantIndex);
             repository.forEachDocumentInIndex(tenantIndex.indexName(), 100, searchHits -> {
                 Map<String, String> map = new HashMap<>();
@@ -66,6 +74,38 @@ class CopyDataToTempIndexStep implements MigrationStep {
         long count = documentCounter.get();
         String details = "Stored '" + count + "' documents in temp index '" + context.getTempIndexName() + "'.";
         return new StepResult(OK, "Documents moved to temp index", details);
+    }
+
+    private ImmutableList<TenantIndex> chooseSourceIndices(DataMigrationContext context) {
+        if(indexSettingsManager.isMigrationMarkerPresent(context.getGlobalTenantIndexName())) {
+            String backupIndexName = getNewestBackupIndexWithoutMigrationMarker(context);
+            return ImmutableList.of(new TenantIndex(backupIndexName, Tenant.GLOBAL_TENANT_ID)) //
+                .with(context.getTenantIndicesWithoutGlobalTenant());
+        } else {
+            return context.getTenantIndices();
+        }
+    }
+
+    private String getNewestBackupIndexWithoutMigrationMarker(DataMigrationContext context) {
+        ImmutableList<String> backupIndices = context.getBackupIndices();
+        if(backupIndices.isEmpty()) {
+            String message = "Global tenant index contains migration marker and backup index does not exist";
+            String details = "Available backup indices: " + backupIndices.stream() //
+                .map(index -> "'" + index + "'") //
+                .collect(Collectors.joining(", "));
+            throw new StepException(message, BACKUP_FROM_PREVIOUS_MIGRATION_NOT_AVAILABLE_ERROR, details);
+        }
+        for(String backupIndex : backupIndices){
+            if(indexSettingsManager.isMigrationMarkerPresent(backupIndex)){
+                continue;
+            }
+            return backupIndex;
+        }
+        String message = "Backup index without migration marker not found";
+        String details = "Existing backup indices: " + backupIndices.stream() //
+            .map(index -> "'" + index + "'") //
+            .collect(Collectors.joining(", "));
+        throw new StepException(message, BACKUP_INDICES_CONTAIN_MIGRATION_MARKER, details);
     }
 
     private static String scopeId(SearchHit hit, TenantIndex tenant, String indexNamePrefix) {
