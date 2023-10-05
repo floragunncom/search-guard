@@ -134,7 +134,7 @@ public class CopyDataToGlobalIndexStepTest {
     }
 
     @Test
-    public void shouldReportErrorWhenDocumentsWareUpdatedInDestinationIndex() {
+    public void shouldReportErrorWhenDocumentsWereUpdatedInDestinationIndex() {
         when(context.getTempIndexName()).thenReturn(SOURCE_INDEX_NAME_1);
         when(context.getGlobalTenantIndexName()).thenReturn(DESTINATION_INDEX_NAME_1);
         when(stepRepository.reindexData(anyString(), anyString())).thenReturn(reindexResponse);
@@ -149,7 +149,7 @@ public class CopyDataToGlobalIndexStepTest {
     }
 
     @Test
-    public void shouldReportErrorWhenDocumentsWhenDeletedDocumentsFromDestinationIndex() {
+    public void shouldReportErrorWhenDocumentsWereDeletedFromDestinationIndex() {
         when(context.getTempIndexName()).thenReturn(SOURCE_INDEX_NAME_1);
         when(context.getGlobalTenantIndexName()).thenReturn(DESTINATION_INDEX_NAME_1);
         when(stepRepository.reindexData(anyString(), anyString())).thenReturn(reindexResponse);
@@ -196,7 +196,7 @@ public class CopyDataToGlobalIndexStepTest {
     }
 
     @Test
-    public void shouldInterruptStepExecutionInCaseOfExceptionThrowsFromRepository_1() {
+    public void shouldInterruptStepExecutionInCaseOfExceptionThrownFromRepository_1() {
         when(context.getTempIndexName()).thenReturn(SOURCE_INDEX_NAME_3);
         when(context.getGlobalTenantIndexName()).thenReturn(DESTINATION_INDEX_NAME_3);
         when(stepRepository.reindexData(anyString(), anyString())).thenThrow(new StepException("Test exception", REINDEX_BULK_ERROR, null));
@@ -206,7 +206,7 @@ public class CopyDataToGlobalIndexStepTest {
     }
 
     @Test
-    public void shouldInterruptStepExecutionInCaseOfExceptionThrowsFromRepository_2() {
+    public void shouldInterruptStepExecutionInCaseOfExceptionThrownFromRepository_2() {
         when(context.getTempIndexName()).thenReturn(SOURCE_INDEX_NAME_3);
         when(context.getGlobalTenantIndexName()).thenReturn(DESTINATION_INDEX_NAME_3);
         when(stepRepository.reindexData(anyString(), anyString())).thenThrow(new StepException("test ex", REINDEX_SEARCH_ERROR, null));
@@ -216,7 +216,7 @@ public class CopyDataToGlobalIndexStepTest {
     }
 
     @Test
-    public void shouldInterruptStepExecutionInCaseOfExceptionThrowsFromRepository_3() {
+    public void shouldInterruptStepExecutionInCaseOfExceptionThrownFromRepository_3() {
         when(context.getTempIndexName()).thenReturn(SOURCE_INDEX_NAME_3);
         when(context.getGlobalTenantIndexName()).thenReturn(DESTINATION_INDEX_NAME_3);
         when(stepRepository.reindexData(anyString(), anyString())).thenThrow(new StepException("test timeout", REINDEX_TIMEOUT_ERROR, null));

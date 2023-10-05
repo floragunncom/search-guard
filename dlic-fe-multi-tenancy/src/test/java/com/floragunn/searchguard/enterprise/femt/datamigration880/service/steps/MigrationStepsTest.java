@@ -109,7 +109,6 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -2115,7 +2114,7 @@ public class MigrationStepsTest {
     }
 
     @Test
-    public void shouldDeleteManyDocumentFromGlobalTenantIndex() {
+    public void shouldDeleteManyDocumentsFromGlobalTenantIndex() {
         PrivilegedConfigClient client = getPrivilegedClient();
         StepRepository repository = new StepRepository(client);
         createIndex(GLOBAL_TENANT_INDEX);
