@@ -4,10 +4,12 @@ import com.floragunn.fluent.collections.ImmutableList;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class DataMigrationContext {
 
@@ -72,7 +74,7 @@ public class DataMigrationContext {
     }
 
     public ImmutableList<String> getBackupIndices() {
-        return backupIndices;
+        return backupIndices == null ? ImmutableList.empty() : backupIndices;
     }
 
     public void setBackupIndices(ImmutableList<String> backupIndices) {
@@ -89,5 +91,13 @@ public class DataMigrationContext {
 
     public void setBackupCreated(Boolean backupCreated) {
         this.backupCreated = backupCreated;
+    }
+
+    public ImmutableList<TenantIndex> getTenantIndicesWithoutGlobalTenant() {
+        List<TenantIndex> mutableList = getTenantIndices() //
+            .stream() //
+            .filter(tenantIndex -> !tenantIndex.belongsToGlobalTenant()) //
+            .toList();
+        return ImmutableList.of(mutableList);
     }
 }

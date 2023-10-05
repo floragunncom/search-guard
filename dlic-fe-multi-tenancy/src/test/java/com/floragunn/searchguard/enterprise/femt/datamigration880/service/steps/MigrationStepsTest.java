@@ -75,6 +75,8 @@ import java.util.stream.Stream;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_CONTAINS_MIGRATED_DATA_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_DOES_NOT_EXIST_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_FROM_PREVIOUS_MIGRATION_NOT_AVAILABLE_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_INDICES_CONTAIN_MIGRATION_MARKER;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_IS_EMPTY_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DELETE_ALL_BULK_ERROR;
@@ -174,124 +176,6 @@ public class MigrationStepsTest {
     public void closeClient() {
         if(this.privilegedConfigClient != null) {
             this.privilegedConfigClient.close();
-        }
-    }
-
-    private static void deleteIndexTemplateIfExists() {
-        try(Client client = cluster.getInternalNodeClient()) {
-            GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(INDEX_TEMPLATE_NAME).execute().actionGet();
-            if(!response.getIndexTemplates().isEmpty()) {
-                var acknowledgedResponse = client.admin().indices().prepareDeleteTemplate(INDEX_TEMPLATE_NAME).execute().actionGet();
-                assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
-            }
-        }
-    }
-
-    private void createIndex(String indexNamesPrefix, int numberOfReplicas, Settings additionalSettings, DoubleAliasIndex...indices) {
-        BulkRequest bulkRequestCreateIndices = new BulkRequest();
-        BulkRequest bulkRequestClearIndices = new BulkRequest();
-        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
-        Settings.Builder settings = Settings.builder()
-            .put("index.hidden", true)
-            .put("index.number_of_replicas", numberOfReplicas);
-        if(additionalSettings != null) {
-            settings.put(additionalSettings);
-        }
-        PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
-            .patterns(Collections.singletonList(indexNamesPrefix + "*"))
-            .settings(settings);
-        try(Client client = cluster.getInternalNodeClient()) {
-            AcknowledgedResponse createTemplateResponse = client.admin() //
-                .indices() //
-                .putTemplate(templateRequest) //
-                .actionGet();
-            assertThat(createTemplateResponse.isAcknowledged(), equalTo(true));
-            for (DoubleAliasIndex index : indices) {
-                String currentIndex = index.indexName();
-                if (!currentIndex.startsWith(indexNamesPrefix)) {
-                    String message = String.join("", "Incorrect name of index ",
-                        currentIndex, ". All created indices must have a common prefix '" + indexNamesPrefix, "'.");
-                    throw new IllegalStateException(message);
-                }
-                bulkRequestCreateIndices.add(new IndexRequest(currentIndex).id(CREATE_INDEX_ID).source(DocNode.EMPTY));
-                createdIndices.add(index);
-                indicesAliasesRequest.addAliasAction(AliasActions.add().index(index.indexName).aliases(index.longAlias, index.shortAlias));
-                bulkRequestClearIndices.add(new DeleteRequest(currentIndex, CREATE_INDEX_ID));
-            }
-            BulkResponse response = client.bulk(bulkRequestCreateIndices.setRefreshPolicy(IMMEDIATE)).actionGet();
-            if (response.hasFailures()) {
-                log.error("Create index failure response {}", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
-            var acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
-            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
-            response = client.bulk(bulkRequestClearIndices).actionGet();
-            if (response.hasFailures()) {
-                log.error("Cannot clear newly created indices {}", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
-        }
-    }
-
-    private void createBackupIndex(BackupIndex...indices) {
-        BulkRequest bulkRequestIndex = new BulkRequest();
-        BulkRequest bulkRequestDelete = new BulkRequest();
-        for(BackupIndex index : indices) {
-            bulkRequestIndex.add(new IndexRequest(index.indexName()).id(CREATE_INDEX_ID).source(DocNode.EMPTY));
-            createdIndices.add(index);
-            bulkRequestDelete.add(new DeleteRequest(index.indexName(), CREATE_INDEX_ID));
-        }
-
-        try(Client client = cluster.getInternalNodeClient()) {
-            BulkResponse response = client.bulk(bulkRequestIndex.setRefreshPolicy(IMMEDIATE)).actionGet();
-            if (response.hasFailures()) {
-                log.error("Create backup index failure response {}", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
-            response = client.bulk(bulkRequestDelete.setRefreshPolicy(IMMEDIATE)).actionGet();
-            if (response.hasFailures()) {
-                log.error("Create backup index failure, cannot clean index, response {}", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
-        }
-    }
-
-    private void createIndex(DoubleAliasIndex...indices) {
-        createIndex(MULTITENANCY_INDEX_PREFIX, 0, null, indices);
-    }
-
-    private void createLegacyIndex(LegacyIndex...indices) {
-        String configuredIndexNamePrefix = getConfiguredIndexPrefix();
-
-        BulkRequest bulkRequest = new BulkRequest();
-        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
-        PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
-            .patterns(Collections.singletonList(configuredIndexNamePrefix + "*")) //
-            .settings(Settings.builder().put("index.hidden", true));
-        try(Client client = cluster.getInternalNodeClient()) {
-            client.admin() //
-                .indices() //
-                .putTemplate(templateRequest) //
-                .actionGet();
-            for (LegacyIndex index : indices) {
-                String currentIndexName = index.indexName();
-                if (!currentIndexName.startsWith(configuredIndexNamePrefix)) {
-                    throw new IllegalStateException("All legacy indices names should start with " + configuredIndexNamePrefix);
-                }
-                bulkRequest.add(new IndexRequest(currentIndexName).source(DocNode.EMPTY));
-                createdIndices.add(index);
-                indicesAliasesRequest.addAliasAction(AliasActions.add().index(index.indexName).aliases(index.longAlias));
-            }
-            BulkResponse response = client.bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
-            if(response.hasFailures()) {
-                log.error("Cannot create legacy indices due to '{}'", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
-            AcknowledgedResponse acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
-            if(!acknowledgedResponse.isAcknowledged()) {
-                log.error("Cannot create aliases for legacy indices.");
-            }
-            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
         }
     }
 
@@ -1370,9 +1254,7 @@ public class MigrationStepsTest {
         final int countOfDocuments = 1005;
         String[] spaceNames = IntStream.range(0, countOfDocuments).mapToObj(index -> "space_no_" + index).toArray(String[]::new);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), spaceNames);
-        StepRepository stepRepository = new StepRepository(client);
-        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
-        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+        CopyDataToTempIndexStep step =  createCopyDataToTempIndexStep(client);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
 
         StepResult result = step.execute(context);
@@ -1395,9 +1277,7 @@ public class MigrationStepsTest {
                 .toArray(String[]::new);
             catalog.insertSpace(indexName, spaceNames);
         });
-        StepRepository stepRepository = new StepRepository(client);
-        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
-        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+        CopyDataToTempIndexStep step =  createCopyDataToTempIndexStep(client);
         context.setTenantIndices(doubleAliasIndexToTenantDataWithoutTenantName(indices));
 
         StepResult result = step.execute(context);
@@ -1417,9 +1297,7 @@ public class MigrationStepsTest {
         catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), "iot-1");
         catalog.insertIndexPattern(PRIVATE_USER_KIRK_INDEX.indexName(), "iot-2");
         catalog.insertIndexPattern(managementTenant.indexName(), "iot-3");
-        StepRepository stepRepository = new StepRepository(client);
-        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
-        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
         ImmutableList<TenantIndex> tenantIndices = ImmutableList.of(
             new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID), //
             new TenantIndex(PRIVATE_USER_KIRK_INDEX.indexName(), null), //
@@ -1471,9 +1349,7 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         String scopedId = RequestResponseTenantData.scopedId("alreadyMigratedSpace", Tenant.GLOBAL_TENANT_ID);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "alreadyMigratedSpace", scopedId);
-        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
-        StepRepository stepRepository = new StepRepository(client);
-        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepException stepException = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
 
@@ -1502,9 +1378,7 @@ public class MigrationStepsTest {
             new TenantIndex(PRIVATE_USER_LUKASZ_3_INDEX.indexName(), null)
         );
         context.setTenantIndices(tenantIndices);
-        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
-        StepRepository stepRepository = new StepRepository(client);
-        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepResult result = step.execute(context);
 
@@ -1539,9 +1413,7 @@ public class MigrationStepsTest {
             new TenantIndex(PRIVATE_USER_LUKASZ_3_INDEX.indexName(), null)
         );
         context.setTenantIndices(tenantIndices);
-        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
-        StepRepository stepRepository = new StepRepository(client);
-        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider);
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepResult result = step.execute(context);
 
@@ -1552,6 +1424,304 @@ public class MigrationStepsTest {
         assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__-1091682490_lukasz");
         assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__739988528_ukasz");
         assertThatDocumentExists(context.getTempIndexName(), "space:colliding_space_id__sg_ten__-1091714203_luksz");
+    }
+
+    @Test
+    public void shouldUseTheBackupIndexAsDataSource_1() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), 100);
+        addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName());
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "kirk-tenant-space");
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusDays(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusDays(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5);
+        catalog.insertSpace(backupIndex1.indexName(), "backup-1-tenant-space");
+        catalog.insertSpace(backupIndex2.indexName(), "backup-2-tenant-space");
+        catalog.insertSpace(backupIndex3.indexName(), "backup-3-tenant-space");
+        catalog.insertSpace(backupIndex4.indexName(), "backup-4-tenant-space");
+        catalog.insertSpace(backupIndex5.indexName(), "backup-5-tenant-space");
+        StepRepository stepRepository = new StepRepository(client);
+        populateBackupIndicesViaStepExecution(stepRepository);
+        assertThat(context.getBackupIndices(), hasSize(5));
+        populateDataIndicesViaStep();
+        assertThat(context.getDataIndicesNames(), hasSize(3));
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        // documents from global tenant index not included (~100 documents)
+        assertThat(countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
+        assertThatDocumentExists(context.getTempIndexName(), "space:backup-1-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        assertThatDocumentExists(context.getTempIndexName(), "space:management-tenant-space__sg_ten__-1799980989_management");
+        assertThatDocumentExists(context.getTempIndexName(), "space:kirk-tenant-space__sg_ten__3292183_kirk");
+    }
+
+    @Test
+    public void shouldUseTheBackupIndexAsDataSource_2() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), 100);
+        addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName()); // added marker of migrated data
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "kirk-tenant-space");
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusDays(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusDays(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5);
+        catalog.insertSpace(backupIndex1.indexName(), "backup-1-tenant-space");
+        catalog.insertSpace(backupIndex2.indexName(), "backup-2-tenant-space");
+        catalog.insertSpace(backupIndex3.indexName(), "backup-3-tenant-space");
+        catalog.insertSpace(backupIndex4.indexName(), "backup-4-tenant-space");
+        catalog.insertSpace(backupIndex5.indexName(), "backup-5-tenant-space");
+        addDataMigrationMarkerToTheIndex(backupIndex1.indexName()); // added marker of migrated data
+        StepRepository stepRepository = new StepRepository(client);
+        populateBackupIndicesViaStepExecution(stepRepository);
+        assertThat(context.getBackupIndices(), hasSize(5));
+        populateDataIndicesViaStep();
+        assertThat(context.getDataIndicesNames(), hasSize(3));
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        // documents from global tenant index not included (~100 documents)
+        assertThat(countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
+        assertThatDocumentExists(context.getTempIndexName(), "space:backup-2-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        assertThatDocumentExists(context.getTempIndexName(), "space:management-tenant-space__sg_ten__-1799980989_management");
+        assertThatDocumentExists(context.getTempIndexName(), "space:kirk-tenant-space__sg_ten__3292183_kirk");
+    }
+
+    @Test
+    public void shouldUseTheBackupIndexAsDataSource_3() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), 100);
+        addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName()); // added marker of migrated data
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "kirk-tenant-space");
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusDays(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusDays(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5);
+        catalog.insertSpace(backupIndex1.indexName(), "backup-1-tenant-space");
+        catalog.insertSpace(backupIndex2.indexName(), "backup-2-tenant-space");
+        catalog.insertSpace(backupIndex3.indexName(), "backup-3-tenant-space");
+        catalog.insertSpace(backupIndex4.indexName(), "backup-4-tenant-space");
+        catalog.insertSpace(backupIndex5.indexName(), "backup-5-tenant-space");
+        addDataMigrationMarkerToTheIndex(backupIndex1.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex2.indexName()); // added marker of migrated data
+        StepRepository stepRepository = new StepRepository(client);
+        populateBackupIndicesViaStepExecution(stepRepository);
+        assertThat(context.getBackupIndices(), hasSize(5));
+        populateDataIndicesViaStep();
+        assertThat(context.getDataIndicesNames(), hasSize(3));
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        // documents from global tenant index not included (~100 documents)
+        assertThat(countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
+        assertThatDocumentExists(context.getTempIndexName(), "space:backup-3-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        assertThatDocumentExists(context.getTempIndexName(), "space:management-tenant-space__sg_ten__-1799980989_management");
+        assertThatDocumentExists(context.getTempIndexName(), "space:kirk-tenant-space__sg_ten__3292183_kirk");
+    }
+
+    @Test
+    public void shouldUseTheBackupIndexAsDataSource_4() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), 100);
+        addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName()); // added marker of migrated data
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "kirk-tenant-space");
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusDays(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusDays(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5);
+        catalog.insertSpace(backupIndex1.indexName(), "backup-1-tenant-space");
+        catalog.insertSpace(backupIndex2.indexName(), "backup-2-tenant-space");
+        catalog.insertSpace(backupIndex3.indexName(), "backup-3-tenant-space");
+        catalog.insertSpace(backupIndex4.indexName(), "backup-4-tenant-space");
+        catalog.insertSpace(backupIndex5.indexName(), "backup-5-tenant-space");
+        addDataMigrationMarkerToTheIndex(backupIndex1.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex2.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex3.indexName()); // added marker of migrated data
+        StepRepository stepRepository = new StepRepository(client);
+        populateBackupIndicesViaStepExecution(stepRepository);
+        assertThat(context.getBackupIndices(), hasSize(5));
+        populateDataIndicesViaStep();
+        assertThat(context.getDataIndicesNames(), hasSize(3));
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        // documents from global tenant index not included (~100 documents)
+        assertThat(countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
+        assertThatDocumentExists(context.getTempIndexName(), "space:backup-4-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        assertThatDocumentExists(context.getTempIndexName(), "space:management-tenant-space__sg_ten__-1799980989_management");
+        assertThatDocumentExists(context.getTempIndexName(), "space:kirk-tenant-space__sg_ten__3292183_kirk");
+    }
+
+    @Test
+    public void shouldUseTheBackupIndexAsDataSource_5() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), 100);
+        addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName()); // added marker of migrated data
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "kirk-tenant-space");
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusDays(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusDays(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5);
+        catalog.insertSpace(backupIndex1.indexName(), "backup-1-tenant-space");
+        catalog.insertSpace(backupIndex2.indexName(), "backup-2-tenant-space");
+        catalog.insertSpace(backupIndex3.indexName(), "backup-3-tenant-space");
+        catalog.insertSpace(backupIndex4.indexName(), "backup-4-tenant-space");
+        catalog.insertSpace(backupIndex5.indexName(), "backup-5-tenant-space");
+        addDataMigrationMarkerToTheIndex(backupIndex1.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex2.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex3.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex4.indexName()); // added marker of migrated data
+        StepRepository stepRepository = new StepRepository(client);
+        populateBackupIndicesViaStepExecution(stepRepository);
+        assertThat(context.getBackupIndices(), hasSize(5));
+        populateDataIndicesViaStep();
+        assertThat(context.getDataIndicesNames(), hasSize(3));
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        // documents from global tenant index not included (~100 documents)
+        assertThat(countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
+        assertThatDocumentExists(context.getTempIndexName(), "space:backup-5-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        assertThatDocumentExists(context.getTempIndexName(), "space:management-tenant-space__sg_ten__-1799980989_management");
+        assertThatDocumentExists(context.getTempIndexName(), "space:kirk-tenant-space__sg_ten__3292183_kirk");
+    }
+
+    @Test
+    public void shouldUseTheBackupIndexAsDataSource_6() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), 100);
+        addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName()); // added marker of migrated data
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "kirk-tenant-space");
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        BackupIndex backupIndex2 = new BackupIndex(NOW.toLocalDateTime().minusDays(1));
+        BackupIndex backupIndex3 = new BackupIndex(NOW.toLocalDateTime().minusDays(2));
+        BackupIndex backupIndex4 = new BackupIndex(NOW.toLocalDateTime().minusDays(3));
+        BackupIndex backupIndex5 = new BackupIndex(NOW.toLocalDateTime().minusDays(4));
+        createBackupIndex(backupIndex1, backupIndex2, backupIndex3, backupIndex4, backupIndex5);
+        catalog.insertSpace(backupIndex1.indexName(), "backup-1-tenant-space");
+        catalog.insertSpace(backupIndex2.indexName(), "backup-2-tenant-space");
+        catalog.insertSpace(backupIndex3.indexName(), "backup-3-tenant-space");
+        catalog.insertSpace(backupIndex4.indexName(), "backup-4-tenant-space");
+        catalog.insertSpace(backupIndex5.indexName(), "backup-5-tenant-space");
+        addDataMigrationMarkerToTheIndex(backupIndex1.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex2.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex3.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex4.indexName()); // added marker of migrated data
+        addDataMigrationMarkerToTheIndex(backupIndex5.indexName()); // added marker of migrated data
+        StepRepository stepRepository = new StepRepository(client);
+        populateBackupIndicesViaStepExecution(stepRepository);
+        assertThat(context.getBackupIndices(), hasSize(5));
+        populateDataIndicesViaStep();
+        assertThat(context.getDataIndicesNames(), hasSize(3));
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
+
+        StepException exception = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
+
+        assertThat(exception.getStatus(), equalTo(BACKUP_INDICES_CONTAIN_MIGRATION_MARKER));
+    }
+
+    @Test
+    public void shouldMarkGlobalTenantIndexWithMigratedDataMarkerByStep() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), 100);
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "kirk-tenant-space");
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        BackupIndex backupIndex1 = new BackupIndex(NOW.toLocalDateTime());
+        createBackupIndex(backupIndex1);
+        catalog.insertSpace(backupIndex1.indexName(), "backup-1-tenant-space");
+        StepRepository stepRepository = new StepRepository(client);
+        populateBackupIndicesViaStepExecution(stepRepository);
+        assertThat(context.getBackupIndices(), hasSize(1));
+        populateDataIndicesViaStep();
+        assertThat(context.getDataIndicesNames(), hasSize(3));
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
+        IndexSettingsManager indexSettingsManager = new IndexSettingsManager(stepRepository);
+
+        shouldAddMigrationMarkerToGlobalTenantIndexViaStep(indexSettingsManager);
+
+        StepResult result = step.execute(context);
+        assertThat(result.isSuccess(), equalTo(true));
+        // documents from global tenant index not included (~100 documents)
+        assertThat(countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
+        assertThatDocumentExists(context.getTempIndexName(), "space:backup-1-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        assertThatDocumentExists(context.getTempIndexName(), "space:management-tenant-space__sg_ten__-1799980989_management");
+        assertThatDocumentExists(context.getTempIndexName(), "space:kirk-tenant-space__sg_ten__3292183_kirk");
+    }
+
+    @Test
+    public void shouldUseTheBackupIndexAsDataSource_7() {
+        PrivilegedConfigClient client = getPrivilegedClient();
+        FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
+        DoubleAliasIndex managementTenant = DoubleAliasIndex.forTenant(TENANT_MANAGEMENT);
+        createIndex(GLOBAL_TENANT_INDEX, managementTenant, PRIVATE_USER_KIRK_INDEX);
+        catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), 100);
+        addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName()); // added marker of migrated data
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        catalog.insertSpace(PRIVATE_USER_KIRK_INDEX.indexName(), "kirk-tenant-space");
+        catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
+        StepRepository stepRepository = new StepRepository(client);
+        populateBackupIndicesViaStepExecution(stepRepository);
+        populateDataIndicesViaStep();
+        assertThat(context.getDataIndicesNames(), hasSize(3));
+        CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
+
+        StepException exception = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
+
+        assertThat(exception.getStatus(), equalTo(BACKUP_FROM_PREVIOUS_MIGRATION_NOT_AVAILABLE_ERROR));
     }
 
     @Test
@@ -2431,13 +2601,156 @@ public class MigrationStepsTest {
         return configurationProvider.getConfig().orElseThrow().getIndex();
     }
 
-
-
     private static ImmutableList<TenantIndex> doubleAliasIndexToTenantDataWithoutTenantName(ImmutableList<DoubleAliasIndex> indices) {
-        return indices.map(i -> new TenantIndex(i.indexName(), "tenant name is not important here"));
+        return indices.map(i -> new TenantIndex(i.indexName(), GLOBAL_TENANT_INDEX.indexName().equals(i.indexName()) ?
+            Tenant.GLOBAL_TENANT_ID : "tenant name is not important here"));
     }
 
     private static ImmutableList<TenantIndex> doubleAliasIndexToTenantDataWithoutTenantName(DoubleAliasIndex...indices) {
         return doubleAliasIndexToTenantDataWithoutTenantName(ImmutableList.ofArray(indices));
+    }
+
+    private void shouldAddMigrationMarkerToGlobalTenantIndexViaStep(IndexSettingsManager indexSettingsManager) {
+        AddMigrationMarkerToGlobalTenantIndexStep step = new AddMigrationMarkerToGlobalTenantIndexStep(indexSettingsManager);
+        StepResult result = step.execute(context);
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    private void populateDataIndicesViaStep() {
+        PopulateTenantsStep step = createPopulateTenantsStep();
+        StepResult result = step.execute(context);
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    private void populateBackupIndicesViaStepExecution(StepRepository stepRepository) {
+        PopulateBackupIndicesStep step = new PopulateBackupIndicesStep(stepRepository);
+        StepResult result = step.execute(context);
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    private static CopyDataToTempIndexStep createCopyDataToTempIndexStep(PrivilegedConfigClient client) {
+        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
+        StepRepository stepRepository = new StepRepository(client);
+        IndexSettingsManager indexSettingsManager = new IndexSettingsManager(stepRepository);
+        CopyDataToTempIndexStep step = new CopyDataToTempIndexStep(stepRepository, configurationProvider, indexSettingsManager);
+        return step;
+    }
+
+    private static void deleteIndexTemplateIfExists() {
+        try(Client client = cluster.getInternalNodeClient()) {
+            GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(INDEX_TEMPLATE_NAME).execute().actionGet();
+            if(!response.getIndexTemplates().isEmpty()) {
+                var acknowledgedResponse = client.admin().indices().prepareDeleteTemplate(INDEX_TEMPLATE_NAME).execute().actionGet();
+                assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+            }
+        }
+    }
+
+    private void createIndex(String indexNamesPrefix, int numberOfReplicas, Settings additionalSettings, DoubleAliasIndex...indices) {
+        BulkRequest bulkRequestCreateIndices = new BulkRequest();
+        BulkRequest bulkRequestClearIndices = new BulkRequest();
+        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
+        Settings.Builder settings = Settings.builder()
+            .put("index.hidden", true)
+            .put("index.number_of_replicas", numberOfReplicas);
+        if(additionalSettings != null) {
+            settings.put(additionalSettings);
+        }
+        PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
+            .patterns(Collections.singletonList(indexNamesPrefix + "*"))
+            .settings(settings);
+        try(Client client = cluster.getInternalNodeClient()) {
+            AcknowledgedResponse createTemplateResponse = client.admin() //
+                .indices() //
+                .putTemplate(templateRequest) //
+                .actionGet();
+            assertThat(createTemplateResponse.isAcknowledged(), equalTo(true));
+            for (DoubleAliasIndex index : indices) {
+                String currentIndex = index.indexName();
+                if (!currentIndex.startsWith(indexNamesPrefix)) {
+                    String message = String.join("", "Incorrect name of index ",
+                        currentIndex, ". All created indices must have a common prefix '" + indexNamesPrefix, "'.");
+                    throw new IllegalStateException(message);
+                }
+                bulkRequestCreateIndices.add(new IndexRequest(currentIndex).id(CREATE_INDEX_ID).source(DocNode.EMPTY));
+                createdIndices.add(index);
+                indicesAliasesRequest.addAliasAction(AliasActions.add().index(index.indexName).aliases(index.longAlias, index.shortAlias));
+                bulkRequestClearIndices.add(new DeleteRequest(currentIndex, CREATE_INDEX_ID));
+            }
+            BulkResponse response = client.bulk(bulkRequestCreateIndices.setRefreshPolicy(IMMEDIATE)).actionGet();
+            if (response.hasFailures()) {
+                log.error("Create index failure response {}", response.buildFailureMessage());
+            }
+            assertThat(response.hasFailures(), equalTo(false));
+            var acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
+            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+            response = client.bulk(bulkRequestClearIndices).actionGet();
+            if (response.hasFailures()) {
+                log.error("Cannot clear newly created indices {}", response.buildFailureMessage());
+            }
+            assertThat(response.hasFailures(), equalTo(false));
+        }
+    }
+
+    private void createBackupIndex(BackupIndex...indices) {
+        BulkRequest bulkRequestIndex = new BulkRequest();
+        BulkRequest bulkRequestDelete = new BulkRequest();
+        for(BackupIndex index : indices) {
+            bulkRequestIndex.add(new IndexRequest(index.indexName()).id(CREATE_INDEX_ID).source(DocNode.EMPTY));
+            createdIndices.add(index);
+            bulkRequestDelete.add(new DeleteRequest(index.indexName(), CREATE_INDEX_ID));
+        }
+
+        try(Client client = cluster.getInternalNodeClient()) {
+            BulkResponse response = client.bulk(bulkRequestIndex.setRefreshPolicy(IMMEDIATE)).actionGet();
+            if (response.hasFailures()) {
+                log.error("Create backup index failure response {}", response.buildFailureMessage());
+            }
+            assertThat(response.hasFailures(), equalTo(false));
+            response = client.bulk(bulkRequestDelete.setRefreshPolicy(IMMEDIATE)).actionGet();
+            if (response.hasFailures()) {
+                log.error("Create backup index failure, cannot clean index, response {}", response.buildFailureMessage());
+            }
+            assertThat(response.hasFailures(), equalTo(false));
+        }
+    }
+
+    private void createIndex(DoubleAliasIndex...indices) {
+        createIndex(MULTITENANCY_INDEX_PREFIX, 0, null, indices);
+    }
+
+    private void createLegacyIndex(LegacyIndex...indices) {
+        String configuredIndexNamePrefix = getConfiguredIndexPrefix();
+
+        BulkRequest bulkRequest = new BulkRequest();
+        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
+        PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
+            .patterns(Collections.singletonList(configuredIndexNamePrefix + "*")) //
+            .settings(Settings.builder().put("index.hidden", true));
+        try(Client client = cluster.getInternalNodeClient()) {
+            client.admin() //
+                .indices() //
+                .putTemplate(templateRequest) //
+                .actionGet();
+            for (LegacyIndex index : indices) {
+                String currentIndexName = index.indexName();
+                if (!currentIndexName.startsWith(configuredIndexNamePrefix)) {
+                    throw new IllegalStateException("All legacy indices names should start with " + configuredIndexNamePrefix);
+                }
+                bulkRequest.add(new IndexRequest(currentIndexName).source(DocNode.EMPTY));
+                createdIndices.add(index);
+                indicesAliasesRequest.addAliasAction(AliasActions.add().index(index.indexName).aliases(index.longAlias));
+            }
+            BulkResponse response = client.bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
+            if(response.hasFailures()) {
+                log.error("Cannot create legacy indices due to '{}'", response.buildFailureMessage());
+            }
+            assertThat(response.hasFailures(), equalTo(false));
+            AcknowledgedResponse acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
+            if(!acknowledgedResponse.isAcknowledged()) {
+                log.error("Cannot create aliases for legacy indices.");
+            }
+            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+        }
     }
 }

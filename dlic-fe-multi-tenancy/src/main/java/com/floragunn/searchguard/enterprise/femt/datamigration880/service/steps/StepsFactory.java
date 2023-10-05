@@ -26,7 +26,7 @@ public class StepsFactory {
             new CheckIfIndicesAreBlockedStep(repository),
             new WriteBlockStep(repository),
             new CreateTempIndexStep(settingsManager),
-            new CopyDataToTempIndexStep(repository, configurationProvider),
+            new CopyDataToTempIndexStep(repository, configurationProvider, settingsManager),
             new CreateBackupStep(repository, settingsManager),
             new VerifyPreviousBackupStep(repository, settingsManager),
             new AddMigrationMarkerToGlobalTenantIndexStep(settingsManager),
