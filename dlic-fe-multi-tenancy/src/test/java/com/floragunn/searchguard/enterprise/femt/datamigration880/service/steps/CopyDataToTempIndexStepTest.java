@@ -310,7 +310,7 @@ public class CopyDataToTempIndexStepTest {
     }
 
     @Test
-    public void shouldUseReportErrorWhenGlobalIndexAndItsBackupsContainMigratedData() {
+    public void shouldReportErrorWhenGlobalIndexAndItsBackupsContainMigratedData() {
         context.setTenantIndices(ImmutableList.of(GLOBAL_TENANT, TENANT_INDEX_1));
         context.setBackupIndices(ImmutableList.of(BACKUP_INDEX_NAME_1, BACKUP_INDEX_NAME_2, BACKUP_INDEX_NAME_3));
         when(indexSettingsManager.isMigrationMarkerPresent(GLOBAL_TENANT.indexName())).thenReturn(true);

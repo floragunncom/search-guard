@@ -90,10 +90,7 @@ class CopyDataToTempIndexStep implements MigrationStep {
         ImmutableList<String> backupIndices = context.getBackupIndices();
         if(backupIndices.isEmpty()) {
             String message = "Global tenant index contains migration marker and backup index does not exist";
-            String details = "Available backup indices: " + backupIndices.stream() //
-                .map(index -> "'" + index + "'") //
-                .collect(Collectors.joining(", "));
-            throw new StepException(message, BACKUP_FROM_PREVIOUS_MIGRATION_NOT_AVAILABLE_ERROR, details);
+            throw new StepException(message, BACKUP_FROM_PREVIOUS_MIGRATION_NOT_AVAILABLE_ERROR, null);
         }
         for(String backupIndex : backupIndices){
             if(indexSettingsManager.isMigrationMarkerPresent(backupIndex)){
