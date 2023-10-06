@@ -3,13 +3,17 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
+import com.google.common.base.Throwables;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.BulkByScrollTask;
 
+import java.util.List;
 import java.util.Objects;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MISSING_DOCUMENTS_IN_GLOBAL_TENANT_INDEX_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.REINDEX_DATA_INTO_GLOBAL_TENANT_ERROR;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.SLICE_PARTIAL_ERROR;
 
 public class CopyDataToGlobalIndexStep implements MigrationStep {
 
@@ -35,6 +39,20 @@ public class CopyDataToGlobalIndexStep implements MigrationStep {
             .append("batch retries ").append(response.getBulkRetries()).append(", ") //
             .append("search retries ").append(response.getSearchRetries()).append(".");
         String message = "Documents copied from '" + source + "' to '" + destination + "' index";
+        List<BulkByScrollTask.StatusOrException> sliceStatuses = response.getStatus().getSliceStatuses();
+        boolean errorDetected = false;
+        for(int i = 0; i < sliceStatuses.size(); ++i) {
+            BulkByScrollTask.StatusOrException currentStatus = sliceStatuses.get(i);
+            Exception exception = currentStatus.getException();
+            if(exception != null) {
+                errorDetected = true;
+                String stackTraceAsString = Throwables.getStackTraceAsString(exception);
+                details.append(" Slice no. ").append(i).append(" error detected ").append(stackTraceAsString).append(".");
+            }
+        }
+        if(errorDetected) {
+            return new StepResult(SLICE_PARTIAL_ERROR, "Cannot restore data in global tenant index", details.toString());
+        }
         if(!isZero(response.getUpdated(), response.getDeleted(), response.getVersionConflicts())) {
             String errorMessage = "Documents should be not updated or deleted, version conflicts are not allowed";
             return new StepResult(REINDEX_DATA_INTO_GLOBAL_TENANT_ERROR, errorMessage, details.toString());

@@ -16,11 +16,10 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.authz.config.Tenant;
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.persistence.IndexMigrationStateRepository;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.DoubleAliasIndex;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
@@ -29,16 +28,12 @@ import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.awaitility.Awaitility;
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.action.admin.indices.alias.Alias;
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.common.settings.Settings;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -47,12 +42,20 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static org.apache.http.HttpStatus.SC_NOT_FOUND;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.GLOBAL_TENANT_INDEX;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.PRIVATE_USER_KIRK_INDEX;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.PRIVATE_USER_LUKASZ_1_INDEX;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.PRIVATE_USER_LUKASZ_2_INDEX;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.PRIVATE_USER_LUKASZ_3_INDEX;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.equalTo;
 
 public class MigrationApiTest {
@@ -69,86 +72,192 @@ public class MigrationApiTest {
         .enterpriseModulesEnabled()
         .build();
 
-    @BeforeClass
-    public static void beforeClass() {
-        ConfigurationRepository configRepository = cluster.getInjectable(ConfigurationRepository.class);
-        SgDynamicConfiguration<Tenant> configuration = configRepository.getConfiguration(CType.TENANTS);
-        Set<String> aliasNames = configuration.getCEntries()
-            .keySet()
-            .stream()
-            .filter(tenantName -> !Tenant.GLOBAL_TENANT_ID.equals(tenantName))
-            .map(tenantName -> toInternalIndexName(".kibana", tenantName))
-            .collect(Collectors.toSet());
-        try(Client client = cluster.getInternalNodeClient()) {
-            FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(client));
-            for (String alias : aliasNames) {
-                String indexName = alias + "_8.7.0_001";
-                String shortAlias = alias + "_8.7.0";
-                CreateIndexRequest request = new CreateIndexRequest(indexName).alias(new Alias(alias)) //
-                        .alias(new Alias(shortAlias)) //
-                        .settings(Settings.builder().put("index.number_of_replicas", 0));
-                CreateIndexResponse response = client.admin().indices().create(request).actionGet();
-                assertThat(response.isAcknowledged(), equalTo(true));
-                catalog.insertSpace(indexName, "default", "custom", "detailed");
-            }
-            // global tenant index
-            String globalTenantIndexName = ".kibana_8.7.0_001";
-            CreateIndexResponse response = client.admin().indices() //
-                .create(new CreateIndexRequest(globalTenantIndexName) //
-                    .alias(new Alias(".kibana_8.7.0")) //
-                    .alias(new Alias(".kibana")) //
-                    .settings(Settings.builder().put("index.number_of_replicas", 0))) //
-                .actionGet();
-            assertThat(response.isAcknowledged(), equalTo(true));
-            catalog.insertSpace(globalTenantIndexName, "default", "custom", "detailed", "superglobal");
-            // user tenant indices
-            String[][] userIndicesAndAliases = new String[][] {
-                //{"index name", "long alias", "short alias"}
-                { ".kibana_3292183_kirk_8.7.0_001", ".kibana_3292183_kirk_8.7.0", ".kibana_3292183_kirk" },// kirk
-                { ".kibana_-1091682490_lukasz_8.7.0_001", ".kibana_-1091682490_lukasz_8.7.0", ".kibana_-1091682490_lukasz" }, //lukasz
-                { ".kibana_739988528_ukasz_8.7.0_001", ".kibana_739988528_ukasz_8.7.0", ".kibana_739988528_ukasz" }, //łukasz
-                { ".kibana_-1091714203_luksz_8.7.0_001", ".kibana_-1091714203_luksz_8.7.0", ".kibana_-1091714203_luksz" }//luk@sz
-            };
-            for (String[] privateUserTenant : userIndicesAndAliases) {
-                String indexName = privateUserTenant[0];
-                CreateIndexResponse createIndexResponse = client.admin().indices() //
-                    .create(new CreateIndexRequest(indexName) //
-                        .alias(new Alias(privateUserTenant[1])) //
-                        .alias(new Alias(privateUserTenant[2])) //
-                        .settings(Settings.builder().put("index.number_of_replicas", 0))) //
-                    .actionGet();
-                assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
-                catalog.insertSpace(indexName, "default", "super_private");
-            }
-        }
-    }
+    @Rule
+    public final MigrationEnvironmentHelper environmentHelper = new MigrationEnvironmentHelper(cluster, Clock.systemDefaultZone());
+
+
 
     @Before
     public void before() {
-        Client client = cluster.getInternalNodeClient();
-        indexMigrationStateRepository = new IndexMigrationStateRepository(PrivilegedConfigClient.adapt(client));
-        if(indexMigrationStateRepository.isIndexCreated()) {
-            Awaitility.await("Data migration isn't in progress")
-                            .atMost(Duration.ofSeconds(10)).pollInterval(Duration.ofMillis(25))
-                            .until(() -> {
-                                Optional<MigrationExecutionSummary> executionSummary = indexMigrationStateRepository
-                                        .findById(MIGRATION_STATE_DOC_ID);
-                                return executionSummary.map(summary -> ! summary.isMigrationInProgress(LocalDateTime.now()))
-                                        .orElse(true);
-                            });
-            client.admin().indices().delete(new DeleteIndexRequest(".sg_data_migration_state"));
-            assertThatMigrationStateIndexExists(false);
+        try (Client client = cluster.getInternalNodeClient()) {
+            IndexMigrationStateRepository repository = new IndexMigrationStateRepository(PrivilegedConfigClient.adapt(client));
+            indexMigrationStateRepository = new IndexMigrationStateRepository(PrivilegedConfigClient.adapt(client));
+            if (indexMigrationStateRepository.isIndexCreated()) {
+                Awaitility.await("Data migration isn't in progress")
+                    .atMost(Duration.ofSeconds(10)).pollInterval(Duration.ofMillis(25))
+                    .until(() -> {
+                        Optional<MigrationExecutionSummary> executionSummary = indexMigrationStateRepository.findById(MIGRATION_STATE_DOC_ID);
+                        return executionSummary.map(summary -> !summary.isMigrationInProgress(LocalDateTime.now())).orElse(true);
+                    });
+                if (repository.isIndexCreated()) {
+                    environmentHelper.deleteIndex(".sg_data_migration_state");
+                    assertThatMigrationStateIndexExists(false);
+                }
+            }
         }
     }
 
     @Test
     public void shouldStartMigrationProcess() throws Exception {
+        createTenantsAndSavedObjects(mediumAmountOfData());
+        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+            DocNode body = DocNode.EMPTY;
+
+            HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+
+            log.info("Start migration response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThat(environmentHelper.countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(93L));
+            GetIndexResponse getIndexResponse = environmentHelper.findHiddenIndexByName("backup_fe_migration_to_8_8_0_*")
+                .orElseThrow();
+            assertThat(getIndexResponse.getIndices(), arrayWithSize(1));
+        }
+    }
+
+    @Test
+    public void shouldMigrateSmallAmountOfData() throws Exception {
+        createTenantsAndSavedObjects(smallAmountOfData());
+        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+            DocNode body = DocNode.EMPTY;
+
+            HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+
+            log.info("Start migration response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
+            GetIndexResponse getIndexResponse = environmentHelper.findHiddenIndexByName("backup_fe_migration_to_8_8_0_*")
+                .orElseThrow();
+            assertThat(getIndexResponse.getIndices(), arrayWithSize(1));
+        }
+    }
+
+    @Test
+    public void shouldRerunMigrationProcessUsingBackupIndex() throws Exception {
+        createTenantsAndSavedObjects(smallAmountOfData());
+        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+            DocNode body = DocNode.EMPTY;
+            HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+            log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
+            try(Client nodeClient = cluster.getInternalNodeClient()) {
+                FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
+                // damage global tenant index
+                catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), 100);
+            }
+
+            response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+
+            log.info("Second migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
+            GetIndexResponse getIndexResponse = environmentHelper.findHiddenIndexByName("backup_fe_migration_to_8_8_0_*")
+                .orElseThrow();
+            assertThat(getIndexResponse.getIndices(), arrayWithSize(1));
+        }
+    }
+
+    @Test
+    public void shouldRerunMigrationThreeTimes() throws Exception {
+        createTenantsAndSavedObjects(smallAmountOfData());
+        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+            DocNode body = DocNode.EMPTY;
+            HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+            log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
+            try(Client nodeClient = cluster.getInternalNodeClient()) {
+                FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
+                // damage global tenant index
+                catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), 100);
+            }
+            response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+            log.info("Second migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
+            try(Client nodeClient = cluster.getInternalNodeClient()) {
+                FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
+                // damage global tenant index
+                catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), 100);
+            }
+
+            response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+
+            log.info("Third migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
+            GetIndexResponse getIndexResponse = environmentHelper.findHiddenIndexByName("backup_fe_migration_to_8_8_0_*")
+                .orElseThrow();
+            assertThat(getIndexResponse.getIndices(), arrayWithSize(1));
+        }
+    }
+
+    @Test
+    public void shouldRerunMigrationProcessAndCreateAdditionalBackupWhenGlobalTenantIndexContainsNotMigratedData() throws Exception {
+        createTenantsAndSavedObjects(smallAmountOfData());
+        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+            DocNode body = DocNode.EMPTY;
+            HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+            log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
+            String spaceId = null;
+            try(Client nodeClient = cluster.getInternalNodeClient()) {
+                FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
+                // remove data migration marker form the global index. First delete index and create new one and insert required data
+                // this should cause backup index creation when the migration process is run 2nd time.
+                environmentHelper.deleteIndex(GLOBAL_TENANT_INDEX.indexName());
+                environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
+                spaceId = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "global_default").get(0);
+            }
+
+            response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+
+            log.info("Second migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
+            GetIndexResponse getIndexResponse = environmentHelper.findHiddenIndexByName("backup_fe_migration_to_8_8_0_*")
+                .orElseThrow();
+            if(log.isDebugEnabled()) {
+                String indices = String.join(", ", getIndexResponse.getIndices());
+                log.debug("Backup indices created when migration process is run twice '{}'", indices);
+            }
+            assertThat(getIndexResponse.getIndices(), arrayWithSize(2));
+            String migratedSpaceId = spaceId + "__sg_ten__-1216324346_sgsglobaltenant";
+            String spaceSource = environmentHelper.getDocumentSource(GLOBAL_TENANT_INDEX.indexName(), migratedSpaceId).orElseThrow();
+            for (String backupIndex : getIndexResponse.getIndices()) {
+                environmentHelper.assertThatDocumentExists(backupIndex, spaceId);
+                String backupSource = environmentHelper.getDocumentSource(backupIndex, spaceId).orElseThrow();
+                assertThat(backupSource, equalTo(spaceSource));
+            }
+        }
+    }
+
+    @Test
+    @Ignore // takes too much time
+    public void shouldMigrateLargeAmountOfData() throws Exception {
+        createTenantsAndSavedObjects(largeAmountOfData());
         try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
             DocNode body = DocNode.EMPTY;
             HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
 
             log.info("Start migration response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThat(environmentHelper.countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(80_000L));
+        }
+    }
+
+    @Test
+    @Ignore // takes too much time
+    public void shouldMigrateHugeAmountOfData() throws Exception {
+        createTenantsAndSavedObjects(hugeAmountOfData());
+        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+            DocNode body = DocNode.EMPTY;
+            HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
+
+            log.info("Start migration response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThat(environmentHelper.countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(800_000L));
         }
     }
 
@@ -210,13 +319,153 @@ public class MigrationApiTest {
         }
     }
 
-    private static String toInternalIndexName(String prefix, String tenant) {
-        if (tenant == null) {
-            throw new ElasticsearchException("tenant must not be null here");
+    private void assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex() {
+        assertThat(environmentHelper.countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(32L));
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:global_default__sg_ten__-1216324346_sgsglobaltenant");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__191795427_performancereviews");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-738948632_performancereviews");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-634608247_abcdef22");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__580139487_admtenant");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1139640511_admin1");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-152937574_admintenant");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-523190050_businessintelligence");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1242674146_commandtenant");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__1554582075_dept01");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__1554582076_dept02");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__1554582077_dept03");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__1554582078_dept04");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__1554582079_dept05");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1419750584_enterprisetenant");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-853258278_finance");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1992298040_financemanagement");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__1592542611_humanresources");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__1482524924_kibana712aliascreationtest");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-815674808_kibana712aliastest");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-2014056171_kltentro");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-2014056163_kltentrw");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1799980989_management");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__1593390681_performancedata");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1386441184_praxisro");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1386441176_praxisrw");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1754201467_testtenantro");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1754201459_testtenantrw");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:user_private__sg_ten__-1091682490_lukasz");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:user_private__sg_ten__3292183_kirk");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:user_private__sg_ten__-1091714203_luksz");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:user_private__sg_ten__739988528_ukasz");
+    }
+
+    private List<DoubleAliasIndex> createTenantsAndSavedObjects(TenantDataProvider dataProvider) {
+        List<DoubleAliasIndex> tenants = environmentHelper.findIndicesForTenantsDefinedInConfigurationWithoutGlobal();
+        environmentHelper.createIndex(tenants);
+        List<DoubleAliasIndex> createdIndices = new ArrayList<>(tenants);
+        try(Client client = cluster.getInternalNodeClient()) {
+            FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(client));
+            for (DoubleAliasIndex index : tenants) {
+                dataProvider.configuredTenant(catalog, index.indexName());
+            }
+            // global tenant index
+            environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
+            createdIndices.add(GLOBAL_TENANT_INDEX);
+            dataProvider.globalTenant(catalog, GLOBAL_TENANT_INDEX.indexName());
+            // user tenant indices
+            ImmutableList<DoubleAliasIndex> privateUserTenants = ImmutableList.of(PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX,
+                PRIVATE_USER_LUKASZ_2_INDEX, PRIVATE_USER_LUKASZ_3_INDEX);
+            environmentHelper.createIndex(privateUserTenants);
+            createdIndices.addAll(privateUserTenants);
+            for (DoubleAliasIndex index : privateUserTenants) {
+                dataProvider.privateUserTenant(catalog, index.indexName());
+            }
         }
-        String tenantInfoPart = "_" + tenant.hashCode() + "_" + tenant.toLowerCase().replaceAll("[^a-z0-9]+", "");
-        StringBuilder result = new StringBuilder(prefix).append(tenantInfoPart);
-        return result.toString();
+        return createdIndices;
+    }
+
+    private TenantDataProvider mediumAmountOfData() {
+        return new TenantDataProvider() {
+            @Override
+            public void globalTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default", "custom", "detailed", "superglobal");
+            }
+
+            @Override
+            public void configuredTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, "default", "custom", "detailed");
+            }
+
+            @Override
+            public void privateUserTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, "default", "super_private");
+            }
+        };
+    }
+
+    private TenantDataProvider smallAmountOfData() {
+        return new TenantDataProvider() {
+            @Override
+            public void globalTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "global_default");
+            }
+
+            @Override
+            public void configuredTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, "configured_default");
+            }
+
+            @Override
+            public void privateUserTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, "user_private");
+            }
+        };
+    }
+
+    private TenantDataProvider largeAmountOfData() {
+        return new TenantDataProvider() {
+            @Override
+            public void globalTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, 1000);
+                catalog.insertIndexPattern(indexName, 1000);
+                catalog.insertDashboard(indexName, 500);
+            }
+
+            @Override
+            public void configuredTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, 1000);
+                catalog.insertIndexPattern(indexName, 1000);
+                catalog.insertDashboard(indexName, 500);
+            }
+
+            @Override
+            public void privateUserTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, 1000);
+                catalog.insertIndexPattern(indexName, 1000);
+                catalog.insertDashboard(indexName, 500);
+            }
+        };
+    }
+
+    private TenantDataProvider hugeAmountOfData() {
+        return new TenantDataProvider() {
+            @Override
+            public void globalTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, 10_000);
+                catalog.insertIndexPattern(indexName, 10_000);
+                catalog.insertDashboard(indexName, 5000);
+            }
+
+            @Override
+            public void configuredTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, 10_000);
+                catalog.insertIndexPattern(indexName, 10_000);
+                catalog.insertDashboard(indexName, 5000);
+            }
+
+            @Override
+            public void privateUserTenant(FrontendObjectCatalog catalog, String indexName) {
+                catalog.insertSpace(indexName, 10_000);
+                catalog.insertIndexPattern(indexName, 10_000);
+                catalog.insertDashboard(indexName, 5000);
+            }
+        };
     }
 
     private void saveMigrationState(MigrationExecutionSummary migrationExecutionSummary) {
@@ -225,7 +474,13 @@ public class MigrationApiTest {
 
     private void assertThatMigrationStateIndexExists(boolean shouldExist) {
         Awaitility.await("Index containing data migration state exists")
-                .atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(25))
-                .untilAsserted(() -> assertThat(indexMigrationStateRepository.isIndexCreated(), equalTo(shouldExist)));
+            .atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(25))
+            .untilAsserted(() -> assertThat(indexMigrationStateRepository.isIndexCreated(), equalTo(shouldExist)));
+    }
+
+    private interface TenantDataProvider {
+        void globalTenant(FrontendObjectCatalog catalog, String indexName);
+        void configuredTenant(FrontendObjectCatalog catalog, String indexName);
+        void privateUserTenant(FrontendObjectCatalog catalog, String indexName);
     }
 }
