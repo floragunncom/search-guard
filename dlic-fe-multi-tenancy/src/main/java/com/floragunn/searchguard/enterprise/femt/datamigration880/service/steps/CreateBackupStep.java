@@ -3,14 +3,20 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
+import com.google.common.base.Throwables;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.BulkByScrollTask;
+import org.elasticsearch.index.reindex.BulkByScrollTask.StatusOrException;
 
+import java.util.List;
 import java.util.Objects;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.BACKUP_UNEXPECTED_OPERATION_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MISSING_DOCUMENTS_IN_BACKUP_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.SLICE_PARTIAL_ERROR;
 
 class CreateBackupStep implements MigrationStep {
 
@@ -41,6 +47,20 @@ class CreateBackupStep implements MigrationStep {
             .append(" used ").append(response.getBatches()).append(" batches, ") //
             .append("batch retries ").append(response.getBulkRetries()).append(", ") //
             .append("search retries ").append(response.getSearchRetries()).append(".");
+        List<StatusOrException> sliceStatuses = response.getStatus().getSliceStatuses();
+        boolean errorDetected = false;
+        for(int i = 0; i < sliceStatuses.size(); ++i) {
+            StatusOrException currentStatus = sliceStatuses.get(i);
+            Exception exception = currentStatus.getException();
+            if(exception != null) {
+                errorDetected = true;
+                String stackTraceAsString = Throwables.getStackTraceAsString(exception);
+                details.append(" Slice no. ").append(i).append(" error detected ").append(stackTraceAsString).append(".");
+            }
+        }
+        if(errorDetected) {
+            return new StepResult(SLICE_PARTIAL_ERROR, "Cannot copy data to backup index", details.toString());
+        }
         if(!isZero(response.getUpdated(), response.getDeleted(), response.getVersionConflicts())) {
             String message = "Documents should be not updated or deleted, version conflicts are not allowed";
             return new StepResult(BACKUP_UNEXPECTED_OPERATION_ERROR, message, details.toString());

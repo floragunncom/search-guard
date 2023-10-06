@@ -24,13 +24,13 @@ class CheckIndicesStateStep implements MigrationStep {
 
     @Override
     public StepResult execute(DataMigrationContext context) throws StepException {
-        String[] dataIndices = context.getDataIndicesNames()
+        String[] dataAndBackupIndices = context.getDataIndicesNames()
             .with(context.getBackupIndices())
             .toArray(String[]::new);
         StringBuilder stringBuilder = new StringBuilder();
-        IndicesStatsResponse response = repository.findIndexState(dataIndices);
+        IndicesStatsResponse response = repository.findIndexState(dataAndBackupIndices);
         boolean success = true;
-        for (String index : dataIndices) {
+        for (String index : dataAndBackupIndices) {
             IndexStats indexStats = response.getIndex(index);
             if(indexStats == null) {
                 success = false;
@@ -51,7 +51,7 @@ class CheckIndicesStateStep implements MigrationStep {
             }
         }
         if(success) {
-            String examinedIndices = Arrays.stream(dataIndices).map(name -> "'" + name + "'").collect(Collectors.joining(", "));
+            String examinedIndices = Arrays.stream(dataAndBackupIndices).map(name -> "'" + name + "'").collect(Collectors.joining(", "));
             return new StepResult(OK, "Indices are healthy", "Examined indices " + examinedIndices);
         } else {
             return new StepResult(UNHEALTHY_INDICES_ERROR, "Unhealthy indices were found", stringBuilder.toString());
