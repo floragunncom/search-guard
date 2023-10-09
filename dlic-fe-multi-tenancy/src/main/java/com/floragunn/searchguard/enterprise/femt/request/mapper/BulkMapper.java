@@ -94,7 +94,7 @@ public class BulkMapper {
                 newItems[i] = BulkItemResponse.success(item.getItemId(), item.getOpType(), newDocWriteResponse);
             }
         }
-        return new BulkResponse(newItems, response.getIngestTookInMillis());
+        return new BulkResponse(newItems, response.getTook().millis());
     }
 
     private BulkItemResponse.Failure toUnscopedFailure(BulkItemResponse.Failure scoped) {
