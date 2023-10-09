@@ -11,7 +11,6 @@
  * from https://floragunn.com
  *
  */
-
 package com.floragunn.searchguard.enterprise.femt.datamigration880.rest;
 
 import com.floragunn.codova.documents.DocNode;
@@ -32,7 +31,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.inject.Inject;
 
-import java.time.Clock;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
