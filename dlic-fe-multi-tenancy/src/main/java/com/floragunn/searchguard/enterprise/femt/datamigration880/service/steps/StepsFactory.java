@@ -40,7 +40,7 @@ public class StepsFactory {
             new WriteBlockStep(repository),
             new CreateTempIndexStep(settingsManager),
             new CopyDataToTempIndexStep(repository, configurationProvider, settingsManager),
-            new CreateBackupStep(repository, settingsManager),
+            new CreateBackupOfGlobalIndexStep(repository, settingsManager),
             new VerifyPreviousBackupStep(repository, settingsManager),
             new AddMigrationMarkerToGlobalTenantIndexStep(settingsManager),
             new DeleteGlobalIndexContentStep(repository),

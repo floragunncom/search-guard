@@ -29,12 +29,12 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.SLICE_PARTIAL_ERROR;
 
-class CreateBackupStep implements MigrationStep {
+class CreateBackupOfGlobalIndexStep implements MigrationStep {
 
     private final StepRepository repository;
     private final IndexSettingsManager indexSettingsManager;
 
-    public CreateBackupStep(StepRepository repository, IndexSettingsManager indexSettingsManager) {
+    public CreateBackupOfGlobalIndexStep(StepRepository repository, IndexSettingsManager indexSettingsManager) {
         this.repository = Objects.requireNonNull(repository, "Step repository is required");
         this.indexSettingsManager = Objects.requireNonNull(indexSettingsManager, "Index setting duplicator is required");
     }

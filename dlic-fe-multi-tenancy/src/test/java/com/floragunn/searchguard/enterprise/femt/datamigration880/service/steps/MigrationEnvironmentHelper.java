@@ -1,3 +1,16 @@
+/*
+ * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.codova.documents.DocNode;
@@ -12,7 +25,6 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.IndexNameDataFormatter;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
-import com.floragunn.searchguard.enterprise.femt.datamigration880.service.persistence.IndexMigrationStateRepository;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.logging.log4j.LogManager;
@@ -104,10 +116,6 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     }
 
     @Override
-    protected void before() throws Throwable {
-    }
-
-    @Override
     protected void after() {
         deleteIndex(createdIndices.toArray(DeletableIndex[]::new));
         createdIndices.clear();
@@ -115,9 +123,6 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         DataMigrationContext context = new DataMigrationContext(new MigrationConfig(false), clock);
         if(isIndexCreated(context.getTempIndexName())) {
             deleteIndex(context::getTempIndexName);
-        }
-        if(isIndexCreated(context.getBackupIndexName())) {
-            deleteIndex(context::getBackupIndexName);
         }
         deleteIndexTemplateIfExists();
         closeClient();

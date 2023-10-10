@@ -1,3 +1,16 @@
+/*
+ * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -14,7 +27,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.Clock;
@@ -34,9 +46,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
-public class CreateBackupStepTest {
+public class CreateBackupOfGlobalIndexStepTest {
 
-    private static final Logger log = LogManager.getLogger(CreateBackupStepTest.class);
+    private static final Logger log = LogManager.getLogger(CreateBackupOfGlobalIndexStepTest.class);
 
     private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(2033, 1, 1, 1, 7), UTC);
     private static final Clock CLOCK = Clock.fixed(NOW.toInstant(), UTC);
@@ -59,12 +71,12 @@ public class CreateBackupStepTest {
     private DataMigrationContext context;
 
     //under tests
-    private CreateBackupStep step;
+    private CreateBackupOfGlobalIndexStep step;
 
     @Before
     public void before() {
         this.context = new DataMigrationContext(new MigrationConfig(false), CLOCK);
-        this.step = new CreateBackupStep(repository, indexSettingsManager);
+        this.step = new CreateBackupOfGlobalIndexStep(repository, indexSettingsManager);
     }
 
     @Test
@@ -213,7 +225,7 @@ public class CreateBackupStepTest {
     }
 
     @Test
-    public void shouldDetectReindexRequestError_5() {
+    public void shouldGainSuccessfulStepResultWhenAllSlicesDoesNotContainException() {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(INDEX_NAME_GLOBAL_TENANT, GLOBAL_TENANT_NAME)));
         when(repository.reindexData(INDEX_NAME_GLOBAL_TENANT, BACKUP_DESTINATION)).thenReturn(response);
         List<StatusOrException> sliceStatuses = IntStream.range(0, 12).mapToObj(i -> mock(StatusOrException.class)).toList();
