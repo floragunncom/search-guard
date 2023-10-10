@@ -25,7 +25,7 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.TenantManager;
-import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.StartDataMigrationAction;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.DataMigrationApi;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -209,12 +209,13 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
-        return ImmutableList.of(FeMultiTenancyConfigApi.REST_API, StartDataMigrationAction.REST_API);
+        return ImmutableList.of(FeMultiTenancyConfigApi.REST_API, DataMigrationApi.REST_API);
     }
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return (List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>>) (ImmutableList.of(FeMultiTenancyConfigApi.ACTION_HANDLERS));
+        return ImmutableList.of(FeMultiTenancyConfigApi.ACTION_HANDLERS)
+                .with(DataMigrationApi.ACTION_HANDLERS);
     }
 
     @Override
