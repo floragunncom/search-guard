@@ -1,3 +1,16 @@
+/*
+ * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.codova.documents.DocNode;
@@ -1455,7 +1468,7 @@ public class MigrationStepsTest {
     public void shouldNotCreateBackupOfIndexWithoutMappingsAndReportError() {
         StepRepository repository = new StepRepository(environmentHelper.getPrivilegedClient());
         IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(repository, settingsManager);
         environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
 
@@ -1470,7 +1483,7 @@ public class MigrationStepsTest {
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
         IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(repository, settingsManager);
         environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
@@ -1489,7 +1502,7 @@ public class MigrationStepsTest {
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
         IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(repository, settingsManager);
         environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
         repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
@@ -1511,7 +1524,7 @@ public class MigrationStepsTest {
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
         IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(repository, settingsManager);
         environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
         catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default");
         environmentHelper.addDataMigrationMarkerToTheIndex(GLOBAL_TENANT_INDEX.indexName());
@@ -1574,7 +1587,7 @@ public class MigrationStepsTest {
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
         IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(repository, settingsManager);
         environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
         final int documentNumber = 12_101;
         String[] spaceNames = IntStream.range(0, documentNumber).mapToObj(i -> "space_no_" + i).toArray(String[]::new);
@@ -1603,7 +1616,7 @@ public class MigrationStepsTest {
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
         IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(repository, settingsManager);
         environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
         final int documentNumber = 51;
         String[] spaceNames = IntStream.range(0, documentNumber).mapToObj(i -> "space_no_" + i).toArray(String[]::new);
@@ -1639,7 +1652,7 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(environmentHelper.isIndexCreated(context.getBackupIndexName()), equalTo(false));
         stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
-        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsManager(stepRepository));
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(stepRepository, new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
@@ -1663,7 +1676,7 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(environmentHelper.isIndexCreated(context.getBackupIndexName()), equalTo(false));
         stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
-        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsManager(stepRepository));
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(stepRepository, new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
@@ -1686,7 +1699,7 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(environmentHelper.isIndexCreated(context.getBackupIndexName()), equalTo(false));
         stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
-        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsManager(stepRepository));
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(stepRepository, new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
@@ -1709,7 +1722,7 @@ public class MigrationStepsTest {
         context.setTenantIndices(ImmutableList.of(new TenantIndex(GLOBAL_TENANT_INDEX.indexName(), Tenant.GLOBAL_TENANT_ID)));
         assertThat(environmentHelper.isIndexCreated(context.getBackupIndexName()), equalTo(false));
         stepRepository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));
-        CreateBackupStep step = new CreateBackupStep(stepRepository, new IndexSettingsManager(stepRepository));
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(stepRepository, new IndexSettingsManager(stepRepository));
 
         StepResult result = step.execute(context);
 
@@ -1727,7 +1740,7 @@ public class MigrationStepsTest {
         FrontendObjectCatalog catalog = new FrontendObjectCatalog(client);
         StepRepository repository = new StepRepository(client);
         IndexSettingsManager settingsManager = new IndexSettingsManager(repository);
-        CreateBackupStep step = new CreateBackupStep(repository, settingsManager);
+        CreateBackupOfGlobalIndexStep step = new CreateBackupOfGlobalIndexStep(repository, settingsManager);
         environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
         String createdDocumentId = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "default").get(0);
         repository.writeBlockIndices(ImmutableList.of(GLOBAL_TENANT_INDEX.indexName()));

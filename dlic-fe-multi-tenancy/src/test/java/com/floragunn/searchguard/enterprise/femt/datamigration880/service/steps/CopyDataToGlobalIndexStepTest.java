@@ -1,9 +1,21 @@
+/*
+ * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
-import com.floragunn.searchsupport.junit.ThrowableAssert;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
@@ -13,7 +25,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.List;
@@ -30,7 +41,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -189,7 +199,7 @@ public class CopyDataToGlobalIndexStepTest {
     }
 
     @Test
-    public void shouldReportErrorWhenDocumentsWhenVersionConflictsOccurredInDestinationIndex() {
+    public void shouldReportErrorWhenVersionConflictsOccurredInDestinationIndex() {
         when(context.getTempIndexName()).thenReturn(SOURCE_INDEX_NAME_1);
         when(context.getGlobalTenantIndexName()).thenReturn(DESTINATION_INDEX_NAME_1);
         when(stepRepository.reindexData(anyString(), anyString())).thenReturn(reindexResponse);

@@ -1,6 +1,18 @@
+/*
+ * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
-import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.FrontendObjectCatalog;
@@ -13,7 +25,6 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.Mock;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -398,8 +409,8 @@ public class CrossStepTest {
 
     private void createBackupByStep(StepRepository stepRepository) {
         IndexSettingsManager indexSettingsManager = new IndexSettingsManager(stepRepository);
-        CreateBackupStep createBackupStep = new CreateBackupStep(stepRepository, indexSettingsManager);
-        StepResult backupResult = createBackupStep.execute(context);
+        CreateBackupOfGlobalIndexStep createBackupOfGlobalIndexStep = new CreateBackupOfGlobalIndexStep(stepRepository, indexSettingsManager);
+        StepResult backupResult = createBackupOfGlobalIndexStep.execute(context);
         assertThat(backupResult.isSuccess(), equalTo(true));
         assertThat(context.getBackupCreated(), equalTo(true));
     }
