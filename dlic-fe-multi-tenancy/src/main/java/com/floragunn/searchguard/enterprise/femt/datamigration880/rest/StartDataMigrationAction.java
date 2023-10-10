@@ -1,10 +1,23 @@
+/*
+ * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
+
 package com.floragunn.searchguard.enterprise.femt.datamigration880.rest;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.SearchGuardVersion;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationService;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
@@ -12,7 +25,6 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Migrat
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.persistence.IndexMigrationStateRepository;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.StepsFactory;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.floragunn.searchsupport.action.Action;
 import org.apache.logging.log4j.LogManager;
@@ -25,17 +37,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-public class StartDataMigrationAction extends Action<StartDataMigrationAction.StartDataMigrationRequest, StandardResponse> {
+class StartDataMigrationAction extends Action<StartDataMigrationAction.StartDataMigrationRequest, StandardResponse> {
 
     private static final Logger log = LogManager.getLogger(StartDataMigrationAction.class);
 
     public final static String NAME = "cluster:admin:searchguard:config/multitenancy/frontend_data_migration/8_8_0/start";
     public static final StartDataMigrationAction INSTANCE = new StartDataMigrationAction();
-
-    public static final RestApi REST_API = new RestApi().responseHeaders(SearchGuardVersion.header())//
-        .handlesPost("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0")//
-        .with(INSTANCE, (params, body) -> new StartDataMigrationRequest(body))//
-        .name("POST /_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
 
     public StartDataMigrationAction() {
         super(NAME, StartDataMigrationRequest::new, StandardResponse::new);
@@ -82,7 +89,7 @@ public class StartDataMigrationAction extends Action<StartDataMigrationAction.St
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
             MigrationStateRepository migrationStateRepository = new IndexMigrationStateRepository(privilegedConfigClient);
             StepsFactory stepsFactory = new StepsFactory(privilegedConfigClient, provider);
-            this.dataMigrationService = new DataMigrationService(migrationStateRepository, stepsFactory, Clock.systemUTC());
+            this.dataMigrationService = new DataMigrationService(migrationStateRepository, stepsFactory);
         }
 
         @Override

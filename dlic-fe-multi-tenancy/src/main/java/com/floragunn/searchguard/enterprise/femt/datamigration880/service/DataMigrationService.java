@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.ExecutionStatus.FAILURE;
@@ -40,13 +41,17 @@ public class DataMigrationService {
         this.clock = Objects.requireNonNull(clock, "Clock is required");
     }
 
+    public DataMigrationService(MigrationStateRepository migrationStateRepository, StepsFactory stepsFactory) {
+        this(migrationStateRepository, stepsFactory, Clock.systemUTC());
+    }
+
     public StandardResponse migrateData(MigrationConfig config) {
         Objects.requireNonNull(config, "Migration config is required");
         try {
             if (!migrationStateRepository.isIndexCreated()) {
                 migrationStateRepository.createIndex();
             }
-            return migrationStateRepository.findById(MigrationStepsExecutor.MIGRATION_ID) //
+            return findDataMigrationState() //
                 .map(summary -> restartMigration(config, summary)) //
                 .orElseGet(() -> performFirstMigrationStart(config));
         } catch (IndexAlreadyExistsException e) {
@@ -56,6 +61,10 @@ public class DataMigrationService {
                     """.trim();
             return errorResponse(SC_CONFLICT, STATUS_INDEX_ALREADY_EXISTS_ERROR, message, e);
         }
+    }
+
+    public Optional<MigrationExecutionSummary> findDataMigrationState() {
+        return migrationStateRepository.findById(MigrationStepsExecutor.MIGRATION_ID);
     }
 
     private StandardResponse executeMigrationSteps(MigrationConfig config) {

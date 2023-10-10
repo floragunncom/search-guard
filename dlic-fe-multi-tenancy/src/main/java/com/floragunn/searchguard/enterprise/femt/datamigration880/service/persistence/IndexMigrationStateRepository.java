@@ -18,6 +18,7 @@ import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.xcontent.XContentType;
 
@@ -109,11 +110,15 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
     @Override
     public Optional<MigrationExecutionSummary> findById(String id) {
         requireNonEmpty(id, "Data migration state document id is required");
-        GetResponse response = client.get(new GetRequest(INDEX_NAME, id)).actionGet();
-        if(response.isExists()){
-            return Optional.of(response).map(this::parseMigrationExecutionSummary);
+        try {
+            GetResponse response = client.get(new GetRequest(INDEX_NAME, id)).actionGet();
+            if(response.isExists()){
+                return Optional.of(response).map(this::parseMigrationExecutionSummary);
+            }
+            return Optional.empty();
+        } catch (IndexNotFoundException indexNotFoundException) {
+            return Optional.empty();
         }
-        return Optional.empty();
     }
 
     private MigrationExecutionSummary parseMigrationExecutionSummary(GetResponse response) {

@@ -1,6 +1,21 @@
+/*
+ * Copyright 2023 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
+
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -10,8 +25,10 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.awaitility.Awaitility;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -24,10 +41,16 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.http.HttpStatus.SC_NOT_FOUND;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -35,6 +58,9 @@ import static org.hamcrest.Matchers.equalTo;
 public class MigrationApiTest {
 
     private static final Logger log = LogManager.getLogger(MigrationApiTest.class);
+    private static final String MIGRATION_STATE_DOC_ID = "migration_8_8_0";
+
+    private IndexMigrationStateRepository indexMigrationStateRepository;
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
@@ -100,9 +126,18 @@ public class MigrationApiTest {
     @Before
     public void before() {
         Client client = cluster.getInternalNodeClient();
-        IndexMigrationStateRepository repository = new IndexMigrationStateRepository(PrivilegedConfigClient.adapt(client));
-        if(repository.isIndexCreated()) {
+        indexMigrationStateRepository = new IndexMigrationStateRepository(PrivilegedConfigClient.adapt(client));
+        if(indexMigrationStateRepository.isIndexCreated()) {
+            Awaitility.await("Data migration isn't in progress")
+                            .atMost(Duration.ofSeconds(10)).pollInterval(Duration.ofMillis(25))
+                            .until(() -> {
+                                Optional<MigrationExecutionSummary> executionSummary = indexMigrationStateRepository
+                                        .findById(MIGRATION_STATE_DOC_ID);
+                                return executionSummary.map(summary -> ! summary.isMigrationInProgress(LocalDateTime.now()))
+                                        .orElse(true);
+                            });
             client.admin().indices().delete(new DeleteIndexRequest(".sg_data_migration_state"));
+            assertThatMigrationStateIndexExists(false);
         }
     }
 
@@ -117,6 +152,64 @@ public class MigrationApiTest {
         }
     }
 
+    @Test
+    public void getMigrationState_shouldReturnNotFound_indexContainingMigrationStateDoesNotExist() throws Exception {
+        assertThatMigrationStateIndexExists(false);
+
+        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+            HttpResponse response = client.get("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
+
+            assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
+        }
+    }
+
+    @Test
+    public void getMigrationState_shouldReturnNotFound_indexContainingMigrationStateIsEmpty() throws Exception {
+        indexMigrationStateRepository.createIndex();
+        assertThatMigrationStateIndexExists(true);
+
+        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+            HttpResponse response = client.get("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
+
+            assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
+        }
+    }
+
+    @Test
+    public void getMigrationState_shouldReturnMigrationState_migrationStateDocExists() throws Exception {
+        ZonedDateTime date = ZonedDateTime.of(2023, 10, 6, 10, 10, 10, 10, ZoneOffset.UTC);
+        MigrationExecutionSummary migrationExecutionSummary = new MigrationExecutionSummary(
+                LocalDateTime.from(date), ExecutionStatus.IN_PROGRESS, "temp-index", "backup-index",
+                ImmutableList.of(
+                        new StepExecutionSummary(1, LocalDateTime.from(date.plusMinutes(2)), "step-name",
+                                StepExecutionStatus.OK, "msg", "details"
+                        )
+                ), null
+        );
+        saveMigrationState(migrationExecutionSummary);
+        assertThatMigrationStateIndexExists(true);
+
+        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+            HttpResponse response = client.get("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("status", 200));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.docNodeSizeEqualTo("$.data", 5));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.start_time", "2023-10-06T10:10:10.00000001Z"));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.status", "in_progress"));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.temp_index_name", "temp-index"));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsFieldPointedByJsonPath("$.data", "stages"));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.docNodeSizeEqualTo("$.data.stages", 1));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.docNodeSizeEqualTo("$.data.stages[0]", 6));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].start_time", "2023-10-06T10:12:10.00000001Z"));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].name", "step-name"));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].status", "ok"));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].message", "msg"));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].number", 1));
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].details", "details"));
+        }
+    }
+
     private static String toInternalIndexName(String prefix, String tenant) {
         if (tenant == null) {
             throw new ElasticsearchException("tenant must not be null here");
@@ -124,5 +217,15 @@ public class MigrationApiTest {
         String tenantInfoPart = "_" + tenant.hashCode() + "_" + tenant.toLowerCase().replaceAll("[^a-z0-9]+", "");
         StringBuilder result = new StringBuilder(prefix).append(tenantInfoPart);
         return result.toString();
+    }
+
+    private void saveMigrationState(MigrationExecutionSummary migrationExecutionSummary) {
+        indexMigrationStateRepository.create(MIGRATION_STATE_DOC_ID, migrationExecutionSummary);
+    }
+
+    private void assertThatMigrationStateIndexExists(boolean shouldExist) {
+        Awaitility.await("Index containing data migration state exists")
+                .atMost(Duration.ofSeconds(2)).pollInterval(Duration.ofMillis(25))
+                .untilAsserted(() -> assertThat(indexMigrationStateRepository.isIndexCreated(), equalTo(shouldExist)));
     }
 }
