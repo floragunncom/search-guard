@@ -21,18 +21,23 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.IndexA
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStateRepository;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.OptimisticLock;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.OptimisticLockException;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.RepositoryException;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentType;
 
 import java.util.Arrays;
@@ -62,7 +67,8 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
             .id(id) //
             .create(creationRequired) //
             .source(migrationExecutionSummary.toJsonString(), XContentType.JSON);
-        client.index(request).actionGet();
+        IndexResponse response = client.index(request).actionGet();
+        throwOnFailure(response.status(), "Cannot store or update migration status");
     }
 
     @Override
@@ -96,7 +102,8 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
             .setIfSeqNo(lock.seqNo()) //
             .setIfPrimaryTerm(lock.primaryTerm());
         try {
-            client.index(request).actionGet();
+            IndexResponse response = client.index(request).actionGet();
+            throwOnFailure(response.status(), "Cannot update migration status with lock.");
         } catch (VersionConflictEngineException e) {
             String message = String.format("Optimistic lock failure for data migration document '%s' and lock data '%s'.", id, lock);
             throw new OptimisticLockException(message, e);
@@ -114,7 +121,8 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
     public void createIndex() throws IndexAlreadyExistsException {
         CreateIndexRequest request = new CreateIndexRequest(INDEX_NAME).mapping(MigrationExecutionSummary.MAPPING);
         try {
-            client.admin().indices().create(request).actionGet();
+            CreateIndexResponse response = client.admin().indices().create(request).actionGet();
+            throwOnFailure(response, "Cannot create index '" + INDEX_NAME + "'");
         } catch (ResourceAlreadyExistsException e) {
             throw new IndexAlreadyExistsException("Index " + INDEX_NAME + " already exists.", e);
         }
@@ -142,6 +150,26 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
             return MigrationExecutionSummary.parse(docNode, primaryTerm, seqNo);
         } catch (DocumentParseException e) {
             throw new RuntimeException("Cannot parse frontend migration state document", e);
+        }
+    }
+
+    private boolean isSuccess(RestStatus restStatus) {
+        return (restStatus.getStatus() >= 200) && (restStatus.getStatus() < 300);
+    }
+
+    private boolean isFailure(RestStatus restStatus) {
+        return ! isSuccess(restStatus);
+    }
+
+    private void throwOnFailure(RestStatus status, String message) {
+        if(isFailure(status)) {
+            throw new RepositoryException(message, status);
+        }
+    }
+
+    private void throwOnFailure(AcknowledgedResponse response, String message) {
+        if(!response.isAcknowledged()) {
+            throw new RepositoryException(message, RestStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

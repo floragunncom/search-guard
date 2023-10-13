@@ -20,7 +20,7 @@ import org.elasticsearch.rest.RestStatus;
 import java.io.IOException;
 import java.io.Serial;
 
-class RepositoryException extends ElasticsearchStatusException {
+public class RepositoryException extends ElasticsearchStatusException {
     @Serial
     private static final long serialVersionUID = -6595578854509270371L;
 
