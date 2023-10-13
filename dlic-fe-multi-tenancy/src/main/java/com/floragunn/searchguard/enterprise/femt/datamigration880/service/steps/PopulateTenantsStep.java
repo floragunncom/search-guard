@@ -80,7 +80,8 @@ class PopulateTenantsStep implements MigrationStep {
             .map(name -> new TenantAlias(toInternalIndexName(config, name), name))
             .collect(Collectors.toList());
         log.debug("Tenants found in configuration '{}'.", configuredTenantAliases);
-        TenantAlias globalTenant = new TenantAlias(config.getIndex() + "_8.7.0", Tenant.GLOBAL_TENANT_ID);
+        String globalTenantIndexName = config.getIndex() + "_8.7.0";
+        TenantAlias globalTenant = new TenantAlias(globalTenantIndexName, Tenant.GLOBAL_TENANT_ID);
         List<TenantIndex> tenants = Stream.concat(Stream.of(globalTenant), configuredTenantAliases.stream()) //
             .map(this::resolveIndexAlias) //
             .flatMap(Optional::stream) //
@@ -94,7 +95,8 @@ class PopulateTenantsStep implements MigrationStep {
         }
         List<TenantIndex> globalTenants = tenants.stream().filter(TenantIndex::belongsToGlobalTenant).toList();
         if(globalTenants.size() != 1) {
-            String message = "Definition of exactly one global tenant is expected, but found " + globalTenants.size();
+            String message = "Definition of exactly one global tenant is expected, but found '" + globalTenants.size() + "'. "
+                + "Please verify that index '" + globalTenantIndexName + "' exists.";
             String globalTenantsString = globalTenants.stream().map(Object::toString).collect(Collectors.joining(", "));
             return new StepResult(GLOBAL_TENANT_NOT_FOUND_ERROR, message, "List of global tenants: " + globalTenantsString);
         }

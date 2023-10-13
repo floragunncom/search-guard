@@ -85,8 +85,12 @@ class CopyDataToTempIndexStep implements MigrationStep {
         repository.refreshIndex(context.getTempIndexName());
         repository.flushIndex(context.getTempIndexName());
         long count = documentCounter.get();
-        String details = "Stored '" + count + "' documents in temp index '" + context.getTempIndexName() + "'.";
-        return new StepResult(OK, "Documents moved to temp index", details);
+        String message = "Stored '" + count + "' documents in temp index '" + context.getTempIndexName() + "'.";
+        String details = sourceIndices.stream() //
+            .map(TenantIndex::indexName) //
+            .map(indexName -> "'" + indexName + "'") //
+            .collect(Collectors.joining(", "));
+        return new StepResult(OK, message, "Source indices: " + details);
     }
 
     private ImmutableList<TenantIndex> chooseSourceIndices(DataMigrationContext context) {

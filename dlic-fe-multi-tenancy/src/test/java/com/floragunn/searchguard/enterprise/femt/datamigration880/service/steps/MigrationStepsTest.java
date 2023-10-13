@@ -516,8 +516,26 @@ public class MigrationStepsTest {
         StepResult result = step.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(result.details(), containsString(GLOBAL_TENANT_INDEX.indexName()));
         assertThat(result.details(), containsString(PRIVATE_USER_KIRK_INDEX.indexName()));
+    }
+
+    @Test
+    public void shouldAllowWriteBlockOnGlobalTenantIndex() throws Exception {
+        DoubleAliasIndex managementTenantIndex = environmentHelper.doubleAliasForTenant(TENANT_MANAGEMENT);
+        environmentHelper.createIndex(GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, managementTenantIndex);
+        var tenantIndices = doubleAliasIndexToTenantDataWithoutTenantName(
+            GLOBAL_TENANT_INDEX,
+            PRIVATE_USER_KIRK_INDEX,
+            managementTenantIndex);
+        context.setTenantIndices(tenantIndices);
+        CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(new StepRepository(environmentHelper.getPrivilegedClient()));
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())){
+            HttpResponse response = adminClient.put("/" + GLOBAL_TENANT_INDEX.indexName() + "/_block/write");
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+        }
+
+        StepResult result = step.execute(context);
+        assertThat(result.isSuccess(), equalTo(true));
     }
 
     @Test

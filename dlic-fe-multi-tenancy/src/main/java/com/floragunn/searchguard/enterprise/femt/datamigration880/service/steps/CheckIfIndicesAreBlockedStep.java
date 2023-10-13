@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -44,7 +45,7 @@ class CheckIfIndicesAreBlockedStep implements MigrationStep {
             Map<String, Settings> indexToSettings = response.getIndexToSettings();
             boolean success = true;
             StringBuilder details = new StringBuilder();
-            for (String index : context.getDataIndicesNames()) {
+            for (String index : context.getTenantIndicesWithoutGlobalTenant().map(TenantIndex::indexName)) {
                 Settings settings = indexToSettings.get(index);
                 if (settings == null) {
                     details.append("Settings for index '").append(index).append("' are not available. ");
@@ -80,6 +81,6 @@ class CheckIfIndicesAreBlockedStep implements MigrationStep {
 
     @Override
     public String name() {
-        return "check if indices are blocked";
+        return "check if indices are blocked (except the global tenant index)";
     }
 }

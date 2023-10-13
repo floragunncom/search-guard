@@ -49,7 +49,8 @@ class CreateBackupOfGlobalIndexStep implements MigrationStep {
         String backupDestination = context.getBackupIndexName();
         indexSettingsManager.createIndexWithClonedSettings(backupSource, backupDestination, false);
         BulkByScrollResponse response = repository.reindexData(backupSource, backupDestination);
-        StringBuilder details = new StringBuilder("Backup of ").append(response.getTotal()).append(" documents created, ") //
+        StringBuilder details = new StringBuilder("Backup of ").append(response.getTotal()).append( " documents ")//
+            .append("from index '").append(backupSource).append("' placed in '").append(backupDestination).append("'. ")
             .append("it took ").append(response.getTook()).append(", ") //
             .append("created documents ").append(response.getCreated()).append(", ") //
             .append("updated documents ").append(response.getUpdated()).append(", ") //
@@ -91,6 +92,6 @@ class CreateBackupOfGlobalIndexStep implements MigrationStep {
 
     @Override
     public String name() {
-        return "create backup";
+        return "create backup of global tenant index";
     }
 }

@@ -38,6 +38,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.rest.RestStatus;
 
 import java.util.Arrays;
@@ -101,7 +102,7 @@ class FrontendDataMigrationInterceptor {
             if(item instanceof IndexRequest indexRequest) {
                 boolean isKibanaIndex = kibanaIndices.contains(indexRequest.index());
                 if(isKibanaIndex && isTempMigrationIndex(indexRequest.index())) {
-                    Map<String, Object> source = indexRequest.sourceAsMap();
+                    Map<String, Object> source = XContentHelper.convertToMap(indexRequest.source(), true, indexRequest.getContentType()).v2();
                     if(RequestResponseTenantData.isScopedId(indexRequest.id())) {
                         if (!RequestResponseTenantData.containsSgTenantField(source)) {
                             String tenantName = RequestResponseTenantData.extractTenantFromId(indexRequest.id());
