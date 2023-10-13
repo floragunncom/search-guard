@@ -55,6 +55,7 @@ import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.elasticsearch.index.reindex.ReindexAction;
 import org.elasticsearch.index.reindex.ReindexRequest;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
@@ -103,6 +104,9 @@ class StepRepository {
         IndicesStatsResponse response = client.admin().indices().stats(new IndicesStatsRequest().indices(indexNames)).actionGet();
         if(response.getFailedShards() > 0) {
             throw new StepException("Cannot load current indices state", CANNOT_RETRIEVE_INDICES_STATE_ERROR, null);
+        }
+        if(isFailure(response.getStatus())) {
+            throw new StepException("Unsuccessful index state response", CANNOT_RETRIEVE_INDICES_STATE_ERROR, null);
         }
         return response;
     }
@@ -204,7 +208,7 @@ class StepRepository {
             bulkRequest.add(indexRequest);
         }
         BulkResponse response = client.bulk(bulkRequest).actionGet();
-        if(response.hasFailures()) {
+        if(response.hasFailures() || isFailure(response.status())) {
             String details = "Index name '" + indexName + "', document ids " + sortedDocumentsIds +  ", error details "
                 + response.buildFailureMessage();
             throw new StepException("Cannot create document in index", CANNOT_BULK_CREATE_DOCUMENT_ERROR, details);
@@ -215,7 +219,7 @@ class StepRepository {
         Strings.requireNonEmpty(indexName, "Index name is required");
         FlushRequest request = new FlushRequest(indexName);
         FlushResponse flushResponse = client.admin().indices().flush(request).actionGet();
-        if(flushResponse.getFailedShards() > 0) {
+        if((flushResponse.getFailedShards() > 0) || isFailure(flushResponse.getStatus())) {
             throw new StepException("Cannot flush index '" + indexName + "'.", CANNOT_REFRESH_INDEX_ERROR, null);
         }
     }
@@ -223,7 +227,7 @@ class StepRepository {
     public void refreshIndex(String indexName) {
         Strings.requireNonEmpty(indexName, "Index name is required");
         RefreshResponse refreshResponse = client.admin().indices().refresh(new RefreshRequest(indexName)).actionGet();
-        if(refreshResponse.getFailedShards() > 0) {
+        if((refreshResponse.getFailedShards() > 0) || isFailure(refreshResponse.getStatus())) {
             throw new StepException("Cannot refresh index '" + indexName + "'.", StepExecutionStatus.CANNOT_REFRESH_INDEX_ERROR, null);
         }
     }
@@ -274,7 +278,7 @@ class StepRepository {
             .query(QueryBuilders.matchAllQuery());
         request.source(sourceBuilder);
         SearchResponse response = client.search(request).actionGet();
-        if(response.getFailedShards() > 0) {
+        if((response.getFailedShards() > 0) || (isFailure(response.status()))) {
             throw new StepException("Cannot count documents in index '" + indexName + "'", CANNOT_COUNT_DOCUMENTS, null);
         }
         return response.getHits().getTotalHits().value;
@@ -312,4 +316,13 @@ class StepRepository {
         }
         return response;
     }
+
+    private boolean isSuccess(RestStatus restStatus) {
+        return (restStatus.getStatus() >= 200) && (restStatus.getStatus() < 300);
+    }
+
+    private boolean isFailure(RestStatus restStatus) {
+        return ! isSuccess(restStatus);
+    }
+
 }
