@@ -15,6 +15,7 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.common.UUIDs;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 
 import java.util.LinkedHashMap;
@@ -44,7 +45,7 @@ public class BulkMapper {
                 log.debug("Rewriting item - index request");
                 indexRequest.id(newId);
 
-                Map<String, Object> source = indexRequest.sourceAsMap();
+                Map<String, Object> source = XContentHelper.convertToMap(indexRequest.source(), true, indexRequest.getContentType()).v2();
 
                 Map<String, Object> newSource = new LinkedHashMap<>(source);
                 RequestResponseTenantData.appendSgTenantFieldTo(newSource, tenant);
