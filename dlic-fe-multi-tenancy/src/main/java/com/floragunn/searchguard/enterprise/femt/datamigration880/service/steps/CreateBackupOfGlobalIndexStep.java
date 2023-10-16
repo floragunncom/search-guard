@@ -51,7 +51,7 @@ class CreateBackupOfGlobalIndexStep implements MigrationStep {
         BulkByScrollResponse response = repository.reindexData(backupSource, backupDestination);
         StringBuilder details = new StringBuilder("Backup of ").append(response.getTotal()).append( " documents ")//
             .append("from index '").append(backupSource).append("' placed in '").append(backupDestination).append("'. ")
-            .append("it took ").append(response.getTook()).append(", ") //
+            .append("It took ").append(response.getTook()).append(", ") //
             .append("created documents ").append(response.getCreated()).append(", ") //
             .append("updated documents ").append(response.getUpdated()).append(", ") //
             .append("deleted documents ").append(response.getDeleted()).append(", ") //
