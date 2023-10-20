@@ -403,7 +403,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
                             for (String index : indexPattern.iterateMatching(indices)) {
                                 indexToRoleToQuery.get(index).put(roleName, dlsConfig);
                             }
-                        } else if (dfmEmptyOverridesAll) {
+                        } else {
                             for (String index : indexPattern.iterateMatching(indices)) {
                                 indexToRoleWithoutQuery.get(index).add(roleName);
                             }
@@ -416,9 +416,9 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
                 }
             }
 
-            this.indexToRoleToQuery = indexToRoleToQuery.build((b) -> b.build());
-            this.indexToRoleWithoutQuery = indexToRoleWithoutQuery.build((b) -> b.build());
-            this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
+            this.indexToRoleToQuery = indexToRoleToQuery.build(ImmutableMap.Builder::build);
+            this.indexToRoleWithoutQuery = dfmEmptyOverridesAll? indexToRoleWithoutQuery.build(ImmutableSet.Builder::build) : ImmutableMap.empty();
+            this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
 
             if (this.rolesToInitializationErrors.isEmpty()) {
                 this.componentState.initialized();
