@@ -50,7 +50,7 @@ public class DlsFlsProcessedConfigTest {
     @Test
     public void shouldSupportNullValidationErrors() {
         this.config = new DlsFlsProcessedConfig(dlsDlsConfig, documentAuthorization, fieldAuthorization, fieldMasking,//
-            null, null);
+            null, null, true);
 
         assertThat(config.containsValidationError(), equalTo(false));
         assertThat(config.getValidationErrorDescription(), isEmptyOrNullString());
@@ -59,7 +59,7 @@ public class DlsFlsProcessedConfigTest {
     @Test
     public void shouldNotContainValidationErrors() {
         this.config = new DlsFlsProcessedConfig(dlsDlsConfig, documentAuthorization, fieldAuthorization, fieldMasking,//
-            rolesValidationErrors, rolesMapingdValidationErrors);
+            rolesValidationErrors, rolesMapingdValidationErrors, true);
 
         assertThat(config.containsValidationError(), equalTo(false));
         assertThat(config.getValidationErrorDescription(), isEmptyOrNullString());
@@ -71,7 +71,7 @@ public class DlsFlsProcessedConfigTest {
         when(rolesValidationErrors.getErrors()).thenReturn(Map.of(INVALID_ROLE_1, singleton(VALIDATION_ERROR_1)));
 
         this.config = new DlsFlsProcessedConfig(dlsDlsConfig, documentAuthorization, fieldAuthorization, fieldMasking,//
-            rolesValidationErrors, rolesMapingdValidationErrors);
+            rolesValidationErrors, rolesMapingdValidationErrors, true);
 
         assertThat(config.containsValidationError(), equalTo(true));
         assertThat(config.getUniqueValidationErrorToken(), not(isEmptyString()));
@@ -87,7 +87,7 @@ public class DlsFlsProcessedConfigTest {
             INVALID_ROLE_2, singleton(VALIDATION_ERROR_2)));
 
         this.config = new DlsFlsProcessedConfig(dlsDlsConfig, documentAuthorization, fieldAuthorization, fieldMasking,//
-            rolesValidationErrors, rolesMapingdValidationErrors);
+            rolesValidationErrors, rolesMapingdValidationErrors, true);
 
         assertThat(config.containsValidationError(), equalTo(true));
         assertThat(config.getUniqueValidationErrorToken(), not(isEmptyString()));
@@ -104,7 +104,7 @@ public class DlsFlsProcessedConfigTest {
         when(rolesValidationErrors.getErrors()).thenReturn(Map.of(INVALID_ROLE_1, asList(VALIDATION_ERROR_1, VALIDATION_ERROR_2)));
 
         this.config = new DlsFlsProcessedConfig(dlsDlsConfig, documentAuthorization, fieldAuthorization, fieldMasking,//
-            rolesValidationErrors, rolesMapingdValidationErrors);
+            rolesValidationErrors, rolesMapingdValidationErrors, true);
 
         assertThat(config.containsValidationError(), equalTo(true));
         assertThat(config.getUniqueValidationErrorToken(), not(isEmptyString()));
@@ -120,7 +120,7 @@ public class DlsFlsProcessedConfigTest {
         when(rolesMapingdValidationErrors.getErrors()).thenReturn(Map.of(INVALID_MAPPING_1, singleton(VALIDATION_ERROR_1)));
 
         this.config = new DlsFlsProcessedConfig(dlsDlsConfig, documentAuthorization, fieldAuthorization, fieldMasking,//
-            rolesValidationErrors, rolesMapingdValidationErrors);
+            rolesValidationErrors, rolesMapingdValidationErrors, true);
 
         assertThat(config.containsValidationError(), equalTo(true));
         assertThat(config.getUniqueValidationErrorToken(), not(isEmptyString()));
@@ -136,7 +136,7 @@ public class DlsFlsProcessedConfigTest {
             INVALID_MAPPING_2, singleton(VALIDATION_ERROR_2)));
 
         this.config = new DlsFlsProcessedConfig(dlsDlsConfig, documentAuthorization, fieldAuthorization, fieldMasking,//
-            rolesValidationErrors, rolesMapingdValidationErrors);
+            rolesValidationErrors, rolesMapingdValidationErrors, true);
 
         assertThat(config.containsValidationError(), equalTo(true));
         assertThat(config.getUniqueValidationErrorToken(), not(isEmptyString()));
@@ -153,7 +153,7 @@ public class DlsFlsProcessedConfigTest {
         when(rolesMapingdValidationErrors.getErrors()).thenReturn(Map.of(INVALID_MAPPING_1, asList(VALIDATION_ERROR_1, VALIDATION_ERROR_2)));
 
         this.config = new DlsFlsProcessedConfig(dlsDlsConfig, documentAuthorization, fieldAuthorization, fieldMasking,//
-            rolesValidationErrors, rolesMapingdValidationErrors);
+            rolesValidationErrors, rolesMapingdValidationErrors, true);
 
         assertThat(config.containsValidationError(), equalTo(true));
         assertThat(config.getUniqueValidationErrorToken(), not(isEmptyString()));
@@ -171,7 +171,7 @@ public class DlsFlsProcessedConfigTest {
         when(rolesMapingdValidationErrors.getErrors()).thenReturn(Map.of(INVALID_MAPPING_2, singleton(VALIDATION_ERROR_2)));
 
         this.config = new DlsFlsProcessedConfig(dlsDlsConfig, documentAuthorization, fieldAuthorization, fieldMasking,//
-            rolesValidationErrors, rolesMapingdValidationErrors);
+            rolesValidationErrors, rolesMapingdValidationErrors, true);
 
         assertThat(config.containsValidationError(), equalTo(true));
         assertThat(config.getUniqueValidationErrorToken(), not(isEmptyString()));

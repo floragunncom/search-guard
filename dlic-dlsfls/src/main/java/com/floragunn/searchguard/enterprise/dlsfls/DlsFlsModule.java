@@ -114,7 +114,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
         baseDependencies.getConfigurationRepository().subscribeOnChange((ConfigMap configMap) -> {
             DlsFlsProcessedConfig config = DlsFlsProcessedConfig.createFrom(configMap, componentState,
-                    clusterService.state().metadata().indices().keySet());
+                    clusterService.state().metadata().indices().keySet(), baseDependencies.getSettings());
 
             DlsFlsProcessedConfig oldConfig = this.config.get();
 

@@ -125,9 +125,9 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
 
             if (context.getSpecialPrivilegesEvaluationContext() != null && context.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE, config.isDfmEmptyOverridesAll());
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE, config.isDfmEmptyOverridesAll());
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE, config.isDfmEmptyOverridesAll());
             }
 
             boolean hasDlsRestrictions = documentAuthorization.hasDlsRestrictions(context, indices, meter);

@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -28,6 +29,7 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsConfig;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import org.elasticsearch.common.settings.Settings;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -40,7 +42,7 @@ import static java.util.stream.Collectors.joining;
 public class DlsFlsProcessedConfig {
     private static final Logger log = LogManager.getLogger(DlsFlsProcessedConfig.class);
 
-    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig(DlsFlsConfig.DEFAULT, null, null, null);
+    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig();
 
     private final DlsFlsConfig dlsFlsConfig;
     private final LegacyRoleBasedDocumentAuthorization documentAuthorization;
@@ -48,9 +50,14 @@ public class DlsFlsProcessedConfig {
     private final boolean validationErrorsPresent;
     private final String validationErrorDescription;
     private final String uniqueValidationErrorToken;
+    private final boolean dfmEmptyOverridesAll;
+
+    private DlsFlsProcessedConfig() {
+        this(DlsFlsConfig.DEFAULT, null, null, null, true);
+    }
 
     DlsFlsProcessedConfig(DlsFlsConfig dlsFlsConfig, LegacyRoleBasedDocumentAuthorization documentAuthorization,
-        ValidationErrors rolesValidationErrors, ValidationErrors rolesMappingValidationErrors) {
+        ValidationErrors rolesValidationErrors, ValidationErrors rolesMappingValidationErrors, boolean dfmEmptyOverridesAll) {
         this.dlsFlsConfig = dlsFlsConfig;
         this.documentAuthorization = documentAuthorization;
         this.enabled = dlsFlsConfig.getEnabledImpl() != DlsFlsConfig.Impl.FLX;
@@ -59,14 +66,16 @@ public class DlsFlsProcessedConfig {
         this.uniqueValidationErrorToken =  UUID.randomUUID().toString();
         this.validationErrorDescription = describeValidationErrors(this.uniqueValidationErrorToken, rolesValidationErrors, //
              rolesMappingValidationErrors);
+        this.dfmEmptyOverridesAll = dfmEmptyOverridesAll;
     }
 
     static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, IndexNameExpressionResolver resolver,
-            ClusterService clusterService) {
+                                            ClusterService clusterService, Settings settings) {
         try {
             SgDynamicConfiguration<DlsFlsConfig> dlsFlsConfigContainer = configMap.get(DlsFlsConfig.TYPE);
             DlsFlsConfig dlsFlsConfig = null;
             LegacyRoleBasedDocumentAuthorization documentAuthorization = null;
+            boolean dfmEmptyOverridesAll = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, true);
 
             if (dlsFlsConfigContainer != null && dlsFlsConfigContainer.getCEntry("default") != null) {
                 dlsFlsConfig = dlsFlsConfigContainer.getCEntry("default");
@@ -77,7 +86,7 @@ public class DlsFlsProcessedConfig {
             if (dlsFlsConfig.getEnabledImpl() != DlsFlsConfig.Impl.FLX) {
                 SgDynamicConfiguration<Role> roleConfig = configMap.get(CType.ROLES);
                 rolesValidationErrors = roleConfig.getValidationErrors();
-                documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roleConfig, resolver, clusterService);
+                documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roleConfig, resolver, clusterService, dfmEmptyOverridesAll);
                 componentState.setState(State.INITIALIZED);
             } else {
                 componentState.setState(State.DISABLED);
@@ -87,7 +96,7 @@ public class DlsFlsProcessedConfig {
                 .map(mappings -> mappings.getValidationErrors())//
                 .orElse(null);
 
-            return new DlsFlsProcessedConfig(dlsFlsConfig, documentAuthorization, rolesValidationErrors, rolesMappingValidationErrors);
+            return new DlsFlsProcessedConfig(dlsFlsConfig, documentAuthorization, rolesValidationErrors, rolesMappingValidationErrors, dfmEmptyOverridesAll);
         } catch (Exception e) {
             log.error("Error while updating DLS/FLS config", e);
             componentState.setFailed(e);
@@ -105,6 +114,10 @@ public class DlsFlsProcessedConfig {
 
     public LegacyRoleBasedDocumentAuthorization getDocumentAuthorization() {
         return documentAuthorization;
+    }
+
+    public boolean isDfmEmptyOverridesAll() {
+        return dfmEmptyOverridesAll;
     }
 
     private static String describeConfigurationErrors(Map<String, Collection<ValidationError>> validationErrors, String configType) {

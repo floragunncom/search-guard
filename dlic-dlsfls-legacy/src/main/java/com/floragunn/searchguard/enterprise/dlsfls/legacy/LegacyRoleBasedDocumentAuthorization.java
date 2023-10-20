@@ -51,14 +51,16 @@ public class LegacyRoleBasedDocumentAuthorization implements ComponentStateProvi
     private final IndexNameExpressionResolver resolver;
     private final ClusterService clusterService;
     private final ComponentState componentState = new ComponentState("role_based_document_authorization");
+    private final boolean dfmEmptyOverridesAll;
 
     public LegacyRoleBasedDocumentAuthorization(SgDynamicConfiguration<Role> roles, IndexNameExpressionResolver resolver,
-            ClusterService clusterService) {
+            ClusterService clusterService, boolean dfmEmptyOverridesAll) {
         this.roles = roles;
         this.resolver = resolver;
         this.clusterService = clusterService;
         this.componentState.setInitialized();
         this.componentState.setConfigVersion(roles.getDocVersion());
+        this.dfmEmptyOverridesAll = dfmEmptyOverridesAll;
     }
 
     public EvaluatedDlsFlsConfig getDlsFlsConfig(User user, ImmutableSet<String> mappedRoles, PrivilegesEvaluationContext context)
@@ -158,17 +160,19 @@ public class LegacyRoleBasedDocumentAuthorization implements ComponentStateProvi
             }
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Index patterns with no dls queries attached: {} - They will be removed from {}", noDlsConcreteIndices,
-                    dlsQueriesByIndex.keySet());
-            log.debug("Index patterns with no fls fields attached: {} - They will be removed from {}", noFlsConcreteIndices, flsFields.keySet());
-            log.debug("Index patterns with no masked fields attached: {} - They will be removed from {}", noMaskedFieldConcreteIndices,
-                    maskedFieldsMap.keySet());
-        }
+        if (dfmEmptyOverridesAll) {
+            if (log.isDebugEnabled()) {
+                log.debug("Index patterns with no dls queries attached: {} - They will be removed from {}", noDlsConcreteIndices,
+                        dlsQueriesByIndex.keySet());
+                log.debug("Index patterns with no fls fields attached: {} - They will be removed from {}", noFlsConcreteIndices, flsFields.keySet());
+                log.debug("Index patterns with no masked fields attached: {} - They will be removed from {}", noMaskedFieldConcreteIndices,
+                        maskedFieldsMap.keySet());
+            }
 
-        WildcardMatcher.wildcardRemoveFromSet(dlsQueriesByIndex.keySet(), noDlsConcreteIndices);
-        WildcardMatcher.wildcardRemoveFromSet(flsFields.keySet(), noFlsConcreteIndices);
-        WildcardMatcher.wildcardRemoveFromSet(maskedFieldsMap.keySet(), noMaskedFieldConcreteIndices);
+            WildcardMatcher.wildcardRemoveFromSet(dlsQueriesByIndex.keySet(), noDlsConcreteIndices);
+            WildcardMatcher.wildcardRemoveFromSet(flsFields.keySet(), noFlsConcreteIndices);
+            WildcardMatcher.wildcardRemoveFromSet(maskedFieldsMap.keySet(), noMaskedFieldConcreteIndices);
+        }
 
         return new EvaluatedDlsFlsConfig(dlsQueriesByIndex, flsFields, maskedFieldsMap);
     }

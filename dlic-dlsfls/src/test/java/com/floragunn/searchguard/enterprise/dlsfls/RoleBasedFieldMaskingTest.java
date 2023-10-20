@@ -36,7 +36,7 @@ public class RoleBasedFieldMaskingTest {
                         null).get());
 
         RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
-                ImmutableSet.of("index_value_of_a", "another_index"), MetricsLevel.NONE);
+                ImmutableSet.of("index_value_of_a", "another_index"), MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").attribute("a", "value_of_a").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -61,7 +61,7 @@ public class RoleBasedFieldMaskingTest {
                         "masked_fields", DocNode.array("masked_a", "masked_b")))), null).get());
 
         RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
-                ImmutableSet.of("index_abc", "index_abcd"), MetricsLevel.NONE);
+                ImmutableSet.of("index_abc", "index_abcd"), MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(), ImmutableSet.of("role"),
                 null, subject, false, null, null);
@@ -87,7 +87,7 @@ public class RoleBasedFieldMaskingTest {
                 .get());
 
         RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
-                ImmutableSet.of("index_abc", "index_abcd"), MetricsLevel.NONE);
+                ImmutableSet.of("index_abc", "index_abcd"), MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").attribute("a", "abc").build(),
                 ImmutableSet.of("role"), null, subject, false, null, null);
@@ -115,7 +115,7 @@ public class RoleBasedFieldMaskingTest {
                         null).get());
 
         RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
-                ImmutableSet.of("one_index", "another_index"), MetricsLevel.NONE);
+                ImmutableSet.of("one_index", "another_index"), MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role_with_wildcard_fm"), null, subject, false, null, null);
@@ -128,6 +128,78 @@ public class RoleBasedFieldMaskingTest {
     }
 
     @Test
+    public void getFieldMaskingRule_rolesWithOverridingPermissions_dfmEmptyOverridesAllTrue() throws Exception {
+        final String roleAllDealsWithoutFm = "role_all_deals_without_fm";
+        final String roleDealsOneWithFm = "role_deals_1_with_fm";
+        final String maskedFieldA = "masked-a";
+        final String maskedFieldB = "masked-b";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutFm,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                null).get(),
+                        roleDealsOneWithFm,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "masked_fields", DocNode.array(maskedFieldA, maskedFieldB)))),
+                                null).get()
+                );
+
+        RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
+                ImmutableSet.of("deals-1", "deals-2"), MetricsLevel.NONE, true);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFm, roleDealsOneWithFm), null, subject, false, null, null);
+
+        FieldMaskingRule fmRule = subject.getFieldMaskingRule(context, "deals-1", Meter.NO_OP);
+
+        Assert.assertNull(fmRule.toString(), fmRule.get(maskedFieldA));
+        Assert.assertNull(fmRule.toString(), fmRule.get(maskedFieldB));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFm, roleDealsOneWithFm), null, subject, false, null, null);
+
+        fmRule = subject.getFieldMaskingRule(context, "deals-2", Meter.NO_OP);
+
+        Assert.assertNull(fmRule.toString(), fmRule.get(maskedFieldA));
+        Assert.assertNull(fmRule.toString(), fmRule.get(maskedFieldB));
+    }
+
+    @Test
+    public void getFieldMaskingRule_rolesWithOverridingPermissions_dfmEmptyOverridesAllFalse() throws Exception {
+        final String roleAllDealsWithoutFm = "role_all_deals_without_fm";
+        final String roleDealsOneWithFm = "role_deals_1_with_fm";
+        final String maskedFieldA = "masked-a";
+        final String maskedFieldB = "masked-b";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutFm,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                null).get(),
+                        roleDealsOneWithFm,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "masked_fields", DocNode.array(maskedFieldA, maskedFieldB)))),
+                                null).get()
+                );
+
+        RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
+                ImmutableSet.of("deals-1", "deals-2"), MetricsLevel.NONE, false);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFm, roleDealsOneWithFm), null, subject, false, null, null);
+
+        FieldMaskingRule fmRule = subject.getFieldMaskingRule(context, "deals-1", Meter.NO_OP);
+
+        Assert.assertNotNull(fmRule.toString(), fmRule.get(maskedFieldA));
+        Assert.assertNotNull(fmRule.toString(), fmRule.get(maskedFieldB));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFm, roleDealsOneWithFm), null, subject, false, null, null);
+
+        fmRule = subject.getFieldMaskingRule(context, "deals-2", Meter.NO_OP);
+
+        Assert.assertNull(fmRule.toString(), fmRule.get(maskedFieldA));
+        Assert.assertNull(fmRule.toString(), fmRule.get(maskedFieldB));
+    }
+
+    @Test
     public void hasFieldMaskingRestriction_template() throws Exception {
         SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role",
                 Role.parse(DocNode.of("index_permissions",
@@ -135,7 +207,7 @@ public class RoleBasedFieldMaskingTest {
                         null).get());
 
         RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
-                ImmutableSet.of("index_value_of_a", "another_index"), MetricsLevel.NONE);
+                ImmutableSet.of("index_value_of_a", "another_index"), MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").attribute("a", "value_of_a").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -152,7 +224,7 @@ public class RoleBasedFieldMaskingTest {
                 .get());
 
         RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
-                ImmutableSet.of("index_abc", "index_abcd"), MetricsLevel.NONE);
+                ImmutableSet.of("index_abc", "index_abcd"), MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").attribute("a", "abc").build(),
                 ImmutableSet.of("role"), null, subject, false, null, null);
@@ -168,7 +240,7 @@ public class RoleBasedFieldMaskingTest {
                         "masked_fields", DocNode.array("masked_a", "masked_b")))), null).get());
 
         RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
-                ImmutableSet.of("index_abc", "index_abcd"), MetricsLevel.NONE);
+                ImmutableSet.of("index_abc", "index_abcd"), MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(), ImmutableSet.of("role"),
                 null, subject, false, null, null);
@@ -187,7 +259,7 @@ public class RoleBasedFieldMaskingTest {
                         null).get());
 
         RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
-                ImmutableSet.of("one_index", "another_index"), MetricsLevel.NONE);
+                ImmutableSet.of("one_index", "another_index"), MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role_with_wildcard_fm"), null, subject, false, null, null);
@@ -201,5 +273,69 @@ public class RoleBasedFieldMaskingTest {
         Assert.assertFalse(subject.toString(), subject.hasFieldMaskingRestrictions(context, "one_index", Meter.NO_OP));
         Assert.assertFalse(subject.toString(), subject.hasFieldMaskingRestrictions(context, "another_index", Meter.NO_OP));
 
+    }
+
+    @Test
+    public void hasFieldMaskingRule_rolesWithOverridingPermissions_dfmEmptyOverridesAllTrue() throws Exception {
+        final String roleAllDealsWithoutFm = "role_all_deals_without_fm";
+        final String roleDealsOneWithFm = "role_deals_1_with_fm";
+        final String maskedFieldA = "masked-a";
+        final String maskedFieldB = "masked-b";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutFm,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                null).get(),
+                        roleDealsOneWithFm,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "masked_fields", DocNode.array(maskedFieldA, maskedFieldB)))),
+                                null).get()
+                );
+
+        RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
+                ImmutableSet.of("deals-1", "deals-2"), MetricsLevel.NONE, true);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFm, roleDealsOneWithFm), null, subject, false, null, null);
+
+        Assert.assertFalse(subject.toString(), subject.hasFieldMaskingRestrictions(context, "deals-1", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFieldMaskingRestrictions(context, "deals-2", Meter.NO_OP));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithFm), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasFieldMaskingRestrictions(context, "deals-1", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFieldMaskingRestrictions(context, "deals-2", Meter.NO_OP));
+    }
+
+    @Test
+    public void hasFieldMaskingRule_rolesWithOverridingPermissions_dfmEmptyOverridesAllFalse() throws Exception {
+        final String roleAllDealsWithoutFm = "role_all_deals_without_fm";
+        final String roleDealsOneWithFm = "role_deals_1_with_fm";
+        final String maskedFieldA = "masked-a";
+        final String maskedFieldB = "masked-b";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutFm,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                null).get(),
+                        roleDealsOneWithFm,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "masked_fields", DocNode.array(maskedFieldA, maskedFieldB)))),
+                                null).get()
+                );
+
+        RoleBasedFieldMasking subject = new RoleBasedFieldMasking(roleConfig, DlsFlsConfig.FieldMasking.DEFAULT,
+                ImmutableSet.of("deals-1", "deals-2"), MetricsLevel.NONE, false);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFm, roleDealsOneWithFm), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasFieldMaskingRestrictions(context, "deals-1", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFieldMaskingRestrictions(context, "deals-2", Meter.NO_OP));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithFm), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasFieldMaskingRestrictions(context, "deals-1", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFieldMaskingRestrictions(context, "deals-2", Meter.NO_OP));
     }
 }

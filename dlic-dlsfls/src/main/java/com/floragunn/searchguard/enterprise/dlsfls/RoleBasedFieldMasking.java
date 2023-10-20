@@ -53,17 +53,19 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedFieldMasking.class);
 
     private final SgDynamicConfiguration<Role> roles;
+    private final boolean dfmEmptyOverridesAll;
     private final StaticIndexRules staticIndexQueries;
     private volatile StatefulIndexRules statefulIndexQueries;
     private final ComponentState componentState = new ComponentState("role_based_field_masking");
     private final DlsFlsConfig.FieldMasking fieldMaskingConfig;
 
     public RoleBasedFieldMasking(SgDynamicConfiguration<Role> roles, DlsFlsConfig.FieldMasking fieldMaskingConfig, Set<String> indices,
-            MetricsLevel metricsLevel) {
+            MetricsLevel metricsLevel, boolean dfmEmptyOverridesAll) {
         this.roles = roles;
+        this.dfmEmptyOverridesAll = dfmEmptyOverridesAll;
         this.fieldMaskingConfig = fieldMaskingConfig;
-        this.staticIndexQueries = new StaticIndexRules(roles, fieldMaskingConfig);
-        this.statefulIndexQueries = new StatefulIndexRules(roles, fieldMaskingConfig, indices);
+        this.staticIndexQueries = new StaticIndexRules(roles, fieldMaskingConfig, dfmEmptyOverridesAll);
+        this.statefulIndexQueries = new StatefulIndexRules(roles, fieldMaskingConfig, indices, dfmEmptyOverridesAll);
         this.componentState.setInitialized();
         this.componentState.setConfigVersion(roles.getDocVersion());
         this.componentState.addPart(this.statefulIndexQueries.getComponentState());
@@ -250,7 +252,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
         private final ImmutableMap<String, ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, FieldMaskingRule.SingleRole>> rolesToIndexPatternTemplateToRule;
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
 
-        StaticIndexRules(SgDynamicConfiguration<Role> roles, DlsFlsConfig.FieldMasking fieldMaskingConfig) {
+        StaticIndexRules(SgDynamicConfiguration<Role> roles, DlsFlsConfig.FieldMasking fieldMaskingConfig, boolean dfmEmptyOverridesAll) {
             this.componentState = new ComponentState("static_index_rules");
 
             ImmutableSet.Builder<String> rolesWithIndexWildcardWithoutRule = new ImmutableSet.Builder<>();
@@ -298,10 +300,10 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
                 }
             }
 
-            this.rolesWithIndexWildcardWithoutRule = rolesWithIndexWildcardWithoutRule.build();
+            this.rolesWithIndexWildcardWithoutRule = dfmEmptyOverridesAll? rolesWithIndexWildcardWithoutRule.build() : ImmutableSet.empty();
             this.roleWithIndexWildcardToRule = roleWithIndexWildcardToRule.build();
-            this.rolesToIndexPatternTemplateToRule = rolesToIndexPatternTemplateToRule.build((b) -> b.build());
-            this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
+            this.rolesToIndexPatternTemplateToRule = rolesToIndexPatternTemplateToRule.build(ImmutableMap.Builder::build);
+            this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
 
             if (this.rolesToInitializationErrors.isEmpty()) {
                 this.componentState.initialized();
@@ -326,7 +328,8 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
         private final ComponentState componentState;
 
-        StatefulIndexRules(SgDynamicConfiguration<Role> roles, DlsFlsConfig.FieldMasking fieldMaskingConfig, Set<String> indices) {
+        StatefulIndexRules(SgDynamicConfiguration<Role> roles, DlsFlsConfig.FieldMasking fieldMaskingConfig,
+                           Set<String> indices, boolean dfmEmptyOverridesAll) {
             this.indices = ImmutableSet.of(indices);
             this.componentState = new ComponentState("stateful_index_queries");
 
@@ -376,9 +379,9 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
                 }
             }
 
-            this.indexToRoleToRule = indexToRoleToRule.build((b) -> b.build());
-            this.indexToRoleWithoutRule = indexToRoleWithoutRule.build((b) -> b.build());
-            this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
+            this.indexToRoleToRule = indexToRoleToRule.build(ImmutableMap.Builder::build);
+            this.indexToRoleWithoutRule = dfmEmptyOverridesAll? indexToRoleWithoutRule.build(ImmutableSet.Builder::build) : ImmutableMap.empty();
+            this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
 
             if (this.rolesToInitializationErrors.isEmpty()) {
                 this.componentState.initialized();
@@ -625,7 +628,7 @@ public class RoleBasedFieldMasking implements ComponentStateProvider {
         StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
         if (!statefulIndexQueries.indices.equals(indices)) {
-            this.statefulIndexQueries = new StatefulIndexRules(roles, fieldMaskingConfig, indices);
+            this.statefulIndexQueries = new StatefulIndexRules(roles, fieldMaskingConfig, indices, dfmEmptyOverridesAll);
             this.componentState.replacePart(this.statefulIndexQueries.getComponentState());
         }
     }

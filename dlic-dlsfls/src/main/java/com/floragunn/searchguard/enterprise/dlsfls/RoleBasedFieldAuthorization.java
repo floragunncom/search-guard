@@ -51,10 +51,14 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
     private volatile StatefulIndexRules statefulIndexQueries;
     private final ComponentState componentState = new ComponentState("role_based_field_authorization");
 
-    public RoleBasedFieldAuthorization(SgDynamicConfiguration<Role> roles, Set<String> indices, MetricsLevel metricsLevel) {
+    private final boolean dfmEmptyOverridesAll;
+
+    public RoleBasedFieldAuthorization(SgDynamicConfiguration<Role> roles, Set<String> indices, MetricsLevel metricsLevel,
+                                       boolean dfmEmptyOverridesAll) {
         this.roles = roles;
-        this.staticIndexQueries = new StaticIndexRules(roles);
-        this.statefulIndexQueries = new StatefulIndexRules(roles, indices);
+        this.dfmEmptyOverridesAll = dfmEmptyOverridesAll;
+        this.staticIndexQueries = new StaticIndexRules(roles, dfmEmptyOverridesAll);
+        this.statefulIndexQueries = new StatefulIndexRules(roles, indices, dfmEmptyOverridesAll);
         this.componentState.setInitialized();
         this.componentState.setConfigVersion(roles.getDocVersion());
         this.componentState.addPart(staticIndexQueries.getComponentState());
@@ -259,7 +263,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
         private final ImmutableMap<String, ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, FlsRule>> rolesToIndexPatternTemplateToRule;
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
 
-        StaticIndexRules(SgDynamicConfiguration<Role> roles) {
+        StaticIndexRules(SgDynamicConfiguration<Role> roles, boolean dfmEmptyOverridesAll) {
             this.componentState = new ComponentState("static_index_rules");
 
             ImmutableSet.Builder<String> rolesWithIndexWildcardWithoutRule = new ImmutableSet.Builder<>();
@@ -335,7 +339,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
         private final ComponentState componentState;
 
-        StatefulIndexRules(SgDynamicConfiguration<Role> roles, Set<String> indices) {
+        StatefulIndexRules(SgDynamicConfiguration<Role> roles, Set<String> indices, boolean dfmEmptyOverridesAll) {
             this.indices = ImmutableSet.of(indices);
             this.componentState = new ComponentState("stateful_index_queries");
 
@@ -386,9 +390,9 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
                 }
             }
 
-            this.indexToRoleToRule = indexToRoleToRule.build((b) -> b.build());
-            this.indexToRoleWithoutRule = indexToRoleWithoutRule.build((b) -> b.build());
-            this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
+            this.indexToRoleToRule = indexToRoleToRule.build(ImmutableMap.Builder::build);
+            this.indexToRoleWithoutRule = dfmEmptyOverridesAll? indexToRoleWithoutRule.build(ImmutableSet.Builder::build) : ImmutableMap.empty();
+            this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
 
             if (this.rolesToInitializationErrors.isEmpty()) {
                 this.componentState.initialized();
@@ -622,7 +626,7 @@ public class RoleBasedFieldAuthorization implements ComponentStateProvider {
         StatefulIndexRules statefulIndexQueries = this.statefulIndexQueries;
 
         if (!statefulIndexQueries.indices.equals(indices)) {
-            this.statefulIndexQueries = new StatefulIndexRules(roles, indices);
+            this.statefulIndexQueries = new StatefulIndexRules(roles, indices, dfmEmptyOverridesAll);
             this.componentState.replacePart(this.statefulIndexQueries.getComponentState());
         }
     }

@@ -109,9 +109,9 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
                 Set<String> indices = ImmutableSet.of(index.getName());
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE, config.isDfmEmptyOverridesAll());
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE, config.isDfmEmptyOverridesAll());
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE, config.isDfmEmptyOverridesAll());
             }
 
             DlsRestriction dlsRestriction;

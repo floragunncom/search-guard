@@ -38,7 +38,7 @@ public class RoleBasedFieldAuthorizationTest {
                 .get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_value_of_a", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").attribute("a", "value_of_a").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -63,7 +63,7 @@ public class RoleBasedFieldAuthorizationTest {
                         DocNode.array("index_abc*", "-index_abcd"), "fls", DocNode.array("allowed_a", "allowed_b")))), null).get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role"), null, subject, false, null, null);
@@ -88,7 +88,7 @@ public class RoleBasedFieldAuthorizationTest {
                         DocNode.array("index_${user.attrs.a}*", "-index_abcd"), "fls", DocNode.array("allowed_a", "allowed_b")))), null).get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").attribute("a", "abc").build(),
                 ImmutableSet.of("role"), null, subject, false, null, null);
@@ -123,7 +123,7 @@ public class RoleBasedFieldAuthorizationTest {
                                 null).get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("one_index", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role_with_wildcard_fls"), null, subject, false, null, null);
@@ -169,7 +169,7 @@ public class RoleBasedFieldAuthorizationTest {
                         null).get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("one_index", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role_a", "role_b"), null, subject, false, null, null);
@@ -193,7 +193,7 @@ public class RoleBasedFieldAuthorizationTest {
                         .get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("one_index", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role_a", "role_b"), null, subject, false, null, null);
@@ -216,6 +216,98 @@ public class RoleBasedFieldAuthorizationTest {
     }
 
     @Test
+    public void getFlsRule_rolesWithOverridingPermissions_dfmEmptyOverridesAllTrue() throws Exception {
+        final String roleAllDealsWithoutFls = "role_all_deals_without_fls";
+        final String roleDealsOneWithFls = "role_deals_1_with_fls";
+        final String flsHiddenFieldA = "denied_a";
+        final String flsHiddenFieldB = "denied_a";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutFls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                null).get(),
+                        roleDealsOneWithFls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "fls", DocNode.array("~".concat(flsHiddenFieldA), "~".concat(flsHiddenFieldB))))),
+                                null).get()
+                );
+
+        RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("deals-1", "deals-2"),
+                MetricsLevel.NONE, true);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFls, roleDealsOneWithFls), null, subject, false, null, null);
+
+        FlsRule flsRule = subject.getFlsRule(context, "deals-1", Meter.NO_OP);
+
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldA));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldB));
+
+        flsRule = subject.getFlsRule(context, "deals-2", Meter.NO_OP);
+
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldA));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldB));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithFls), null, subject, false, null, null);
+
+        flsRule = subject.getFlsRule(context, "deals-1", Meter.NO_OP);
+
+        Assert.assertFalse(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldA));
+        Assert.assertFalse(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldB));
+
+        flsRule = subject.getFlsRule(context, "deals-2", Meter.NO_OP);
+
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldA));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldB));
+    }
+
+    @Test
+    public void getFlsRule_rolesWithOverridingPermissions_dfmEmptyOverridesAllFalse() throws Exception {
+        final String roleAllDealsWithoutFls = "role_all_deals_without_fls";
+        final String roleDealsOneWithFls = "role_deals_1_with_fls";
+        final String flsHiddenFieldA = "denied_a";
+        final String flsHiddenFieldB = "denied_a";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutFls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                null).get(),
+                        roleDealsOneWithFls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "fls", DocNode.array("~".concat(flsHiddenFieldA), "~".concat(flsHiddenFieldB))))),
+                                null).get()
+                );
+
+        RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("deals-1", "deals-2"),
+                MetricsLevel.NONE, false);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFls, roleDealsOneWithFls), null, subject, false, null, null);
+
+        FlsRule flsRule = subject.getFlsRule(context, "deals-1", Meter.NO_OP);
+
+        Assert.assertFalse(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldA));
+        Assert.assertFalse(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldB));
+
+        flsRule = subject.getFlsRule(context, "deals-2", Meter.NO_OP);
+
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldA));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldB));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithFls), null, subject, false, null, null);
+
+        flsRule = subject.getFlsRule(context, "deals-1", Meter.NO_OP);
+
+        Assert.assertFalse(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldA));
+        Assert.assertFalse(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldB));
+
+        flsRule = subject.getFlsRule(context, "deals-2", Meter.NO_OP);
+
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldA));
+        Assert.assertTrue(flsRule.toString(), flsRule.isAllowed(flsHiddenFieldB));
+    }
+
+    @Test
     public void hasFlsRestriction_template() throws Exception {
         SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role", Role
                 .parse(DocNode.of("index_permissions",
@@ -223,7 +315,7 @@ public class RoleBasedFieldAuthorizationTest {
                 .get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_value_of_a", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").attribute("a", "value_of_a").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -241,7 +333,7 @@ public class RoleBasedFieldAuthorizationTest {
                         .get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").attribute("a", "abc").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -259,7 +351,7 @@ public class RoleBasedFieldAuthorizationTest {
                         .get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -285,7 +377,7 @@ public class RoleBasedFieldAuthorizationTest {
                                 null).get());
 
         RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("one_index", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role_with_wildcard_fls"), null, subject, false, null, null);
@@ -299,5 +391,65 @@ public class RoleBasedFieldAuthorizationTest {
         Assert.assertFalse(subject.toString(), subject.hasFlsRestrictions(context, "one_index", Meter.NO_OP));
         Assert.assertTrue(subject.toString(), subject.hasFlsRestrictions(context, "another_index", Meter.NO_OP));
 
+    }
+
+    @Test
+    public void hasFlsRestriction_rolesWithOverridingPermissions_dfmEmptyOverridesAllTrue() throws Exception {
+        final String roleAllDealsWithoutFls = "role_all_deals_without_fls";
+        final String roleDealsOneWithFls = "role_deals_1_with_fls";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutFls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                null).get(),
+                        roleDealsOneWithFls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "fls", DocNode.array("~denied_a", "~denied_b")))),
+                                null).get()
+                );
+
+        RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("deals-1", "deals-2"),
+                MetricsLevel.NONE, true);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFls, roleDealsOneWithFls), null, subject, false, null, null);
+
+        Assert.assertFalse(subject.toString(), subject.hasFlsRestrictions(context, "deals-1", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFlsRestrictions(context, "deals-2", Meter.NO_OP));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithFls), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasFlsRestrictions(context, "deals-1", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFlsRestrictions(context, "deals-2", Meter.NO_OP));
+    }
+
+    @Test
+    public void hasFlsRestriction_rolesWithOverridingPermissions_dfmEmptyOverridesAllFalse() throws Exception {
+        final String roleAllDealsWithoutFls = "role_all_deals_without_fls";
+        final String roleDealsOneWithFls = "role_deals_1_with_fls";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutFls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                null).get(),
+                        roleDealsOneWithFls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "fls", DocNode.array("~denied_a", "~denied_b")))),
+                                null).get()
+                );
+
+        RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, ImmutableSet.of("deals-1", "deals-2"),
+                MetricsLevel.NONE, false);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutFls, roleDealsOneWithFls), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasFlsRestrictions(context, "deals-1", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFlsRestrictions(context, "deals-2", Meter.NO_OP));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithFls), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasFlsRestrictions(context, "deals-1", Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasFlsRestrictions(context, "deals-2", Meter.NO_OP));
     }
 }

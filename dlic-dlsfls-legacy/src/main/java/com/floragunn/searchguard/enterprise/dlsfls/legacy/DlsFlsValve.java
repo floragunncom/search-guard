@@ -137,7 +137,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
         
         if (specialPrivilegesEvaluationContext != null && specialPrivilegesEvaluationContext.getRolesConfig() != null) {
             SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-            documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService);
+            documentAuthorization = new LegacyRoleBasedDocumentAuthorization(roles, resolver, clusterService, config.isDfmEmptyOverridesAll());
         }
 
         EvaluatedDlsFlsConfig evaluatedDlsFlsConfig;

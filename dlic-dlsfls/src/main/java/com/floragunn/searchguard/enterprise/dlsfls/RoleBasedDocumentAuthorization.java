@@ -55,12 +55,16 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
     private final MetricsLevel metricsLevel;
     private final TimeAggregation statefulIndexRebuild = new TimeAggregation.Milliseconds();
 
-    public RoleBasedDocumentAuthorization(SgDynamicConfiguration<Role> roles, Set<String> indices, MetricsLevel metricsLevel) {
+    private final boolean dfmEmptyOverridesAll;
+
+    public RoleBasedDocumentAuthorization(SgDynamicConfiguration<Role> roles, Set<String> indices, MetricsLevel metricsLevel,
+                                          boolean dfmEmptyOverridesAll) {
         this.roles = roles;
         this.metricsLevel = metricsLevel;
-        this.staticIndexQueries = new StaticIndexQueries(roles);
+        this.dfmEmptyOverridesAll = dfmEmptyOverridesAll;
+        this.staticIndexQueries = new StaticIndexQueries(roles, dfmEmptyOverridesAll);
         try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
-            this.statefulIndexQueries = new StatefulIndexQueries(roles, indices);
+            this.statefulIndexQueries = new StatefulIndexQueries(roles, indices, dfmEmptyOverridesAll);
         }
         this.componentState.addPart(this.staticIndexQueries.getComponentState());
         this.componentState.addPart(this.statefulIndexQueries.getComponentState());
@@ -282,7 +286,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
         private final ImmutableMap<String, ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, DlsQuery>> rolesToIndexPatternTemplateToQuery;
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
 
-        StaticIndexQueries(SgDynamicConfiguration<Role> roles) {
+        StaticIndexQueries(SgDynamicConfiguration<Role> roles, boolean dfmEmptyOverridesAll) {
             this.componentState = new ComponentState("static_index_queries");
 
             ImmutableSet.Builder<String> rolesWithIndexWildcardWithoutQuery = new ImmutableSet.Builder<>();
@@ -332,10 +336,10 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
                 }
             }
 
-            this.rolesWithIndexWildcardWithoutQuery = rolesWithIndexWildcardWithoutQuery.build();
+            this.rolesWithIndexWildcardWithoutQuery = dfmEmptyOverridesAll? rolesWithIndexWildcardWithoutQuery.build() : ImmutableSet.empty();
             this.roleWithIndexWildcardToQuery = roleWithIndexWildcardToQuery.build();
-            this.rolesToIndexPatternTemplateToQuery = rolesToIndexPatternTemplateToQuery.build((b) -> b.build());
-            this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
+            this.rolesToIndexPatternTemplateToQuery = rolesToIndexPatternTemplateToQuery.build(ImmutableMap.Builder::build);
+            this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
 
             if (this.rolesToInitializationErrors.isEmpty()) {
                 this.componentState.initialized();
@@ -361,7 +365,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
         private final ComponentState componentState;
 
-        StatefulIndexQueries(SgDynamicConfiguration<Role> roles, Set<String> indices) {
+        StatefulIndexQueries(SgDynamicConfiguration<Role> roles, Set<String> indices, boolean dfmEmptyOverridesAll) {
             this.indices = ImmutableSet.of(indices);
             this.componentState = new ComponentState("stateful_index_queries");
 
@@ -399,7 +403,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
                             for (String index : indexPattern.iterateMatching(indices)) {
                                 indexToRoleToQuery.get(index).put(roleName, dlsConfig);
                             }
-                        } else {
+                        } else if (dfmEmptyOverridesAll) {
                             for (String index : indexPattern.iterateMatching(indices)) {
                                 indexToRoleWithoutQuery.get(index).add(roleName);
                             }
@@ -468,7 +472,7 @@ public class RoleBasedDocumentAuthorization implements ComponentStateProvider {
 
         if (!statefulIndexQueries.indices.equals(indices)) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
-                this.statefulIndexQueries = new StatefulIndexQueries(roles, indices);
+                this.statefulIndexQueries = new StatefulIndexQueries(roles, indices, dfmEmptyOverridesAll);
                 this.componentState.replacePart(this.statefulIndexQueries.getComponentState());
             }
         }

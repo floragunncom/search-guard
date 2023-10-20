@@ -78,7 +78,7 @@ public class LegacyDlsFlsModule implements SearchGuardModule, ComponentStateProv
             @Override
             public void onChange(ConfigMap configMap) {
                 DlsFlsProcessedConfig newConfig = DlsFlsProcessedConfig.createFrom(configMap, componentState,
-                        baseDependencies.getIndexNameExpressionResolver(), clusterService); 
+                        baseDependencies.getIndexNameExpressionResolver(), clusterService, baseDependencies.getSettings());
                 
                 DlsFlsProcessedConfig oldConfig = LegacyDlsFlsModule.this.config.get();
                                 

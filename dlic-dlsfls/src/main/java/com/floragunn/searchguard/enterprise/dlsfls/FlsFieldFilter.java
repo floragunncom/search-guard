@@ -76,7 +76,7 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, ImmutableSet.of(index), MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, ImmutableSet.of(index), MetricsLevel.NONE, config.isDfmEmptyOverridesAll());
             }
 
             FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index, meter);

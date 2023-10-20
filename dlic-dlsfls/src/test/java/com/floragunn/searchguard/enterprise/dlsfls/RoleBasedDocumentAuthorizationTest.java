@@ -53,7 +53,7 @@ public class RoleBasedDocumentAuthorizationTest {
                         context).get());
 
         RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_value_of_a", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").attribute("a", "value_of_a").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -80,7 +80,7 @@ public class RoleBasedDocumentAuthorizationTest {
                                 context).get());
 
         RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("one_index", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role_with_wildcard_dls"), null, subject, false, null, null);
@@ -112,7 +112,7 @@ public class RoleBasedDocumentAuthorizationTest {
                 Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "*"))), context).get());
 
         RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("protected_index", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role_with_dls"), null, subject, false, null, null);
@@ -136,7 +136,7 @@ public class RoleBasedDocumentAuthorizationTest {
                         context).get());
 
         RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -156,7 +156,7 @@ public class RoleBasedDocumentAuthorizationTest {
                         context).get());
 
         RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").attribute("a", "abc").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -169,6 +169,78 @@ public class RoleBasedDocumentAuthorizationTest {
     }
 
     @Test
+    public void getDlsRestriction_rolesWithOverridingPermissions_dfmEmptyOverridesAllTrue() throws Exception {
+        final String roleAllDealsWithoutDls = "role_all_deals_without_dls";
+        final String roleDealsOneWithDls = "role_deals_1_with_dls";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutDls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                context).get(),
+                        roleDealsOneWithDls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "dls", DocNode.of("term.dept.value", "dept_d").toJsonString()))),
+                                context).get()
+                );
+
+        RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("deals-1", "deals-2"),
+                MetricsLevel.NONE, true);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutDls, roleDealsOneWithDls), null, subject, false, null, null);
+
+        DlsRestriction dlsRestriction = subject.getDlsRestriction(context, "deals-1", Meter.NO_OP);
+        Assert.assertEquals(dlsRestriction.toString(), 0, dlsRestriction.getQueries().size());
+
+        dlsRestriction = subject.getDlsRestriction(context, "deals-2", Meter.NO_OP);
+        Assert.assertEquals(dlsRestriction.toString(), 0, dlsRestriction.getQueries().size());
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithDls), null, subject, false, null, null);
+
+        dlsRestriction = subject.getDlsRestriction(context, "deals-1", Meter.NO_OP);
+        Assert.assertEquals(dlsRestriction.toString(), 1, dlsRestriction.getQueries().size());
+
+        dlsRestriction = subject.getDlsRestriction(context, "deals-2", Meter.NO_OP);
+        Assert.assertEquals(dlsRestriction.toString(), 0, dlsRestriction.getQueries().size());
+    }
+
+    @Test
+    public void getDlsRestriction_rolesWithOverridingPermissions_dfmEmptyOverridesAllFalse() throws Exception {
+        final String roleAllDealsWithoutDls = "role_all_deals_without_dls";
+        final String roleDealsOneWithDls = "role_deals_1_with_dls";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutDls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                                context).get(),
+                        roleDealsOneWithDls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "dls", DocNode.of("term.dept.value", "dept_d").toJsonString()))),
+                                context).get()
+                );
+
+        RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("deals-1", "deals-2"),
+                MetricsLevel.NONE, false);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutDls, roleDealsOneWithDls), null, subject, false, null, null);
+
+        DlsRestriction dlsRestriction = subject.getDlsRestriction(context, "deals-1", Meter.NO_OP);
+        Assert.assertEquals(dlsRestriction.toString(), 1, dlsRestriction.getQueries().size());
+
+        dlsRestriction = subject.getDlsRestriction(context, "deals-2", Meter.NO_OP);
+        Assert.assertEquals(dlsRestriction.toString(), 0, dlsRestriction.getQueries().size());
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithDls), null, subject, false, null, null);
+
+        dlsRestriction = subject.getDlsRestriction(context, "deals-1", Meter.NO_OP);
+        Assert.assertEquals(dlsRestriction.toString(), 1, dlsRestriction.getQueries().size());
+
+        dlsRestriction = subject.getDlsRestriction(context, "deals-2", Meter.NO_OP);
+        Assert.assertEquals(dlsRestriction.toString(), 0, dlsRestriction.getQueries().size());
+    }
+
+    @Test
     public void hasDlsRestriction_template() throws Exception {
         SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role",
                 Role.parse(DocNode.of("index_permissions", DocNode
@@ -176,7 +248,7 @@ public class RoleBasedDocumentAuthorizationTest {
                         context).get());
 
         RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_value_of_a", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(
                 new User.Builder().name("test_user").attribute("a", "value_of_a").build(), ImmutableSet.of("role"), null, subject, false, null, null);
@@ -194,7 +266,7 @@ public class RoleBasedDocumentAuthorizationTest {
                                 .get());
 
         RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(), ImmutableSet.of("role"),
                 null, subject, false, null, null);
@@ -211,7 +283,7 @@ public class RoleBasedDocumentAuthorizationTest {
                         context).get());
 
         RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("index_abc", "index_abcd"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").attribute("a", "abc").build(),
                 ImmutableSet.of("role"), null, subject, false, null, null);
@@ -235,7 +307,7 @@ public class RoleBasedDocumentAuthorizationTest {
                                 context).get());
 
         RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("one_index", "another_index"),
-                MetricsLevel.NONE);
+                MetricsLevel.NONE, true);
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
                 ImmutableSet.of("role_with_wildcard_dls"), null, subject, false, null, null);
@@ -249,5 +321,65 @@ public class RoleBasedDocumentAuthorizationTest {
         Assert.assertFalse(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("one_index"), Meter.NO_OP));
         Assert.assertTrue(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("another_index"), Meter.NO_OP));
 
+    }
+
+    @Test
+    public void hasDlsRestriction_rolesWithOverridingPermissions_dfmEmptyOverridesAllTrue() throws Exception {
+        final String roleAllDealsWithoutDls = "role_all_deals_without_dls";
+        final String roleDealsOneWithDls = "role_deals_1_with_dls";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutDls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                        context).get(),
+                        roleDealsOneWithDls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "dls", DocNode.of("term.dept.value", "dept_d").toJsonString()))),
+                        context).get()
+                );
+
+        RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("deals-1", "deals-2"),
+                MetricsLevel.NONE, true);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutDls, roleDealsOneWithDls), null, subject, false, null, null);
+
+        Assert.assertFalse(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("deals-1"), Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("deals-2"), Meter.NO_OP));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithDls), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("deals-1"), Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("deals-2"), Meter.NO_OP));
+    }
+
+    @Test
+    public void hasDlsRestriction_rolesWithOverridingPermissions_dfmEmptyOverridesAllFalse() throws Exception {
+        final String roleAllDealsWithoutDls = "role_all_deals_without_dls";
+        final String roleDealsOneWithDls = "role_deals_1_with_dls";
+        SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration
+                .of(CType.ROLES, roleAllDealsWithoutDls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-*"))),
+                        context).get(),
+                        roleDealsOneWithDls,
+                        Role.parse(DocNode.of("index_permissions", DocNode.array(DocNode.of("index_patterns", "deals-1",
+                                        "dls", DocNode.of("term.dept.value", "dept_d").toJsonString()))),
+                        context).get()
+                );
+
+        RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, ImmutableSet.of("deals-1", "deals-2"),
+                MetricsLevel.NONE, false);
+
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleAllDealsWithoutDls, roleDealsOneWithDls), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("deals-1"), Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("deals-2"), Meter.NO_OP));
+
+        context = new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(),
+                ImmutableSet.of(roleDealsOneWithDls), null, subject, false, null, null);
+
+        Assert.assertTrue(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("deals-1"), Meter.NO_OP));
+        Assert.assertFalse(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("deals-2"), Meter.NO_OP));
     }
 }

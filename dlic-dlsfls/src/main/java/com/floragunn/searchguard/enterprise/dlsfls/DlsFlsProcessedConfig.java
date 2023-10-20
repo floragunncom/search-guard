@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,13 +34,14 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import org.elasticsearch.common.settings.Settings;
 
 import static java.util.stream.Collectors.joining;
 
 public class DlsFlsProcessedConfig {
     private static final Logger log = LogManager.getLogger(DlsFlsProcessedConfig.class);
 
-    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig(DlsFlsConfig.DEFAULT, null, null, null, null, null);
+    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig();
 
     private final DlsFlsConfig dlsFlsConfig;
     private final RoleBasedDocumentAuthorization documentAuthorization;
@@ -49,10 +51,14 @@ public class DlsFlsProcessedConfig {
     private final boolean validationErrorsPresent;
     private final String validationErrorDescription;
     private final String uniqueValidationErrorToken;
+    private final boolean dfmEmptyOverridesAll;
 
+    private DlsFlsProcessedConfig() {
+        this(DlsFlsConfig.DEFAULT, null, null, null, null, null, true);
+    }
     DlsFlsProcessedConfig(DlsFlsConfig dlsFlsConfig, RoleBasedDocumentAuthorization documentAuthorization,
             RoleBasedFieldAuthorization fieldAuthorization, RoleBasedFieldMasking fieldMasking, ValidationErrors rolesValidationErrors,
-        ValidationErrors rolesMappingValidationErrors) {
+        ValidationErrors rolesMappingValidationErrors, boolean dfmEmptyOverridesAll) {
         this.dlsFlsConfig = dlsFlsConfig;
         this.documentAuthorization = documentAuthorization;
         this.fieldAuthorization = fieldAuthorization;
@@ -63,15 +69,17 @@ public class DlsFlsProcessedConfig {
         this.uniqueValidationErrorToken = UUID.randomUUID().toString();
         this.validationErrorDescription = describeValidationErrors(uniqueValidationErrorToken, rolesValidationErrors,//
             rolesMappingValidationErrors);
+        this.dfmEmptyOverridesAll = dfmEmptyOverridesAll;
     }
 
-    static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, Set<String> indices) {
+    static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, Set<String> indices, Settings settings) {
         try {
             SgDynamicConfiguration<DlsFlsConfig> dlsFlsConfigContainer = configMap.get(DlsFlsConfig.TYPE);
             DlsFlsConfig dlsFlsConfig = null;
             RoleBasedDocumentAuthorization documentAuthorization = null;
             RoleBasedFieldAuthorization fieldAuthorization = null;
             RoleBasedFieldMasking fieldMasking = null;
+            boolean dfmEmptyOverridesAll = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_DFM_EMPTY_OVERRIDES_ALL, true);
 
             if (dlsFlsConfigContainer != null && dlsFlsConfigContainer.getCEntry("default") != null) {
                 dlsFlsConfig = dlsFlsConfigContainer.getCEntry("default");
@@ -82,9 +90,9 @@ public class DlsFlsProcessedConfig {
             SgDynamicConfiguration<Role> roleConfig = configMap.get(CType.ROLES);
             if (dlsFlsConfig.getEnabledImpl() == DlsFlsConfig.Impl.FLX) {
 
-                documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
-                fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
-                fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indices, dlsFlsConfig.getMetricsLevel());
+                documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel(), dfmEmptyOverridesAll);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel(), dfmEmptyOverridesAll);
+                fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indices, dlsFlsConfig.getMetricsLevel(), dfmEmptyOverridesAll);
 
                 if (log.isDebugEnabled()) {
                     log.debug("Using FLX DLS/FLS implementation\ndocumentAuthorization: " + documentAuthorization + "\nfieldAuthorization: "
@@ -108,7 +116,7 @@ public class DlsFlsProcessedConfig {
                 .map(SgDynamicConfiguration::getValidationErrors)
                 .orElse(null);
             return new DlsFlsProcessedConfig(dlsFlsConfig, documentAuthorization, fieldAuthorization, fieldMasking, rolesValidationErrors,
-                rolesMappingsValidationErrors);
+                rolesMappingsValidationErrors, dfmEmptyOverridesAll);
         } catch (Exception e) {
             log.error("Error while updating DLS/FLS config", e);
             componentState.setFailed(e);
@@ -122,6 +130,10 @@ public class DlsFlsProcessedConfig {
 
     public RoleBasedDocumentAuthorization getDocumentAuthorization() {
         return documentAuthorization;
+    }
+
+    public boolean isDfmEmptyOverridesAll() {
+        return dfmEmptyOverridesAll;
     }
 
     public RoleBasedFieldAuthorization getFieldAuthorization() {
