@@ -22,16 +22,16 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -46,13 +46,14 @@ public class KibanaInfoAction extends BaseRestHandler {
 
     private final Logger log = LogManager.getLogger(this.getClass());
     private final PrivilegesEvaluator evaluator;
+    private final MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
     private final ThreadContext threadContext;
 
-    public KibanaInfoAction(final Settings settings, final RestController controller, final PrivilegesEvaluator evaluator,
-            final ThreadPool threadPool) {
+    public KibanaInfoAction(final PrivilegesEvaluator evaluator, final ThreadPool threadPool, MultiTenancyConfigurationProvider multiTenancyConfigurationProvider) {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.evaluator = evaluator;
+        this.multiTenancyConfigurationProvider = multiTenancyConfigurationProvider;
     }
     
     @Override
@@ -76,9 +77,9 @@ public class KibanaInfoAction extends BaseRestHandler {
                     builder.startObject();
                     builder.field("user_name", user == null ? null : user.getName());
                     builder.field("not_fail_on_forbidden_enabled", evaluator.notFailOnForbiddenEnabled());
-                    builder.field("kibana_mt_enabled", evaluator.multitenancyEnabled());
-                    builder.field("kibana_index", evaluator.getKibanaIndex()); 
-                    builder.field("kibana_server_user", evaluator.getKibanaServerUser()); 
+                    builder.field("kibana_mt_enabled", multiTenancyConfigurationProvider.isMultiTenancyEnabled());
+                    builder.field("kibana_index", multiTenancyConfigurationProvider.getKibanaIndex());
+                    builder.field("kibana_server_user", multiTenancyConfigurationProvider.getKibanaServerUser());
                     builder.field("kibana_rbac_enabled", false);
                     builder.endObject();
 

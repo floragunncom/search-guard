@@ -478,8 +478,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
             if (!sslOnly) {
                 handlers.add(
-                        new SearchGuardInfoAction(settings, restController, authorizationService, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool), clusterService, adminDns));
-                handlers.add(new KibanaInfoAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
+                        new SearchGuardInfoAction(settings, restController, authorizationService, Objects.requireNonNull(moduleRegistry.getTenantAccessMapper()), Objects.requireNonNull(threadPool), clusterService, adminDns));
+                handlers.add(new KibanaInfoAction(
+                        Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool),
+                        Objects.requireNonNull(moduleRegistry.getMultiTenancyConfigurationProvider())
+                ));
                 handlers.add(new SearchGuardHealthAction(settings, restController, cr));
                 handlers.add(new PermissionAction(settings, restController, Objects.requireNonNull(evaluator), Objects.requireNonNull(threadPool)));
 
@@ -670,11 +673,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public List<ActionFilter> getActionFilters() {
         List<ActionFilter> filters = new ArrayList<>(1);
         if (!client && !disabled && !sslOnly) {
-            ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedConfigIndexService, evaluator, settings);
+            ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedConfigIndexService,
+                    evaluator, settings);
             ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
             SearchGuardFilter searchGuardFilter = new SearchGuardFilter(authorizationService, evaluator, adminDns,
-                    moduleRegistry.getSyncAuthorizationFilters(), auditLog, threadPool, clusterService, diagnosticContext, complianceConfig, actions,
-                    actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry);
+                    moduleRegistry.getSyncAuthorizationFilters(), moduleRegistry.getPrePrivilegeSyncAuthorizationFilters(), auditLog, threadPool,
+                    clusterService, diagnosticContext, complianceConfig, actions, actionRequestIntrospector,
+                    specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry);
 
             filters.add(searchGuardFilter);
 
@@ -834,7 +839,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         
         this.authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
         this.authorizationService = new AuthorizationService(cr, staticSettings, authInfoService);
-        evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, authorizationService, indexNameExpressionResolver, auditLog, staticSettings, cih,
+        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, authorizationService, indexNameExpressionResolver, auditLog, staticSettings, cih,
                 actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
                 enterpriseModulesEnabled);
         moduleRegistry.addComponentStateProvider(evaluator);
@@ -905,7 +910,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 principalExtractor, evaluator, settings, configPath, diagnosticContext);
         components.add(searchGuardRestFilter);
 
-        evaluator.setPrivilegesInterceptor(moduleRegistry.getPrivilegesInterceptor());
+        evaluator.setMultiTenancyConfigurationProvider(moduleRegistry.getMultiTenancyConfigurationProvider());
 
         moduleRegistry.addComponentStateProvider(searchGuardRestFilter);
         

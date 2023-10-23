@@ -41,7 +41,8 @@ public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
     public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
             new ActionHandler<>(FeMultiTenancyConfigApi.GetAction.INSTANCE, FeMultiTenancyConfigApi.GetAction.Handler.class),
             new ActionHandler<>(FeMultiTenancyConfigApi.PutAction.INSTANCE, FeMultiTenancyConfigApi.PutAction.Handler.class),
-            new ActionHandler<>(FeMultiTenancyConfigApi.PatchAction.INSTANCE, FeMultiTenancyConfigApi.PatchAction.Handler.class));
+            new ActionHandler<>(FeMultiTenancyConfigApi.PatchAction.INSTANCE, FeMultiTenancyConfigApi.PatchAction.Handler.class)
+        );
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
         public static final GetAction INSTANCE = new GetAction();

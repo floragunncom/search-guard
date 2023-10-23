@@ -18,10 +18,18 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.authz.TenantAccessMapper;
+import com.floragunn.searchguard.authz.TenantManager;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.DataMigrationApi;
+import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -38,34 +46,36 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
-import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
-import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
-import com.google.common.collect.ImmutableList;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
 public class FeMultiTenancyModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(FeMultiTenancyModule.class);
 
-    private final ComponentState componentState = new ComponentState(1000, null, "fe_multi_tenancy", FeMultiTenancyModule.class).requiresEnterpriseLicense();
+    private final ComponentState componentState = new ComponentState(1000, null, "fe_multi_tenancy", FeMultiTenancyModule.class)
+            .requiresEnterpriseLicense();
     private volatile boolean enabled;
-    private volatile PrivilegesInterceptorImpl interceptorImpl;
+    private volatile MultiTenancyAuthorizationFilter multiTenancyAuthorizationFilter;
     private volatile FeMultiTenancyConfig config;
+    private volatile RoleBasedTenantAuthorization tenantAuthorization;
+    private volatile TenantManager tenantManager;
+    private volatile FeMultiTenancyTenantAccessMapper feMultiTenancyTenantAccessMapper;
+
     private volatile ImmutableSet<String> tenantNames = ImmutableSet.empty();
     private ThreadPool threadPool;
     private ClusterService clusterService;
@@ -116,10 +126,24 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
             this.tenantNames = tenantNames;
 
+            SgDynamicConfiguration<Role> roles = configMap.get(CType.ROLES);
+            SgDynamicConfiguration<Tenant> tenants = configMap.get(CType.TENANTS);
+
+            ActionGroup.FlattenedIndex actionGroups = configMap.get(CType.ACTIONGROUPS) != null
+                    ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
+                    : ActionGroup.FlattenedIndex.EMPTY;
+
+            tenantManager = new TenantManager(tenants.getCEntries().keySet());
+            tenantAuthorization = new RoleBasedTenantAuthorization(roles, actionGroups, baseDependencies.getActions(), tenantManager,
+                    feMultiTenancyConfig.getMetricsLevel());
+            feMultiTenancyTenantAccessMapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, baseDependencies.getActions());
+            RequestHandlerFactory requestHandlerFactory = new RequestHandlerFactory(baseDependencies.getLocalClient(), baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getClusterService(), baseDependencies.getGuiceDependencies().getIndicesService());
+
             if (feMultiTenancyConfig != null) {
                 if (feMultiTenancyConfig.isEnabled()) {
                     enabled = true;
-                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, tenantNames, baseDependencies.getActions());
+                    multiTenancyAuthorizationFilter = new MultiTenancyAuthorizationFilter(feMultiTenancyConfig, tenantAuthorization, tenantManager, baseDependencies.getActions(),
+                            baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient(), requestHandlerFactory);
                 } else {
                     enabled = false;
                     componentState.setState(State.SUSPENDED, "disabled_by_config");
@@ -128,60 +152,42 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                 enabled = false;
             }
 
+            componentState.setConfigVersion(configMap.getVersionsAsString());
+            componentState.replacePart(tenantAuthorization.getComponentState());
+            componentState.updateStateFromParts();
+
             if (log.isDebugEnabled()) {
-                log.debug("Using MT config: " + feMultiTenancyConfig + "\nenabled: " + enabled + "\ninterceptor: " + interceptorImpl);
+                log.debug("Using MT config: " + feMultiTenancyConfig + "\nenabled: " + enabled + "\nauthorization filter: " + multiTenancyAuthorizationFilter);
             }
         });
 
-        return Arrays.asList(privilegesInterceptor);
+        return Arrays.asList(new FeMultiTenancyConfigurationProvider(this), tenantAccessMapper);
     }
 
-    private final PrivilegesInterceptor privilegesInterceptor = new PrivilegesInterceptor() {
-
+    private final TenantAccessMapper tenantAccessMapper = new TenantAccessMapper() {
         @Override
-        public InterceptionResult replaceKibanaIndex(PrivilegesEvaluationContext context, ActionRequest request, Action action,
-                ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
-            if (enabled && interceptorImpl != null) {
-                return interceptorImpl.replaceKibanaIndex(context, request, action, actionAuthorization);
-            } else {
-                return InterceptionResult.NORMAL;
-            }
-        }
-
-        @Override
-        public boolean isEnabled() {
-            return enabled;
-        }
-
-        @Override
-        public String getKibanaIndex() {
-            if (enabled && interceptorImpl != null) {
-                return interceptorImpl.getKibanaIndex();
-            } else {
-                return ".kibana";
-            }
-        }
-
-        @Override
-        public String getKibanaServerUser() {
-            if (enabled && interceptorImpl != null) {
-                return interceptorImpl.getKibanaServerUser();
-            } else {
-                return "kibanaserver";
-            }
-        }
-
-        @Override
-        public Map<String, Boolean> mapTenants(User user, ImmutableSet<String> roles, ActionAuthorization actionAuthorization) {
-            if (enabled && interceptorImpl != null) {
-                return interceptorImpl.mapTenants(user, roles, actionAuthorization);
-            } else {
+        public Map<String, Boolean> mapTenantsAccess(User user, Set<String> roles) {
+            if (!enabled) {
                 return ImmutableMap.empty();
             }
+            return feMultiTenancyTenantAccessMapper.mapTenantsAccess(user, roles);
         }
-
     };
 
+    private final SyncAuthorizationFilter syncAuthorizationFilter = new SyncAuthorizationFilter() {
+        
+        @Override
+        public Result apply(PrivilegesEvaluationContext context, ActionListener<?> listener) {
+            MultiTenancyAuthorizationFilter delegate = multiTenancyAuthorizationFilter;
+            
+            if (enabled && delegate != null) {
+                return delegate.apply(context, listener);
+            } else {
+                return SyncAuthorizationFilter.Result.OK;
+            }
+        }
+    };
+    
     @Override
     public ComponentState getComponentState() {
         return componentState;
@@ -203,17 +209,22 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
-        return ImmutableList.of(new TenantInfoAction(settings, restController, this, threadPool, clusterService, adminDns),
-                FeMultiTenancyConfigApi.REST_API);
+        return ImmutableList.of(FeMultiTenancyConfigApi.REST_API, DataMigrationApi.REST_API);
     }
 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return FeMultiTenancyConfigApi.ACTION_HANDLERS;
+        return ImmutableList.of(FeMultiTenancyConfigApi.ACTION_HANDLERS)
+                .with(DataMigrationApi.ACTION_HANDLERS);
     }
 
     @Override
     public ImmutableSet<String> getCapabilities() {
         return ImmutableSet.of("fe_multi_tenancy");
+    }
+    
+    @Override
+    public ImmutableList<SyncAuthorizationFilter> getPrePrivilegeEvaluationSyncAuthorizationFilters() {
+        return ImmutableList.of(this.syncAuthorizationFilter);
     }
 }
