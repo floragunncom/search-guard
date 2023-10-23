@@ -1,5 +1,6 @@
 package com.floragunn.signals.actions.summary;
 
+import static com.floragunn.signals.actions.summary.LoadOperatorSummaryRequestConstants.ACTIONS_PREFIX;
 import static java.util.Objects.requireNonNull;
 
 import com.floragunn.codova.documents.DocNode;
@@ -13,6 +14,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.ExistsQueryBuilder;
 import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -60,16 +62,61 @@ class WatchStateRepository {
         buildStatusCodeQuery(watchFilter, boolQueryBuilder);
         buildWatchIdQuery(watchFilter, boolQueryBuilder);
         buildSeverityQuery(watchFilter, boolQueryBuilder);
-        if(watchFilter.containsLevelNumeric()) {
-            buildRangeOrTermQuery(boolQueryBuilder, watchFilter.getLevelNumeric(), "last_execution.severity.level_numeric");
-        }
+        buildActionsNamesQuery(watchFilter, boolQueryBuilder);
+        buildActionsPropertiesQuery(watchFilter, boolQueryBuilder);
+        buildRangeQueries(watchFilter, boolQueryBuilder);
         sourceBuilder.query(boolQueryBuilder);
         SearchRequest request = new SearchRequest(stateIndexName).source(sourceBuilder);
         return privilegedConfigClient.search(request).actionGet();
     }
 
-    private static void buildRangeOrTermQuery(BoolQueryBuilder boolQueryBuilder, Range<?> range, String field) {
+    private static void buildRangeQueries(WatchFilter watchFilter, BoolQueryBuilder boolQueryBuilder) {
+        RangesFilters ranges = watchFilter.getRangesFilters();
+        if (ranges.getLevelNumericRange() != null) {
+            buildRangeOrTermQuery(boolQueryBuilder, ranges.getLevelNumericRange());
+        }
+        if (ranges.getActionsCheckedRange() != null) {
+            buildRangeOrTermQuery(boolQueryBuilder, ranges.getActionsCheckedRange());
+        }
+        if (ranges.getActionsTriggeredRange() != null) {
+            buildRangeOrTermQuery(boolQueryBuilder, ranges.getActionsTriggeredRange());
+        }
+        if (ranges.getActionsExecutionRange() != null) {
+            buildRangeOrTermQuery(boolQueryBuilder, ranges.getActionsExecutionRange());
+        }
+    }
+
+    private static void buildActionsPropertiesQuery(WatchFilter watchFilter, BoolQueryBuilder boolQueryBuilder) {
+        ActionProperties prop = watchFilter.getActionProperties();
+        if (prop.getCheckResultValue() != null) {
+            boolQueryBuilder.must(QueryBuilders.termQuery(prop.getCheckResultName(), prop.getCheckResultValue()));
+        }
+        if (prop.getErrorValue() != null) {
+            boolQueryBuilder.must(QueryBuilders.matchQuery(prop.getErrorName(), prop.getErrorValue()));
+        }
+        if (prop.getStatusCodeValue() != null) {
+            boolQueryBuilder.must(QueryBuilders.matchQuery(prop.getStatusCodeName(), prop.getStatusCodeValue()));
+        }
+        if (prop.getStatusDetailsValue() != null) {
+            boolQueryBuilder.must(QueryBuilders.matchQuery(prop.getStatusDetailsName(), prop.getStatusDetailsValue()));
+        }
+    }
+
+
+    private static void buildActionsNamesQuery(WatchFilter watchFilter, BoolQueryBuilder boolQueryBuilder) {
+        if(watchFilter.containsActions()) {
+            BoolQueryBuilder orQueryBuilder = QueryBuilders.boolQuery();
+            for(String action : watchFilter.getActionNames()) {
+                ExistsQueryBuilder existsQuery = QueryBuilders.existsQuery(ACTIONS_PREFIX + action);
+                orQueryBuilder.should(existsQuery);
+            }
+            boolQueryBuilder.filter(orQueryBuilder);
+        }
+    }
+
+    private static void buildRangeOrTermQuery(BoolQueryBuilder boolQueryBuilder, Range<?> range) {
         QueryBuilder rangeQuery;
+        String field = range.getFieldName();
         if(range.containsEqualTo()) {
             rangeQuery = QueryBuilders.termQuery(field, range.getEqualTo());
         } else {
