@@ -1,27 +1,5 @@
 package com.floragunn.signals.actions.summary;
 
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestSgConfig.User;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.signals.watch.Watch;
-import com.floragunn.signals.watch.WatchBuilder;
-import org.apache.http.HttpStatus;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.awaitility.Awaitility;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-
 import static com.floragunn.signals.watch.severity.SeverityLevel.CRITICAL;
 import static com.floragunn.signals.watch.severity.SeverityLevel.ERROR;
 import static com.floragunn.signals.watch.severity.SeverityLevel.INFO;
@@ -31,6 +9,27 @@ import static java.util.Objects.requireNonNull;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig.User;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import org.apache.http.HttpStatus;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.awaitility.Awaitility;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 class PredefinedWatches {
 
@@ -50,7 +49,7 @@ class PredefinedWatches {
     }
 
     public WatchPointer defineTemperatureSeverityWatch(String watchId, String inputTemperatureIndex, String outputAlarmIndex,
-        double temperatureLimit) {
+        double temperatureLimit, String actionName) {
         final String aggregationNameMaxTemperature = "max_temperature";
         final String maxTemperatureSearch = "max_temperature_search";
         final String maxTemperatureLimitName = "max_temperature";
@@ -78,7 +77,7 @@ class PredefinedWatches {
                     .greaterOrEqual(7).as(WARNING)//
                     .greaterOrEqual(10).as(ERROR)//
                     .greaterOrEqual(15).as(CRITICAL)//
-                .then().index(outputAlarmIndex).name("createAlarm").build();
+                .then().index(outputAlarmIndex).name(actionName).build();
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
