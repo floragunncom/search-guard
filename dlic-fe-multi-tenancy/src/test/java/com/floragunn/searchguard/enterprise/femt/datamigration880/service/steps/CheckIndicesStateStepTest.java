@@ -139,7 +139,7 @@ public class CheckIndicesStateStepTest {
         IndexStats indexStateTenantMock = Mockito.mock(IndexStats.class);
         IndexStats indexStateBackupMock = Mockito.mock(IndexStats.class);
         IndicesStatsResponse response = Mockito.mock(IndicesStatsResponse.class);
-        when(repository.findIndexState(Mockito.any())).thenReturn(response);
+        when(repository.findIndexState(Mockito.any(String[].class))).thenReturn(response);
         when(response.getIndex(TENANT_INDEX_1)).thenReturn(indexStateTenantMock);
         when(response.getIndex(BACKUP_INDEX_1)).thenReturn(indexStateBackupMock);
         when(indexStateTenantMock.getHealth()).thenReturn(GREEN);
@@ -160,7 +160,7 @@ public class CheckIndicesStateStepTest {
         IndexStats indexStateTenantMock = Mockito.mock(IndexStats.class);
         IndexStats indexStateBackupMock = Mockito.mock(IndexStats.class);
         IndicesStatsResponse response = Mockito.mock(IndicesStatsResponse.class);
-        when(repository.findIndexState(Mockito.any())).thenReturn(response);
+        when(repository.findIndexState(Mockito.any(String[].class))).thenReturn(response);
         when(response.getIndex(TENANT_INDEX_1)).thenReturn(indexStateTenantMock);
         when(response.getIndex(BACKUP_INDEX_1)).thenReturn(indexStateBackupMock);
         when(indexStateTenantMock.getHealth()).thenReturn(YELLOW);
