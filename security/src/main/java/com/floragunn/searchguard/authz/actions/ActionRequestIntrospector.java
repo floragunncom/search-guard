@@ -84,7 +84,8 @@ public class ActionRequestIntrospector {
             EnumSet.noneOf(IndicesOptions.WildcardStates.class));
 
     private static final Set<String> NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS = ImmutableSet.of("indices:data/read/msearch/template",
-            "indices:data/read/search/template", "indices:data/read/sql/translate", "indices:data/read/sql", "indices:data/read/sql/close_cursor");
+            "indices:data/read/search/template", "indices:data/read/sql/translate", "indices:data/read/sql", "indices:data/read/sql/close_cursor",
+            "cluster:admin/scripts/painless/execute");
 
     private final static Logger log = LogManager.getLogger(ActionRequestIntrospector.class);
     private final IndexNameExpressionResolver resolver;

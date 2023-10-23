@@ -18,7 +18,7 @@ import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
@@ -85,8 +85,9 @@ public class IndexMissingTest extends AbstractRestApiUnitTest {
 		// GET configuration
 		response = rh.executeGetRequest("_searchguard/api/roles");
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		SgJsonNode sgJsonNode = new SgJsonNode(DefaultObjectMapper.readTree(response.getBody()));
-		Assert.assertEquals("CLUSTER_ALL", sgJsonNode.get("sg_admin").get("cluster_permissions").get(0).asString());
+        DocNode docNode = response.toDocNode();
+        Assert.assertEquals("CLUSTER_ALL", docNode.getAsNode("sg_admin").getAsListOfNodes("cluster_permissions").get(0).toString());
+
 
 	}
 }

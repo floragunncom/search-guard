@@ -16,8 +16,9 @@
   <packaging>jar</packaging>
   <name>Search Guard FLX: Audit Logging (Enterprise)</name>
 
-  <dependencies>
+  <properties></properties>
 
+  <dependencies>
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
@@ -26,7 +27,7 @@
     <dependency>
       <groupId>org.elasticsearch.client</groupId>
       <artifactId>elasticsearch-rest-client</artifactId>
-      <scope>compile</scope>
+      <version>${elasticsearch.version}</version>
     </dependency>
 
     <dependency>
@@ -34,7 +35,6 @@
       <artifactId>dlic-search-guard-flx-security</artifactId>
       <scope>provided</scope>
     </dependency>
-
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-security</artifactId>
@@ -54,6 +54,19 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <version>${log4j.version}</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-api</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <!--  DLS/FLS is a required dependency for audit logging to work -->
       <groupId>com.floragunn</groupId>
       <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
@@ -61,7 +74,7 @@
     </dependency>
 
     <dependency>
-      <!--  DLS/FLS is a required dependency for audit logging to work -->
+      <!--  DLS/FLS legacy is a required dependency for audit logging to work -->
       <groupId>com.floragunn</groupId>
       <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
       <scope>test</scope>
@@ -76,6 +89,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
+      <version>5.4.0</version>
       <scope>test</scope>
     </dependency>
 
@@ -99,6 +113,6 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
-  </dependencies>
 
+  </dependencies>
 </project>

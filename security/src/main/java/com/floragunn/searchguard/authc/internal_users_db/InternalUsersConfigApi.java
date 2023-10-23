@@ -29,9 +29,11 @@ import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
+import com.floragunn.searchguard.configuration.ConfigurationLoader;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.NoSuchConfigEntryException;
 import com.floragunn.searchguard.configuration.SgConfigEntry;
@@ -66,19 +68,21 @@ public class InternalUsersConfigApi {
         public static class Handler extends Action.Handler<StandardRequests.IdRequest, StandardResponse> {
 
             private final ConfigurationRepository configRepository;
+            private final ConfigurationLoader configLoader;
 
             @Inject
-            public Handler(Action.HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
+            public Handler(Action.HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository, BaseDependencies baseDependencies) {
                 super(GetAction.INSTANCE, handlerDependencies);
                 this.configRepository = configurationRepository;
+                this.configLoader = new ConfigurationLoader(baseDependencies.getLocalClient(), configurationRepository);
             }
 
             @Override
             protected CompletableFuture<StandardResponse> doExecute(StandardRequests.IdRequest request) {
                 return supplyAsync(() -> {
                     try {
-                        SgConfigEntry<InternalUser> user = this.configRepository.getConfigEntryFromIndex(CType.INTERNALUSERS, request.getId(),
-                                "API GET /_searchguard/internal_users/");
+                        SgConfigEntry<InternalUser> user = this.configLoader.loadEntrySync(CType.INTERNALUSERS, request.getId(),
+                                "API GET /_searchguard/internal_users/", this.configRepository.getParserContext());
                         return new StandardResponse(200).data(user.toRedactedBasicObject()).eTag(user.getETag());
                     } catch (NoSuchConfigEntryException e) {
                         log.info(e.getMessage());

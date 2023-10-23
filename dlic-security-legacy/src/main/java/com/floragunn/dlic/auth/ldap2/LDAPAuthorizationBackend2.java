@@ -44,7 +44,6 @@ import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.TypedComponent.Factory;
 import com.floragunn.searchguard.authc.legacy.LegacyAuthorizationBackend;
-import com.floragunn.searchguard.configuration.Destroyable;
 import com.floragunn.searchguard.legacy.LegacyComponentFactory;
 import com.floragunn.searchguard.support.WildcardMatcher;
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -57,7 +56,7 @@ import com.unboundid.ldap.sdk.ResultCode;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 import com.unboundid.ldap.sdk.SearchScope;
 
-public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, Destroyable {
+public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, AutoCloseable {
 
     static final int ZERO_PLACEHOLDER = 0;
     static final int ONE_PLACEHOLDER = 1;
@@ -554,7 +553,7 @@ public class LDAPAuthorizationBackend2 implements LegacyAuthorizationBackend, De
     }
 
     @Override
-    public void destroy() {
+    public void close() {
         if (this.lcm != null) {
             try {
                 this.lcm.close();

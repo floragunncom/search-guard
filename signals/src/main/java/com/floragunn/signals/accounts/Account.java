@@ -30,7 +30,6 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.ToXContentObject;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -88,7 +87,7 @@ public abstract class Account implements ToXContentObject {
 
     public abstract String getType();
 
-    public final String toJson() throws JsonProcessingException {
+    public final String toJson() {
         return Strings.toString(this);
     }
 

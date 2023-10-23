@@ -1,5 +1,6 @@
 package com.floragunn.signals.enterprise.watch.action.handlers.jira;
 
+import com.floragunn.signals.watch.common.ValidationLevel;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -41,11 +42,13 @@ public class JiraAction extends ActionHandler {
     private String account;
     private String project;
     private JiraIssueConfig issue;
+	private HttpClientConfig httpClientConfig;
 
-    public JiraAction(String account, String project, JiraIssueConfig issue) {
+    public JiraAction(String account, String project, JiraIssueConfig issue, HttpClientConfig httpClientConfig) {
         this.account = account;
         this.project = project;
         this.issue = issue;
+		this.httpClientConfig = httpClientConfig;
     }
 
     @Override
@@ -100,7 +103,6 @@ public class JiraAction extends ActionHandler {
 
     private void callJiraApi(JiraAccount account, JiraIssueApiCall call, HttpProxyConfig httpProxyConfig)
             throws ActionExecutionException, IOException {
-        HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
         try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(httpProxyConfig)) {
             HttpPost httpRequest = new HttpPost(getCreateIssueEndpoint(account));
@@ -151,6 +153,7 @@ public class JiraAction extends ActionHandler {
         protected JiraAction create(WatchInitializationService watchInitializationService, ValidatingDocNode vJsonNode,
                 ValidationErrors validationErrors) throws ConfigValidationException {
 
+			HttpClientConfig httpClientConfig = null;
             String account = vJsonNode.get("account").asString();
 
             watchInitializationService.verifyAccount(account, JiraAccount.class, validationErrors, vJsonNode.getDocumentNode());
@@ -158,7 +161,10 @@ public class JiraAction extends ActionHandler {
             JiraIssueConfig issueConfig = null;
 
             try {
+				ValidationLevel validationLevel = watchInitializationService.getValidationLevel();
                 issueConfig = JiraIssueConfig.create(watchInitializationService, vJsonNode.get("issue").asDocNode());
+				httpClientConfig =
+					HttpClientConfig.create(vJsonNode, watchInitializationService.getTrustManagerRegistry(), validationLevel);
             } catch (ConfigValidationException e) {
                 validationErrors.add("issue", e);
             }
@@ -167,7 +173,7 @@ public class JiraAction extends ActionHandler {
 
             validationErrors.throwExceptionForPresentErrors();
 
-            return new JiraAction(account, project, issueConfig);
+            return new JiraAction(account, project, issueConfig, httpClientConfig);
         }
     }
 

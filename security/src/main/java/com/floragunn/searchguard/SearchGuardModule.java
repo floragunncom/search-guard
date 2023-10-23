@@ -30,6 +30,7 @@ import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -142,6 +143,10 @@ public interface SearchGuardModule {
 
     default void onNodeStarted() {
 
+    }
+
+    default ImmutableList<ActionFilter> getActionFilters() {
+        return ImmutableList.empty();
     }
 
     @FunctionalInterface

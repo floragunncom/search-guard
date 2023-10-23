@@ -12,9 +12,9 @@ import java.util.Set;
 
 import org.elasticsearch.common.bytes.BytesReference;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 
 public class ResourceConfig<K> {
 
@@ -43,8 +43,7 @@ public class ResourceConfig<K> {
                 this.map.put(entry.getKey(), entry.getValue());
             } else if (entry.getValue() instanceof Doc) {
                 try {
-                    this.map.put(entry.getKey(),
-                            new Doc(DefaultObjectMapper.YAML_MAPPER.readTree(getStream(entry.getValue().file)), entry.getValue().file));
+                    this.map.put(entry.getKey(), new Doc(DocNode.parse(Format.YAML).from(entry.getValue().file), entry.getValue().file));
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -72,18 +71,18 @@ public class ResourceConfig<K> {
 
     public ResourceConfig<K> setYamlDoc(K key, String yaml) {
         try {
-            this.map.put(key, new Doc(DefaultObjectMapper.YAML_MAPPER.readTree(yaml), null));
+            this.map.put(key, new Doc(DocNode.parse(Format.YAML).from(yaml), null));
             return this;
-        } catch (IOException e) {
+        } catch (DocumentParseException e) {
             throw new RuntimeException(e);
         }
     }
 
     public ResourceConfig<K> setYamlDoc(K key, File file) {
         try {
-            this.map.put(key, new Doc(DefaultObjectMapper.YAML_MAPPER.readTree(getStream(file)), file));
+            this.map.put(key, new Doc(DocNode.parse(Format.YAML).from(file), file));
             return this;
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -99,19 +98,15 @@ public class ResourceConfig<K> {
     }
 
     public static class Doc extends Resource {
-        private JsonNode doc;
-
-        Doc(JsonNode doc, File file) {
+        private DocNode doc;
+        
+        Doc(DocNode doc, File file) {
             super(file);
             this.doc = doc;
         }
 
         public String asJsonString() {
-            try {
-                return DefaultObjectMapper.objectMapper.writeValueAsString(doc);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+            return doc.toJsonString();
         }
 
         public BytesReference asJsonBytesReference() {
@@ -119,11 +114,7 @@ public class ResourceConfig<K> {
         }
 
         public String asYamlString() {
-            try {
-                return DefaultObjectMapper.YAML_MAPPER.writeValueAsString(doc);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
+            return doc.toYamlString();
         }
 
         public BytesReference asYamlBytesReference() {

@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.floragunn.signals.settings.SignalsSettings;
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -32,14 +35,18 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
+import static com.floragunn.signals.watch.common.ValidationLevel.LENIENT;
+
 public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
 
     private final Logger log = LogManager.getLogger(this.getClass());
     private final ScriptService scriptService;
+    private final ThrottlePeriodParser throttlePeriodParser;
 
-    public ExecuteWatchApiAction(Settings settings, ScriptService scriptService) {
+    public ExecuteWatchApiAction(Settings settings, ScriptService scriptService, SignalsSettings signalsSettings) {
         super(settings);
         this.scriptService = scriptService;
+        this.throttlePeriodParser = new ValidatingThrottlePeriodParser(signalsSettings);
     }
 
     @Override
@@ -57,8 +64,9 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
             //we need to consume the tenant param here because
             //if not ES 8 throws an exception
             request.param("tenant");
-
-            final RequestBody requestBody = RequestBody.parse(new WatchInitializationService(null, scriptService), request.content().utf8ToString());
+            WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
+                null, throttlePeriodParser, LENIENT);
+            final RequestBody requestBody = RequestBody.parse(watchInitializationService, request.content().utf8ToString());
 
             if (log.isDebugEnabled()) {
                 log.debug("Execute watch " + id + ":\n" + requestBody);

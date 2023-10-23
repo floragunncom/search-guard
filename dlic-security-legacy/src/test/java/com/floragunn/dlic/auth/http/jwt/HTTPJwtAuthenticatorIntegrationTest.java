@@ -26,24 +26,16 @@ public class HTTPJwtAuthenticatorIntegrationTest {
 
             HttpResponse response = client.get("/_searchguard/auth/config?next_url=/abc/def");
 
-            //System.out.println(response.getBody());
-
             response = client.postJson("/_searchguard/auth/session", "{\"method\": \"jwt\", \"jwt\": \"" + TestJwts.MC_COY_SIGNED_OCT_1 + "\" }");
-
-            //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
-            String token = response.toJsonNode().path("token").textValue();
+            String token = response.getBodyAsDocNode().getAsString("token");
 
             Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
 
             try (GenericRestClient tokenClient = cluster.getRestClient(tokenAuth)) {
-
                 response = tokenClient.get("/_searchguard/authinfo");
-
-                //System.out.println(response.getBody());
-
             }
         }
 

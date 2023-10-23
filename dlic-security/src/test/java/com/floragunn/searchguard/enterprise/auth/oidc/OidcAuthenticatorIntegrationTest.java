@@ -114,9 +114,10 @@ public class OidcAuthenticatorIntegrationTest {
 
             //System.out.println(response.getBody());
 
-            String ssoLocation = response.toJsonNode().path("auth_methods").path(0).path("sso_location").textValue();
-            String ssoContext = response.toJsonNode().path("auth_methods").path(0).path("sso_context").textValue();
-            String id = response.toJsonNode().path("auth_methods").path(0).path("id").textValue();
+            String ssoLocation = response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("sso_location");
+            String ssoContext = response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("sso_context");
+            String id = response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("id");
+
 
             Assert.assertNotNull(response.getBody(), ssoLocation);
 
@@ -128,9 +129,9 @@ public class OidcAuthenticatorIntegrationTest {
             //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
-            Assert.assertEquals(nextUrl, response.toJsonNode().path("redirect_uri").textValue());
-
-            String token = response.toJsonNode().path("token").textValue();
+            Assert.assertEquals(nextUrl, response.getBodyAsDocNode().getAsString("redirect_uri"));
+            
+            String token = response.getBodyAsDocNode().getAsString("token");
 
             Header tokenAuth = new BasicHeader("Authorization", "Bearer " + token);
 
@@ -140,7 +141,7 @@ public class OidcAuthenticatorIntegrationTest {
 
                 //System.out.println(response.getBody());
 
-                String logoutAddress = response.toJsonNode().path("sso_logout_url").textValue();
+                String logoutAddress = response.getBodyAsDocNode().getAsString("sso_logout_url");
 
                 Assert.assertNotNull(logoutAddress);
             }

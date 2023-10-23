@@ -1,6 +1,5 @@
 package com.floragunn.searchguard.test;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,18 +12,17 @@ import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
 import org.hamcrest.Matcher;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format.UnknownDocTypeException;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.DefaultObjectMapper;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.google.common.collect.ImmutableMap;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
-import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
-import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
+import com.jayway.jsonpath.internal.filter.ValueNodes.JsonNode;
 
 public class RestMatchers {
     public static DiagnosingMatcher<HttpResponse> isOk() {
@@ -148,12 +146,12 @@ public class RestMatchers {
                 }
 
                 try {
-                    JsonNode jsonNode = DefaultObjectMapper.objectMapper.readTree(response.getBody());
+                    DocNode docNode = response.getBodyAsDocNode();
                     boolean ok = true;
 
                     for (BaseMatcher<?> subMatcher : subMatchers) {
-                        if (!subMatcher.matches(jsonNode)) {
-                            subMatcher.describeMismatch(jsonNode, mismatchDescription);
+                        if (!subMatcher.matches(docNode)) {
+                            subMatcher.describeMismatch(docNode, mismatchDescription);
                             mismatchDescription.appendText("\nResponse Body:\n").appendText(response.getBody());
                             ok = false;
                         }
@@ -161,7 +159,7 @@ public class RestMatchers {
 
                     return ok;
 
-                } catch (IOException e) {
+                } catch (UnknownDocTypeException | DocumentParseException e) {
                     mismatchDescription.appendText("Response cannot be parsed as JSON: " + e.toString()).appendValue(response.getBody());
                     return false;
                 }
@@ -180,13 +178,14 @@ public class RestMatchers {
 
             @Override
             protected boolean matches(Object item, Description mismatchDescription) {
-                if (!(item instanceof JsonNode)) {
-                    mismatchDescription.appendValue(item).appendText(" is not a JsonNode");
+                if (!(item instanceof DocNode)) {
+                    mismatchDescription.appendValue(item != null ? item.getClass() : "null").appendText(" is not a DocNode");
                     return false;
                 }
 
-                Configuration config = Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS).jsonProvider(new JacksonJsonNodeJsonProvider())
-                        .mappingProvider(new JacksonMappingProvider()).build();
+                Configuration config = Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS)
+                        .jsonProvider(BasicJsonPathDefaultConfiguration.JSON_PROVIDER)
+                        .mappingProvider(BasicJsonPathDefaultConfiguration.MAPPING_PROVIDER).build();
 
                 Object value = JsonPath.using(config).parse(item).read(jsonPath);
 
@@ -195,8 +194,8 @@ public class RestMatchers {
                     return false;
                 }
 
-                if (value instanceof JsonNode) {
-                    value = new ObjectMapper().convertValue(value, Object.class);
+                if (value instanceof DocNode) {
+                    value = ((DocNode) value).toBasicObject();
                 }
 
                 if (subMatcher.matches(value)) {
@@ -221,13 +220,14 @@ public class RestMatchers {
 
             @Override
             protected boolean matches(Object item, Description mismatchDescription) {
-                if (!(item instanceof JsonNode)) {
-                    mismatchDescription.appendValue(item).appendText(" is not a JsonNode");
+                if (!(item instanceof DocNode)) {
+                    mismatchDescription.appendValue(item != null ? item.getClass() : "null").appendText(" is not a DocNode");
                     return false;
                 }
 
-                Configuration config = Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS).jsonProvider(new JacksonJsonNodeJsonProvider())
-                        .mappingProvider(new JacksonMappingProvider()).build();
+                Configuration config = Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS)
+                        .jsonProvider(BasicJsonPathDefaultConfiguration.JSON_PROVIDER)
+                        .mappingProvider(BasicJsonPathDefaultConfiguration.MAPPING_PROVIDER).build();
 
                 Object value = JsonPath.using(config).parse(item).read(jsonPath);
 
@@ -236,8 +236,8 @@ public class RestMatchers {
                     return false;
                 }
 
-                if (value instanceof JsonNode) {
-                    value = new ObjectMapper().convertValue(value, Object.class);
+                if (value instanceof DocNode) {
+                    value = ((DocNode) value).toBasicObject();
                 }
 
                 if (value instanceof Collection) {

@@ -53,9 +53,9 @@ import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.floragunn.searchguard.DefaultObjectMapper;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
@@ -309,8 +309,8 @@ public class RestHelper {
             return header==null?Collections.emptyList():Arrays.asList(header);
         }
 
-		public JsonNode toJsonNode() throws JsonProcessingException, IOException {
-		    return DefaultObjectMapper.objectMapper.readTree(getBody());
+		public DocNode toDocNode() throws IOException, DocumentParseException {
+		    return DocNode.parse(Format.JSON).from(getBody());
 		}
 		
         @Override

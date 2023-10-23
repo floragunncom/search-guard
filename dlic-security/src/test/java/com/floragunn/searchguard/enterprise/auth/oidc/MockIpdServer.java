@@ -47,6 +47,7 @@ import javax.net.ssl.SSLSocket;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
+import org.apache.http.ExceptionLogger;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
@@ -174,6 +175,11 @@ public class MockIpdServer implements Closeable {
                 handleUserInfoRequest(request, response, context);
 
             }
+        }).setExceptionLogger(new ExceptionLogger() {
+            @Override
+            public void log(Exception ex) {
+                log.error("Error in MockIdpServer", ex);
+            }            
         });
 
         if (tlsConfig != null) {
@@ -230,7 +236,6 @@ public class MockIpdServer implements Closeable {
     }
 
     protected void handleDiscoverRequest(HttpRequest request, HttpResponse response, HttpContext context) throws HttpException, IOException {
-
         if (!checkAccess(request, response, context)) {
             return;
         }

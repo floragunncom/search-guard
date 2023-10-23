@@ -22,6 +22,7 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -46,7 +47,6 @@ public class HttpClientConfig extends WatchElement {
     }
 
     public HttpClient createHttpClient(HttpProxyConfig defaultProxyConfig) {
-
         RequestConfig.Builder configBuilder = RequestConfig.custom();
 
         if (connectionTimeoutSecs != null) {
@@ -130,7 +130,8 @@ public class HttpClientConfig extends WatchElement {
         return builder;
     }
 
-    public static HttpClientConfig create(ValidatingDocNode jsonObject) throws ConfigValidationException {
+    public static HttpClientConfig create(ValidatingDocNode jsonObject, TrustManagerRegistry trustManagerRegistry,
+        ValidationLevel validationLevel) throws ConfigValidationException {
         Integer connectionTimeout = null;
         Integer readTimeout = null;
         TlsConfig tlsConfig = null;
@@ -146,7 +147,7 @@ public class HttpClientConfig extends WatchElement {
             connectionTimeout = jsonObject.get("connection_timeout").asInteger();
         }
         
-        tlsConfig = jsonObject.get("tls").by(TlsConfig::create);
+        tlsConfig = jsonObject.get("tls").by(node -> TlsConfig.create(node, trustManagerRegistry, validationLevel));
         proxyConfig = jsonObject.get("proxy").byString(HttpProxyConfig::create);
 
         return new HttpClientConfig(connectionTimeout, readTimeout, tlsConfig, proxyConfig);

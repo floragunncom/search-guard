@@ -21,10 +21,16 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authc.session.FrontendAuthcConfig;
 
-public class ConfigMap implements Destroyable {
+public class ConfigMap implements AutoCloseable {
+    
+    private static final Logger log = LogManager.getLogger(ConfigMap.class);
 
     private final ImmutableMap<CType<?>, SgDynamicConfiguration<?>> map;
     private final String sourceIndex;
@@ -98,9 +104,13 @@ public class ConfigMap implements Destroyable {
     }
 
     @Override
-    public void destroy() {
+    public void close() {
         for (SgDynamicConfiguration<?> config : this.map.values()) {
-            config.destroy();
+            try {
+                config.close();
+            } catch (Exception e) {
+                log.error("Error closing {}", config, e);
+            }
         }
     }
 

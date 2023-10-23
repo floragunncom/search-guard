@@ -72,7 +72,7 @@ public class ExternalSearchGuardSessionAuthenticationBackendTest {
 
             Assert.assertEquals(response.getBody(), 201, response.getStatusCode());
 
-            token = response.toJsonNode().path("token").asText();
+            token = response.getBodyAsDocNode().getAsString("token");
 
             Assert.assertNotNull(response.getBody(), token);
         }
@@ -83,7 +83,7 @@ public class ExternalSearchGuardSessionAuthenticationBackendTest {
             //System.out.println(response.getBody());
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), SESSION_TEST_USER.getName(), response.toJsonNode().path("user_name").textValue());
+            Assert.assertEquals(response.getBody(), SESSION_TEST_USER.getName(), response.getBodyAsDocNode().getAsString("user_name"));
             Assert.assertEquals(response.getBody(), SESSION_TEST_USER.getRoleNames(),
                     ImmutableSet.of(response.getBodyAsDocNode().getAsListOfStrings("sg_roles")));
         }

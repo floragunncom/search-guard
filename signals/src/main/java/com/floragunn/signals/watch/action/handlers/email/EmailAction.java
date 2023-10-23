@@ -75,6 +75,8 @@ import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.common.HttpUtils;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
+
 public class EmailAction extends ActionHandler {
 
     public static final String TYPE = "email";
@@ -427,7 +429,8 @@ public class EmailAction extends ActionHandler {
                         if (t == AttachmentType.REQUEST) {
                             if (element.hasNonNull("request")) {
                                 try {
-                                    HttpClientConfig httpClientConfig = HttpClientConfig.create(element);
+                                    HttpClientConfig httpClientConfig = HttpClientConfig.create(element,
+                                        watchInitService.getTrustManagerRegistry(), STRICT);
                                     attachment.setHttpClientConfig(httpClientConfig);
                                 } catch (ConfigValidationException e) {
                                     validationErrors.add(null, e);

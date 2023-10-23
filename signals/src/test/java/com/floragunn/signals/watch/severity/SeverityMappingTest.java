@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Map;
 
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.junit.Assert;
@@ -24,6 +25,9 @@ import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.floragunn.signals.watch.severity.SeverityMapping.EvaluationResult;
+import org.mockito.Mockito;
+
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 
 public class SeverityMappingTest {
     private static NamedXContentRegistry xContentRegistry;
@@ -45,7 +49,8 @@ public class SeverityMappingTest {
 
     @Test
     public void basicTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
         DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 2, "level", "error")));
@@ -60,7 +65,8 @@ public class SeverityMappingTest {
 
     @Test
     public void reorderTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
         DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 2, "level", "error"), DocNode.of("threshold", 1, "level", "info")));
@@ -75,7 +81,8 @@ public class SeverityMappingTest {
 
     @Test
     public void descendingOrderTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
         DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
                 Arrays.asList(DocNode.of("threshold", 2, "level", "info"), DocNode.of("threshold", 1, "level", "error")));
@@ -90,7 +97,8 @@ public class SeverityMappingTest {
 
     @Test
     public void descendingReOrderTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
         DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "error"), DocNode.of("threshold", 2, "level", "info")));
@@ -105,7 +113,8 @@ public class SeverityMappingTest {
 
     @Test
     public void duplicateTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
         DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 1, "level", "error")));
@@ -120,7 +129,8 @@ public class SeverityMappingTest {
 
     @Test
     public void findValueTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
         DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 2, "level", "error")));
@@ -139,7 +149,8 @@ public class SeverityMappingTest {
 
     @Test
     public void findValueWithBigNumbersTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
         String configJson = "{\"value\": \"data.x\", \"mapping\": [{\"threshold\": 123456789999, \"level\": \"info\"}, {\"threshold\": 223456789999, \"level\": \"error\"}]}";
 
@@ -159,7 +170,8 @@ public class SeverityMappingTest {
 
     @Test
     public void descendingFindValueTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, null);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
         DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "error"), DocNode.of("threshold", 2, "level", "info")));
@@ -178,7 +190,8 @@ public class SeverityMappingTest {
 
     @Test
     public void evaluationResultTest() throws Exception {
-        WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService);
+        WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService,
+            Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
         String configJson = "{\n" + "    \"mapping\": [\n" + "      {\n" + "        \"level\": \"info\",\n" + "        \"threshold\": 100\n"
                 + "      },\n" + "      {\n" + "        \"level\": \"warning\",\n" + "        \"threshold\": 200\n" + "      },\n" + "      {\n"
@@ -194,7 +207,7 @@ public class SeverityMappingTest {
         runtimeData.put("a", 10);
 
         WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData));
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), Mockito.mock(TrustManagerRegistry.class));
 
         EvaluationResult evaluationResult = severityMapping.execute(ctx);
         Map<String, Object> evaluationResultMap = evaluationResult.toMap();
@@ -206,7 +219,7 @@ public class SeverityMappingTest {
         runtimeData.put("a", 150);
 
         ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT,
-                new WatchExecutionContextData(runtimeData));
+                new WatchExecutionContextData(runtimeData), Mockito.mock(TrustManagerRegistry.class));
 
         evaluationResult = severityMapping.execute(ctx);
         evaluationResultMap = evaluationResult.toMap();

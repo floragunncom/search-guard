@@ -14,20 +14,22 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.sink;
 
+import static com.floragunn.searchguard.support.ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS;
+
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
-
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.google.common.util.concurrent.Uninterruptibles;
 
 public abstract class AuditLogSink {
 
@@ -36,6 +38,7 @@ public abstract class AuditLogSink {
     protected final String settingsPrefix;
     private final String name;
     protected final AuditLogSink fallbackSink;
+    protected final Map<String, String> customMessageAttributes;
     private final int retryCount;
     private final long delayMs;
     
@@ -47,6 +50,8 @@ public abstract class AuditLogSink {
         
         retryCount = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_RETRY_COUNT, 0);
         delayMs = settings.getAsLong(ConfigConstants.SEARCHGUARD_AUDIT_RETRY_DELAY_MS, 1000L);
+        Settings customAttributes = getSinkSettings(settingsPrefix).getByPrefix(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_CUSTOM_ATTRIBUTES_PREFIX);
+        this.customMessageAttributes = customAttributes.keySet().stream().collect(Collectors.toMap(key -> key, customAttributes::get));
     }
     
     public boolean isHandlingBackpressure() {
@@ -62,7 +67,9 @@ public abstract class AuditLogSink {
     }
     
     public final void store(AuditMessage msg) {
-		if (!doStoreWithRetry(msg) && !fallbackSink.doStoreWithRetry(msg)) {
+        msg.addCustomFields(customMessageAttributes);
+        msg.removeDisabledFields(settings.getAsList(SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS));
+        if (!doStoreWithRetry(msg) && !fallbackSink.doStoreWithRetry(msg)) {
 			System.err.println(msg.toPrettyString());
 		}
     }
@@ -105,7 +112,7 @@ public abstract class AuditLogSink {
     }
     
     protected Settings getSinkSettings(String prefix) {
-    	return settings.getAsSettings(prefix);
+    	return prefix == null ? Settings.EMPTY : settings.getAsSettings(prefix);
     }
 
     @Override

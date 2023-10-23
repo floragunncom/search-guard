@@ -2,6 +2,9 @@ package com.floragunn.signals;
 
 import java.util.concurrent.ExecutionException;
 
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
+import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,12 +32,16 @@ import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
 import net.jcip.annotations.NotThreadSafe;
+import org.mockito.Mockito;
+
+import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 
 @NotThreadSafe
 public class RestApiTestMultiTenancyOff {
     private static final Logger log = LogManager.getLogger(RestApiTestMultiTenancyOff.class);
 
     private static ScriptService scriptService;
+    private static ThrottlePeriodParser throttlePeriodParser;
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -59,6 +66,7 @@ public class RestApiTestMultiTenancyOff {
     @BeforeClass
     public static void setupDependencies() {
         scriptService = cluster.getInjectable(ScriptService.class);
+        throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
     }
 
     @Test
@@ -114,7 +122,9 @@ public class RestApiTestMultiTenancyOff {
             //System.out.print(response.getBody());
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            watch = Watch.parseFromElasticDocument(new WatchInitializationService(null, scriptService), "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 

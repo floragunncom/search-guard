@@ -136,7 +136,7 @@ public class EsWatcherConverter {
 
         Auth auth = convertedAuth != null? convertedAuth.getElement() : null;
 
-        HttpRequestConfig result = new HttpRequestConfig(method, url, path, query, body, headers, auth, null);
+        HttpRequestConfig result = new HttpRequestConfig(method, url, path, query, body, null, headers, auth, null);
 
         return new ConversionResult<HttpRequestConfig>(result, validationErrors);
     }

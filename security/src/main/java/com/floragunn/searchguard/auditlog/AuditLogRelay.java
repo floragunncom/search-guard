@@ -19,8 +19,11 @@ package com.floragunn.searchguard.auditlog;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.Map;
 
+import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
@@ -126,6 +129,53 @@ public class AuditLogRelay implements AuditLog {
 
     public void logExternalConfig(Settings settings, Environment environment) {
         auditLog.logExternalConfig(settings, environment);
+    }
+
+    @Override
+    public void logIndexTemplatePutted(String templateName, ComposableIndexTemplate originalTemplate,
+                                       ComposableIndexTemplate currentTemplate, String action, TransportRequest transportRequest) {
+        auditLog.logIndexTemplatePutted(templateName, originalTemplate, currentTemplate, action, transportRequest);
+    }
+
+    @Override
+    public void logIndexTemplatePutted(String templateName, IndexTemplateMetadata originalTemplate,
+                                       IndexTemplateMetadata currentTemplate, String action, TransportRequest transportRequest) {
+        auditLog.logIndexTemplatePutted(templateName, originalTemplate, currentTemplate, action, transportRequest);
+    }
+
+    @Override
+    public void logIndexTemplateDeleted(List<String> templateNames, String action, TransportRequest transportRequest) {
+        auditLog.logIndexTemplateDeleted(templateNames, action, transportRequest);
+    }
+
+    @Override
+    public void logIndexCreated(String unresolvedIndexName, String action, TransportRequest transportRequest) {
+        auditLog.logIndexCreated(unresolvedIndexName, action, transportRequest);
+    }
+
+    @Override
+    public void logIndicesDeleted(List<String> indexNames, String action, TransportRequest transportRequest) {
+        auditLog.logIndicesDeleted(indexNames, action, transportRequest);
+    }
+
+    @Override
+    public void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest) {
+        auditLog.logIndexSettingsUpdated(indexNames, action, transportRequest);
+    }
+
+    @Override
+    public void logIndexMappingsUpdated(List<String> indexNames,  String action, TransportRequest transportRequest) {
+        auditLog.logIndexMappingsUpdated(indexNames, action, transportRequest);
+    }
+
+    @Override
+    public void logSucceededKibanaLogin(UserInformation effectiveUser) {
+        auditLog.logSucceededKibanaLogin(effectiveUser);
+    }
+
+    @Override
+    public void logSucceededKibanaLogout(UserInformation effectiveUser) {
+        auditLog.logSucceededKibanaLogout(effectiveUser);
     }
 
     public void setAuditLog(AuditLog auditLog) {

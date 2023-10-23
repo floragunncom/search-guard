@@ -21,16 +21,10 @@
   <name>Search Guard FLX: Scheduler</name>
 
   <dependencies>
+
     <dependency>
       <groupId>org.quartz-scheduler</groupId>
       <artifactId>quartz</artifactId>
-      <scope>compile</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-api</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
@@ -70,5 +64,6 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+
   </dependencies>
 </project>

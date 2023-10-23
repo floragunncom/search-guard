@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.config.temporal.DurationExpression;
@@ -112,10 +113,13 @@ public class AlertAction extends ActionInvoker {
             throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonObject, validationErrors);
+        ThrottlePeriodParser throttlePeriodParser = watchInitService.getThrottlePeriodParser();
 
         String name = vJsonNode.get("name").required().asString();
         List<Check> checks = createNestedChecks(watchInitService, vJsonNode, validationErrors);
-        DurationExpression throttlePeriod = vJsonNode.get("throttle_period").byString(DurationExpression::parse);
+        DurationExpression throttlePeriod = vJsonNode.get("throttle_period")
+                .withDefault(throttlePeriodParser.getDefaultThrottle())
+                .byString(throttlePeriodParser::parseThrottle);
         SeverityLevel.Set severityLevels = null;
         ActionHandler handler = null;
         Integer foreachLimit = null;

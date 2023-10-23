@@ -29,23 +29,24 @@
   <build>
     <plugins>
       <plugin>
-        <artifactId>maven-clean-plugin</artifactId>
-        <configuration>
-          <filesets>
-            <fileset>
-              <directory>${project.basedir}</directory>
-              <includes>
-                <include>plugin-descriptor.properties</include>
-                <include>THIRD-PARTY.txt</include>
-              </includes>
-            </fileset>
-          </filesets>
-        </configuration>
-      </plugin>
-
-      <plugin>
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
+          <execution>
+            <id>copy-resources</id>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <phase>package</phase>
+            <configuration>
+              <outputDirectory>${basedir}</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>src/main/descriptor</directory>
+                  <filtering>true</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
           <execution>
             <id>copy-test-instance-installer</id>
             <goals>
@@ -65,27 +66,23 @@
               </resources>
             </configuration>
           </execution>
-          <execution>
-            <id>copy-resources</id>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <phase>package</phase>
-            <configuration>
-              <outputDirectory>${basedir}</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>src/main/descriptor</directory>
-                  <filtering>true</filtering>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>${project.basedir}</directory>
+              <includes>
+                <include>plugin-descriptor.properties</include>
+              </includes>
+            </fileset>
+          </filesets>
+        </configuration>
       </plugin>
     </plugins>
   </build>
-
   <profiles>
     <profile>
       <id>dlic</id>
@@ -93,109 +90,118 @@
         <activeByDefault>true</activeByDefault>
       </activation>
       <dependencies>
+
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>dlic-search-guard-flx-auditlog</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
+        <!-- DLIC -->
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>dlic-search-guard-flx-security</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>dlic-search-guard-flx-security-legacy</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>dlic-search-guard-flx-signals</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>search-guard-flx-scheduler</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>search-guard-flx-security</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>search-guard-flx-security-legacy</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>search-guard-flx-signals</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
-
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>search-guard-flx-ssl</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
 
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>search-guard-flx-support</artifactId>
           <version>${project.version}</version>
-          <scope>runtime</scope>
         </dependency>
-        <dependency>
-          <groupId>com.floragunn.org.opensaml</groupId>
-          <artifactId>opensaml-xmlsec-impl-patched</artifactId>
-          <scope>runtime</scope>
-        </dependency>
-      </dependencies>
 
+        <dependency>
+          <groupId>com.floragunn.dependencies.org.opensaml</groupId>
+          <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+        </dependency>
+
+      </dependencies>
       <build>
         <plugins>
           <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>plugin</id>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <phase>package</phase>
+                <configuration>
+                  <appendAssemblyId>false</appendAssemblyId>
+                  <tarLongFileMode>posix</tarLongFileMode>
+                  <outputDirectory>${project.build.directory}/releases/</outputDirectory>
+                  <descriptors>
+                    <descriptor>${elasticsearch.assembly.descriptor}</descriptor>
+                  </descriptors>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>build-helper-maven-plugin</artifactId>
-            <version>${maven.build.helper.plugin.version}</version>
+            <version>1.8</version>
             <executions>
               <execution>
                 <id>attach-artifacts</id>
@@ -215,11 +221,10 @@
               </execution>
             </executions>
           </plugin>
-
           <plugin>
             <groupId>com.floragunn</groupId>
             <artifactId>checksum-maven-plugin</artifactId>
-            <version>${checksum.maven.plugin.version}</version>
+            <version>1.7.1</version>
             <configuration>
               <fileSets>
                 <fileSet>
@@ -242,16 +247,103 @@
                 <goals>
                   <goal>files</goal>
                 </goals>
-                <phase>verify</phase>
+                <phase>package</phase>
               </execution>
             </executions>
           </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>quick</id>
+      <dependencies>
 
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>license-maven-plugin</artifactId>
-          </plugin>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>dlic-search-guard-flx-auditlog</artifactId>
+          <version>${project.version}</version>
+        </dependency>
 
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <!-- DLIC -->
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>dlic-search-guard-flx-security</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>dlic-search-guard-flx-security-legacy</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>dlic-search-guard-flx-signals</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>search-guard-flx-scheduler</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>search-guard-flx-security</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>search-guard-flx-security-legacy</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>search-guard-flx-signals</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>search-guard-flx-ssl</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>search-guard-flx-support</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>com.floragunn.dependencies.org.opensaml</groupId>
+          <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+          <version>${opensaml.patch.version}</version>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-assembly-plugin</artifactId>

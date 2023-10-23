@@ -26,37 +26,17 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 public class FrontendConfigIntegrationTests {
 
     @Test
-    public void testLegacy() throws Exception {
-        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config_legacy").start()) {
-            try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
-                GenericRestClient.HttpResponse response = restClient.get("/_searchguard/auth/config");
-
-                //System.out.println(response.getBody());
-
-                Assert.assertTrue(response.getBody(),
-                        response.toJsonNode().path("auth_methods").isArray() && response.toJsonNode().path("auth_methods").size() == 1);
-                Assert.assertEquals(response.getBody(), "basic", response.toJsonNode().path("auth_methods").path(0).path("method").asText());
-                Assert.assertTrue(response.getBody(), response.toJsonNode().path("auth_methods").path(0).path("id").isMissingNode());
-            }
-        }
-    }
-
-    @Test
     public void testNonLegacy() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config").start()) {
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
                 GenericRestClient.HttpResponse response = restClient.get("/_searchguard/auth/config");
 
-                //System.out.println(response.getBody());
-
-                Assert.assertTrue(response.getBody(),
-                        response.toJsonNode().path("auth_methods").isArray() && response.toJsonNode().path("auth_methods").size() == 1);
-                Assert.assertEquals(response.getBody(), "basic", response.toJsonNode().path("auth_methods").path(0).path("method").asText());
-                Assert.assertTrue(response.getBody(), response.toJsonNode().path("auth_methods").path(0).path("auto_select").asBoolean());
+                Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsListOfNodes("auth_methods").size() == 1);
+                Assert.assertEquals(response.getBody(), "basic",
+                        response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("method"));
                 Assert.assertEquals(response.getBody(), "Login Customized",
-                        response.toJsonNode().path("auth_methods").path(0).path("label").asText());
-                Assert.assertTrue(response.getBody(), response.toJsonNode().path("auth_methods").path(0).path("id").isMissingNode());
-
+                        response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).getAsString("label"));
+                Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsListOfNodes("auth_methods").get(0).get("id") == null);
             }
         }
     }

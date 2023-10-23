@@ -81,9 +81,9 @@ public class ConfigurationLoader {
         }
     }
 
-    public <T> SgDynamicConfiguration<T> loadSync(CType<T> type, String reason) throws ConfigUnavailableException {
+    public <T> SgDynamicConfiguration<T> loadSync(CType<T> type, String reason, ConfigurationRepository.Context context) throws ConfigUnavailableException {
         try {
-            return load(type, reason).get();
+            return load(type, reason, context).get();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } catch (ExecutionException e) {
@@ -99,9 +99,9 @@ public class ConfigurationLoader {
         }
     }
 
-    public ConfigMap loadSync(Set<CType<?>> types, String reason) throws ConfigUnavailableException {
+    public ConfigMap loadSync(Set<CType<?>> types, String reason, ConfigurationRepository.Context context) throws ConfigUnavailableException {
         try {
-            return load(types, reason).get();
+            return load(types, reason, context).get();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } catch (ExecutionException e) {
@@ -116,12 +116,25 @@ public class ConfigurationLoader {
             }
         }
     }
+        
+    public <T> SgConfigEntry<T> loadEntrySync(CType<T> configType, String id, String reason, ConfigurationRepository.Context context)
+            throws ConfigUnavailableException, NoSuchConfigEntryException {
+        SgDynamicConfiguration<T> baseConfig = loadSync(configType, reason, context);
 
-    public <T> CompletableFuture<SgDynamicConfiguration<T>> load(CType<T> type, String reason) {
-        return load(Collections.singleton(type), reason).thenApply(configMap -> configMap.get(type));
+        T entry = baseConfig.getCEntry(id);
+
+        if (entry != null) {
+            return new SgConfigEntry<T>(entry, baseConfig);
+        } else {
+            throw new NoSuchConfigEntryException(configType, id);
+        }
     }
 
-    public CompletableFuture<ConfigMap> load(Set<CType<?>> types, String reason) {
+    public <T> CompletableFuture<SgDynamicConfiguration<T>> load(CType<T> type, String reason, ConfigurationRepository.Context context) {
+        return load(Collections.singleton(type), reason, context).thenApply(configMap -> configMap.get(type));
+    }
+
+    public CompletableFuture<ConfigMap> load(Set<CType<?>> types, String reason, ConfigurationRepository.Context context) {
         CompletableFuture<ConfigMap> resultFuture = new CompletableFuture<>();
 
         String searchguardIndex = configRepository.getEffectiveSearchGuardIndex();
@@ -174,7 +187,7 @@ public class ConfigurationLoader {
                         }
 
                         try {
-                            SgDynamicConfiguration<?> config = toConfig(type, item.getResponse());
+                            SgDynamicConfiguration<?> config = toConfig(type, item.getResponse(), context);
 
                             if (staticSgConfig != null) {
                                 config = staticSgConfig.addTo(config);
@@ -223,7 +236,7 @@ public class ConfigurationLoader {
         return resultFuture;
     }
 
-    private SgDynamicConfiguration<?> toConfig(CType<?> type, GetResponse getResponse) throws Exception {
+    private SgDynamicConfiguration<?> toConfig(CType<?> type, GetResponse getResponse, ConfigurationRepository.Context context) throws Exception {
         if (!getResponse.isExists()) {
             if (type != null && type.isOptional()) {
                 SgDynamicConfiguration<?> result = SgDynamicConfiguration.empty(type);
@@ -253,7 +266,7 @@ public class ConfigurationLoader {
             parser.nextToken();
 
             return SgDynamicConfiguration.fromJson(new String(parser.binaryValue()), type, getResponse.getVersion(), getResponse.getSeqNo(),
-                    getResponse.getPrimaryTerm(), configRepository.getParserContext()).peek();
+                    getResponse.getPrimaryTerm(), context).peek();
         }
     }
 
