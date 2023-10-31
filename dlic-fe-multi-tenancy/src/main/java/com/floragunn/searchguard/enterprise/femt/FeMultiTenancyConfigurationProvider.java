@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.enterprise.femt;
 
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 
 import java.util.Objects;
@@ -37,6 +38,11 @@ public class FeMultiTenancyConfigurationProvider implements MultiTenancyConfigur
     public String getKibanaIndex() {
         return getConfig().map(FeMultiTenancyConfig::getIndex)
                 .orElse(".kibana");
+    }
+
+    @Override
+    public TenantAccessMapper getTenantAccessMapper() {
+        return module.getTenantAccessMapper();
     }
 }
 
