@@ -14,14 +14,12 @@
 
 package com.floragunn.searchguard.enterprise.femt.datamigration880.rest;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.SearchGuardVersion;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.GetDataMigrationStateAction.GetDataMigrationStateHandler;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.StartDataMigrationAction.StartDataMigrationHandler;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.StartDataMigrationAction.StartDataMigrationRequest;
 import com.floragunn.searchsupport.action.RestApi;
-import com.google.common.collect.ImmutableList;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.plugins.ActionPlugin;
 
 /**
@@ -37,7 +35,7 @@ public class DataMigrationApi {
             .with(GetDataMigrationStateAction.INSTANCE)//
             .name("GET /_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
 
-    public static final ImmutableList<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
+    public static final ImmutableList<ActionPlugin.ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
             new ActionPlugin.ActionHandler<>(StartDataMigrationAction.INSTANCE, StartDataMigrationHandler.class),
             new ActionPlugin.ActionHandler<>(GetDataMigrationStateAction.INSTANCE, GetDataMigrationStateHandler.class)
     );
