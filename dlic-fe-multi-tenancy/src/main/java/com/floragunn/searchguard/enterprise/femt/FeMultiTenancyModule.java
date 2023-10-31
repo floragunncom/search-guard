@@ -27,11 +27,12 @@ import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.DataMigrationApi;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
+import com.floragunn.searchguard.enterprise.femt.tenants.AvailableTenantService;
+import com.floragunn.searchguard.enterprise.femt.tenants.TenantAvailabilityRepository;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -155,13 +156,15 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             componentState.setConfigVersion(configMap.getVersionsAsString());
             componentState.replacePart(tenantAuthorization.getComponentState());
             componentState.updateStateFromParts();
-
             if (log.isDebugEnabled()) {
                 log.debug("Using MT config: " + feMultiTenancyConfig + "\nenabled: " + enabled + "\nauthorization filter: " + multiTenancyAuthorizationFilter);
             }
         });
 
-        return Arrays.asList(new FeMultiTenancyConfigurationProvider(this), tenantAccessMapper);
+        var tenantAvailabilityRepository = new TenantAvailabilityRepository(PrivilegedConfigClient.adapt(baseDependencies.getLocalClient()));
+        var availableTenantService = new AvailableTenantService(new FeMultiTenancyConfigurationProvider(this),
+            baseDependencies.getAuthorizationService(), threadPool, tenantAvailabilityRepository);
+        return Arrays.asList(new FeMultiTenancyConfigurationProvider(this), tenantAccessMapper, availableTenantService);
     }
 
     private final TenantAccessMapper tenantAccessMapper = new TenantAccessMapper() {
@@ -173,6 +176,10 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             return feMultiTenancyTenantAccessMapper.mapTenantsAccess(user, roles);
         }
     };
+
+    TenantAccessMapper getTenantAccessMapper() {
+        return tenantAccessMapper;
+    }
 
     private final SyncAuthorizationFilter syncAuthorizationFilter = new SyncAuthorizationFilter() {
         
@@ -213,8 +220,8 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     }
 
     @Override
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        return ImmutableList.of(FeMultiTenancyConfigApi.ACTION_HANDLERS)
+    public ImmutableList<ActionHandler<?, ?>> getActions() {
+        return FeMultiTenancyConfigApi.ACTION_HANDLERS
                 .with(DataMigrationApi.ACTION_HANDLERS);
     }
 

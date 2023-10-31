@@ -15,7 +15,7 @@ public class RequestResponseTenantData {
 
     private final static Pattern INDEX_NAME_TENANT_PART = Pattern.compile("_(?<tenantName>-?\\d+_[^_]+)_.+");
 
-    private static final String SG_TENANT_FIELD = "sg_tenant";
+    public static final String SG_TENANT_FIELD = "sg_tenant";
     private static final String TENANT_SEPARATOR_IN_ID = "__sg_ten__";
     private static final String TENANT_NAME_GROUP = "tenantName";
 
