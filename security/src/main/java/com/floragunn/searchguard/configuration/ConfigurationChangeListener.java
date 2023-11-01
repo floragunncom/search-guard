@@ -18,13 +18,18 @@
 package com.floragunn.searchguard.configuration;
 
 /**
- * Callback function on change particular configuration
+ * Functional interface to let components listen to Search Guard configuration changes. Instances are registered with configurationRepository.subscribeOnChange().
  */
 @FunctionalInterface
 public interface ConfigurationChangeListener {
 
     /**
-     * @param configuration not null updated configuration on that was subscribe current listener
+     * This method is called whenever the configuration changes. 
+     * 
+     * NOTE: This method is executed on a thread from the management thread pool. This means that you should not perform blocking operations on this thread. 
+     * Either use async operations or move blocking operations to the generic thread pool.
+     * 
+     * @param configMap The updated configuration. Note: The map will only contain the config types that were changed. Unchanged types are not present here.
      */
     void onChange(ConfigMap configMap);
 }
