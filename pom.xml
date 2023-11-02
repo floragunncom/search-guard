@@ -46,8 +46,9 @@
   </distributionManagement>
 
   <properties>
-    <elasticsearch.version>8.8.0</elasticsearch.version>
+    <elasticsearch.version>8.7.0</elasticsearch.version>
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
+
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
