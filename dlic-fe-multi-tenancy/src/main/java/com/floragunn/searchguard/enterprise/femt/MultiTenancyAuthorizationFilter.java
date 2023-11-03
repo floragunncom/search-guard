@@ -14,10 +14,12 @@
 
 package com.floragunn.searchguard.enterprise.femt;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -32,13 +34,20 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -51,6 +60,12 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.Resolve
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
+import org.elasticsearch.index.Index;
+import org.elasticsearch.index.engine.DocumentMissingException;
+import org.elasticsearch.index.shard.AbstractIndexShardComponent;
+import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.script.Script;
 
 public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter {
 
@@ -73,9 +88,13 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
     private final FrontendDataMigrationInterceptor frontendDataMigrationInterceptor;
     private final RequestHandlerFactory requestHandlerFactory;
     private final TenantManager tenantManager;
+    private final ClusterService clusterService;
+    private final IndicesService indicesService;
 
     public MultiTenancyAuthorizationFilter(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, TenantManager tenantManager,
-                                           Actions actions, ThreadContext threadContext, Client nodeClient, RequestHandlerFactory requestHandlerFactory) {
+                                           Actions actions, ThreadContext threadContext, Client nodeClient,
+                                           RequestHandlerFactory requestHandlerFactory, ClusterService clusterService,
+                                           IndicesService indicesService) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -90,6 +109,8 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         this.frontendDataMigrationInterceptor = new FrontendDataMigrationInterceptor(threadContext, nodeClient, config);
         this.requestHandlerFactory = requestHandlerFactory;
         this.tenantManager = tenantManager;
+        this.clusterService = Objects.requireNonNull(clusterService, "Cluster services are required");
+        this.indicesService = Objects.requireNonNull(indicesService, "Indices service is required");
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
@@ -141,9 +162,18 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
             //requestedTenant = Tenant.GLOBAL_TENANT_ID;
             return SyncAuthorizationFilter.Result.OK;
         }
+
         try {
-            if (user.getName().equals(kibanaServerUsername) || isTenantAllowed(context, (ActionRequest) context.getRequest(), context.getAction(), requestedTenant)) {
-                return handle(context, requestedTenant, listener);
+            boolean frontendServerUser = user.getName().equals(kibanaServerUsername);
+            TenantAccess tenantAccess = frontendServerUser ? TenantAccess.FULL_ACCESS : getTenantAccess(context, requestedTenant);
+
+            Result result = handleRequestRequiringSpecialTreatment(tenantAccess, context, (ActionListener<BulkResponse>) listener);
+            if(result == Result.INTERCEPTED) {
+                return Result.INTERCEPTED;
+            }
+
+            if (isTenantAllowed(tenantAccess, context.getUser().getName(), context.getAction(), requestedTenant)) {
+                return handle(context, listener);
             } else {
                 return SyncAuthorizationFilter.Result.DENIED;
             }
@@ -153,7 +183,92 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         }
     }
 
-    private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, ActionListener<?> listener) {
+    /**
+     * Method handle update request issued by search frontend when the dashboard is opened. User with read-only permission is not allowed
+     * to perform the update. When SG returns 403 response then process of opening the dashboard is interrupted. Therefore, the method
+     * replace response with code 403 to 404. Loading dashboard works correctly in case of 404 response (inside bulk request).
+     */
+    private SyncAuthorizationFilter.Result handleRequestRequiringSpecialTreatment(TenantAccess tenantAccess,
+        PrivilegesEvaluationContext context, ActionListener<BulkResponse> listener) {
+        boolean shouldReturnNotFound = tenantAccess.isReadOnly() && "indices:data/write/bulk".equals(context.getAction().name()) && (context.getRequest() instanceof BulkRequest) && isUpdateRequestDuringLoadingDashboard((BulkRequest)context.getRequest());
+        if(shouldReturnNotFound) {
+            BulkRequest request = (BulkRequest) context.getRequest();
+            notFoundBulkResponseForOnlyBulkRequest(listener, request);
+            log.debug("Bulk only request permitted to load frontend dashboard.");
+            return Result.INTERCEPTED;
+        }
+        return Result.OK;
+    }
+
+    private void notFoundBulkResponseForOnlyBulkRequest(ActionListener<BulkResponse> listener, BulkRequest request) {
+        // intercepted bulk request is related only to one index
+        String indexOrAlias = request.getIndices().stream().findFirst().orElseThrow();
+        DocWriteRequest<?> firstBulkRequest = request.requests().get(0);
+        ActionListener<BulkResponse> bulkListener = listener;
+        BulkItemResponse[] items = new BulkItemResponse[1];
+        ShardId firstPrimaryShardId = Optional.of(clusterService.state().getMetadata().getIndicesLookup()) //
+            .map(lookup -> lookup.get(indexOrAlias)) //
+            .map(IndexAbstraction::getWriteIndex) //
+            .map(Index::getName) //
+            .map(realIndexName -> clusterService.state().getMetadata().indices().get(realIndexName)) //
+            .map(IndexMetadata::getIndex) //
+            .map(indicesService::indexService) //
+            .stream() //
+            .flatMap(indexService -> indexService.shardIds().stream().map(shardId -> indexService.getShard(shardId))) //
+            .filter(shard -> shard.routingEntry().primary()) //
+            .map(AbstractIndexShardComponent::shardId) //
+            .findFirst() //
+            .orElse(null);
+
+        log.debug("Found primary shard id '{}'", firstPrimaryShardId);
+
+        DocumentMissingException documentMissingException = new DocumentMissingException(firstPrimaryShardId, indexOrAlias);
+        BulkItemResponse.Failure failure = new BulkItemResponse.Failure(indexOrAlias, firstBulkRequest.id(), documentMissingException);
+        int requestIndexInBulk = 0; // request index in bulk is used as id also here
+        // org.elasticsearch.action.bulk.TransportBulkAction.BulkOperation.addFailure
+        items[0] = BulkItemResponse.failure(requestIndexInBulk, DocWriteRequest.OpType.UPDATE, failure);
+        bulkListener.onResponse(new BulkResponse(items, 1L));
+    }
+
+    private boolean isUpdateRequestDuringLoadingDashboard(BulkRequest request) {
+        if(request.getIndices().size() != 1) {
+            return false;
+        }
+        if(!new ArrayList<>(request.getIndices()).get(0).startsWith(kibanaIndexName)) {
+            return false;
+        }
+        if(request.requests() == null || (request.requests().size() != 1)) {
+            return false;
+        }
+        DocWriteRequest<?> firstBulkRequest = request.requests().get(0);
+        if((firstBulkRequest.id() == null) || (!firstBulkRequest.id().startsWith("legacy-url-alias"))) {
+            return false;
+        }
+        if(!(firstBulkRequest instanceof UpdateRequest updateRequest)) {
+            return false;
+        }
+        Script script = updateRequest.script();
+        if(script == null) {
+            return false;
+        }
+        if(!"painless".contains(script.getLang())) {
+            return false;
+        }
+        Map<String, Object> params = script.getParams();
+        if((params == null) || (!params.containsKey("type") || (!params.containsKey("time")))) {
+            return false;
+        }
+        if(!"legacy-url-alias".equals(params.get("type"))) {
+            return false;
+        }
+        String code = script.getIdOrCode();
+        if((code == null) || (!code.contains("ctx._source[params.type].disabled")) || (!code.contains("ctx._source[params.type].resolveCounter"))) {
+            return false;
+        }
+        return true;
+    }
+
+    private SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, ActionListener<?> listener) {
 
         Object request = context.getRequest();
 
@@ -171,31 +286,35 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
                 });
     }
 
-    private boolean isTenantAllowed(PrivilegesEvaluationContext context, ActionRequest request, Action action, String requestedTenant)
-            throws PrivilegesEvaluationException {
-
+    private TenantAccess getTenantAccess(PrivilegesEvaluationContext context, String requestedTenant) throws PrivilegesEvaluationException {
         if (!tenantManager.isTenantHeaderValid(requestedTenant)) {
             log.warn("Invalid tenant: " + requestedTenant + "; user: " + context.getUser());
 
-            return false;
+            return TenantAccess.INACCESSIBLE;
         }
 
         if (tenantManager.isUserTenantHeader(requestedTenant)) {
-            return true;
+            return TenantAccess.FULL_ACCESS;
         }
 
-        boolean hasReadPermission = tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, requestedTenant).isOk();
-        boolean hasWritePermission = tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, requestedTenant).isOk();
+        return new TenantAccess(
+            tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, requestedTenant).isOk(),
+            tenantAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, requestedTenant).isOk()
+        );
+    }
 
-        hasReadPermission |= hasWritePermission;
+    private boolean isTenantAllowed(TenantAccess tenantAccess, String  username, Action action, String requestedTenant)
+            throws PrivilegesEvaluationException {
 
-        if (!hasReadPermission) {
-            log.warn("Tenant {} is not allowed for user {}", requestedTenant, context.getUser().getName());
+
+
+        if (tenantAccess.isProhibited()) {
+            log.warn("Tenant {} is not allowed for user {}", requestedTenant, username);
             return false;
         }
 
-        if (!hasWritePermission && action.name().startsWith("indices:data/write")) {
-            log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, context.getUser().getName());
+        if (tenantAccess.isWriteProhibited() && action.name().startsWith("indices:data/write")) {
+            log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, username);
             return false;
         }
 
@@ -310,5 +429,27 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         result.append(")");
 
         return result.toString();
+    }
+
+    record TenantAccess(boolean hasReadPermission, boolean hasWritePermission) {
+
+        public static final TenantAccess INACCESSIBLE = new TenantAccess(false, false);
+        public static final TenantAccess FULL_ACCESS = new TenantAccess(true, true);
+
+        public boolean hasAnyAccess() {
+            return hasReadPermission | hasWritePermission;
+        }
+
+        public boolean isProhibited() {
+            return ! hasAnyAccess();
+        }
+
+        public boolean isWriteProhibited() {
+            return ! hasWritePermission;
+        }
+
+        public boolean isReadOnly() {
+            return (!hasWritePermission) && hasReadPermission;
+        }
     }
 }
