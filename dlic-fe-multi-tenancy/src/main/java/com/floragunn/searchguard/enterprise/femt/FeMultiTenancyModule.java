@@ -40,6 +40,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
@@ -143,8 +144,10 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             if (feMultiTenancyConfig != null) {
                 if (feMultiTenancyConfig.isEnabled()) {
                     enabled = true;
+                    IndicesService indicesService = baseDependencies.getGuiceDependencies().getIndicesService();
                     multiTenancyAuthorizationFilter = new MultiTenancyAuthorizationFilter(feMultiTenancyConfig, tenantAuthorization, tenantManager, baseDependencies.getActions(),
-                            baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient(), requestHandlerFactory);
+                            baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient(), requestHandlerFactory,
+                        clusterService, indicesService);
                 } else {
                     enabled = false;
                     componentState.setState(State.SUSPENDED, "disabled_by_config");
