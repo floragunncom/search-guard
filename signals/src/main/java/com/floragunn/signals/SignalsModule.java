@@ -196,9 +196,9 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                 @Override
                 public void onChange(ConfigMap configMap) {
                     SgDynamicConfiguration<Tenant> tenants = configMap.get(CType.TENANTS);
-
+                    
                     if (tenants != null) {
-                        signals.updateTenants(tenants.getCEntries().keySet());
+                        baseDependencies.getThreadPool().generic().submit(() -> signals.updateTenants(tenants.getCEntries().keySet()));
                     }
                 }
             });
