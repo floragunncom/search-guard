@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.auth.ldap;
 
 import java.io.File;
 import java.net.BindException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,14 +37,16 @@ public class TestLdapServer extends ExternalResource implements AutoCloseable {
     private final InMemoryListenerConfig inMemoryListenerConfig;
     private final List<com.unboundid.ldap.sdk.Entry> entries;
     private final String rootObjectDN;
-
-    private RestrictedInMemoryDirectoryServer server;
+    private final Duration bindRequestDelay;
+    
+    private TestInMemoryDirectoryServer server;
     private int port;
 
-    public TestLdapServer(InMemoryListenerConfig inMemoryListenerConfig, List<com.unboundid.ldap.sdk.Entry> entries, String rootObjectDN) {
+    public TestLdapServer(InMemoryListenerConfig inMemoryListenerConfig, List<com.unboundid.ldap.sdk.Entry> entries, String rootObjectDN, Duration bindRequestDelay) {
         this.inMemoryListenerConfig = inMemoryListenerConfig;
         this.entries = entries;
         this.rootObjectDN = rootObjectDN;
+        this.bindRequestDelay = bindRequestDelay;
     }
 
     @Override
@@ -79,8 +82,8 @@ public class TestLdapServer extends ExternalResource implements AutoCloseable {
         return "localhost:" + port;
     }
 
-    private RestrictedInMemoryDirectoryServer start(InMemoryListenerConfig inMemoryListenerConfig, String rootObjectDN) throws BindException {
-        RestrictedInMemoryDirectoryServer server;
+    private TestInMemoryDirectoryServer start(InMemoryListenerConfig inMemoryListenerConfig, String rootObjectDN) throws BindException {
+        TestInMemoryDirectoryServer server;
 
         try {
             InMemoryDirectoryServerConfig config = new InMemoryDirectoryServerConfig(new DN(rootObjectDN));
@@ -88,8 +91,7 @@ public class TestLdapServer extends ExternalResource implements AutoCloseable {
             config.setEnforceAttributeSyntaxCompliance(false);
             config.setEnforceSingleStructuralObjectClass(false);
 
-            server = new RestrictedInMemoryDirectoryServer(config);
-
+            server = new TestInMemoryDirectoryServer(config, bindRequestDelay);
         } catch (LDAPException e) {
             throw new RuntimeException(e);
         }
@@ -109,7 +111,7 @@ public class TestLdapServer extends ExternalResource implements AutoCloseable {
 
     }
 
-    private RestrictedInMemoryDirectoryServer tryStart(InMemoryListenerConfig inMemoryListenerConfig, String rootObjectDN) {
+    private TestInMemoryDirectoryServer tryStart(InMemoryListenerConfig inMemoryListenerConfig, String rootObjectDN) {
 
         for (int i = 0; i < 10; i++) {
             try {
@@ -142,6 +144,7 @@ public class TestLdapServer extends ExternalResource implements AutoCloseable {
         private InMemoryListenerConfig inMemoryListenerConfig;
         private List<com.unboundid.ldap.sdk.Entry> entries = new ArrayList<>(30);
         private String rootObjectDN = "o=TEST";
+        private Duration bindRequestDelay;
 
         public Builder with(List<Entry> entries) {
             for (Entry entry : entries) {
@@ -162,8 +165,14 @@ public class TestLdapServer extends ExternalResource implements AutoCloseable {
             return this;
         }
 
+        public Builder bindRequestDelay(Duration bindRequestDelay) {
+            this.bindRequestDelay = bindRequestDelay;
+            return this;
+        }
+
+        
         public TestLdapServer build() {
-            return new TestLdapServer(inMemoryListenerConfig, entries, rootObjectDN);
+            return new TestLdapServer(inMemoryListenerConfig, entries, rootObjectDN, bindRequestDelay);
         }
 
         private InMemoryListenerConfig createTlsInMemoryListenerConfig(TestCertificate testCertificate) {
