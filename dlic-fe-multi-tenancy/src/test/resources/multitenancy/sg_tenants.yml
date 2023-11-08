@@ -99,3 +99,9 @@ kltentrw:
   reserved: false
   hidden: false
   description: "Migrated from v6"
+sg_anonymous:
+  reserved: false
+  hidden: false
+anonymous_rw:
+  reserved: false
+  hidden: false

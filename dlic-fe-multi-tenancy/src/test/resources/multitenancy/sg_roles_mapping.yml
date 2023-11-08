@@ -160,3 +160,18 @@ sg_kibana4_testindex:
   - "test"
   and_backend_roles: []
   description: "Migrated from v6"
+hr_tenant_read_only_access:
+  users:
+    - "hr_user_read_only"
+hr_tenant_read_write_access:
+  users:
+    - "hr_user_read_write"
+all_mighty:
+  users:
+    - "admin"
+sg_anonymous:
+  backend_roles:
+    - anon_role
+anonymous_rw:
+  backend_roles:
+    - anon_role
