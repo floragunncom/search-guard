@@ -28,7 +28,6 @@ import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
@@ -56,18 +55,6 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
             SharedGroupFactory sharedGroupFactory) {
         super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
     }
-
-    @Override
-    protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
-        for(String headerName: restRequest.getHeaders().keySet()) {
-            final List<String> headerValues = restRequest.getHeaders().get(headerName);
-
-            if (headerValues != null && !headerValues.isEmpty()) {
-                threadContext.putHeader(headerName, String.join(",", headerValues));
-            }
-        }
-    }
-
 
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
