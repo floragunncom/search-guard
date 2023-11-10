@@ -6,6 +6,8 @@ test_security:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never      
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -43,6 +45,8 @@ test_security_legacy:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never         
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -80,6 +84,8 @@ test_ssl:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never        
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -117,6 +123,8 @@ test_signals:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never        
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -154,6 +162,8 @@ test_scheduler:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never        
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -191,6 +201,8 @@ test_support:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never      
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -228,6 +240,8 @@ test_dlic_security:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never        
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -265,6 +279,8 @@ test_dlic_security_legacy:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never        
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -302,8 +318,10 @@ test_dlic_dlsfls:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never        
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
+      when: never    
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -339,6 +357,8 @@ test_dlic_dlsfls_legacy:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never      
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -376,6 +396,8 @@ test_dlic_femt:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never      
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -413,6 +435,8 @@ test_dlic_auditlog:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never        
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
@@ -450,6 +474,8 @@ test_dlic_signals:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never        
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
       when: never
     - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'

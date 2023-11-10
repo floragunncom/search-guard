@@ -129,6 +129,8 @@ fe_kerberos:
       when: manual
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: never
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+      when: never      
   variables:
     TEST: "«TBD»"
     TEST_ENVIRONMENT: "default"
