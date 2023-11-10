@@ -18,6 +18,7 @@
 package com.floragunn.searchguard;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -410,6 +411,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         if (!Files.isReadable(p)) {
             log.debug("Unreadable file " + p + " found");
+            return "";
+        }
+
+        if (!FileSystems.getDefault().getPathMatcher("regex:(?i).*\\.(pem|jks|pfx|p12)").matches(p)) {
+            log.debug("Not a .pem, .jks, .pfx or .p12 file, skipping");
             return "";
         }
 
