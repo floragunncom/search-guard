@@ -205,11 +205,6 @@ either
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>org.xerial.snappy</groupId>
-			<artifactId>snappy-java</artifactId>
-			<version>1.1.10.1</version>
-		</dependency>
-		<dependency>
 			<groupId>com.onelogin</groupId>
 			<artifactId>java-saml</artifactId>
 			<version>2.9.0</version>
