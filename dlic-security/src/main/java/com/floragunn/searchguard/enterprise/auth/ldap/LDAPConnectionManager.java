@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 import javax.net.SocketFactory;
 
@@ -251,13 +252,13 @@ public final class LDAPConnectionManager implements Closeable {
 
         switch (connectionStrategy) {
         case FAILOVER:
-            return new FailoverServerSet(addresses, ports, socketFactory, connectionOptions, bindRequest, postConnectProcessor);
+            return new PrivilegedServerSet(new FailoverServerSet(addresses, ports, socketFactory, connectionOptions, bindRequest, postConnectProcessor));
         case FASTEST:
-            return new FastestConnectServerSet(addresses, ports, socketFactory, connectionOptions, bindRequest, postConnectProcessor);
+            return new PrivilegedServerSet(new FastestConnectServerSet(addresses, ports, socketFactory, connectionOptions, bindRequest, postConnectProcessor));
         case FEWEST:
-            return new FewestConnectionsServerSet(addresses, ports, socketFactory, connectionOptions, bindRequest, postConnectProcessor);
+            return new PrivilegedServerSet(new FewestConnectionsServerSet(addresses, ports, socketFactory, connectionOptions, bindRequest, postConnectProcessor));
         case ROUNDROBIN:
-            return new RoundRobinServerSet(addresses, ports, socketFactory, connectionOptions, bindRequest, postConnectProcessor);
+            return new PrivilegedServerSet(new RoundRobinServerSet(addresses, ports, socketFactory, connectionOptions, bindRequest, postConnectProcessor));
         default:
             throw new RuntimeException("Unexpected connectionStrategy " + connectionStrategy);
         }
@@ -280,5 +281,42 @@ public final class LDAPConnectionManager implements Closeable {
 
     public LDAPConnectionPool getPool() {
         return pool;
+    }
+    
+    /**
+     * Thin wrapper for ServerSet implementations which executes the getConnection() calls as privileged blocks. This is necessary due to the ES connection policy.
+     */
+    static class PrivilegedServerSet extends ServerSet {
+        private final ServerSet delegate;
+        
+        public PrivilegedServerSet(ServerSet delegate) {
+            this.delegate = Objects.requireNonNull(delegate);
+        }
+
+        @Override
+        public boolean includesAuthentication() {
+            return delegate.includesAuthentication();
+        }
+
+        @Override
+        public boolean includesPostConnectProcessing() {
+            return delegate.includesPostConnectProcessing();
+        }
+
+        @Override
+        public LDAPConnection getConnection() throws LDAPException {
+            return PrivilegedCode.execute(() -> delegate.getConnection(), LDAPException.class);
+        }
+
+        @Override
+        public LDAPConnection getConnection(LDAPConnectionPoolHealthCheck healthCheck) throws LDAPException {
+            return PrivilegedCode.execute(() -> delegate.getConnection(healthCheck), LDAPException.class);
+        }
+
+        @Override
+        public void toString(StringBuilder buffer) {
+            delegate.toString(buffer);
+            buffer.append("(wrapped by PrivilegedServerSet)");
+        }
     }
 }

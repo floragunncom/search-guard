@@ -56,6 +56,7 @@ package com.floragunn.searchguard.enterprise.auth.ldap;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -133,15 +134,18 @@ import com.unboundid.util.ThreadSafetyLevel;
 import com.unboundid.util.Validator;
 
 /**
- * A modified InMemoryDirectoryServer.
+ * A InMemoryDirectoryServer with modifications for testing.
  * 
- * The major difference is: If a StartTLS capable listener is configured, this won't accept request issued before a Start TLS has been performed.
+ * Differences:
+ * 
+ * - If a StartTLS capable listener is configured, this won't accept request issued before a Start TLS has been performed.
+ * - It can optionally delay the execution of bind requests. This is useful for stress-testing the connection pool.
  * 
  * Additionally, this variation no longer implements FullLDAPInterface as this is not necessary for our testing purposes.
  */
 @Mutable()
 @ThreadSafety(level = ThreadSafetyLevel.COMPLETELY_THREADSAFE)
-public final class RestrictedInMemoryDirectoryServer {
+public final class TestInMemoryDirectoryServer {
     // The in-memory request handler that will be used for the server.
     private final InMemoryRequestHandler inMemoryHandler;
 
@@ -154,25 +158,10 @@ public final class RestrictedInMemoryDirectoryServer {
 
     // The set of client socket factories associated with each of the listeners.
     private final Map<String, SocketFactory> clientSocketFactories;
-
+    
     // A read-only representation of the configuration used to create this
     // in-memory directory server.
     private final ReadOnlyInMemoryDirectoryServerConfig config;
-
-    /**
-     * Creates a very simple instance of an in-memory directory server with the
-     * specified set of base DNs.  It will not use a well-defined schema, and will
-     * pick a listen port at random.
-     *
-     * @param  baseDNs  The base DNs to use for the server.  It must not be
-     *                  {@code null} or empty.
-     *
-     * @throws  LDAPException  If a problem occurs while attempting to initialize
-     *                         the server.
-     */
-    public RestrictedInMemoryDirectoryServer(final String... baseDNs) throws LDAPException {
-        this(new InMemoryDirectoryServerConfig(baseDNs));
-    }
 
     /**
      * Creates a new instance of an in-memory directory server with the provided
@@ -184,7 +173,7 @@ public final class RestrictedInMemoryDirectoryServer {
      * @throws  LDAPException  If a problem occurs while trying to initialize the
      *                         directory server with the provided configuration.
      */
-    public RestrictedInMemoryDirectoryServer(final InMemoryDirectoryServerConfig cfg) throws LDAPException {
+    public TestInMemoryDirectoryServer(InMemoryDirectoryServerConfig cfg, Duration bindRequestDelay) throws LDAPException {
         Validator.ensureNotNull(cfg);
 
         config = new ReadOnlyInMemoryDirectoryServerConfig(cfg);
@@ -226,12 +215,17 @@ public final class RestrictedInMemoryDirectoryServer {
         for (final InMemoryListenerConfig c : listenerConfigs) {
             final String name = StaticUtils.toLowerCase(c.getListenerName());
 
-            final LDAPListenerRequestHandler listenerRequestHandler;
+            LDAPListenerRequestHandler listenerRequestHandler;
+            
             if (c.getStartTLSSocketFactory() == null) {
                 listenerRequestHandler = requestHandler;
             } else {
                 listenerRequestHandler = new PlaintextRequestRejectingRequestHandler(
                         new StartTLSRequestHandler(c.getStartTLSSocketFactory(), requestHandler), null);
+            }
+            
+            if (bindRequestDelay != null) {
+                listenerRequestHandler = new DelayedBindRequestHandler(listenerRequestHandler, bindRequestDelay);
             }
 
             final LDAPListenerConfig listenerCfg = new LDAPListenerConfig(c.getListenPort(), listenerRequestHandler);
@@ -1255,7 +1249,7 @@ public final class RestrictedInMemoryDirectoryServer {
     public BindResult bind(final BindRequest bindRequest) throws LDAPException {
         final ArrayList<Control> requestControlList = new ArrayList<>(bindRequest.getControlList());
         requestControlList.add(new Control("1.3.6.1.4.1.30221.2.5.18", false));
-
+        
         final BindRequestProtocolOp bindOp;
         if (bindRequest instanceof SimpleBindRequest) {
             final SimpleBindRequest r = (SimpleBindRequest) bindRequest;
@@ -2101,6 +2095,73 @@ class PlaintextRequestRejectingRequestHandler extends LDAPListenerRequestHandler
 
     private boolean isTlsConnection() {
         return connection.getSocket() instanceof SSLSocket;
+    }
+
+}
+
+class DelayedBindRequestHandler extends LDAPListenerRequestHandler {
+    private final LDAPListenerRequestHandler delegate;
+    private final Duration bindRequestDelay;
+   
+
+    DelayedBindRequestHandler(LDAPListenerRequestHandler delegate, Duration bindRequestDelay) {
+        this.delegate = delegate;
+        this.bindRequestDelay = bindRequestDelay;
+    }
+
+    public void closeInstance() {
+        delegate.closeInstance();
+    }
+
+    public void processAbandonRequest(int messageID, AbandonRequestProtocolOp request, List<Control> controls) {
+        delegate.processAbandonRequest(messageID, request, controls);
+    }
+
+    public LDAPMessage processAddRequest(int messageID, AddRequestProtocolOp request, List<Control> controls) {
+        return delegate.processAddRequest(messageID, request, controls);
+    }
+
+    public LDAPMessage processBindRequest(int messageID, BindRequestProtocolOp request, List<Control> controls) {
+        try {
+            Thread.sleep(bindRequestDelay.toMillis());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return delegate.processBindRequest(messageID, request, controls);
+    }
+
+    public LDAPMessage processCompareRequest(int messageID, CompareRequestProtocolOp request, List<Control> controls) {
+        return delegate.processCompareRequest(messageID, request, controls);
+    }
+
+    public LDAPMessage processDeleteRequest(int messageID, DeleteRequestProtocolOp request, List<Control> controls) {
+        return delegate.processDeleteRequest(messageID, request, controls);
+    }
+
+    public LDAPMessage processExtendedRequest(int messageID, ExtendedRequestProtocolOp request, List<Control> controls) {
+            return delegate.processExtendedRequest(messageID, request, controls);
+    }
+
+    public LDAPMessage processModifyRequest(int messageID, ModifyRequestProtocolOp request, List<Control> controls) {
+        return delegate.processModifyRequest(messageID, request, controls);
+    }
+
+    public LDAPMessage processModifyDNRequest(int messageID, ModifyDNRequestProtocolOp request, List<Control> controls) {
+        return delegate.processModifyDNRequest(messageID, request, controls);
+    }
+
+    public LDAPMessage processSearchRequest(int messageID, SearchRequestProtocolOp request, List<Control> controls) {
+        return delegate.processSearchRequest(messageID, request, controls);
+    }
+
+    public void processUnbindRequest(int messageID, UnbindRequestProtocolOp request, List<Control> controls) {
+        delegate.processUnbindRequest(messageID, request, controls);
+    }
+
+    @Override
+    public LDAPListenerRequestHandler newInstance(LDAPListenerClientConnection connection) throws LDAPException {
+        return new DelayedBindRequestHandler(delegate.newInstance(connection), bindRequestDelay);
     }
 
 }
