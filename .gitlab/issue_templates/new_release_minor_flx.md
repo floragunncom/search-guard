@@ -4,7 +4,7 @@
 
 * **Version:** Search Guard FLX 1.?.0 *please define version*
 * **Target ES versions:** 7.17.?, 8.?.?, ... *please define target ES versions. Check with PM for targeted versions*
-* **Gitlab Milestone:** %"SG FLX 1.?.0" *please create milestone in Gitlab group searchguard if it does not exist yet*
+* **Gitlab milestone:** %"SG FLX 1.?.0" *please create milestone in Gitlab group searchguard if it does not exist yet*
 
 ## Special notes
 
