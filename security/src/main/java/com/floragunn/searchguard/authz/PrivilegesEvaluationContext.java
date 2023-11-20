@@ -38,6 +38,7 @@ import com.floragunn.searchguard.user.User;
 public class PrivilegesEvaluationContext {
     private boolean resolveLocalAll = true;
     private final User user;
+    private final boolean userIsAdmin;
     private final Action action;
     private final Object request;
     private final Map<Template<Pattern>, Pattern> renderedPatternTemplateCache = new HashMap<>();
@@ -47,9 +48,10 @@ public class PrivilegesEvaluationContext {
     private final boolean debugEnabled;
     private ActionRequestInfo requestInfo;
 
-    public PrivilegesEvaluationContext(User user, ImmutableSet<String> mappedRoles, Action action, Object request, boolean debugEnabled,
+    public PrivilegesEvaluationContext(User user, boolean userIsAdmin, ImmutableSet<String> mappedRoles, Action action, Object request, boolean debugEnabled,
             ActionRequestIntrospector actionRequestIntrospector, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
         this.user = user;
+        this.userIsAdmin = userIsAdmin;
         this.mappedRoles = mappedRoles;
         this.action = action;
         this.request = request;
@@ -60,6 +62,10 @@ public class PrivilegesEvaluationContext {
 
     public User getUser() {
         return user;
+    }
+    
+    public boolean isUserAdmin() {
+        return this.userIsAdmin;
     }
 
     public boolean isResolveLocalAll() {
@@ -83,7 +89,7 @@ public class PrivilegesEvaluationContext {
 
     public ActionRequestInfo getRequestInfo() {
         if (this.requestInfo == null) {
-            this.requestInfo = this.actionRequestIntrospector.getActionRequestInfo(this.action.name(), this.request);
+            this.requestInfo = this.actionRequestIntrospector.getActionRequestInfo(this.action, this.request);
         }
 
         return this.requestInfo;
@@ -115,7 +121,7 @@ public class PrivilegesEvaluationContext {
         if (this.mappedRoles != null && this.mappedRoles.equals(mappedRoles)) {
             return this;
         } else {
-            return new PrivilegesEvaluationContext(user, mappedRoles, action, mappedRoles, debugEnabled, actionRequestIntrospector,
+            return new PrivilegesEvaluationContext(user, this.userIsAdmin, mappedRoles, action, mappedRoles, debugEnabled, actionRequestIntrospector,
                     specialPrivilegesEvaluationContext);
         }
     }

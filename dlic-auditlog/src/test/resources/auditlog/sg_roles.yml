@@ -16,6 +16,11 @@ sg_all_access:
     masked_fields: null
     allowed_actions:
     - "*"
+  alias_permissions:
+  - alias_patterns:
+    - "*"
+    allowed_actions:
+    - "*"    
   tenant_permissions: []
 sg_worf:
   reserved: false

@@ -17,6 +17,14 @@
 
 package com.floragunn.searchguard.test;
 
+import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
+import static com.floragunn.searchguard.test.RestMatchers.json;
+import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.not;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,12 +33,15 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -44,6 +55,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.hamcrest.Matcher;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
@@ -52,6 +64,7 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.patch.MergePatch;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -59,14 +72,15 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.Response;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.EsClientProvider.UserCredentialsHolder;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.NestedValueMap;
 import com.floragunn.searchguard.test.helper.cluster.NestedValueMap.Path;
-
-import static java.util.Arrays.asList;
 
 public class TestSgConfig {
     private static final Logger log = LogManager.getLogger(TestSgConfig.class);
@@ -182,22 +196,20 @@ public class TestSgConfig {
 
         return this;
     }
-    
+
     public TestSgConfig frontendAuthcDebug(boolean debug) {
         return frontendAuthcDebug("default", debug);
     }
-    
+
     public TestSgConfig frontendAuthcDebug(String configId, boolean debug) {
         if (overrideFrontendConfigSettings == null) {
             overrideFrontendConfigSettings = new NestedValueMap();
         }
 
-
         overrideFrontendConfigSettings.put(new Path(configId, "debug"), debug);
 
         return this;
     }
-
 
     public TestSgConfig user(User user) {
         if (user.roleNames != null) {
@@ -215,7 +227,6 @@ public class TestSgConfig {
         if (overrideUserSettings == null) {
             overrideUserSettings = new NestedValueMap();
         }
-
 
         overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), password.passwordValueForConfiguration());
 
@@ -328,7 +339,7 @@ public class TestSgConfig {
         this.authTokenService = authTokenService;
         return this;
     }
-    
+
     public TestSgConfig clone() {
         TestSgConfig result = new TestSgConfig();
 
@@ -385,7 +396,7 @@ public class TestSgConfig {
         if (authTokenService != null) {
             writeConfigToIndex(client, "auth_token_service", authTokenService);
         }
-        
+
         if (variableSuppliers.size() != 0) {
             writeConfigVars(client, variableSuppliers);
         }
@@ -631,14 +642,14 @@ public class TestSgConfig {
         }
 
         String passwordValueForConfiguration() {
-            if(passwordNeedsToBeHashed) {
+            if (passwordNeedsToBeHashed) {
                 return hash(password.toCharArray());
             }
             return password;
         }
 
         String loginPassword() {
-            if(passwordNeedsToBeHashed) {
+            if (passwordNeedsToBeHashed) {
                 return password;
             }
             throw new IllegalStateException("Password expression was used, cannot retrieve password.");
@@ -650,11 +661,21 @@ public class TestSgConfig {
         private UserPassword password;
         private Role[] roles;
         private String[] roleNames;
+        private String description;
         private Map<String, Object> attributes = new HashMap<>();
+        private BiFunction<String, List<String>, Matcher<HttpResponse>> restMatcher;
+        private Map<String, IndexApiMatchers.IndexMatcher> indexMatchers = new HashMap<>();
+        private Map<String, Matcher<HttpResponse>> documentFieldValueMatchers = new LinkedHashMap<>();
+        private boolean adminCertUser = false;
 
         public User(String name) {
             this.name = name;
             this.password = UserPassword.of("secret");
+        }
+
+        public User description(String description) {
+            this.description = description;
+            return this;
         }
 
         public User password(String password) {
@@ -682,6 +703,30 @@ public class TestSgConfig {
             return this;
         }
 
+        public User restMatcher(BiFunction<String, List<String>, Matcher<HttpResponse>> restMatcher) {
+            this.restMatcher = restMatcher;
+            return this;
+        }
+
+        public Matcher<HttpResponse> restMatcher(String jsonPath, String... params) {
+            return this.restMatcher.apply(jsonPath, ImmutableList.ofArray(params));
+        }
+
+        public User indexMatcher(String key, IndexApiMatchers.IndexMatcher indexMatcher) {
+            this.indexMatchers.put(key, indexMatcher);
+            return this;
+        }
+
+        public IndexApiMatchers.IndexMatcher indexMatcher(String key) {
+            IndexApiMatchers.IndexMatcher result = this.indexMatchers.get(key);
+
+            if (result != null) {
+                return result;
+            } else {
+                throw new RuntimeException("Unknown index matcher " + key + " in user " + this.name);
+            }
+        }
+
         public String getName() {
             return name;
         }
@@ -704,23 +749,106 @@ public class TestSgConfig {
             return result;
         }
 
+        public String getDescription() {
+            return description;
+        }
+
+        public boolean isAdminCertUser() {
+            return adminCertUser;
+        }
+
+        public User adminCertUser() {
+            this.adminCertUser = true;
+            return this;
+        }
+
+        public User addFieldValueMatcher(String fieldJsonPath, boolean multipleDocuments, Matcher<?>...matchers) {
+            Objects.requireNonNull(fieldJsonPath, "Document field JSON patch name must not be null");
+            if(documentFieldValueMatchers.containsKey(fieldJsonPath)) {
+                throw new IllegalArgumentException("Field matcher for " + fieldJsonPath + " already exists");
+            }
+            if(matchers == null || matchers.length == 0) {
+                throw new IllegalArgumentException("At least one pattern must be provided");
+            }
+            Matcher<? super Iterable<? extends String>>[] everyFieldValueMatchers = Arrays.stream(matchers) //
+                .map(m -> multipleDocuments ? everyItem(m) : m) //
+                .toArray(Matcher[]::new);
+            Matcher<GenericRestClient.HttpResponse> fieldValueMatcher = json(distinctNodesAt(fieldJsonPath, allOf(not(emptyIterable()), allOf(everyFieldValueMatchers))));
+            documentFieldValueMatchers.put(fieldJsonPath, fieldValueMatcher);
+            return this;
+        }
+
+        public Matcher<HttpResponse> matcherForField(String fieldJsonPath) {
+            Objects.requireNonNull(fieldJsonPath, "Field JSON path must not be null");
+            Matcher<HttpResponse> matcher = documentFieldValueMatchers.get(fieldJsonPath);
+            return Objects.requireNonNull(matcher, "No field matcher found for " + fieldJsonPath);
+        }
+
+        @Override
+        public String toString() {
+            return "User name '" + name + '\'';
+        }
     }
 
-    public static class Role {
+    public static class TenantPermission implements Document<TenantPermission> {
+        private List<String> tenantPatterns;//tenant_patterns
+        private final List<String> allowedActions; //allowed_actions
+        private Role role;
+
+        TenantPermission(Role role, String... allowedActions) {
+            this.tenantPatterns = ImmutableList.empty();
+            this.allowedActions = asList(allowedActions);
+            this.role = role;
+        }
+
+
+
+        public TenantPermission(List<String> tenantPatterns, List<String> allowedActions) {
+            this.tenantPatterns = Objects.requireNonNull(tenantPatterns, "Tenant patterns must not be null");
+            this.allowedActions = Objects.requireNonNull(allowedActions, "Tenant allowed actions must not be null");
+        }
+
+        public Role on(String... tenantPatterns) {
+            this.tenantPatterns = asList(tenantPatterns);
+            this.role.tenantPermissions.add(this);
+            return this.role;
+        }
+
+        NestedValueMap asNestedValueMap() {
+            return NestedValueMap.of("tenant_patterns", tenantPatterns, "allowed_actions", allowedActions);
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return DocNode.of("tenant_patterns", tenantPatterns, "allowed_actions", allowedActions);
+        }
+    }
+
+    public static class Role implements Document<Role> {
         public static Role ALL_ACCESS = new Role("all_access").clusterPermissions("*").indexPermissions("*").on("*");
 
         private String name;
         private List<String> clusterPermissions = new ArrayList<>();
         private List<String> excludedClusterPermissions = new ArrayList<>();
 
-        private List<IndexPermission> indexPermissions = new ArrayList<>();
-        private List<ExcludedIndexPermission> excludedIndexPermissions = new ArrayList<>();
+        private List<IndexLikePermission> indexPermissions = new ArrayList<>();
+        private List<IndexLikePermission> aliasPermissions = new ArrayList<>();
+        private List<IndexLikePermission> dataStreamPermissions = new ArrayList<>();
+
         private List<TenantPermission> tenantPermissions = new ArrayList<>();
 
         public Role(String name) {
             this.name = name;
         }
 
+        public Role tenantPermission(Collection<String> tenantPatterns, Collection<String> allowedActions) {
+            tenantPermissions.add(new TenantPermission(new ArrayList<>(tenantPatterns), new ArrayList<>(allowedActions)));
+            return this;
+        }
+
+        public Role tenantPermission(String tenantPattern, String... allowedActions) {
+            return tenantPermission(Collections.singletonList(tenantPattern), Arrays.asList(allowedActions));
+        }
 
         public Role clusterPermissions(String... clusterPermissions) {
             this.clusterPermissions.addAll(asList(clusterPermissions));
@@ -732,16 +860,20 @@ public class TestSgConfig {
             return this;
         }
 
-        public IndexPermission indexPermissions(String... indexPermissions) {
-            return new IndexPermission(this, indexPermissions);
+        public IndexLikePermission indexPermissions(String... indexPermissions) {
+            return new IndexLikePermission(this, this.indexPermissions, "index_patterns", indexPermissions);
         }
 
-        public TenantPermission tenantPermission(String... tenantPermissions) {
+        public IndexLikePermission aliasPermissions(String... aliasPermissions) {
+            return new IndexLikePermission(this, this.aliasPermissions, "alias_patterns", aliasPermissions);
+        }
+
+        public IndexLikePermission dataStreamPermissions(String... dataStreamPermissions) {
+            return new IndexLikePermission(this, this.dataStreamPermissions, "data_stream_patterns", dataStreamPermissions);
+        }
+
+        public TenantPermission withTenantPermission(String... tenantPermissions) {
             return new TenantPermission(this, tenantPermissions);
-        }
-
-        public ExcludedIndexPermission excludeIndexPermissions(String... indexPermissions) {
-            return new ExcludedIndexPermission(this, indexPermissions);
         }
 
         public String getName() {
@@ -762,23 +894,65 @@ public class TestSgConfig {
 
             if (!this.indexPermissions.isEmpty()) {
                 map.put(new NestedValueMap.Path(name, "index_permissions"),
-                    this.indexPermissions.stream().map(IndexPermission::toJsonMap).collect(Collectors.toList()));
+                    this.indexPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
             }
 
-            if (!this.excludedClusterPermissions.isEmpty()) {
+            if (this.aliasPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "alias_permissions"),
+                        this.aliasPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
+            }
+
+            if (this.dataStreamPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "data_stream_permissions"),
+                        this.dataStreamPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
+            }
+
+            if (this.excludedClusterPermissions.size() > 0) {
                 map.put(new NestedValueMap.Path(name, "exclude_cluster_permissions"), this.excludedClusterPermissions);
             }
 
-            if (!this.excludedIndexPermissions.isEmpty()) {
-                map.put(new NestedValueMap.Path(name, "exclude_index_permissions"), this.excludedIndexPermissions.stream()
-                    .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "actions", p.actions)).collect(Collectors.toList()));
-            }
-            if (!this.tenantPermissions.isEmpty()) {
-                map.put(new NestedValueMap.Path(name, "tenant_permissions"),
-                        this.tenantPermissions.stream().map(TenantPermission::toJsonMap).collect(Collectors.toList()));
+            if (this.tenantPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "tenant_permissions"), this.tenantPermissions.stream()
+                    .map(TenantPermission::asNestedValueMap)
+                    .collect(Collectors.toList()));
             }
             return map;
         }
+
+        public com.floragunn.searchguard.authz.config.Role toActualRole() throws ConfigValidationException {
+            return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null));
+        }
+
+        public com.floragunn.searchguard.authz.config.Role toActualRole(ConfigurationRepository.Context parserContext) throws ConfigValidationException {
+            return com.floragunn.searchguard.authz.config.Role.parse(DocNode.wrap(this.toDeepBasicObject()), parserContext).get();
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap
+                    .ofNonNull("cluster_permissions", this.clusterPermissions, "index_permissions", this.indexPermissions, "alias_permissions",
+                            this.aliasPermissions, "data_stream_permissions", this.dataStreamPermissions)
+                    .with(ImmutableMap.ofNonNull("tenant_permissions", this.tenantPermissions, "exclude_cluster_permissions",
+                            this.excludedClusterPermissions));
+        }
+
+        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(ConfigurationRepository.Context parserContext,
+                TestSgConfig.Role... roles) throws ConfigValidationException {
+            Map<String, com.floragunn.searchguard.authz.config.Role> parsedRoles = new HashMap<>();
+
+            for (TestSgConfig.Role role : roles) {
+                parsedRoles.put(role.getName(),
+                        com.floragunn.searchguard.authz.config.Role.parse(DocNode.wrap(role.toDeepBasicObject()), parserContext).get());
+            }
+
+            return SgDynamicConfiguration.of(CType.ROLES, parsedRoles);
+        }
+
+        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(TestSgConfig.Role... roles)
+                throws ConfigValidationException {
+            return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null), roles);
+        }
+
     }
 
     public static class RoleMapping {
@@ -804,12 +978,12 @@ public class TestSgConfig {
             return this;
         }
 
-        public RoleMapping hosts(String...hosts) {
+        public RoleMapping hosts(String... hosts) {
             this.hosts.addAll(asList(hosts));
             return this;
         }
 
-        public RoleMapping ips(String...ips) {
+        public RoleMapping ips(String... ips) {
             this.ips.addAll(asList(ips));
             return this;
         }
@@ -842,49 +1016,53 @@ public class TestSgConfig {
         }
     }
 
-    public static class IndexPermission {
+    public static class IndexLikePermission implements Document<IndexLikePermission> {
         private List<String> allowedActions;
         private List<String> indexPatterns;
         private Role role;
         private String dlsQuery;
         private List<String> fls;
         private List<String> maskedFields;
+        private List<IndexLikePermission> targetList;
+        private String patternAttributeName;
 
-        IndexPermission(Role role, String... allowedActions) {
+        IndexLikePermission(Role role, List<IndexLikePermission> targetList, String patternAttributeName, String... allowedActions) {
             this.allowedActions = asList(allowedActions);
             this.role = role;
+            this.targetList = targetList;
+            this.patternAttributeName = patternAttributeName;
         }
 
-        public IndexPermission dls(String dlsQuery) {
+        public IndexLikePermission dls(String dlsQuery) {
             this.dlsQuery = dlsQuery;
             return this;
         }
 
-        public IndexPermission dls(Map<String, Object> dlsQuery) {
+        public IndexLikePermission dls(Map<String, Object> dlsQuery) {
             this.dlsQuery = DocWriter.json().writeAsString(dlsQuery);
             return this;
         }
 
-        public IndexPermission fls(String... fls) {
+        public IndexLikePermission fls(String... fls) {
             this.fls = asList(fls);
             return this;
         }
 
-        public IndexPermission maskedFields(String... maskedFields) {
+        public IndexLikePermission maskedFields(String... maskedFields) {
             this.maskedFields = asList(maskedFields);
             return this;
         }
 
         public Role on(String... indexPatterns) {
             this.indexPatterns = asList(indexPatterns);
-            this.role.indexPermissions.add(this);
+            this.targetList.add(this);
             return this.role;
         }
 
         public NestedValueMap toJsonMap() {
             NestedValueMap result = new NestedValueMap();
 
-            result.put("index_patterns", indexPatterns);
+            result.put(patternAttributeName, indexPatterns);
             result.put("allowed_actions", allowedActions);
 
             if (dlsQuery != null) {
@@ -902,22 +1080,10 @@ public class TestSgConfig {
             return result;
         }
 
-    }
-
-    public static class ExcludedIndexPermission {
-        private List<String> actions;
-        private List<String> indexPatterns;
-        private Role role;
-
-        ExcludedIndexPermission(Role role, String... actions) {
-            this.actions = asList(actions);
-            this.role = role;
-        }
-
-        public Role on(String... indexPatterns) {
-            this.indexPatterns = asList(indexPatterns);
-            this.role.excludedIndexPermissions.add(this);
-            return this.role;
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.ofNonNull(patternAttributeName, indexPatterns, "allowed_actions", allowedActions, "dls", dlsQuery, "fls", fls,
+                    "masked_fields", maskedFields);
         }
 
     }
@@ -970,32 +1136,6 @@ public class TestSgConfig {
         }
     }
 
-    public static class TenantPermission {
-        private List<String> allowedActions;
-        private List<String> tenantPatterns;
-        private Role role;
-
-        TenantPermission(Role role, String... allowedActions) {
-            this.allowedActions = asList(allowedActions);
-            this.role = role;
-        }
-
-        public Role on(String... tenantPatterns) {
-            this.tenantPatterns = asList(tenantPatterns);
-            this.role.tenantPermissions.add(this);
-            return this.role;
-        }
-
-        public NestedValueMap toJsonMap() {
-            NestedValueMap result = new NestedValueMap();
-
-            result.put("tenant_patterns", tenantPatterns);
-            result.put("allowed_actions", allowedActions);
-            return result;
-        }
-
-    }
-
     public static class Authc extends ConfigDocument<Authc> {
 
         public static final Authc DEFAULT = new Authc(new Authc.Domain("basic/internal_users_db"));
@@ -1013,12 +1153,12 @@ public class TestSgConfig {
             this.trustedProxies = asList(trustedProxies);
             return this;
         }
-        
+
         public Authc debug() {
             this.debug = true;
             return this;
         }
-        
+
         public Authc userCacheEnabled(boolean userCacheEnabled) {
             this.userCacheEnabled = userCacheEnabled;
             return this;
@@ -1032,7 +1172,7 @@ public class TestSgConfig {
             private List<String> acceptIps = null;
             private List<String> acceptOriginatingIps = null;
             private List<String> skipIps = null;
-            private List<String> skipOriginatingIps = null;            
+            private List<String> skipOriginatingIps = null;
             private List<String> acceptUsers = null;
             private List<String> skipUsers = null;
             private List<AdditionalUserInformation> additionalUserInformation = null;
@@ -1102,7 +1242,7 @@ public class TestSgConfig {
                 }
                 return this;
             }
-            
+
             public Domain skipIps(String... ips) {
                 if (skipIps == null) {
                     skipIps = new ArrayList<>(asList(ips));
@@ -1120,7 +1260,7 @@ public class TestSgConfig {
                 }
                 return this;
             }
-            
+
             public Domain skipUsers(String... users) {
                 skipUsers = asList(users);
                 return this;
@@ -1170,7 +1310,7 @@ public class TestSgConfig {
                     result.put("user_mapping", userMapping.toBasicObject());
                 }
 
-                if(jwt != null) {
+                if (jwt != null) {
                     result.put("jwt", jwt.toBasicObject());
                 }
 
@@ -1332,7 +1472,7 @@ public class TestSgConfig {
                     return result;
                 }
 
-            }           
+            }
         }
 
         @Override
@@ -1344,9 +1484,9 @@ public class TestSgConfig {
             if (trustedProxies != null) {
                 result.put("network", ImmutableMap.of("trusted_proxies", trustedProxies));
             }
-            
+
             result.put("debug", this.debug);
-            
+
             if (!userCacheEnabled) {
                 result.put("user_cache", ImmutableMap.of("enabled", false));
             }
@@ -1365,7 +1505,7 @@ public class TestSgConfig {
         private List<FrontendAuthDomain> authDomains = new ArrayList<>();
         private FrontendLoginPage loginPage;
 
-        public FrontendAuthc( ) {
+        public FrontendAuthc() {
         }
 
         public FrontendAuthc authDomain(FrontendAuthDomain authDomain) {
@@ -1495,6 +1635,7 @@ public class TestSgConfig {
         private String metrics;
         private String useImpl;
         private Boolean dlsAllowNow;
+        private String mode;
 
         public DlsFls() {
         }
@@ -1509,10 +1650,15 @@ public class TestSgConfig {
             return this;
         }
 
+        public DlsFls mode(String mode) {
+            this.mode = mode;
+            return this;
+        }
+
         @Override
         public Object toBasicObject() {
             return ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "use_impl", useImpl, "dls",
-                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow));
+                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow, "mode", mode));
         }
 
         @Override
@@ -1532,7 +1678,7 @@ public class TestSgConfig {
         @Override
         public Object toBasicObject() {
             Map<String, Object> result = new LinkedHashMap<>();
-            if(signing != null) {
+            if (signing != null) {
                 result.put("signing", signing.toBasicObject());
             }
             return result;
@@ -1548,8 +1694,7 @@ public class TestSgConfig {
         }
 
         @Override
-        public
-        Object toBasicObject() {
+        public Object toBasicObject() {
             return ImmutableMap.of("jwks", jwks.toBasicObject());
         }
     }

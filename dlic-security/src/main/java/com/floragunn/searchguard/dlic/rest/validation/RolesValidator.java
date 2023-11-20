@@ -42,8 +42,9 @@ public class RolesValidator extends AbstractConfigurationValidator {
 		allowedKeys.put("tenant_permissions", DataType.ARRAY);
 		allowedKeys.put("index_permissions", DataType.ARRAY);
         allowedKeys.put("exclude_cluster_permissions", DataType.ARRAY);
-        allowedKeys.put("exclude_index_permissions", DataType.ARRAY);
 		allowedKeys.put("description", DataType.STRING);
+        allowedKeys.put("alias_permissions", DataType.ARRAY);
+        allowedKeys.put("data_stream_permissions", DataType.ARRAY);
 	}
 
     @Override

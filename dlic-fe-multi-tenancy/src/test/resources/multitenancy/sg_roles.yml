@@ -517,4 +517,3 @@ TENANT_MASTER_ROLE:
   cluster_permissions:
     - "SGS_CLUSTER_ALL"
   exclude_cluster_permissions: []
-  exclude_index_permissions: []

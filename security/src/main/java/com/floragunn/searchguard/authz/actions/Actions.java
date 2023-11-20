@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 floragunn GmbH
+ * Copyright 2022-2024 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,8 @@ import com.floragunn.searchguard.authc.LoginPrivileges;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.authc.session.backend.SessionApi;
+import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
+import com.floragunn.searchguard.authz.actions.Action.Scope;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.AdditionalPrivileges;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
@@ -61,12 +63,18 @@ import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
+
+import com.floragunn.searchsupport.meta.Meta;
+import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
 import com.floragunn.searchsupport.xcontent.XContentObjectConverter;
 
+import static com.floragunn.searchguard.authz.actions.Action.AdditionalDimension.*;
+
 public class Actions {
     private final ImmutableMap<String, Action> actionMap;
-    private final ImmutableSet<WellKnownAction<?, ?, ?>> indexActions;
+    private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
+    private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> clusterActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> openActions;
@@ -82,21 +90,22 @@ public class Actions {
         //
         // Additionally, extended settings are applied for some actions, such as additionally needed privileges.
         
-        index("indices:data/write/index");
-        index("indices:data/read/get");
-        index("indices:data/read/tv");
-        index("indices:data/write/delete");
-        index("indices:data/write/update");
-        index("indices:data/read/search");
-        index("indices:data/read/open_point_in_time");
-        index("indices:data/read/explain");
-        index("indices:admin/resolve/index");
-        index("indices:admin/resolve/cluster");
+        indexLike("indices:data/write/index").performanceCritical().aliasesResolveToWriteTarget();
+        indexLike("indices:data/read/get").performanceCritical();
+        indexLike("indices:data/read/tv").performanceCritical();
+        indexLike("indices:data/write/delete").performanceCritical();
+        indexLike("indices:data/write/update").performanceCritical();
+        indexLike("indices:data/read/search").performanceCritical();
+        indexLike("indices:data/read/open_point_in_time").performanceCritical();
+        indexLike("indices:data/read/explain").performanceCritical();
+        indexLike("indices:admin/resolve/index").performanceCritical();
+        indexLike("indices:admin/resolve/cluster").performanceCritical();
 
-        index("indices:data/write/update/byquery");
-        index("indices:data/write/delete/byquery");
+        index("indices:data/write/update/byquery").performanceCritical();;
+        index("indices:data/write/delete/byquery").performanceCritical();;
 
         index("indices:data/write/bulk[s]")//
+                .performanceCritical()//
                 .requestType(BulkShardRequest.class)//
                 .requestItemsA(BulkShardRequest::items, (item) -> item.request().opType())
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.DELETE, "indices:data/write/delete")
@@ -105,9 +114,11 @@ public class Actions {
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.UPDATE, "indices:data/write/index");
 
         index("indices:admin/shards/search_shards") //
-                .requiresAdditionalPrivileges(always(), "indices:data/read/search");
+                .performanceCritical().requiresAdditionalPrivileges(always(), "indices:data/read/search");
         index("indices:admin/search/search_shards") //
-                .requiresAdditionalPrivileges(always(), "indices:data/read/search");
+                .performanceCritical().requiresAdditionalPrivileges(always(), "indices:data/read/search");
+
+        indexLike("indices:data/read/mget[shard]").performanceCritical();
 
         cluster("indices:data/read/mget");
         cluster("indices:data/write/bulk");
@@ -118,33 +129,35 @@ public class Actions {
         cluster("indices:data/read/search/template");
         cluster("indices:data/read/msearch/template");
 
-        index("indices:monitor/stats");
-        index("indices:monitor/segments");
-        index("indices:monitor/shard_stores");
-        index("indices:admin/create") //
+        indexLike("indices:monitor/stats");
+        indexLike("indices:monitor/segments");
+        indexLike("indices:monitor/shard_stores");
+        indexLike("indices:admin/create") //
+                .performanceCritical() //
                 .requestType(CreateIndexRequest.class)//
-                .requiresAdditionalPrivileges(ifNotEmpty(CreateIndexRequest::aliases), "indices:admin/aliases");
+                .requiresAdditionalPrivileges(ifNotEmpty(CreateIndexRequest::aliases), "indices:admin/aliases").additionalDimensions(MANAGE_ALIASES);
 
-        index("indices:admin/resize");
-        index("indices:admin/rollover");
-        index("indices:admin/delete");
-        index("indices:admin/get");
+        index("indices:admin/resize").additionalDimensions(RESIZE_TARGET);
+        index("indices:admin/xpack/downsample").additionalDimensions(DOWNSAMPLE_TARGET);
+        indexLike("indices:admin/rollover");
+        indexLike("indices:admin/delete");
+        indexLike("indices:admin/get");
         index("indices:admin/open");
         index("indices:admin/close");
-        index("indices:admin/block/add");
-        index("indices:admin/mappings/get");
-        index("indices:admin/mappings/fields/get");
-        index("indices:admin/mapping/put");
-        index("indices:admin/mapping/auto_put");
+        indexLike("indices:admin/block/add");
+        indexLike("indices:admin/mappings/get");
+        indexLike("indices:admin/mappings/fields/get");
+        indexLike("indices:admin/mapping/put").performanceCritical();
+        indexLike("indices:admin/mapping/auto_put").performanceCritical();
 
-        index("indices:admin/aliases") //
+        indexLike("indices:admin/aliases") //
                 .requestType(IndicesAliasesRequest.class)//
                 .requestItems(IndicesAliasesRequest::getAliasActions, IndicesAliasesRequest.AliasActions::actionType)//
-                .requiresAdditionalPrivilegesForItemType(AliasActions.Type.REMOVE_INDEX, "indices:admin/delete");
+                .requiresAdditionalPrivilegesForItemType(AliasActions.Type.REMOVE_INDEX, "indices:admin/delete").additionalDimensions(ALIASES);
 
-        index("indices:admin/settings/update");
-        index("indices:admin/analyze");
-        index("indices:admin/auto_create");
+        indexLike("indices:admin/settings/update");
+        indexLike("indices:admin/analyze");
+        indexLike("indices:admin/auto_create").performanceCritical();
 
         cluster("indices:data/read/scroll/clear");
         cluster("indices:monitor/recovery");
@@ -158,7 +171,7 @@ public class Actions {
 
         cluster("indices:data/read/async_search/delete") //
                 .deletes(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
-        
+
         cluster("indices:searchguard:async_search/_all_owners");
 
         cluster("indices:data/read/sql");
@@ -214,17 +227,17 @@ public class Actions {
         cluster("indices:admin/index_template/simulate_index");
         cluster("indices:admin/index_template/simulate");
 
-        index("indices:admin/validate/query");
-        index("indices:admin/refresh");
-        index("indices:admin/refresh[s]");
-        index("indices:admin/flush");
-        index("indices:admin/forcemerge");
-        index("indices:admin/cache/clear");
+        indexLike("indices:admin/validate/query");
+        indexLike("indices:admin/refresh").performanceCritical();
+        indexLike("indices:admin/refresh[s]").performanceCritical();
+        indexLike("indices:admin/flush");
+        indexLike("indices:admin/forcemerge");
+        indexLike("indices:admin/cache/clear");
 
-        index("indices:admin/aliases/get");
+        indexLike("indices:admin/aliases/get").additionalDimensions(ALIASES);
         index("indices:monitor/settings/get");
 
-        index("indices:data/read/field_caps");
+        indexLike("indices:data/read/field_caps").performanceCritical();
 
         cluster("cluster:admin/script/put");
         cluster("cluster:admin/script/get");
@@ -280,6 +293,14 @@ public class Actions {
         open("cluster:admin/searchguard/license/info");
         open(WhoAmIAction.INSTANCE);
 
+        dataStream("indices:admin/data_stream/create");
+        dataStream("indices:admin/data_stream/get");
+        dataStream("indices:admin/data_stream/migrate");
+        dataStream("indices:admin/data_stream/modify");
+        dataStream("indices:admin/data_stream/promote");
+        dataStream("indices:admin/data_stream/delete");
+        dataStream("indices:monitor/data_stream/stats");
+
         if (modulesRegistry != null) {
             for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {
                 builder.action(action.getAction());
@@ -289,7 +310,8 @@ public class Actions {
         this.actionMap = builder.build();
 
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> clusterActions = new ImmutableSet.Builder<>(actionMap.size());
-        ImmutableSet.Builder<WellKnownAction<?, ?, ?>> indexActions = new ImmutableSet.Builder<>(actionMap.size());
+        ImmutableSet.Builder<WellKnownAction<?, ?, ?>> indexLikeActions = new ImmutableSet.Builder<>(actionMap.size());
+        ImmutableSet.Builder<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical= new ImmutableSet.Builder<>(actionMap.size());
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> tenantActions = new ImmutableSet.Builder<>();
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> openActions = new ImmutableSet.Builder<>();
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> allActions = new ImmutableSet.Builder<>(actionMap.size());
@@ -302,17 +324,21 @@ public class Actions {
             } else if (action.isTenantPrivilege()) {
                 tenantActions.add((WellKnownAction<?, ?, ?>) action);
             } else {
-                indexActions.add((WellKnownAction<?, ?, ?>) action);
+                indexLikeActions.add((WellKnownAction<?, ?, ?>) action);                
+                if (((WellKnownAction<?, ?, ?>) action).isPerformanceCritical()) {
+                    indexLikeActionsPerformanceCritical.add((WellKnownAction<?, ?, ?>) action);
+                }
             }
             
             allActions.add((WellKnownAction<?, ?, ?>) action);
         }
 
         this.clusterActions = clusterActions.build();
-        this.indexActions = indexActions.build();
         this.tenantActions = tenantActions.build();
         this.openActions = openActions.build();
         this.allActions = allActions.build();
+        this.indexLikeActions = indexLikeActions.build();
+        this.indexLikeActionsPerformanceCritical = indexLikeActionsPerformanceCritical.build();
     }
 
     public Action get(String actionName) {
@@ -329,10 +355,14 @@ public class Actions {
         return clusterActions;
     }
 
-    public ImmutableSet<WellKnownAction<?, ?, ?>> indexActions() {
-        return indexActions;
+    public ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions() {
+        return indexLikeActions;
     }
 
+    public ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical() {
+        return indexLikeActionsPerformanceCritical;
+    }
+    
     public ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions() {
         return tenantActions;
     }
@@ -346,12 +376,14 @@ public class Actions {
     }
 
     private static Scope getScope(String action) {
-        if (action.startsWith("cluster:admin:searchguard:tenant:") || action.startsWith("kibana:saved_objects/")) {
+        if (action.startsWith("indices:admin/data_stream/")) {
+            return Scope.DATA_STREAM;
+        } else if (action.startsWith("cluster:admin:searchguard:tenant:") || action.startsWith("kibana:saved_objects/")) {
             return Scope.TENANT;
         } else if (action.startsWith("searchguard:cluster:") || action.startsWith("cluster:")) {
             return Scope.CLUSTER;
         } else {
-            return Scope.INDEX;
+            return Scope.INDEX_LIKE;
         }
     }
 
@@ -365,6 +397,14 @@ public class Actions {
 
     private ActionBuilder<?, ?, ?> index(String action) {
         return builder.index(action);
+    }
+    
+    private ActionBuilder<?, ?, ?> indexLike(String action) {
+        return builder.indexLike(action);
+    }
+
+    private ActionBuilder<?, ?, ?> dataStream(String action) {
+        return builder.dataStream(action);
     }
 
     private ActionBuilder<?, ?, ?> tenant(String action) {
@@ -395,6 +435,18 @@ public class Actions {
             return builder;
         }
 
+        ActionBuilder<?, ?, ?> indexLike(ActionType<?> actionType) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(actionType.name(), Scope.INDEX_LIKE);
+            builders.put(actionType.name(), builder);
+            return builder;
+        }
+
+        ActionBuilder<?, ?, ?> indexLike(String action) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.INDEX_LIKE);
+            builders.put(action, builder);
+            return builder;
+        }
+
         ActionBuilder<?, ?, ?> index(ActionType<?> actionType) {
             ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(actionType.name(), Scope.INDEX);
             builders.put(actionType.name(), builder);
@@ -403,6 +455,18 @@ public class Actions {
 
         ActionBuilder<?, ?, ?> index(String action) {
             ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.INDEX);
+            builders.put(action, builder);
+            return builder;
+        }
+
+        ActionBuilder<?, ?, ?> alias(ActionType<?> actionType) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(actionType.name(), Scope.ALIAS);
+            builders.put(actionType.name(), builder);
+            return builder;
+        }
+
+        ActionBuilder<?, ?, ?> dataStream(String action) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.DATA_STREAM);
             builders.put(action, builder);
             return builder;
         }
@@ -447,10 +511,6 @@ public class Actions {
 
     }
 
-    public static enum Scope {
-        INDEX, CLUSTER, TENANT, OPEN;
-    }
-
     class ActionBuilder<RequestType extends ActionRequest, RequestItem, RequestItemType> {
 
         private Class<RequestType> requestType;
@@ -466,6 +526,10 @@ public class Actions {
         private Scope scope;
         private Function<RequestType, Collection<RequestItem>> requestItemFunction;
         private Function<RequestItem, RequestItemType> requestItemTypeFunction;
+        private AliasDataStreamHandling aliasDataStreamHandling = AliasDataStreamHandling.RESOLVE_IF_NECESSARY;
+        private Meta.Alias.ResolutionMode aliasResolutionMode = Meta.Alias.ResolutionMode.NORMAL;
+        private ImmutableSet<Action.AdditionalDimension> additionalDimensions = ImmutableSet.empty();
+        private boolean performanceCritical = false;
 
         ActionBuilder(String actionName, Scope scope) {
             this.actionName = actionName;
@@ -491,6 +555,11 @@ public class Actions {
             } catch (ClassNotFoundException e) {
                 requestTypeName = requestType;
             }
+            return this;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> performanceCritical() {
+            this.performanceCritical = true;
             return this;
         }
 
@@ -563,6 +632,12 @@ public class Actions {
             return this;
         }
 
+        ActionBuilder<RequestType, RequestItem, RequestItemType> additionalDimensions(Action.AdditionalDimension... additionalDimensions) {
+            this.additionalDimensions = ImmutableSet.ofArray(additionalDimensions);
+
+            return this;
+        }
+
         ActionBuilder<RequestType, RequestItem, RequestItemType> createsResource(String type, Function<ActionResponse, Object> id,
                 Function<ActionResponse, Instant> expiresAfter) {
             createsResource = new NewResource(type, id, expiresAfter);
@@ -579,12 +654,22 @@ public class Actions {
             return this;
         }
 
-        /*<PropertyType> ActionBuilder<RequestType, RequestItem, RequestItemType> setRequestProperty(String name, Class<PropertyType> type,
+        ActionBuilder<RequestType, RequestItem, RequestItemType> doNotResolveAliasesOrDataStreams() {
+            this.aliasDataStreamHandling = AliasDataStreamHandling.DO_NOT_RESOLVE;
+            return this;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> aliasesResolveToWriteTarget() {
+            this.aliasResolutionMode = Meta.Alias.ResolutionMode.TO_WRITE_TARGET;
+            return this;
+        }
+
+        <PropertyType> ActionBuilder<RequestType, RequestItem, RequestItemType> setRequestProperty(String name, Class<PropertyType> type,
                 Function<PropertyType, PropertyType> function) {
             requestProperyModifiers.add(new RequestPropertyModifier<>(ReflectiveAttributeAccessors.objectAttr(name, type),
                     ReflectiveAttributeAccessors.setObjectAttr(name, type), type, function));
             return this;
-        }*/
+        }
 
         Action build() {
             Action.WellKnownAction.Resources resources = null;
@@ -603,7 +688,7 @@ public class Actions {
             return new Action.WellKnownAction<RequestType, RequestItem, RequestItemType>(actionName, scope, requestType, requestTypeName,
                     ImmutableList.of(additionalPrivileges),
                     additionalPrivilegesByItemType != null ? ImmutableMap.of(additionalPrivilegesByItemType) : ImmutableMap.empty(), requestItems,
-                    resources, Actions.this);
+                    resources, this.aliasDataStreamHandling, aliasResolutionMode, additionalDimensions, performanceCritical, Actions.this);
         }
 
     }

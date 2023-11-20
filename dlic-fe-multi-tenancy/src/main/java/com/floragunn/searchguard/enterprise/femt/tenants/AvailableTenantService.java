@@ -15,6 +15,7 @@ package com.floragunn.searchguard.enterprise.femt.tenants;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -37,14 +38,16 @@ public class AvailableTenantService {
     private final ThreadPool threadPool;
     private final TenantRepository tenantRepository;
     private final DefaultTenantSelector defaultTenantSelector;
+    private final AuthInfoService authInfoService;
 
     public AvailableTenantService(MultiTenancyConfigurationProvider configProvider, AuthorizationService authorizationService,
-        ThreadPool threadPool, TenantRepository tenantRepository) {
+        ThreadPool threadPool, TenantRepository tenantRepository, AuthInfoService authInfoService) {
         this.configProvider = requireNonNull(configProvider, "Multi tenancy config provider is required");
         this.authorizationService = requireNonNull(authorizationService, "Authorization service is required");
         this.threadPool = requireNonNull(threadPool, "Thread pool is required");
         this.tenantRepository = requireNonNull(tenantRepository, "Tenant repository is required");
         this.defaultTenantSelector = new DefaultTenantSelector();
+        this.authInfoService = requireNonNull(authInfoService, "Auth info service is required");
     }
 
     public Optional<AvailableTenantData> findTenantAvailableForCurrentUser() {
@@ -53,7 +56,8 @@ public class AvailableTenantService {
             if (configProvider.isMultiTenancyEnabled()) {
                 final TransportAddress remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
                 Set<String> internalRoles = authorizationService.getMappedRoles(user, remoteAddress);
-                Map<String, Boolean> tenantsWriteAccessMap = configProvider.getTenantAccessMapper().mapTenantsAccess(user, internalRoles);
+                boolean adminUser = authInfoService.isAdmin(user);
+                Map<String, Boolean> tenantsWriteAccessMap = configProvider.getTenantAccessMapper().mapTenantsAccess(user, adminUser, internalRoles);
                 ImmutableSet<String> exists = tenantRepository.exists(tenantsWriteAccessMap.keySet().toArray(String[]::new));
                 Map<String, TenantAccessData> tenantsAccess = new HashMap<>(tenantsWriteAccessMap.size());
                 tenantsWriteAccessMap.entrySet()

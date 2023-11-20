@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.authtoken;
 
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
@@ -37,7 +39,7 @@ public class AuthTokenServiceConfigApi extends TypeLevelConfigApi {
             .with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
             .name("/_searchguard/config/auth_token_service");
 
-    public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
+    public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
             new ActionHandler<>(AuthTokenServiceConfigApi.GetAction.INSTANCE, AuthTokenServiceConfigApi.GetAction.Handler.class),
             new ActionHandler<>(AuthTokenServiceConfigApi.PutAction.INSTANCE, AuthTokenServiceConfigApi.PutAction.Handler.class),
             new ActionHandler<>(AuthTokenServiceConfigApi.PatchAction.INSTANCE, AuthTokenServiceConfigApi.PatchAction.Handler.class));

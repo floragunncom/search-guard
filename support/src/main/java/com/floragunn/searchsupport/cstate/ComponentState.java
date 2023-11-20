@@ -697,7 +697,12 @@ public class ComponentState implements Document<ComponentState> {
 
     public void addMetrics(String key1, Measurement<?> measurement1, String key2, Measurement<?> measurement2, String key3,
             Measurement<?> measurement3) {
-        this.metrics = this.metrics.with(ImmutableMap.of(key1, measurement1, key2, measurement2, key2, measurement3));
+        this.metrics = this.metrics.with(ImmutableMap.of(key1, measurement1, key2, measurement2, key3, measurement3));
+    }
+    
+    public void addMetrics(String key1, Measurement<?> measurement1, String key2, Measurement<?> measurement2, String key3,
+            Measurement<?> measurement3, String key4, Measurement<?> measurement4) {
+        this.metrics = this.metrics.with(ImmutableMap.of(key1, measurement1, key2, measurement2, key3, measurement3, key4, measurement4));
     }
 
     public void addMetrics(Map<String, Measurement<?>> measurements) {

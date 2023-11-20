@@ -35,6 +35,7 @@ import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class FlsQueryCacheWeightProvider implements SearchGuardModule.QueryCacheWeightProvider, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(FlsQueryCacheWeightProvider.class);
@@ -68,16 +69,16 @@ public class FlsQueryCacheWeightProvider implements SearchGuardModule.QueryCache
         try (Meter meter = Meter.detail(config.getMetricsLevel(), applyAggregation)) {
             RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
             RoleBasedFieldMasking fieldMasking = config.getFieldMasking();
+            Meta.Index metaIndex = (Meta.Index) this.baseContext.getIndexMetaData().getIndexOrLike(index.getName());
 
             if (context.getSpecialPrivilegesEvaluationContext() != null && context.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                ImmutableSet<String> indices = ImmutableSet.of(index.getName());
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+               fieldAuthorization = new RoleBasedFieldAuthorization(roles, baseContext.getIndexMetaData(), MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), baseContext.getIndexMetaData(), MetricsLevel.NONE);
             }
 
-            if (fieldAuthorization.hasFlsRestrictions(context, index.getName(), meter)
-                    || fieldMasking.hasFieldMaskingRestrictions(context, index.getName(), meter)) {
+            if (fieldAuthorization.hasRestrictions(context, metaIndex, meter)
+                    || fieldMasking.hasRestrictions(context, metaIndex, meter)) {
                 return weight;
             } else {
                 return null;

@@ -42,7 +42,7 @@ public class FeMultiTenancyTenantAccessMapper  implements TenantAccessMapper {
     }
 
     @Override
-    public Map<String, Boolean> mapTenantsAccess(User user, Set<String> roles) {
+    public Map<String, Boolean> mapTenantsAccess(User user, boolean adminUser, Set<String> roles) {
         if (user == null) {
             return ImmutableMap.empty();
         }
@@ -50,7 +50,7 @@ public class FeMultiTenancyTenantAccessMapper  implements TenantAccessMapper {
         ImmutableMap.Builder<String, Boolean> result = new ImmutableMap.Builder<>(roles.size());
         result.put(user.getName(), true);
 
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, ImmutableSet.of(roles), null, null, false, null, null);
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, adminUser, ImmutableSet.of(roles), null, null, false, null, null);
 
         for (String tenant : tenantManager.getAllKnownTenantNames()) {
             try {

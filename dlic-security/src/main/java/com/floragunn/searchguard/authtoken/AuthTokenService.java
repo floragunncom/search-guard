@@ -402,7 +402,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         OffsetDateTime expiresAt = getExpiryTime(now, request);
 
         RequestedPrivileges requestedPrivilegesWithDefaultExclusions = request.getRequestedPrivileges()
-                .excludeClusterPermissions(config.getExcludeClusterPermissions()).excludeIndexPermissions(config.getExcludeIndexPermissions());
+                .excludeClusterPermissions(config.getExcludeClusterPermissions());
 
         AuthToken authToken = new AuthToken(id, user.getName(), request.getTokenName(), requestedPrivilegesWithDefaultExclusions, base,
                 now.toInstant(), expiresAt != null ? expiresAt.toInstant() : null, null);
@@ -878,7 +878,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
                     RestrictedActionAuthorization restrictedSgRoles = new RestrictedActionAuthorization(configModelSnapshot.getActionAuthorization(),
                             authToken.getRequestedPrivileges(), configModelSnapshot.getActionGroups(), actions, null,
-                            privilegesEvaluator.getAllConfiguredTenantNames());
+                            privilegesEvaluator.getAllConfiguredTenantNames(), null);
 
                     try (StoredContext restoredCtx = restorableCtx.get()) {
                         onResult.accept(new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles,

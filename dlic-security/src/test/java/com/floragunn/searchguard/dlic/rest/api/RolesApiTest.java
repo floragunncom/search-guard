@@ -51,7 +51,8 @@ public class RolesApiTest {
             response = adminClient.putJson("_searchguard/api/roles/empty", "{ \"cluster_permissions\": [] }");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = adminClient.putJson("_searchguard/api/roles/admin2", FileHelper.loadFile("restapi/simple_role_with_excludes.json"));
+            //to test validation
+            response = adminClient.putJson("_searchguard/api/roles/role_with_aliases_and_data_stream", FileHelper.loadFile("restapi/simple_role_with_empty_aliases_and_data_streams.json"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
         }
     }

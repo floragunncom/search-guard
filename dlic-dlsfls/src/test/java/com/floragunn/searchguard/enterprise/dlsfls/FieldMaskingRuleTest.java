@@ -91,6 +91,14 @@ public class FieldMaskingRuleTest {
     }
 
     @Test
+    public void field_customHash_prefixRegexpWithoutAlg() throws Exception {
+        FieldMaskingRule.Field field = new FieldMaskingRule.Field(new Role.Index.FieldMaskingExpression("field::/ba.?/::***confidential***"),
+                FieldMasking.parse(DocNode.of("prefix", "my_prefix_"), null));
+
+        Assert.assertEquals("my_prefix_foo***confidential***", field.apply("foobar"));
+    }
+
+    @Test
     public void field_replace() throws Exception {
         FieldMaskingRule.Field field = new FieldMaskingRule.Field(
                 new Role.Index.FieldMaskingExpression("ip_source::/[0-9]{1,3}$/::XXX::/^[0-9]{1,3}/::***"), DlsFlsConfig.FieldMasking.DEFAULT);
