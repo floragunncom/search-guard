@@ -15,6 +15,16 @@ SGS_ALL_ACCESS:
         - "*"
       allowed_actions:
         - "*"
+  alias_permissions:
+    - alias_patterns:
+        - "*"
+      allowed_actions:
+        - "*"
+  data_stream_permissions:
+    - data_stream_patterns:
+        - "*"
+      allowed_actions:
+        - "*"
   tenant_permissions:
     - tenant_patterns:
         - "*"
@@ -94,6 +104,15 @@ SGS_KIBANA_USER_NO_MT:
         - "*:.management-beats"
       allowed_actions:
         - "SGS_INDICES_ALL"
+  alias_permissions:
+    - alias_patterns:
+        - '.kibana*'
+      allowed_actions:
+        - "SGS_READ"
+        - "SGS_DELETE"
+        - "SGS_MANAGE"
+        - "SGS_INDEX"
+
 
 SGS_KIBANA_USER_NO_DEFAULT_TENANT:
   reserved: true
@@ -110,7 +129,10 @@ SGS_KIBANA_USER_NO_DEFAULT_TENANT:
         - "*:.tasks"
         - "*:.management-beats"
       allowed_actions:
-        - "SGS_INDICES_ALL"
+        - "SGS_READ"
+        - "SGS_DELETE"
+        - "SGS_MANAGE"
+        - "SGS_INDEX"        
 
 SGS_KIBANA_USER:
   reserved: true
@@ -145,6 +167,11 @@ SGS_KIBANA_USER:
         - '/\.kibana_security_solution_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
         - ".kibana_alerting_cases"
         - '/\.kibana_alerting_cases_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+      allowed_actions:
+        - "indices:data/read/open_point_in_time"
+  alias_permissions:
+    - alias_patterns:
+        - '.kibana*'
       allowed_actions:
         - "indices:data/read/open_point_in_time"
   tenant_permissions:
@@ -314,6 +341,21 @@ SGS_KIBANA_SERVER:
       - ".internal.alerts*"
     allowed_actions:
       - "indices:admin/create"
+  alias_permissions:
+    - alias_patterns:
+        - ".kibana*"
+        - ".alerts*"
+        - ".internal.alerts*"
+      allowed_actions:
+        - "SGS_READ"
+        - "SGS_DELETE"
+        - "SGS_MANAGE"
+        - "SGS_INDEX"
+  data_stream_permissions:
+    - data_stream_patterns:
+        - ".kibana-event-log-ds*"
+      allowed_actions:
+        - "*"
 
 SGS_LOGSTASH:
   reserved: true

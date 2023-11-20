@@ -25,17 +25,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.PatternSyntaxException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.documents.Parser.Context;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Hideable;
 import com.floragunn.searchguard.configuration.StaticDefinable;
 import com.floragunn.searchsupport.queries.Query;
@@ -43,8 +48,9 @@ import com.floragunn.searchsupport.xcontent.XContentParserContext;
 import com.google.common.base.Splitter;
 
 public class Role implements Document<Role>, Hideable, StaticDefinable {
+    private static final Logger log = LogManager.getLogger(Role.class);
 
-    public static ValidationResult<Role> parse(DocNode docNode, Parser.Context context) {
+    public static ValidationResult<Role> parse(DocNode docNode, ConfigurationRepository.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
@@ -55,22 +61,33 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         // Just for validation:
         vNode.get("cluster_permissions").by(Pattern::parse);
         vNode.get("exclude_cluster_permissions").by(Pattern::parse);
-        ImmutableList<String> clusterPermissions = ImmutableList.of(vNode.get("cluster_permissions").asList().withEmptyListAsDefault().ofStrings());
-        ImmutableList<String> excludeClusterPermissions = ImmutableList
-                .of(vNode.get("exclude_cluster_permissions").asList().withEmptyListAsDefault().ofStrings());
+        ImmutableList<String> clusterPermissions = vNode.get("cluster_permissions").asList().withEmptyListAsDefault().ofStrings();
+        ImmutableList<String> excludeClusterPermissions = vNode.get("exclude_cluster_permissions").asList().withEmptyListAsDefault().ofStrings();
 
-        ImmutableList<Index> indexPermissions = ImmutableList
-                .of(vNode.get("index_permissions").asList().ofObjectsParsedBy((Parser<Index, Parser.Context>) Index::new));
-        ImmutableList<Tenant> tenantPermissions = ImmutableList
-                .of(vNode.get("tenant_permissions").asList().ofObjectsParsedBy((Parser<Tenant, Parser.Context>) Tenant::new));
-        ImmutableList<ExcludeIndex> excludeIndexPermissions = ImmutableList
-                .of(vNode.get("exclude_index_permissions").asList().ofObjectsParsedBy((Parser<ExcludeIndex, Parser.Context>) ExcludeIndex::new));
+        ImmutableList<Index> indexPermissions = vNode.get("index_permissions").asList().withEmptyListAsDefault()
+                .ofObjectsParsedBy((Parser<Index, Parser.Context>) Index::new);
+        ImmutableList<Alias> aliasPermissions = vNode.get("alias_permissions").asList().withEmptyListAsDefault()
+                .ofObjectsParsedBy((Parser<Alias, Parser.Context>) Alias::new);
+        ImmutableList<DataStream> dataStreamPermissions = vNode.get("data_stream_permissions").asList().withEmptyListAsDefault()
+                .ofObjectsParsedBy((Parser<DataStream, Parser.Context>) DataStream::new);
+        ImmutableList<Tenant> tenantPermissions = vNode.get("tenant_permissions").asList().withEmptyListAsDefault()
+                .ofObjectsParsedBy((Parser<Tenant, Parser.Context>) Tenant::new);
+
+        List<String> excludeIndexPermissions = vNode.get("exclude_index_permissions").asList().withEmptyListAsDefault().ofStrings();
+        if (excludeIndexPermissions != null && !excludeIndexPermissions.isEmpty()) {
+            if (context != null && context.isLenientValidationRequested()) {
+                log.error("exclude_index_permissions in sg_roles is no longer supported");
+            } else {
+                validationErrors.add(new ValidationError("exclude_index_permissions", "This attribute is no longer supported"));
+            }
+        }
+
         String description = vNode.get("description").asString();
 
         vNode.checkForUnusedAttributes();
 
         return new ValidationResult<Role>(new Role(docNode, reserved, hidden, isStatic, description, clusterPermissions, indexPermissions,
-                tenantPermissions, excludeClusterPermissions, excludeIndexPermissions), validationErrors);
+                aliasPermissions, dataStreamPermissions, tenantPermissions, excludeClusterPermissions), validationErrors);
     }
 
     private final DocNode source;
@@ -81,14 +98,14 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
     private final String description;
     private final ImmutableList<String> clusterPermissions;
     private final ImmutableList<Index> indexPermissions;
+    private final ImmutableList<Alias> aliasPermissions;
+    private final ImmutableList<DataStream> dataStreamPermissions;
     private final ImmutableList<Tenant> tenantPermissions;
     private final ImmutableList<String> excludeClusterPermissions;
-    private final ImmutableList<ExcludeIndex> excludeIndexPermissions;
 
     public Role(DocNode source, boolean reserved, boolean hidden, boolean isStatic, String description, ImmutableList<String> clusterPermissions,
-            ImmutableList<Index> indexPermissions, ImmutableList<Tenant> tenantPermissions, ImmutableList<String> excludeClusterPermissions,
-            ImmutableList<ExcludeIndex> excludeIndexPermissions) {
-        super();
+            ImmutableList<Index> indexPermissions, ImmutableList<Alias> aliasPermissions, ImmutableList<DataStream> dataStreamPermissions,
+            ImmutableList<Tenant> tenantPermissions, ImmutableList<String> excludeClusterPermissions) {
         this.source = source;
         this.reserved = reserved;
         this.isStatic = isStatic;
@@ -96,9 +113,10 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         this.description = description;
         this.clusterPermissions = clusterPermissions;
         this.indexPermissions = indexPermissions;
+        this.aliasPermissions = aliasPermissions;
+        this.dataStreamPermissions = dataStreamPermissions;
         this.tenantPermissions = tenantPermissions;
         this.excludeClusterPermissions = excludeClusterPermissions;
-        this.excludeIndexPermissions = excludeIndexPermissions;
     }
 
     @Override
@@ -122,7 +140,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         private final ImmutableList<FlsPattern> fls;
         private final ImmutableList<FieldMaskingExpression> maskedFields;
         private final ImmutableList<String> allowedActions;
-        
+
         /**
          * @deprecated these do not handle negations in pattern correctly. Only used in LegacyRoleBasedDocumentAuthorization.
          */
@@ -138,17 +156,18 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
             // Just for validation: 
             vNode.get("allowed_actions").by(Pattern::parse);
-            this.legacyIndexPatterns = vNode.get("index_patterns").asList().ofTemplates(Pattern::create);
+            this.legacyIndexPatterns = vNode.get(getPatternAttributeName()).asList().ofTemplates(Pattern::create);
 
             this.allowedActions = ImmutableList.of(vNode.get("allowed_actions").asList().withEmptyListAsDefault().ofStrings());
             ImmutableList<Template<String>> indexPatterns = ImmutableList
-                    .of(vNode.get("index_patterns").asList().withEmptyListAsDefault().ofTemplates());
+                    .of(vNode.get(getPatternAttributeName()).asList().withEmptyListAsDefault().ofTemplates());
 
             this.indexPatterns = new IndexPatterns.Builder(indexPatterns).build();
 
+            vNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
         }
-        
+
         public Index(ImmutableList<Template<Pattern>> indexPatterns, Template<Query> dls, ImmutableList<FlsPattern> fls,
                 ImmutableList<FieldMaskingExpression> maskedFields, ImmutableList<String> allowedActions) {
             try {
@@ -162,7 +181,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             this.fls = fls;
             this.maskedFields = maskedFields;
             this.allowedActions = allowedActions;
-        }        
+        }
 
         public IndexPatterns getIndexPatterns() {
             return indexPatterns;
@@ -174,7 +193,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         public ImmutableList<Template<Pattern>> getLegacyIndexPatterns() {
             return legacyIndexPatterns;
         }
-        
+
         public Template<Query> getDls() {
             return dls;
         }
@@ -189,6 +208,10 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
         public ImmutableList<String> getAllowedActions() {
             return allowedActions;
+        }
+
+        protected String getPatternAttributeName() {
+            return "index_patterns";
         }
 
         public static class FlsPattern {
@@ -331,6 +354,40 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         }
     }
 
+    public static class Alias extends Index {
+
+        Alias(DocNode docNode, Context context) throws ConfigValidationException {
+            super(docNode, context);
+        }
+
+        public Alias(ImmutableList<Template<Pattern>> aliasPatterns, Template<Query> dls, ImmutableList<FlsPattern> fls,
+                ImmutableList<FieldMaskingExpression> maskedFields, ImmutableList<String> allowedActions) {
+            super(aliasPatterns, dls, fls, maskedFields, allowedActions);
+        }
+
+        @Override
+        protected String getPatternAttributeName() {
+            return "alias_patterns";
+        }
+    }
+
+    public static class DataStream extends Index {
+
+        DataStream(DocNode docNode, Context context) throws ConfigValidationException {
+            super(docNode, context);
+        }
+
+        public DataStream(ImmutableList<Template<Pattern>> dataStreamPatterns, Template<Query> dls, ImmutableList<FlsPattern> fls,
+                ImmutableList<FieldMaskingExpression> maskedFields, ImmutableList<String> allowedActions) {
+            super(dataStreamPatterns, dls, fls, maskedFields, allowedActions);
+        }
+
+        @Override
+        protected String getPatternAttributeName() {
+            return "data_stream_patterns";
+        }
+    }
+
     public static class Tenant {
 
         private final ImmutableList<Template<Pattern>> tenantPatterns;
@@ -363,48 +420,6 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
     }
 
-    public static class ExcludeIndex {
-
-        private final IndexPatterns indexPatterns;
-        private final ImmutableList<String> actions;
-
-        public ExcludeIndex(DocNode docNode, Parser.Context context) throws ConfigValidationException {
-            ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
-
-            // Just for validation: 
-            vNode.get("actions").by(Pattern::parse);
-            vNode.get("index_patterns").asList().ofTemplates(Pattern::create);
-
-            this.actions = ImmutableList.of(vNode.get("actions").asList().withEmptyListAsDefault().ofStrings());
-            ImmutableList<Template<String>> indexPatterns = ImmutableList
-                    .of(vNode.get("index_patterns").asList().withEmptyListAsDefault().ofTemplates());
-
-            this.indexPatterns = new IndexPatterns.Builder(indexPatterns).build();
-
-            vNode.checkForUnusedAttributes();
-            validationErrors.throwExceptionForPresentErrors();
-        }
-
-        public ExcludeIndex(ImmutableList<Template<Pattern>> indexPatterns, ImmutableList<String> actions) {
-            try {
-                this.indexPatterns = new IndexPatterns.Builder(indexPatterns.map(t -> t.toStringTemplate())).build();
-            } catch (ConfigValidationException e) {
-                // This should not happen
-                throw new RuntimeException(e);
-            }
-            this.actions = actions;
-        }
-
-        public IndexPatterns getIndexPatterns() {
-            return indexPatterns;
-        }
-
-        public ImmutableList<String> getActions() {
-            return actions;
-        }
-    }
-
     public static class IndexPatterns {
 
         private final Pattern pattern;
@@ -423,15 +438,15 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                 asString.append(pattern);
             }
 
-            if (patternTemplates != null) {
-                if (asString.length() == 0) {
+            if (patternTemplates != null && !patternTemplates.isEmpty()) {
+                if (asString.length() != 0) {
                     asString.append(" ");
                 }
                 asString.append(patternTemplates);
             }
 
-            if (dateMathExpressions != null) {
-                if (asString.length() == 0) {
+            if (dateMathExpressions != null && !dateMathExpressions.isEmpty()) {
+                if (asString.length() != 0) {
                     asString.append(" ");
                 }
                 asString.append(dateMathExpressions);
@@ -497,29 +512,29 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                         ImmutableList.of(dateMathExpressions));
 
             }
-            
+
             private List<String> removeLeadingNegations(List<String> patterns) {
                 // This handles the case templated_pattern_${x}, -negation, constant_pattern
                 // In this case, the constant pattern would be filtered to -negation, constant_pattern which would be invalid
                 // We now remove the leading negations and just return constant_pattern
-                
+
                 if (patterns.isEmpty()) {
                     return patterns;
                 }
-                
+
                 if (!patterns.get(0).startsWith("-")) {
                     return patterns;
                 }
-                
+
                 int firstNonNegated = -1;
-                
+
                 for (int i = 1; i < patterns.size(); i++) {
                     if (!patterns.get(i).startsWith("-")) {
                         firstNonNegated = i;
                         break;
                     }
                 }
-                
+
                 if (firstNonNegated != -1) {
                     return patterns.subList(firstNonNegated, patterns.size());
                 } else {
@@ -640,10 +655,6 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         return indexPermissions;
     }
 
-    public ImmutableList<ExcludeIndex> getExcludeIndexPermissions() {
-        return excludeIndexPermissions;
-    }
-
     public ImmutableList<Tenant> getTenantPermissions() {
         return tenantPermissions;
     }
@@ -655,5 +666,13 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
     @Override
     public boolean isStatic() {
         return isStatic;
+    }
+
+    public ImmutableList<Alias> getAliasPermissions() {
+        return aliasPermissions;
+    }
+
+    public ImmutableList<DataStream> getDataStreamPermissions() {
+        return dataStreamPermissions;
     }
 }

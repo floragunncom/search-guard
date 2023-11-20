@@ -22,31 +22,19 @@ import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.emptyArray;
-import static org.hamcrest.Matchers.is;
-
-import java.util.Arrays;
 
 import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.test.helper.PitHolder;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
-import org.elasticsearch.xcontent.XContentType;
+import com.floragunn.codova.documents.DocNode;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestAlias;
-import com.floragunn.searchguard.test.TestData.TestDocument;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -54,15 +42,21 @@ import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
+/**
+ * TODO remove me altogether, take care of PIT
+ *
+ */
 public class IgnoreUnauthorizedIntTest {
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A").roles(//
-            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*"));;
+            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD", "SGS_MANAGE_ALIASES")
+                    .on("a*").aliasPermissions("SGS_MANAGE_ALIASES").on("z_alias_a*"));
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B").roles(//
-            new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("b*"));
+            new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD", "SGS_MANAGE_ALIASES")
+                    .on("b*"));
 
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C").roles(//
             new Role("limited_user_c_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("c*"));
@@ -100,543 +94,50 @@ public class IgnoreUnauthorizedIntTest {
             .aliases(xalias_ab1)//
             .embedded().build();
 
-    @BeforeClass
-    public static void beforeClass() {
-        nameRegistry = cluster.getInjectable(NamedWriteableRegistry.class);
-    }
-
     @Test
-    public void search_noPattern() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
-                    json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.get("/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_B)) {
-            HttpResponse httpResponse = restClient.get("/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("b1", "b2", "b3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A_B1)) {
-            HttpResponse httpResponse = restClient.get("/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1"))));
-        }
-    }
-
-    @Test
-    public void search_staticIndicies() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "b1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000");
+    public void createAlias() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A).trackResources()) {
+            HttpResponse httpResponse = restClient.put("/a1,a2/_alias/z_alias_xxx");
 
             Assert.assertThat(httpResponse, isForbidden());
-        }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000");
+            httpResponse = restClient.put("/a1,a2/_alias/z_alias_a12");
+
+            Assert.assertThat(httpResponse, isOk());
+
+            //httpResponse = restClient.put("/a3,z_alias_a12/_alias/z_alias_aa12");
+
+            //Assert.assertThat(httpResponse, isOk());
+
+            httpResponse = restClient.put("/a1,a2,b1/_alias/z_alias_a12b1");
 
             Assert.assertThat(httpResponse, isForbidden());
-        }
-    }
 
-    @Test
-    public void search_staticIndicies_withPit() throws Exception {
-        try (
-            GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/a1,a2,b1/_pit?keep_alive=1m")) {
-
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", pitHolder.asSearchBody());
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "b1"))));
-            // test contract with ES - indices name are expected
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2", "b1"));
-        }
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/a1,a2,b1/_pit?keep_alive=1m")) {
-
-            assertThat(pitHolder.getResponse(), isForbidden());
-        }
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/a1,a2,b1/_pit?keep_alive=1m")) {
-
-            assertThat(pitHolder.getResponse(), isForbidden());
-        }
-    }
-
-    @Test
-    public void search_staticIndicies_ignoreUnavailable() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000&ignore_unavailable=true");
+            httpResponse = restClient.get("/_alias/z_alias_a12");
 
             Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "b1"))));
-        }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000&ignore_unavailable=true");
+            try (GenericRestClient restClient2 = cluster.getRestClient(LIMITED_USER_B)) {
+                httpResponse = restClient2.delete("/b1/_alias/z_alias_a12");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2"))));
-        }
+                Assert.assertThat(httpResponse, isForbidden());
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.get("a1,a2,b1/_search?size=1000&ignore_unavailable=true");
+                httpResponse = restClient2.get("/_alias/z_alias_a12");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", empty())));
-        }
-    }
-
-    @Test
-    public void search_staticIndicies_ignoreUnavailable_withPit() throws Exception {
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/a1,a2,b1/_pit?keep_alive=1m&ignore_unavailable=true")) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", pitHolder.asSearchBody());
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "b1"))));
-            // test contract with ES - indices name are expected
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2", "b1"));
-        }
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/a1,a2,b1/_pit?keep_alive=1m&ignore_unavailable=true")) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", pitHolder.asSearchBody());
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2"))));
-            // test contract with ES - indices name are expected
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2"));
-        }
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/a1,a2,b1/_pit?keep_alive=1m&ignore_unavailable=true")) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", pitHolder.asSearchBody());
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", empty())));
-        }
-    }
-
-    @Test
-    public void search_indexPattern() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("a*,b*/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.get("a*,b*/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.get("a*,b*/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", empty())));
-        }
-    }
-
-    @Test
-    public void search_indexPattern_withPit() throws Exception {
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/a*,b*/_pit?keep_alive=1m")) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitHolder.getPitId()));
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
-                json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3"))));
-            // test contract with ES - indices name are expected, not the pattern
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3"));
-        }
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/a*,b*/_pit?keep_alive=1m")) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitHolder.getPitId()));
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
-            // test contract with ES - indices name are expected, not the pattern
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2", "a3"));
-        }
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/a*,b*/_pit?keep_alive=1m")) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitHolder.getPitId()));
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", empty())));
-            // test contract with ES - indices name are expected, not the pattern
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), emptyArray());
-        }
-    }
-
-    @Test
-    public void search_all() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("_all/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
-                    json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.get("_all/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.get("_all/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("c1"))));
-        }
-    }
-
-    @Test
-    public void search_all_withPit() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/_all/_pit?keep_alive=1m")) {
-            DocNode searchWithPitId = DocNode.of("pit.id", pitHolder.getPitId());
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
-                    json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
-            // test contract with ES - indices name are expected, not the '_all' marker
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/_all/_pit?keep_alive=1m")) {
-            DocNode searchWithPitId = DocNode.of("pit.id", pitHolder.getPitId());
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/_all/_pit?keep_alive=1m")) {
-            DocNode searchWithPitId = DocNode.of("pit.id", pitHolder.getPitId());
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("c1"))));
-        }
-    }
-
-    @Test
-    public void search_wildcard() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("*/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
-                    json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.get("*/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.get("*/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("c1"))));
-        }
-    }
-
-    @Test
-    public void search_wildcard_withPit() throws Exception {
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/*/_pit?keep_alive=1m")) {
-
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitHolder.getPitId()));
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
-                    json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
-            // test contract with ES - indices name are expected, not the wildcard
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/*/_pit?keep_alive=1m")) {
-
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitHolder.getPitId()));
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
-            // test contract with ES - indices name are expected, not the wildcard
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2", "a3"));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/*/_pit?keep_alive=1m")) {
-
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitHolder.getPitId()));
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("c1"))));
-            // test contract with ES - indices name are expected, not the wildcard
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("c1"));
-        }
-    }
-
-    @Test
-    public void search_staticNonExisting() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.get("ax/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isNotFound());
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.get("ax/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isForbidden());
-        }
-    }
-
-    @Test
-    public void search_staticNonExisting_withPit() throws Exception {
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/ax/_pit?keep_alive=1m")) {
-
-            Assert.assertThat(pitHolder.getResponse(), isNotFound());
-        }
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/ax/_pit?keep_alive=1m")) {
-
-            Assert.assertThat(pitHolder.getResponse(), isForbidden());
-        }
-    }
-
-    @Test
-    public void search_alias() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("xalias_ab1/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.get("xalias_ab1/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isForbidden());
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A_B1)) {
-            HttpResponse httpResponse = restClient.get("xalias_ab1/_search?size=1000");
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1"))));
-        }
-    }
-
-    @Test
-    public void search_alias_withPit() throws Exception {
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/xalias_ab1/_pit?keep_alive=1m")) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", pitHolder.asSearchBody());
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1"))));
-            // test contract with ES - indices name are expected, not the alias name
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2", "a3", "b1"));
-        }
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/xalias_ab1/_pit?keep_alive=1m")) {
-
-            Assert.assertThat(pitHolder.getResponse(), isForbidden());
-        }
-
-        try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A_B1);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/xalias_ab1/_pit?keep_alive=1m")) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", pitHolder.asSearchBody());
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1"))));
-            // test contract with ES - indices name are expected, not the alias name
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("a1", "a2", "a3", "b1"));
-        }
-    }
-
-    @Test
-    public void msearch_staticIndices_ignoreUnavailable() throws Exception {
-        String msearchBody = "{\"index\":\"a1\", \"ignore_unavailable\": true}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
-                + "{\"index\":\"a2\", \"ignore_unavailable\": true}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
-                + "{\"index\":\"b1\", \"ignore_unavailable\": true}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n";
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits[*]._index", containsInAnyOrder("a1", "a2", "b1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits[*]._index", containsInAnyOrder("a1", "a2"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_B)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits[*]._index", containsInAnyOrder("b1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits[*]._index", empty())));
-        }
-    }
-
-    @Test
-    public void msearch_staticIndices_noIgnoreUnavailable() throws Exception {
-        String msearchBody = "{\"index\":\"a1\"}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
-                + "{\"index\":\"a2\"}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n";
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits[*]._index", containsInAnyOrder("a1", "a2"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_B)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-
-            //System.out.println(httpResponse.getBody());
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].error.type", containsInAnyOrder("security_exception"))));
+                Assert.assertThat(httpResponse, isNotFound());
+            }
         }
 
     }
 
     @Test
-    public void mget() throws Exception {
-        TestDocument testDocumentA1 = index_a1.getTestData().anyDocument();
-        TestDocument testDocumentB2 = index_b2.getTestData().anyDocument();
+    public void createAlias2() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A).trackResources()) {
+            HttpResponse httpResponse = restClient.put("/a99/_alias/z_alias_xxx");
+            // httpResponse = restClient.put("/a98/_alias/z_alias_a98");
 
-        DocNode mget = DocNode.of("docs",
-                Arrays.asList(DocNode.of("_index", "a1", "_id", testDocumentA1.getId()), DocNode.of("_index", "b1", "_id", testDocumentB2.getId())));
+            //Assert.assertThat(httpResponse, isOk());
 
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.postJson("/_mget", mget);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("docs[*]._index", containsInAnyOrder("a1", "b1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_mget", mget);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("docs[?(@._index == 'a1')].found", containsInAnyOrder(true))));
-            Assert.assertThat(httpResponse, json(distinctNodesAt("docs[?(@._index == 'b1')].error.type", containsInAnyOrder("security_exception"))));
-        }
-
-    }
-
-    @Test
-    public void deleteByQuery() throws Exception {
-        // TODO: Moved over from IntegrationTests.testDeleteByQueryDnfof; however the purpose of this is a bit unclear, as no behaviour specific to DNFOF is tested here
-
-        Client client = cluster.getInternalNodeClient();
-        for (int i = 0; i < 3; i++) {
-            client.index(new IndexRequest("d1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
-                    .actionGet();
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_D)) {
-            HttpResponse httpResponse = restClient.postJson("/d*/_delete_by_query?refresh=true&wait_for_completion=true",
-                    "{\"query\" : {\"match_all\" : {}}}");
-
-            //System.out.println(httpResponse.getBody());
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("deleted", is(3))));
-        }
-
-    }
-
-    @Test
-    public void search_termsAggregation_index() throws Exception {
-
-        String aggregationBody = "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}";
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_search", aggregationBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("aggregations.indices.buckets[*].key", containsInAnyOrder("a1", "a2", "a3"))));
         }
 
     }
@@ -688,7 +189,7 @@ public class IgnoreUnauthorizedIntTest {
             Assert.assertThat(httpResponse, isOk());
         }
     }
-    
+
     @Test
     public void analyze_noIndex_forbidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A_WITHOUT_ANALYZE)) {
@@ -697,4 +198,5 @@ public class IgnoreUnauthorizedIntTest {
             Assert.assertThat(httpResponse, isForbidden());
         }
     }
+
 }

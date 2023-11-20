@@ -28,11 +28,9 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.xcontent.XContentType;
@@ -45,8 +43,6 @@ import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
 import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class IndexIntegrationTests extends SingleClusterTest {
@@ -272,7 +268,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
 
         //Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("/mysgi/_search?pretty", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
         //assertContains(res, "*\"hits\" : {*\"value\" : 0,*\"hits\" : [ ]*");
-        
+
         //System.out.println("#### add alias to allowed index");
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executePutRequest("/logstash-1/_alias/alog1", "",encodeBasicHeader("aliasmngt", "nagilum"))).getStatusCode());
 
@@ -316,7 +312,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
     @Test
     @Ignore("Cross-cluster calls are not supported in this context but remote indices were requested")
     public void testCCSIndexResolve() throws Exception {
-        
+
         setup();
         final RestHelper rh = nonSslRestHelper();
 

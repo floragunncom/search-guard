@@ -54,10 +54,10 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
     private static final Logger log = LogManager.getLogger(ExternalProcessEsCluster.class);
 
     /**
-     * This thread pool provides threads for consuming logs from ES nodes. One node needs two threads, thus a cluster with 3 nodes needs 6 threads. 
+     * This thread pool provides threads for consuming logs from ES nodes. One node needs two threads, thus a cluster with 3 nodes needs 6 threads.
      * As we even could run several clusters in paralle, this executor service is unbounded.
-     * 
-     * Note: If there's a way to reduce the number of threads without performance impact that would be ofcourse cool. But it seems Java process interfaces 
+     *
+     * Note: If there's a way to reduce the number of threads without performance impact that would be ofcourse cool. But it seems Java process interfaces
      * do not really support async io.
      */
     private static final ExecutorService logConsumptionExecutorService = Executors.newCachedThreadPool();
@@ -103,7 +103,13 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                 + "cluster.routing.allocation.disk.threshold_enabled: false\n" //
                 + "ingest.geoip.downloader.enabled: false\n" //
                 + "xpack.security.enabled: false\n" //
+                + "indices.lifecycle.history_index_enabled: false\n" //
+                + "slm.history_index_enabled: false\n" //
                 + "searchguard.background_init_if_sgindex_not_exist: false");
+
+       // this.esInstallation.writeConfig("log4j2.properties", FileHelper.loadFile("log4j2-test.properties"));
+        this.esInstallation.appendConfig("log4j2.properties", "logger.sg.name = com.floragunn.searchguard.authz\n"
+                + "logger.sg.level = trace");
 
         this.installedTestCertificates = this.testCertificates.at(this.esInstallation.getConfigPath());
 

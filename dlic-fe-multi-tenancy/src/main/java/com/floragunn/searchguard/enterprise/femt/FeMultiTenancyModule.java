@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
@@ -179,17 +180,17 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             }
         });
         var availableTenantService = new AvailableTenantService(feMultiTenancyConfigurationProvider,
-            baseDependencies.getAuthorizationService(), threadPool, tenantRepository);
+            baseDependencies.getAuthorizationService(), threadPool, tenantRepository, baseDependencies.getAuthInfoService());
         return Arrays.asList(feMultiTenancyConfigurationProvider, tenantAccessMapper, availableTenantService, activationService);
     }
 
     private final TenantAccessMapper tenantAccessMapper = new TenantAccessMapper() {
         @Override
-        public Map<String, Boolean> mapTenantsAccess(User user, Set<String> roles) {
+        public Map<String, Boolean> mapTenantsAccess(User user, boolean adminUser, Set<String> roles) {
             if (!enabled) {
                 return ImmutableMap.empty();
             }
-            return feMultiTenancyTenantAccessMapper.mapTenantsAccess(user, roles);
+            return feMultiTenancyTenantAccessMapper.mapTenantsAccess(user, adminUser, roles);
         }
     };
 

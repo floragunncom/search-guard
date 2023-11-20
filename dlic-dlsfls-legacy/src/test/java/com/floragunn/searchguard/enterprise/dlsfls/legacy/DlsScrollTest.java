@@ -71,6 +71,7 @@ public class DlsScrollTest extends AbstractDlsFlsTest{
             Assert.assertTrue(res.getBody().contains("\"value\" : 101,"));
             Assert.assertFalse(res.getBody().contains("\"amount\" : 3"));
             Assert.assertFalse(res.getBody().contains("\"amount\" : 10"));
+            System.out.println(res.getBody());
             Assert.assertFalse(res.getBody().contains("\"amount\" : 21500"));
             c++;
             

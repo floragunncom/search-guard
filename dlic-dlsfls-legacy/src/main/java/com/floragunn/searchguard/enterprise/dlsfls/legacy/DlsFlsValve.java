@@ -63,7 +63,7 @@ import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
@@ -150,11 +150,13 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
             throw new ElasticsearchSecurityException("Error while evaluating DLS/FLS configuration", e);
         }
 
-        if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty() || resolved == null) {
+        if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty()) {
             return SyncAuthorizationFilter.Result.OK;
         }
 
-        EvaluatedDlsFlsConfig filteredDlsFlsConfig = evaluatedDlsFlsConfig.filter(resolved);
+        // We need to use the unfiltered DLS configuration if the request does not contain any index information. This
+        // is the case for example for scroll requests.
+        EvaluatedDlsFlsConfig filteredDlsFlsConfig = resolved != null ? evaluatedDlsFlsConfig.filter(resolved) : evaluatedDlsFlsConfig;
 
         boolean doFilterLevelDls;
 

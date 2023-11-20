@@ -21,6 +21,7 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -29,11 +30,13 @@ import com.floragunn.searchguard.user.User;
 public class AuthInfoService {
     private final ThreadPool threadPool;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
+    private final AdminDNs adminDNs;
 
     public AuthInfoService(ThreadPool threadPool,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry) {
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, AdminDNs adminDNs) {
         this.threadPool = threadPool;
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
+        this.adminDNs = adminDNs;
     }
 
     public User getCurrentUser() {
@@ -48,6 +51,18 @@ public class AuthInfoService {
 
     public User peekCurrentUser() {
         return threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
+    }
+
+    public boolean isCurrentUserAdmin() {
+        return this.isAdmin(this.peekCurrentUser());
+    }
+
+    public boolean isAdmin(User user) {
+        if (user != null) {
+            return this.adminDNs.isAdmin(user);
+        } else {
+            return false;
+        }
     }
 
     public TransportAddress getCurrentRemoteAddress() {

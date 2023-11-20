@@ -65,6 +65,14 @@ SGS_CREATE_INDEX:
   - "indices:admin/auto_create"
   type: "index"
   description: "Allow creating new indices"
+SGS_CREATE_DATA_STREAM:
+  reserved: true
+  hidden: false
+  allowed_actions:
+  - SGS_CREATE_INDEX
+  - "indices:admin/data_stream/create"
+  type: "index"
+  description: "Allow creating new data streams"  
 SGS_WRITE:
   reserved: true
   hidden: false
@@ -199,6 +207,7 @@ SGS_INDICES_MONITOR:
   static: true
   allowed_actions:
   - "indices:monitor/*"
+  - "indices:admin/data_stream/get"
   type: "index"
   description: "Allow monitoring indices"
 SGS_SUGGEST:

@@ -1205,6 +1205,7 @@ public class IgnoreUnauthorizedCcsIntTest {
                 Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].error.type", containsInAnyOrder("security_exception"))));
             }
         }
+
     }
 
 }
