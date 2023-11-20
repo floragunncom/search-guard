@@ -243,7 +243,7 @@ public class ActionRequestIntrospector {
             ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(resolvedIndices.getRemoteIndices());
 
             if (log.isTraceEnabled()) {
-                log.trace("reduceIndicesForIgnoreUnavailable: keep: " + keepIndices + " actual: " + actualIndices + "; newIndices: " + newIndices);
+                log.trace("reduceIndicesForIgnoreUnavailable: keep: {}; actual: {}; newIndices: {}; remote: {}", keepIndices, actualIndices, newIndices, resolvedIndices.getRemoteIndices());
             }
 
             if (newIndices.size() > 0) {

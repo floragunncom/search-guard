@@ -110,7 +110,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         .collect(Collectors.toSet()),
                 metadata.getIndicesLookup().values().stream().filter((i) -> i instanceof Alias || i instanceof DataStream).map((i) -> i.getName())
                         .collect(Collectors.toSet()),
-                tenants, Pattern.blank(), MetricsLevel.NONE);
+                tenants, universallyDeniedIndices, MetricsLevel.NONE);
     }
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
@@ -246,6 +246,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     }
 
                     if (checkTable.isComplete() && !indexExclusions.contains(mappedRoles, actions)) {
+                        log.trace("Granting request on local_all");
                         indexActionCheckResults_ok.increment();
                         return PrivilegesEvaluationResult.OK;
                     }
