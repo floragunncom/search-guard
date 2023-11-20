@@ -393,6 +393,15 @@ public class Actions {
 
         open("cluster:admin/searchguard/license/info");
         open(WhoAmIAction.INSTANCE);
+                
+        // Data Streams
+        cluster("indices:admin/data_stream/create");
+        index("indices:admin/data_stream/get");
+        index("indices:admin/data_stream/migrate");
+        index("indices:admin/data_stream/modify");
+        index("indices:admin/data_stream/promote");
+        index("indices:admin/data_stream/delete");
+        cluster("indices:monitor/data_stream/stats");        
 
         if (modulesRegistry != null) {
             for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {
