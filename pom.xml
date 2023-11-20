@@ -119,7 +119,7 @@
       <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>fluent-collections</artifactId>
-        <version>1.0.1</version>
+        <version>b-check-table-SNAPSHOT</version>
       </dependency>
 
       <dependency>
