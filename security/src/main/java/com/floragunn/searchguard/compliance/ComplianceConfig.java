@@ -18,7 +18,6 @@
 package com.floragunn.searchguard.compliance;
 
 import java.util.Collections;
-import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -96,9 +95,7 @@ public class ComplianceConfig implements LicenseChangeListener {
         if (resolved.isLocalAll()) {
             return true;
         } else {
-            final Set<String> allIndices = resolved.getLocalIndices();
-
-            return immutableIndicesPatterns.matches(allIndices);
+            return immutableIndicesPatterns.matches(resolved.getLocal().getDeepUnion());
         }
     }
 

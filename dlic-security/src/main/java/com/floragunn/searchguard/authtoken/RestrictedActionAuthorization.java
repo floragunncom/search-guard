@@ -34,10 +34,10 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
     private final RequestedPrivileges restriction;
 
     RestrictedActionAuthorization(ActionAuthorization base, RequestedPrivileges restriction, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-            Set<String> indices, Set<String> tenants) {
+            Set<String> indices, Set<String> aliases, Set<String> tenants) {
         this.base = base;
         this.restriction = restriction;
-        this.restrictionSgRoles = new RoleBasedActionAuthorization(restriction.toRolesConfig(), actionGroups, actions, indices, tenants);
+        this.restrictionSgRoles = new RoleBasedActionAuthorization(restriction.toRolesConfig(), actionGroups, actions, indices, aliases, tenants);
     }
 
     @Override
