@@ -243,7 +243,8 @@ public class ActionRequestIntrospector {
             ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(resolvedIndices.getRemoteIndices());
 
             if (log.isTraceEnabled()) {
-                log.trace("reduceIndicesForIgnoreUnavailable: keep: {}; actual: {}; newIndices: {}; remote: {}", keepIndices, actualIndices, newIndices, resolvedIndices.getRemoteIndices());
+                log.trace("reduceIndicesForIgnoreUnavailable: keep: {}; actual: {}; newIndices: {}; remote: {}", keepIndices, actualIndices,
+                        newIndices, resolvedIndices.getRemoteIndices());
             }
 
             if (newIndices.size() > 0) {
@@ -1116,7 +1117,7 @@ public class ActionRequestIntrospector {
                 StringBuilder resultBuilder = new StringBuilder("{");
 
                 if (!this.pureIndices.isEmpty()) {
-                    resultBuilder.append("indices: ").append(this.pureIndices);
+                    resultBuilder.append("indices: ").append(this.pureIndices.map(i -> i.getName()));
                 }
 
                 if (!this.aliases.isEmpty()) {
@@ -1124,7 +1125,7 @@ public class ActionRequestIntrospector {
                         resultBuilder.append("; ");
                     }
 
-                    resultBuilder.append("aliases: ").append(this.aliases);
+                    resultBuilder.append("aliases: ").append(this.aliases.map(i -> i.getName()));
                 }
 
                 if (!this.dataStreams.isEmpty()) {
@@ -1132,7 +1133,7 @@ public class ActionRequestIntrospector {
                         resultBuilder.append("; ");
                     }
 
-                    resultBuilder.append("dataStreams: ").append(this.dataStreams);
+                    resultBuilder.append("dataStreams: ").append(this.dataStreams.map(i -> i.getName()));
                 }
 
                 if (!this.nonExistingIndices.isEmpty()) {
@@ -1184,40 +1185,65 @@ public class ActionRequestIntrospector {
                 ImmutableSet.Builder<String> nonExistingIndices = new ImmutableSet.Builder<>();
                 ImmutableSet.Builder<Alias> aliases = new ImmutableSet.Builder<>();
                 ImmutableSet.Builder<DataStream> dataStreams = new ImmutableSet.Builder<>();
+                Set<String> excludeNames = new HashSet<>();
 
-                for (String index : request.localIndices) {
-                    if (index.contains("*")) {
-                        Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
-                                request.indicesOptions, request.includeDataStreams);
+                for (int i = request.localIndices.size() - 1; i >= 0; i--) {
+                    String index = request.localIndices.get(i);
 
-                        for (Map.Entry<String, IndexAbstraction> entry : matchedAbstractions.entrySet()) {
-                            IndexAbstraction indexAbstraction = entry.getValue();
+                    if (index.startsWith("-")) {
+                        index = index.substring(1);
+                        
+                        if (index.contains("*")) {
+                            Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
+                                    request.indicesOptions, request.includeDataStreams);
+                            
+                            excludeNames.addAll(matchedAbstractions.keySet());
+                        } else {
+                            excludeNames.add(DateMathExpressionResolver.resolveExpression(index));
+                        }                        
+                    } else {
+                        if (index.contains("*")) {
+                            // TODO date math?
+                            
+                            Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
+                                    request.indicesOptions, request.includeDataStreams);
 
-                            if (indexAbstraction instanceof Alias) {
-                                aliases.add((Alias) indexAbstraction);
+                            for (Map.Entry<String, IndexAbstraction> entry : matchedAbstractions.entrySet()) {
+                                if (excludeNames.contains(entry.getKey())) {
+                                    continue;
+                                }
+                                
+                                IndexAbstraction indexAbstraction = entry.getValue();
+
+                                if (indexAbstraction instanceof Alias) {
+                                    aliases.add((Alias) indexAbstraction);
+                                } else if (indexAbstraction instanceof DataStream) {
+                                    dataStreams.add((DataStream) indexAbstraction);
+                                } else {
+                                    indices.add((ConcreteIndex) indexAbstraction);
+                                }
+                            }
+                        } else {
+                            String resolved = DateMathExpressionResolver.resolveExpression(index);
+                            if (excludeNames.contains(resolved)) {
+                                continue;
+                            }
+                            
+                            IndexAbstraction indexAbstraction = indicesLookup.get(resolved);
+
+                            if (indexAbstraction == null) {
+                                nonExistingIndices.add(resolved);
+                            } else if (indexAbstraction instanceof Alias) {
+                                if (!request.indicesOptions.ignoreAliases()) {
+                                    aliases.add((Alias) indexAbstraction);
+                                }
                             } else if (indexAbstraction instanceof DataStream) {
-                                dataStreams.add((DataStream) indexAbstraction);
+                                if (request.includeDataStreams) {
+                                    dataStreams.add((DataStream) indexAbstraction);
+                                }
                             } else {
                                 indices.add((ConcreteIndex) indexAbstraction);
                             }
-                        }
-                    } else {
-                        String resolved = DateMathExpressionResolver.resolveExpression(index);
-
-                        IndexAbstraction indexAbstraction = indicesLookup.get(resolved);
-
-                        if (indexAbstraction == null) {
-                            nonExistingIndices.add(resolved);
-                        } else if (indexAbstraction instanceof Alias) {
-                            if (!request.indicesOptions.ignoreAliases()) {
-                                aliases.add((Alias) indexAbstraction);
-                            }
-                        } else if (indexAbstraction instanceof DataStream) {
-                            if (request.includeDataStreams) {
-                                dataStreams.add((DataStream) indexAbstraction);
-                            }
-                        } else {
-                            indices.add((ConcreteIndex) indexAbstraction);
                         }
                     }
                 }
@@ -1259,8 +1285,7 @@ public class ActionRequestIntrospector {
                         }
                     }
                 }
-                
-                
+
                 return new Local(indices.build(), aliases.build(), dataStreams.build(), ImmutableSet.empty(), state);
             }
 
