@@ -16,13 +16,13 @@
  */
 package com.floragunn.signals.truststore.rest;
 
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.SearchGuardVersion;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.signals.Signals;
 import com.floragunn.signals.truststore.service.TruststoreCrudService;
 import com.floragunn.signals.truststore.service.persistence.TruststoreRepository;
 import org.apache.logging.log4j.LogManager;
@@ -55,10 +55,10 @@ public class FindAllTruststoresAction extends Action<EmptyRequest, StandardRespo
         private final TruststoreCrudService truststoreCrudService;
 
         @Inject
-        public FindAllTruststoresHandler(HandlerDependencies handlerDependencies, NodeClient client) {
+        public FindAllTruststoresHandler(HandlerDependencies handlerDependencies, NodeClient client, Signals signals) {
             super(INSTANCE, handlerDependencies);
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-            TruststoreRepository truststoreRepository = new TruststoreRepository(privilegedConfigClient);
+            TruststoreRepository truststoreRepository = new TruststoreRepository(signals.getSignalsSettings(), privilegedConfigClient);
             this.truststoreCrudService = new TruststoreCrudService(truststoreRepository);
         }
 

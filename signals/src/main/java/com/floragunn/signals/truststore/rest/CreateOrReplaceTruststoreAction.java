@@ -26,6 +26,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.signals.Signals;
 import com.floragunn.signals.truststore.service.TruststoreCrudService;
 import com.floragunn.signals.truststore.service.persistence.TruststoreRepository;
 import org.apache.logging.log4j.LogManager;
@@ -62,10 +63,10 @@ public class CreateOrReplaceTruststoreAction extends
         private final NodeClient client;
 
         @Inject
-        public UploadTruststoreHandler(HandlerDependencies handlerDependencies, NodeClient client) {
+        public UploadTruststoreHandler(HandlerDependencies handlerDependencies, NodeClient client, Signals signals) {
             super(INSTANCE, handlerDependencies);
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-            TruststoreRepository truststoreRepository = new TruststoreRepository(privilegedConfigClient);
+            TruststoreRepository truststoreRepository = new TruststoreRepository(signals.getSignalsSettings(), privilegedConfigClient);
             this.client = client;
             this.truststoreCrudService = new TruststoreCrudService(truststoreRepository);
         }

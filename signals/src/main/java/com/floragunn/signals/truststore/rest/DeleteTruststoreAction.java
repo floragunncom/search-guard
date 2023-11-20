@@ -22,6 +22,7 @@ import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.IdRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.signals.Signals;
 import com.floragunn.signals.truststore.service.TruststoreCrudService;
 import com.floragunn.signals.truststore.service.persistence.TruststoreRepository;
 import org.apache.logging.log4j.LogManager;
@@ -54,10 +55,10 @@ public class DeleteTruststoreAction extends Action<IdRequest, StandardResponse> 
         private final NodeClient client;
 
         @Inject
-        public DeleteTruststoreHandler(HandlerDependencies handlerDependencies, NodeClient client) {
+        public DeleteTruststoreHandler(HandlerDependencies handlerDependencies, NodeClient client, Signals signals) {
             super(INSTANCE, handlerDependencies);
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-            TruststoreRepository truststoreRepository = new TruststoreRepository(privilegedConfigClient);
+            TruststoreRepository truststoreRepository = new TruststoreRepository(signals.getSignalsSettings(), privilegedConfigClient);
             this.truststoreCrudService = new TruststoreCrudService(truststoreRepository);
             this.client = client;
         }
