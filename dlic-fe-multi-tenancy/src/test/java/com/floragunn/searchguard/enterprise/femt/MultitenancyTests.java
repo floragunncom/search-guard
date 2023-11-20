@@ -68,7 +68,7 @@ public class MultitenancyTests {
     private final static TestSgConfig.User USER_WITH_ACCESS_TO_GLOBAL_TENANT = new TestSgConfig.User("user_with_access_to_global_tenant")
             .roles(new TestSgConfig.Role("access_to_global_tenant")
                     .clusterPermissions("cluster:admin:searchguard:femt:user/available_tenants/get")
-                    .tenantPermission("SGS_KIBANA_ALL_WRITE").on(Tenant.GLOBAL_TENANT_ID)
+                    .withTenantPermission("SGS_KIBANA_ALL_WRITE").on(Tenant.GLOBAL_TENANT_ID)
             );
 
     @ClassRule

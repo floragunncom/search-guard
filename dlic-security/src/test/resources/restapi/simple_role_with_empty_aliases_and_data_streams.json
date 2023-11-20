@@ -1,0 +1,11 @@
+{
+	"description": "",
+	"index_permissions": [],
+	"tenant_permissions": [],
+	"cluster_permissions": [
+		"SGS_CLUSTER_COMPOSITE_OPS"
+	],
+	"exclude_cluster_permissions": [],
+	"alias_permissions": [],
+	"data_stream_permissions": []
+}

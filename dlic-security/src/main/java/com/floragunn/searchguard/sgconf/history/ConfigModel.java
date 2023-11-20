@@ -50,7 +50,7 @@ public class ConfigModel {
 
         this.actionGroups = new ActionGroup.FlattenedIndex(actionGroupsConfig);
 
-        this.actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, null, tenantsConfig.getCEntries().keySet());
+        this.actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, null, tenantsConfig.getCEntries().keySet(), null);
 
         this.roleMapping = new RoleMapping.InvertedIndex(roleMappingConfig, MetricsLevel.NONE);
     }

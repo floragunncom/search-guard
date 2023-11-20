@@ -61,7 +61,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.searchguard.authz.DocumentWhitelist;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsQueryParser;
 import com.floragunn.searchguard.enterprise.dlsfls.legacy.EvaluatedDlsFlsConfig;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
@@ -401,7 +401,7 @@ public class DlsFilterLevelActionHandler {
         Map<String, Set<String>> filterLevelQueries = evaluatedDlsFlsConfig.getDlsQueriesByIndex();
 
         BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery().minimumShouldMatch(1);
-        DocumentWhitelist documentWhitelist = new DocumentWhitelist();
+        DocumentWhitelist.Builder documentWhitelist = new DocumentWhitelist.Builder();
 
         int queryCount = 0;
 
@@ -467,7 +467,7 @@ public class DlsFilterLevelActionHandler {
             return false;
         } else {
             this.filterLevelQueryBuilder = dlsQueryBuilder;
-            this.documentWhitelist = documentWhitelist;
+            this.documentWhitelist = documentWhitelist.build();
             return true;
         }
     }

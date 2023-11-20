@@ -33,6 +33,8 @@ import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.cxf.rs.security.jose.jwk.KeyType;
 import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
@@ -41,10 +43,13 @@ import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPermissions;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
+import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 
 public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServiceConfig> {
+    private static final Logger log = LogManager.getLogger(AuthTokenServiceConfig.class);
+
     public static CType<AuthTokenServiceConfig> TYPE = new CType<AuthTokenServiceConfig>("auth_token_service", "Auth Token Service", 10021,
             AuthTokenServiceConfig.class, AuthTokenServiceConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
@@ -59,7 +64,6 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
     private String jwtAud;
     private TemporalAmount maxValidity;
     private List<String> excludeClusterPermissions = Arrays.asList(CreateAuthTokenAction.NAME);
-    private List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions;
     private int maxTokensPerUser = 100;
     private FreezePrivileges freezePrivileges = FreezePrivileges.USER_CHOOSES;
     private CacheConfig cacheConfig;
@@ -113,15 +117,7 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
         this.excludeClusterPermissions = excludeClusterPermissions;
     }
 
-    public List<RequestedPrivileges.ExcludedIndexPermissions> getExcludeIndexPermissions() {
-        return excludeIndexPermissions;
-    }
-
-    public void setExcludeIndexPermissions(List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions) {
-        this.excludeIndexPermissions = excludeIndexPermissions;
-    }
-
-    public static ValidationResult<AuthTokenServiceConfig> parse(DocNode jsonNode, Parser.Context context) {
+    public static ValidationResult<AuthTokenServiceConfig> parse(DocNode jsonNode, ConfigurationRepository.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors, context);
         VariableResolvers variableResolvers = context.variableResolvers();
@@ -168,8 +164,16 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
 
             result.excludeClusterPermissions = vJsonNode.get("exclude_cluster_permissions").asList().withDefault(CreateAuthTokenAction.NAME)
                     .ofStrings();
-            result.excludeIndexPermissions = vJsonNode.get("exclude_index_permissions").asList(ExcludedIndexPermissions::parse);
-
+            
+            List<String> excludeIndexPermissions = vJsonNode.get("exclude_index_permissions").asListOfStrings();
+            if (excludeIndexPermissions != null && !excludeIndexPermissions.isEmpty()) {
+                if (context.isLenientValidationRequested()) {
+                    log.error("exclude_index_permissions in sg_roles is no longer supported");
+                } else {
+                    validationErrors.add(new ValidationError("exclude_index_permissions", "This attribute is no longer supported"));
+                }
+            }
+            
             result.maxTokensPerUser = vJsonNode.get("max_tokens_per_user").withDefault(100).asInt();
 
             result.freezePrivileges = vJsonNode.get("freeze_privileges").withDefault(FreezePrivileges.USER_CHOOSES).asEnum(FreezePrivileges.class);

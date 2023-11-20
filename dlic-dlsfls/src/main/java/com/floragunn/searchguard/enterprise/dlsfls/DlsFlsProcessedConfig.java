@@ -14,18 +14,22 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import static java.util.stream.Collectors.joining;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Future;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
@@ -33,8 +37,7 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
-
-import static java.util.stream.Collectors.joining;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsFlsProcessedConfig {
     private static final Logger log = LogManager.getLogger(DlsFlsProcessedConfig.class);
@@ -49,6 +52,8 @@ public class DlsFlsProcessedConfig {
     private final boolean validationErrorsPresent;
     private final String validationErrorDescription;
     private final String uniqueValidationErrorToken;
+    private Future<?> updateFuture;
+    private long metadataVersionEffective;
 
     DlsFlsProcessedConfig(DlsFlsConfig dlsFlsConfig, RoleBasedDocumentAuthorization documentAuthorization,
             RoleBasedFieldAuthorization fieldAuthorization, RoleBasedFieldMasking fieldMasking, ValidationErrors rolesValidationErrors,
@@ -65,7 +70,7 @@ public class DlsFlsProcessedConfig {
             rolesMappingValidationErrors);
     }
 
-    static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, Set<String> indices) {
+    static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, Meta indexMetadata) {
         try {
             SgDynamicConfiguration<DlsFlsConfig> dlsFlsConfigContainer = configMap.get(DlsFlsConfig.TYPE);
             DlsFlsConfig dlsFlsConfig = null;
@@ -82,9 +87,9 @@ public class DlsFlsProcessedConfig {
             SgDynamicConfiguration<Role> roleConfig = configMap.get(CType.ROLES);
             if (dlsFlsConfig.getEnabledImpl() == DlsFlsConfig.Impl.FLX) {
 
-                documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
-                fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
-                fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indices, dlsFlsConfig.getMetricsLevel());
+                documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indexMetadata, dlsFlsConfig.getMetricsLevel());
+                fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indexMetadata, dlsFlsConfig.getMetricsLevel());
+                fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indexMetadata, dlsFlsConfig.getMetricsLevel());
 
                 if (log.isDebugEnabled()) {
                     log.debug("Using FLX DLS/FLS implementation\ndocumentAuthorization: " + documentAuthorization + "\nfieldAuthorization: "
@@ -140,19 +145,72 @@ public class DlsFlsProcessedConfig {
         return dlsFlsConfig.getMetricsLevel();
     }
 
-    public void updateIndices(Set<String> indices) {
+    private void updateIndices(Meta indexMetadata) {
         if (documentAuthorization != null) {
-            documentAuthorization.updateIndices(indices);
+            documentAuthorization.updateIndices(indexMetadata);
         }
 
         if (fieldAuthorization != null) {
-            fieldAuthorization.updateIndices(indices);
+            fieldAuthorization.updateIndices(indexMetadata);
         }
 
         if (fieldMasking != null) {
-            fieldMasking.updateIndices(indices);
+            fieldMasking.updateIndices(indexMetadata);
         }
     }
+    
+    public synchronized void updateIndicesAsync(ClusterService clusterService, ThreadPool threadPool) {
+        long currentMetadataVersion = clusterService.state().metadata().version();
+
+        if (currentMetadataVersion <= this.metadataVersionEffective) {
+            return;
+        }
+
+        if (this.updateFuture == null || this.updateFuture.isDone()) {
+            this.updateFuture = threadPool.generic().submit(() -> {
+                for (int i = 0;; i++) {
+                    if (i > 10) {
+                        try {
+                            // In case we got many consecutive updates, let's sleep a little to let
+                            // other operations catch up.
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            return;
+                        }
+                    }
+
+                    Meta indexMetadata = Meta.from(clusterService);
+
+                    synchronized (DlsFlsProcessedConfig.this) {
+                        if (indexMetadata.version() <= DlsFlsProcessedConfig.this.metadataVersionEffective) {
+                            return;
+                        }
+                    }
+
+                    try {
+                        log.debug("Updating DlsFlsProcessedConfig with metadata version {}", indexMetadata.version());
+                        updateIndices(indexMetadata);
+                    } catch (Exception e) {
+                        log.error("Error while updating DlsFlsProcessedConfig", e);
+                    } finally {
+                        synchronized (DlsFlsProcessedConfig.this) {
+                            DlsFlsProcessedConfig.this.metadataVersionEffective = indexMetadata.version();
+                            if (DlsFlsProcessedConfig.this.updateFuture.isCancelled()) {
+                                return;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    public synchronized void shutdown() {
+        if (this.updateFuture != null && !this.updateFuture.isDone()) {
+            this.updateFuture.cancel(true);
+        }
+    }
+    
     public boolean containsValidationError() {
         return validationErrorsPresent;
     }
