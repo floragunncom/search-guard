@@ -15,6 +15,7 @@ package com.floragunn.searchguard.enterprise.femt.tenants;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
@@ -67,14 +68,20 @@ public class AvailableTenantServiceTest {
     @Mock
     private TenantAccessMapper accessMapper;
 
+    @Mock
+    private AuthInfoService authInfoService;
+
     // under test
     private AvailableTenantService service;;
+
 
     @Before
     public void before() {
         when(threadPool.getThreadContext()).thenReturn(threadContext);
-        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository);
+        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository, authInfoService);
     }
+
+    // TODO ds_onES8 additional tests needed, related with usage of AuthInfoService
 
     @Test
     public void shouldReturnErrorWhenUserIsNotPresentInContext() {
@@ -94,7 +101,7 @@ public class AvailableTenantServiceTest {
         when(authorizationService.getMappedRoles(user, remoteAddress)).thenReturn(ImmutableSet.of("my_role"));
         when(repository.exists(any(String[].class))).thenAnswer(new TenantExistsAnswer(true));
         when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
-        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository);
+        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository, authInfoService);
         when(configProvider.getTenantAccessMapper()).thenReturn(accessMapper);
 
         assertThatThrown(() -> service.findTenantAvailableForCurrentUser(), instanceOf(DefaultTenantNotFoundException.class));
@@ -105,7 +112,7 @@ public class AvailableTenantServiceTest {
         User user = User.forUser("user").requestedTenant("my_tenant").build();
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
         when(configProvider.isMultiTenancyEnabled()).thenReturn(false);
-        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository);
+        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository, authInfoService);
 
         AvailableTenantData tenantAvailableForCurrentUser = service.findTenantAvailableForCurrentUser().get();
 
@@ -128,7 +135,7 @@ public class AvailableTenantServiceTest {
         when(authorizationService.getMappedRoles(user, remoteAddress)).thenReturn(userRoles);
         when(configProvider.getTenantAccessMapper()).thenReturn(accessMapper);
         when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
-        when(accessMapper.mapTenantsAccess(user, userRoles)).thenReturn(ImmutableMap.of(TENANT_1, true, TENANT_2, true));
+        when(accessMapper.mapTenantsAccess(user, false, userRoles)).thenReturn(ImmutableMap.of(TENANT_1, true, TENANT_2, true));
         when(repository.exists(any(String[].class))).thenAnswer(new TenantExistsAnswer(true));
 
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
@@ -158,7 +165,7 @@ public class AvailableTenantServiceTest {
         when(configProvider.getTenantAccessMapper()).thenReturn(accessMapper);
         when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
         ImmutableMap<String, Boolean> tenantWriteAccess = ImmutableMap.of(TENANT_4, true, TENANT_5, false);
-        when(accessMapper.mapTenantsAccess(user, userRoles)).thenReturn(tenantWriteAccess);
+        when(accessMapper.mapTenantsAccess(user, false, userRoles)).thenReturn(tenantWriteAccess);
         when(repository.exists(any(String[].class))).thenAnswer(new TenantExistsAnswer(false));
 
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
@@ -184,7 +191,7 @@ public class AvailableTenantServiceTest {
         when(configProvider.getTenantAccessMapper()).thenReturn(accessMapper);
         when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
         var tenantWriteAccess = ImmutableMap.of(TENANT_1, false, TENANT_2, true, TENANT_3, true, TENANT_4, false, TENANT_5, true);
-        when(accessMapper.mapTenantsAccess(user, userRoles)).thenReturn(tenantWriteAccess);
+        when(accessMapper.mapTenantsAccess(user, false, userRoles)).thenReturn(tenantWriteAccess);
         when(repository.exists(any(String[].class))).thenReturn(ImmutableSet.of(TENANT_1, TENANT_2, TENANT_4));
 
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
@@ -225,7 +232,7 @@ public class AvailableTenantServiceTest {
         when(configProvider.getTenantAccessMapper()).thenReturn(accessMapper);
         when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
         var tenantWriteAccess = ImmutableMap.of(TENANT_1, false, TENANT_2, false, TENANT_3, false, TENANT_4, true, TENANT_5, true);
-        when(accessMapper.mapTenantsAccess(user, userRoles)).thenReturn(tenantWriteAccess);
+        when(accessMapper.mapTenantsAccess(user, false, userRoles)).thenReturn(tenantWriteAccess);
         when(repository.exists(any(String[].class))).thenReturn(ImmutableSet.of(TENANT_1, TENANT_2, TENANT_4));
 
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();

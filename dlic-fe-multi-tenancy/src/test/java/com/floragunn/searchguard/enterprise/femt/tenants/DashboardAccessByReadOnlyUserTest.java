@@ -56,7 +56,7 @@ public class DashboardAccessByReadOnlyUserTest {
 
     private static final User USER_READ_ONLY_TENANT = new User("user_read_only_tenant") //
         .roles(new Role("hr_tenant_read_only") //
-            .tenantPermission("SGS_KIBANA_ALL_READ") //
+            .withTenantPermission("SGS_KIBANA_ALL_READ") //
             .on(HR_TENANT.getName()));
 
     @ClassRule

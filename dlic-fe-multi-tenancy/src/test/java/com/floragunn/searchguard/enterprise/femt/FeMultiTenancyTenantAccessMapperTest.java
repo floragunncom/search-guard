@@ -51,6 +51,8 @@ public class FeMultiTenancyTenantAccessMapperTest {
     @Mock
     private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
 
+    // TODO ds_onES8 tests related to new parameter of method mapper.mapTenantsAccess which is adminUser are needed
+
     @Before
     public void setUp() throws Exception {
         when(multiTenancyConfigurationProvider.isMultiTenancyEnabled()).thenReturn(true);
@@ -77,7 +79,7 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
         User user = User.forUser("user_name").searchGuardRoles("all_access").build();
 
-        Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, ImmutableSet.of("all_access"));
+        Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, false, ImmutableSet.of("all_access"));
         assertThat(accessToTenants, Matchers.aMapWithSize(3));
         assertThat(accessToTenants, Matchers.hasEntry("my_tenant", true));
         assertThat(accessToTenants, Matchers.hasEntry("test", true));
@@ -105,7 +107,7 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
         User user = User.forUser("user_name").searchGuardRoles("access_to_some_tenants").build();
 
-        Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, ImmutableSet.of("access_to_some_tenants"));
+        Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, false, ImmutableSet.of("access_to_some_tenants"));
         assertThat(accessToTenants, Matchers.aMapWithSize(3));
         assertThat(accessToTenants, Matchers.hasEntry("write_tenant", true));
         assertThat(accessToTenants, Matchers.hasEntry("read_tenant", false));
@@ -135,7 +137,7 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
         User user = User.forUser("user_name").searchGuardRoles("access_to_some_tenants").build();
 
-        Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, ImmutableSet.of("access_to_some_tenants"));
+        Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, false, ImmutableSet.of("access_to_some_tenants"));
         assertThat(accessToTenants, Matchers.aMapWithSize(2));
         assertThat(accessToTenants, Matchers.hasEntry("write_tenant", true));
         assertThat(accessToTenants, Matchers.hasEntry("read_tenant", false));
@@ -163,7 +165,7 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
         User user = User.forUser("user_name").searchGuardRoles("access_to_global_tenant").build();
 
-        Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, ImmutableSet.of("access_to_global_tenant"));
+        Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, false, ImmutableSet.of("access_to_global_tenant"));
         assertThat(accessToTenants, Matchers.aMapWithSize(1));
         assertThat(accessToTenants, Matchers.hasEntry(user.getName(), true));
     }

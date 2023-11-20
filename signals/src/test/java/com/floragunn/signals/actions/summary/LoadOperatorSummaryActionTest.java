@@ -53,7 +53,7 @@ public class LoadOperatorSummaryActionTest {
     private static final Logger log = LogManager.getLogger(LoadOperatorSummaryActionTest.class);
 
     public static final Role ROLE_SIGNAL_ADMIN = new Role("signals_admin")//
-            .tenantPermission("cluster:admin:searchguard:tenant:signals:*")//
+            .withTenantPermission("cluster:admin:searchguard:tenant:signals:*")//
             .on("SGS_GLOBAL_TENANT");
     public static final User USER_ADMIN = new User("admin").roles(ALL_ACCESS, ROLE_SIGNAL_ADMIN);
     public static final String INDEX_NAME_WATCHED_1 = "watched-source-index-01";

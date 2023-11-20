@@ -71,7 +71,7 @@ import static org.hamcrest.Matchers.notNullValue;
 public class ProxyApiTest {
 
     private static final TestSgConfig.User ADMIN_USER = new TestSgConfig.User("admin").roles(TestSgConfig.Role.ALL_ACCESS
-            .tenantPermission("cluster:admin:searchguard:tenant:signals:*")
+            .withTenantPermission("cluster:admin:searchguard:tenant:signals:*")
             .on("SGS_GLOBAL_TENANT"));
     private static final String SIGNALS_PROXIES_INDEX_NAME = ".signals_proxies";
 

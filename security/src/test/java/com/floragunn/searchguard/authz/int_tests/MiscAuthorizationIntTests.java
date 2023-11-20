@@ -1,4 +1,21 @@
-package com.floragunn.searchguard;
+/*
+ * Copyright 2020-2024 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package com.floragunn.searchguard.authz.int_tests;
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.Result;
@@ -53,7 +70,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
-public class PrivilegesEvaluatorTest {
+public class MiscAuthorizationIntTests { // TODO ds_onES8 not sure if the name of the class should be changed to PriviliagesEvaluatorTest
 
     private static TestSgConfig.User RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV = new TestSgConfig.User("resize_user_without_create_index_priv")
             .roles(new Role("resize_role").clusterPermissions("*").indexPermissions("indices:admin/resize", "indices:monitor/stats")
@@ -228,7 +245,7 @@ public class PrivilegesEvaluatorTest {
     @Test
     public void detailsAboutMissingPermissions_shouldBeReturnedOnlyWhenAuthzDebugIsEnabled() throws Exception {
         try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient();
-             GenericRestClient userClient = cluster.getRestClient("exclusion_test_user_basic", "secret")) {
+            GenericRestClient userClient = cluster.getRestClient("exclusion_test_user_basic", "secret")) {
 
             cluster.callAndRestoreConfig(CType.AUTHZ, () -> {
 
@@ -391,8 +408,7 @@ public class PrivilegesEvaluatorTest {
             httpResponse = restClient.get("/exclude_test_allow_*/_search");
             assertThat(httpResponse, isOk());
 
-            assertThat(httpResponse,
-                    json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+            assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
             httpResponse = restClient.get("/exclude_test_disallow_1/_search");
             assertThat(httpResponse, isForbidden());
@@ -410,8 +426,7 @@ public class PrivilegesEvaluatorTest {
             httpResponse = restClient.get("/exclude_test_allow_*/_search");
             assertThat(httpResponse, isOk());
 
-            assertThat(httpResponse,
-                    json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
+            assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
             httpResponse = restClient.get("/exclude_test_disallow_1/_search");
             assertThat(httpResponse, isOk());
@@ -483,7 +498,7 @@ public class PrivilegesEvaluatorTest {
     }
 
     @Test
-    public void evaluateClusterAndTenantPrivileges() throws Exception {
+    public void permissionApi_evaluateClusterAndTenantPrivileges() throws Exception {
         try (GenericRestClient adminRestClient = cluster.getRestClient("admin", "admin");
                 GenericRestClient permissionRestClient = cluster.getRestClient("permssion_rest_api_user", "secret")) {
             HttpResponse httpResponse = adminRestClient.get("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva");
@@ -509,34 +524,34 @@ public class PrivilegesEvaluatorTest {
         Client clientFof = clusterFof.getInternalNodeClient();
 
         clientFof.admin().indices()
-                .create(new CreateIndexRequest(sourceIndex).settings(Settings.builder().put("index.number_of_shards", 5).build()))
-                .actionGet();
+            .create(new CreateIndexRequest(sourceIndex).settings(Settings.builder().put("index.number_of_shards", 5).build()))
+            .actionGet();
 
         clientFof.index(new IndexRequest(sourceIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index", "a", "b", "y",
-                "date", "1985/01/01")).actionGet();
+            "date", "1985/01/01")).actionGet();
 
         clientFof.admin().indices()
-                .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", true).build()))
-                .actionGet();
+            .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", true).build()))
+            .actionGet();
 
         Thread.sleep(300);
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
             assertThatThrown(() ->
                     client.getJavaClient().indices().shrink(r->r.index("whatever").target(targetIndex)),
-                    instanceOf(ElasticsearchException.class), messageContainsMatcher("Insufficient permissions"));
+                instanceOf(ElasticsearchException.class), messageContainsMatcher("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
             assertThatThrown(() ->
                     client.getJavaClient().indices().shrink(r->r.index(sourceIndex).target(targetIndex)),
-                    instanceOf(ElasticsearchException.class), messageContainsMatcher("Insufficient permissions"));
+                instanceOf(ElasticsearchException.class), messageContainsMatcher("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
             assertThatThrown(() ->
                     client.getJavaClient().indices().shrink(r->r.index("whatever").target(targetIndex)),
-                    instanceOf(ElasticsearchException.class), messageContainsMatcher("Insufficient permissions"));
+                instanceOf(ElasticsearchException.class), messageContainsMatcher("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
@@ -555,10 +570,10 @@ public class PrivilegesEvaluatorTest {
     public void searchTemplate() throws Exception {
 
         SearchTemplateRequest searchTemplateRequest = new co.elastic.clients.elasticsearch.core.SearchTemplateRequest.Builder()
-                .index("resolve_test_allow_*")
-                .source("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }")
-                .params(Map.of("x", JsonData.of("yy")))
-                .build();
+            .index("resolve_test_allow_*")
+            .source("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }")
+            .params(Map.of("x", JsonData.of("yy")))
+            .build();
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_TEMPLATE_USER)) {
             SearchTemplateResponse<Map> searchTemplateResponse = client.getJavaClient()
@@ -570,7 +585,7 @@ public class PrivilegesEvaluatorTest {
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_NO_TEMPLATE_USER)) {
             ElasticsearchException e = (ElasticsearchException) assertThatThrown(() ->
-                    client.getJavaClient().searchTemplate(searchTemplateRequest, Map.class), instanceOf(ElasticsearchException.class));
+                client.getJavaClient().searchTemplate(searchTemplateRequest, Map.class), instanceOf(ElasticsearchException.class));
             assertThat(e.toString(), e.status(), equalTo(RestStatus.FORBIDDEN.getStatus()));
         }
     }

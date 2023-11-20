@@ -86,10 +86,10 @@ public class MultiTenancyRequestMappingTest {
     private static final TestSgConfig.Tenant HR_TENANT = new TestSgConfig.Tenant("hr_tenant");
     private static final TestSgConfig.Tenant IT_TENANT = new TestSgConfig.Tenant("it_tenant");
     private static final TestSgConfig.User USER = new TestSgConfig.User("user")
-            .roles(new TestSgConfig.Role("tenant_access").tenantPermission("*").on(HR_TENANT.getName()).clusterPermissions("*").indexPermissions("*").on(KIBANA_INDEX+"*"));
+            .roles(new TestSgConfig.Role("tenant_access").withTenantPermission("*").on(HR_TENANT.getName()).clusterPermissions("*").indexPermissions("*").on(KIBANA_INDEX+"*"));
 
     private static final TestSgConfig.Role LIMITED_ROLE = new TestSgConfig.Role("limited_access_to_global_tenant") //
-        .tenantPermission("SGS_KIBANA_ALL_READ").on(HR_TENANT.getName(), GLOBAL_TENANT_NAME) //
+        .withTenantPermission("SGS_KIBANA_ALL_READ").on(HR_TENANT.getName(), GLOBAL_TENANT_NAME) //
         .indexPermissions("indices:data/read/search").on(KIBANA_INDEX)
         .clusterPermissions("SGS_CLUSTER_MONITOR");
 

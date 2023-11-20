@@ -8,8 +8,8 @@ import java.util.Set;
 
 public interface TenantAccessMapper {
 
-    Map<String, Boolean> mapTenantsAccess(User user, Set<String> roles);
+    Map<String, Boolean> mapTenantsAccess(User user, boolean adminUser, Set<String> roles);
 
-    TenantAccessMapper NO_OP = (user, roles) -> ImmutableMap.empty();
+    TenantAccessMapper NO_OP = (user, adminUser, roles) -> ImmutableMap.empty();
 
 }

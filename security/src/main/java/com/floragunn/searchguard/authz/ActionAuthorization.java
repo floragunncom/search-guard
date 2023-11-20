@@ -19,7 +19,7 @@ package com.floragunn.searchguard.authz;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 
 /**
  * Common interface for checking authorization for actions.
@@ -34,11 +34,19 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.Resolve
  */
 public interface ActionAuthorization {
     PrivilegesEvaluationResult hasClusterPermission(PrivilegesEvaluationContext context, Action action) throws PrivilegesEvaluationException;
-
-    PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions, ResolvedIndices resolvedIndices)
-            throws PrivilegesEvaluationException;
+    
+    PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
+            ResolvedIndices resolvedIndices, Action.Scope scope) throws PrivilegesEvaluationException;
 
     PrivilegesEvaluationResult hasTenantPermission(PrivilegesEvaluationContext context, Action action, String requestedTenant)
             throws PrivilegesEvaluationException;
 
+    default PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
+            ResolvedIndices resolvedIndices) throws PrivilegesEvaluationException {
+        return hasIndexPermission(context, primaryAction, actions, resolvedIndices, primaryAction.scope());
+    }
+    
+    static enum AliasDataStreamHandling {
+        RESOLVE_IF_NECESSARY, DO_NOT_RESOLVE
+    }
 }

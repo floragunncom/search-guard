@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 floragunn GmbH
+ * Copyright 2021-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,17 @@
 
 package com.floragunn.searchguard.test;
 
+import java.util.Map;
+import java.util.Set;
+
+import com.floragunn.codova.documents.DocNode;
+import org.elasticsearch.common.settings.Settings;
+
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 
-public class TestIndex {
+public class TestIndex implements TestIndexLike {
 
     private final String name;
     private final Settings settings;
@@ -41,6 +46,7 @@ public class TestIndex {
         } catch (IndexNotFoundException e) {
             testData.createIndex(client, name, settings);
         }
+
     }
     
     public void create(GenericRestClient client) throws Exception {
@@ -65,6 +71,15 @@ public class TestIndex {
         return new Builder().name(name);
     }
 
+    public void addDocument(GenericRestClient client, String id, Map<String, Object> source) throws Exception {
+        GenericRestClient.HttpResponse response = client.putJson(name + "/_create/" + id + "?refresh=true", DocNode.wrap(source));
+
+        if (response.getStatusCode() != 201) {
+            throw new RuntimeException("Error while creating document " + id + " in " + name + "\n" + response);
+        }
+        testData.additionalDocument(id, source);
+    }
+
     public static class Builder {
         private String name;
         private Settings.Builder settings = Settings.builder();
@@ -83,6 +98,11 @@ public class TestIndex {
 
         public Builder shards(int value) {
             settings.put("index.number_of_shards", 5);
+            return this;
+        }
+
+        public Builder hidden() {
+            settings.put("index.hidden", true);
             return this;
         }
 
@@ -133,6 +153,16 @@ public class TestIndex {
 
             return new TestIndex(name, settings.build(), testData);
         }
+    }
+
+    @Override
+    public Set<String> getDocumentIds() {
+        return getTestData().getRetainedDocuments().keySet();
+    }
+
+    @Override
+    public Map<String, Map<String, ?>> getDocuments() {
+        return getTestData().getRetainedDocuments();
     }
 
 }

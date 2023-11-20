@@ -14,6 +14,16 @@ SGS_ALL_ACCESS:
         - "*"
       allowed_actions:
         - "*"
+  alias_permissions:
+    - alias_patterns:
+        - "*"
+      allowed_actions:
+        - "*"
+  data_stream_permissions:
+    - data_stream_patterns:
+        - "*"
+      allowed_actions:
+        - "*"
   tenant_permissions:
     - tenant_patterns:
         - "*"
@@ -92,22 +102,15 @@ SGS_KIBANA_USER_NO_MT:
         - "*:.management-beats"
       allowed_actions:
         - "SGS_INDICES_ALL"
-
-SGS_KIBANA_USER_NO_DEFAULT_TENANT:
-  reserved: true
-  hidden: false
-  description: "Deprecated. Use SGS_KIBANA_USER_NO_GLOBAL_TENANT instead."
-  cluster_permissions:
-    - "SGS_CLUSTER_COMPOSITE_OPS"
-    - "SGS_PERSONAL_SESSIONS"
-  index_permissions:
-    - index_patterns:
-        - ".tasks"
-        - ".management-beats"
-        - "*:.tasks"
-        - "*:.management-beats"
+  alias_permissions:
+    - alias_patterns:
+        - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+/'
       allowed_actions:
-        - "SGS_INDICES_ALL"
+        - "SGS_READ"
+        - "SGS_DELETE"
+        - "SGS_MANAGE"
+        - "SGS_INDEX"
+
 
 SGS_KIBANA_USER:
   reserved: true
@@ -275,20 +278,7 @@ SGS_KIBANA_SERVER:
     - ".apm-*"
     - "*:.apm-*"
     - ".kibana-event-log-*"
-    - ".ds-.kibana-event-log-*"
     - "*:.kibana-event-log-*"
-    - ".fleet-agents"
-    - "logs-cloud_security_posture*"
-    - ".internal.alerts-observability.*"
-    - ".internal.alerts-ml.anomaly-detection.alerts*"
-    - ".kibana-observability-ai-assistant-conversations*"
-    - ".kibana-observability-ai-assistant-kb*"
-    - ".internal.alerts-security.alerts*"
-    - ".internal.alerts-stack.alerts*"
-    - ".slo-observability.sli-v*"
-    - ".slo-observability.summary-v*"
-    - "logs-cloud_defend.*"
-    - ".elastic-connectors"
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
@@ -301,10 +291,14 @@ SGS_KIBANA_SERVER:
     - "indices:monitor/settings/get"
     - "indices:monitor/stats"
     - "indices:data/read/field_caps*"
-  - index_patterns:
-      - ".internal.alerts-security.alerts-default-*"
-    allowed_actions:
-      - "indices:admin/create"
+  alias_permissions:
+    - alias_patterns:
+        - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+/'
+      allowed_actions:
+        - "SGS_READ"
+        - "SGS_DELETE"
+        - "SGS_MANAGE"
+        - "SGS_INDEX"
 
 SGS_LOGSTASH:
   reserved: true

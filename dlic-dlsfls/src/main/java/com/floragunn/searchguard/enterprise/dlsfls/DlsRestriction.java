@@ -29,6 +29,7 @@ import org.elasticsearch.index.query.TermsQueryBuilder;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsRestriction {
 
@@ -55,12 +56,16 @@ public class DlsRestriction {
         return this.queries.isEmpty();
     }
 
-    public BooleanQuery.Builder toQueryBuilder(SearchExecutionContext searchExecutionContext, Function<Query, Query> queryMapFunction) {
+    public BooleanQuery.Builder toBooleanQueryBuilder(SearchExecutionContext searchExecutionContext, Function<Query, Query> queryMapFunction) {
         if (this.queries.isEmpty()) {
             return null;
         }
 
         boolean hasNestedMapping = !searchExecutionContext.nestedLookup().getNestedMappers().isEmpty();
+
+        if (!hasNestedMapping && this.queries.size() == 1) {
+            // TODO ds_onES8 do we need to support this case somehow
+        }
 
         BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
         queryBuilder.setMinimumNumberShouldMatch(1);
@@ -81,6 +86,44 @@ public class DlsRestriction {
 
         return queryBuilder;
     }
+
+    public Query toQuery(SearchExecutionContext searchExecutionContext, Function<Query, Query> queryMapFunction) {
+        if (this.queries.isEmpty()) {
+            return null;
+        }
+
+        boolean hasNestedMapping = !searchExecutionContext.nestedLookup().getNestedMappers().isEmpty();
+
+        if (!hasNestedMapping && this.queries.size() == 1) {
+            Query luceneQuery = searchExecutionContext.toQuery(this.queries.get(0).getQueryBuilder()).query();
+
+            if (queryMapFunction != null) {
+                luceneQuery = queryMapFunction.apply(luceneQuery);
+            }
+
+            return luceneQuery;
+        }
+
+        BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+        queryBuilder.setMinimumNumberShouldMatch(1);
+
+        for (com.floragunn.searchsupport.queries.Query dlsQuery : this.queries) {
+            Query luceneQuery = searchExecutionContext.toQuery(dlsQuery.getQueryBuilder()).query();
+
+            if (queryMapFunction != null) {
+                luceneQuery = queryMapFunction.apply(luceneQuery);
+            }
+
+            queryBuilder.add(luceneQuery, Occur.SHOULD);
+
+            if (hasNestedMapping) {
+                handleNested(searchExecutionContext, queryBuilder, luceneQuery);
+            }
+        }
+
+        return queryBuilder.build();
+    }
+
 
     boolean containsTermLookupQuery() {
         for (com.floragunn.searchsupport.queries.Query query : this.queries) {
@@ -110,9 +153,9 @@ public class DlsRestriction {
     public static class IndexMap {
         public static final DlsRestriction.IndexMap NONE = new DlsRestriction.IndexMap(null);
 
-        private final ImmutableMap<String, DlsRestriction> indexMap;
+        private final ImmutableMap<Meta.Index, DlsRestriction> indexMap;
 
-        IndexMap(ImmutableMap<String, DlsRestriction> indexMap) {
+        IndexMap(ImmutableMap<Meta.Index, DlsRestriction> indexMap) {
             this.indexMap = indexMap;
         }
 
@@ -120,7 +163,7 @@ public class DlsRestriction {
             return this.indexMap == null;
         }
 
-        public ImmutableMap<String, DlsRestriction> getIndexMap() {
+        public ImmutableMap<Meta.Index, DlsRestriction> getIndexMap() {
             return indexMap;
         }
 

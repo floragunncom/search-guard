@@ -19,7 +19,6 @@ package com.floragunn.searchguard.compliance;
 
 
 import java.util.Collections;
-import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,8 +29,9 @@ import org.elasticsearch.env.Environment;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.license.LicenseChangeListener;
 import com.floragunn.searchguard.license.SearchGuardLicense;
@@ -82,7 +82,7 @@ public class ComplianceConfig implements LicenseChangeListener {
     }
 
     //check for isEnabled
-    public boolean isIndexImmutable(String action, Object request) {
+    public boolean isIndexImmutable(Action action, Object request) {
 
         if (!this.enabled) {
             return false;
@@ -97,9 +97,7 @@ public class ComplianceConfig implements LicenseChangeListener {
         if (resolved.isLocalAll()) {
             return true;
         } else {
-            final Set<String> allIndices = resolved.getLocalIndices();
-
-            return immutableIndicesPatterns.matches(allIndices);
+            return immutableIndicesPatterns.matches(resolved.getLocal().getDeepUnion());
         }
     }
 

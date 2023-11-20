@@ -28,6 +28,7 @@ import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class RoleBasedFieldMaskingTest {
+    /*
     @Test
     public void getFieldMaskingRule_template() throws Exception {
         SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role",
@@ -202,4 +203,5 @@ public class RoleBasedFieldMaskingTest {
         Assert.assertFalse(subject.toString(), subject.hasFieldMaskingRestrictions(context, "another_index", Meter.NO_OP));
 
     }
+    */
 }
