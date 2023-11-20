@@ -327,9 +327,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 log.trace("Permissions before exclusions:\n" + shallowCheckTable);
             }
 
-            // TODO check alias members
-            shallowCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i));
-
+            shallowCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i) || universallyDeniedIndices.matches(resolved.getLocal().resolveDeep(i)));
+            
             if (log.isTraceEnabled()) {
                 log.trace("Permissions after universallyDeniedIndices exclusions:\n" + shallowCheckTable);
             }
