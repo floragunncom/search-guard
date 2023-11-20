@@ -1154,6 +1154,8 @@ public class ActionRequestIntrospector {
 
             static Local resolve(IndicesRequestInfo request, ClusterState state) {
                 try {
+                    
+                    request.checkForRemoteIndices();
 
                     if (request.expandWildcards) {
                         return resolveWithPatterns(request, state);
