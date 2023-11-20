@@ -1079,14 +1079,41 @@ public class ActionRequestIntrospector {
                 return result;
             }
 
-            public ImmutableSet<String> resolveDeep(ImmutableSet<String> aliasesAndDataStreams) {
-                if (!this.unionOfAliasesAndDataStreams.containsAll(aliasesAndDataStreams)) {
-                    throw new IllegalArgumentException("Not a subset: " + aliasesAndDataStreams + " of " + this);
+            public Set<String> resolveDeep(String aliasOrDataStream) {
+                IndexAbstraction indexAbstraction = this.clusterState.metadata().getIndicesLookup().get(aliasOrDataStream);
+
+                if (indexAbstraction == null) {
+                    return ImmutableSet.empty();
+                } else if (indexAbstraction instanceof Alias) {
+                    ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>(((Alias) indexAbstraction).getIndices().size());
+
+                    for (Index index : ((Alias) indexAbstraction).getIndices()) {
+                        result.add(index.getName());
+                    }
+
+                    return result.build();
+                } else if (indexAbstraction instanceof DataStream) {
+                    ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>(((DataStream) indexAbstraction).getIndices().size());
+
+                    for (Index index : ((DataStream) indexAbstraction).getIndices()) {
+                        result.add(index.getName());
+                    }
+
+                    return result.build();
+                } else {
+                    return ImmutableSet.empty();
                 }
 
+            }
+
+            public ImmutableSet<String> resolveDeep(ImmutableSet<String> aliasesAndDataStreams) {
                 ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>(aliasesAndDataStreams.size() * 20);
 
                 for (String name : aliasesAndDataStreams) {
+                    if (!this.unionOfAliasesAndDataStreams.contains(name)) {
+                        continue;
+                    }
+
                     IndexAbstraction indexAbstraction = this.clusterState.metadata().getIndicesLookup().get(name);
 
                     if (indexAbstraction instanceof Alias) {
@@ -1192,19 +1219,19 @@ public class ActionRequestIntrospector {
 
                     if (index.startsWith("-")) {
                         index = index.substring(1);
-                        
+
                         if (index.contains("*")) {
                             Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
                                     request.indicesOptions, request.includeDataStreams);
-                            
+
                             excludeNames.addAll(matchedAbstractions.keySet());
                         } else {
                             excludeNames.add(DateMathExpressionResolver.resolveExpression(index));
-                        }                        
+                        }
                     } else {
                         if (index.contains("*")) {
                             // TODO date math?
-                            
+
                             Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
                                     request.indicesOptions, request.includeDataStreams);
 
@@ -1212,7 +1239,7 @@ public class ActionRequestIntrospector {
                                 if (excludeNames.contains(entry.getKey())) {
                                     continue;
                                 }
-                                
+
                                 IndexAbstraction indexAbstraction = entry.getValue();
 
                                 if (indexAbstraction instanceof Alias) {
@@ -1228,7 +1255,7 @@ public class ActionRequestIntrospector {
                             if (excludeNames.contains(resolved)) {
                                 continue;
                             }
-                            
+
                             IndexAbstraction indexAbstraction = indicesLookup.get(resolved);
 
                             if (indexAbstraction == null) {
