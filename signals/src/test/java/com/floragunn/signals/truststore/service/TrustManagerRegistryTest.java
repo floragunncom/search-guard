@@ -407,7 +407,8 @@ public class TrustManagerRegistryTest {
             storeTruststoreInPemFormat(client, TRUSTSTORE_ID_1, "ca-cert-one", trustAnchorOne);
         }
         PrivilegedConfigClient client = PrivilegedConfigClient.adapt(cluster.getInjectable(NodeClient.class));
-        TruststoreCrudService truststoreCrudService = new TruststoreCrudService(new TruststoreRepository(client));
+        Signals signals = cluster.getInjectable(Signals.class);
+        TruststoreCrudService truststoreCrudService = new TruststoreCrudService(new TruststoreRepository(signals.getSignalsSettings(), client));
         TrustManagerRegistry trustManagerRegistry = new TrustManagerRegistry(truststoreCrudService);
 
         trustManagerRegistry.reloadAll();

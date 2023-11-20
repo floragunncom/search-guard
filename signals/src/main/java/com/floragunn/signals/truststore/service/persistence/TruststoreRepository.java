@@ -21,6 +21,7 @@ import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -30,6 +31,8 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -45,8 +48,10 @@ import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDI
 public class TruststoreRepository {
 
     private final PrivilegedConfigClient client;
+    private final SignalsSettings signalsSettings;
 
-    public TruststoreRepository(PrivilegedConfigClient client) {
+    public TruststoreRepository(SignalsSettings signalsSettings, PrivilegedConfigClient client) {
+        this.signalsSettings = Objects.requireNonNull(signalsSettings, "Signals settings is required");
         this.client = Objects.requireNonNull(client, "Node client is required");
     }
 
@@ -114,5 +119,22 @@ public class TruststoreRepository {
         DeleteRequest deleteRequest = new DeleteRequest(IndexNames.TRUSTSTORES).id(truststoreId).setRefreshPolicy(IMMEDIATE);
         DeleteResponse deleteResponse = client.delete(deleteRequest).actionGet();
         return RestStatus.OK.equals(deleteResponse.status());
+    }
+
+    public boolean isTruststoreUsedByAnyWatch(String truststoreId) {
+        SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().query(
+                QueryBuilders.boolQuery().must(
+                        QueryBuilders.boolQuery()
+                                .should(QueryBuilders.termQuery("actions.tls.truststore_id.keyword", truststoreId))
+                                .should(QueryBuilders.termQuery("checks.tls.truststore_id.keyword", truststoreId))
+                                .should(QueryBuilders.queryStringQuery(truststoreId).field("actions.attachments.*.tls.truststore_id.keyword"))
+                )
+        );
+        SearchRequest searchWatchesRequest = new SearchRequest(signalsSettings.getStaticSettings().getIndexNames().getWatches())
+                .source(searchSourceBuilder)
+                .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN);
+        SearchResponse searchResponse = client.search(searchWatchesRequest).actionGet();
+        return searchResponse.getHits().getTotalHits().value > 0;
+
     }
 }

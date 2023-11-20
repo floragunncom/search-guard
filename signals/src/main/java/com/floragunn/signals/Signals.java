@@ -115,7 +115,7 @@ public class Signals extends AbstractLifecycleComponent {
 
             this.accountRegistry = new AccountRegistry(signalsSettings);
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-            TruststoreRepository repository = new TruststoreRepository(privilegedConfigClient);
+            TruststoreRepository repository = new TruststoreRepository(signalsSettings, privilegedConfigClient);
             TruststoreCrudService truststoreCrudService = new TruststoreCrudService(repository);
             this.trustManagerRegistry = new TrustManagerRegistry(truststoreCrudService);
             return Collections.singletonList(this);

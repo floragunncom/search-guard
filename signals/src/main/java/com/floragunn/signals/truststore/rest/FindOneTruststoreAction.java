@@ -29,6 +29,7 @@ import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.RestApi;
 import com.floragunn.searchsupport.action.StandardRequests.IdRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.signals.Signals;
 import com.floragunn.signals.truststore.service.NoSuchTruststoreException;
 import com.floragunn.signals.truststore.service.TruststoreCrudService;
 import com.floragunn.signals.truststore.service.persistence.TruststoreRepository;
@@ -54,10 +55,10 @@ public class FindOneTruststoreAction extends Action<IdRequest, StandardResponse>
         private final TruststoreCrudService truststoreCrudService;
 
         @Inject
-        public FindOneTruststoreHandler(HandlerDependencies handlerDependencies, NodeClient client) {
+        public FindOneTruststoreHandler(HandlerDependencies handlerDependencies, NodeClient client, Signals signals) {
             super(INSTANCE, handlerDependencies);
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-            TruststoreRepository truststoreRepository = new TruststoreRepository(privilegedConfigClient);
+            TruststoreRepository truststoreRepository = new TruststoreRepository(signals.getSignalsSettings(), privilegedConfigClient);
             this.truststoreCrudService = new TruststoreCrudService(truststoreRepository);
         }
 

@@ -31,14 +31,17 @@ import static com.floragunn.signals.truststore.rest.TruststoreLoader.NAME_TRUST_
 import static com.floragunn.signals.truststore.rest.TruststoreLoader.storeTruststore;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.not;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Date;
 
+import com.floragunn.signals.watch.Watch;
+import com.floragunn.signals.watch.WatchBuilder;
+import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -67,7 +70,9 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
     public static final String TRUSTSTORE_ID_2 = "truststore-id-002";
     public static final String TRUSTSTORE_ID_3 = "truststore-id-003";
 
-    private static final User USER_ADMIN = new User("admin").roles(ALL_ACCESS);
+    private static final User USER_ADMIN = new User("admin").roles(ALL_ACCESS
+            .tenantPermission("cluster:admin:searchguard:tenant:signals:*")
+            .on("SGS_GLOBAL_TENANT"));
     private static final User READONLY_USER = new User("readonly_user")//
         .roles(new Role("read-only-role").indexPermissions("SGS_READ").on("*"));
 
@@ -102,7 +107,7 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
 
             log.info("Load one truststore by id response '{}'", response.getBody());
             assertThat(response.getStatusCode(), equalTo(404));
-            assertThat(response.getBody(), not(isEmptyOrNullString()));
+            assertThat(response.getBody(), not(emptyOrNullString()));
         }
     }
 
@@ -311,9 +316,43 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
             HttpResponse response = client.delete("/_signals/truststores/not-exists");
 
             assertThat(response.getStatusCode(), equalTo(404));
-            assertThat(response.getBody(), not(isEmptyOrNullString()));
+            assertThat(response.getBody(), not(emptyOrNullString()));
         }
     }
+
+    @Test
+    public void shouldNotDeleteTruststoreIfTruststoreIsUsedByWatch() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            String watchPath = "/_signals/watch/_main/webhook_with_truststore";
+
+            String lowerCaseTruststoreId = TRUSTSTORE_ID_1.toLowerCase();
+            String upperCaseTruststoreId = TRUSTSTORE_ID_1.toUpperCase();
+            storeTruststore(client, lowerCaseTruststoreId, TruststoreLoader.PEM_THREE_CERTIFICATES);
+            storeTruststore(client, upperCaseTruststoreId, TruststoreLoader.PEM_THREE_CERTIFICATES);
+
+            Watch watch = new WatchBuilder("test_with_truststore").cronTrigger("0 0 */1 * * ?")
+                    .then().postWebhook("http://localhost:3233").truststoreId(lowerCaseTruststoreId).name("webhook")
+                    .build();
+
+            GenericRestClient.HttpResponse response = client.putJson(watchPath, watch.toJson());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+
+            response = client.delete("/_signals/truststores/" + lowerCaseTruststoreId);
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.error.message", "The truststore is still in use"));
+
+            response = client.delete("/_signals/truststores/" + upperCaseTruststoreId);
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+            //remove watch
+            response = client.delete(watchPath);
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+            response = client.delete("/_signals/truststores/" + lowerCaseTruststoreId);
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+        }
+    }
+
 
     @Test
     public void shouldDeleteExistingTruststore() throws Exception {
