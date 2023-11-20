@@ -28,6 +28,7 @@ import com.floragunn.signals.truststore.rest.CertificateRepresentation;
 import com.floragunn.signals.truststore.service.persistence.TruststoreData;
 import com.floragunn.searchsupport.action.StandardRequests.IdRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
+import org.apache.http.HttpStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -51,7 +52,7 @@ public class TruststoreCrudService {
             TruststoreData truststoreData = conversionService.representationToTruststoreData(representation);
             String truststoreId = request.getId();
             truststoreRepository.createOrReplace(truststoreId, truststoreData);
-            return new StandardResponse(200).data(representation.toBasicObject());
+            return new StandardResponse(HttpStatus.SC_OK).data(representation.toBasicObject());
     }
 
     private TruststoreRepresentation createUploadCertificateResponse(CreateOrReplaceTruststoreRequest request)
@@ -71,7 +72,7 @@ public class TruststoreCrudService {
         return truststoreRepository.findOneById(request.getId())//
             .map(conversionService::truststoreDataToRepresentation)//
                 .map(TruststoreRepresentation::toBasicObject)//
-                .map(truststoreRepresentation -> new StandardResponse(200).data(truststoreRepresentation))//
+                .map(truststoreRepresentation -> new StandardResponse(HttpStatus.SC_OK).data(truststoreRepresentation))//
                 .orElseThrow(() -> new NoSuchTruststoreException(notFoundMessage));
 
     }
@@ -82,12 +83,15 @@ public class TruststoreCrudService {
             .map(conversionService::truststoreDataToRepresentation)//
             .map(TruststoreRepresentation::toBasicObject)//
             .collect(Collectors.toList());//
-        return new StandardResponse(200).data(truststores);
+        return new StandardResponse(HttpStatus.SC_OK).data(truststores);
     }
 
     public StandardResponse delete(IdRequest request) {
+        if (truststoreRepository.isTruststoreUsedByAnyWatch(request.getId())) {
+            return new StandardResponse(HttpStatus.SC_CONFLICT).error("The truststore is still in use");
+        }
         boolean deleted = truststoreRepository.deleteById(request.getId());
-        return deleted ? new StandardResponse(200) : new StandardResponse(404);
+        return deleted ? new StandardResponse(HttpStatus.SC_OK) : new StandardResponse(HttpStatus.SC_NOT_FOUND);
     }
 
     List<TruststoreData> loadAll() {
