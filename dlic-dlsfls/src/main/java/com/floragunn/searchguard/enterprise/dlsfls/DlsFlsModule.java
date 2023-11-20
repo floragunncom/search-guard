@@ -44,6 +44,7 @@ import org.elasticsearch.plugins.FieldPredicate;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -58,6 +59,7 @@ import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(DlsFlsModule.class);
@@ -84,6 +86,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private FlsQueryCacheWeightProvider flsQueryCacheWeightProvider;
     private ClusterService clusterService;
     private Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>> directoryReaderWrapperFactory;
+    private ThreadPool threadPool;
 
     public DlsFlsModule() {
         this.componentState.addPart(directoryReaderWrapperComponentState);
@@ -95,8 +98,9 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
         this.clusterService = baseDependencies.getClusterService();
 
+        Supplier<Meta> metaSupplier = () -> Meta.from(baseDependencies.getClusterService());
         this.dlsFlsBaseContext = new DlsFlsBaseContext(baseDependencies.getAuthInfoService(), baseDependencies.getAuthorizationService(),
-                baseDependencies.getThreadPool().getThreadContext());
+                baseDependencies.getThreadPool().getThreadContext(), metaSupplier);
 
         this.dlsFlsValve = new DlsFlsValve(baseDependencies.getLocalClient(), baseDependencies.getClusterService(),
                 baseDependencies.getIndexNameExpressionResolver(), baseDependencies.getGuiceDependencies(),
@@ -114,14 +118,14 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
         this.componentState.addParts(this.dlsFlsValve.getComponentState(), this.dlsFlsSearchOperationListener.getComponentState(),
                 this.flsFieldFilter.getComponentState(), this.flsQueryCacheWeightProvider.getComponentState());
 
+        this.threadPool = baseDependencies.getThreadPool();
+
         baseDependencies.getConfigurationRepository().subscribeOnChange((ConfigMap configMap) -> {
-            DlsFlsProcessedConfig config = DlsFlsProcessedConfig.createFrom(configMap, componentState,
-                    clusterService.state().metadata().indices().keySet());
-
-            log.info("New-style DLS/FLS implementation is now ENABLED");
-
-
-            this.config.set(config);
+            DlsFlsProcessedConfig config = DlsFlsProcessedConfig.createFrom(configMap, componentState, Meta.from(clusterService));
+            DlsFlsProcessedConfig oldConfig = this.config.getAndSet(config);
+            if (oldConfig != null) {
+                oldConfig.shutdown();                
+            }
         });
 
         baseDependencies.getLicenseRepository().subscribeOnLicenseChange((SearchGuardLicense license) -> {
@@ -133,7 +137,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
             @Override
             public void clusterChanged(ClusterChangedEvent event) {
                 DlsFlsProcessedConfig config = DlsFlsModule.this.config.get();
-                config.updateIndices(event.state().metadata().indices().keySet());
+                config.updateIndicesAsync(clusterService, threadPool);
             }
         });
 

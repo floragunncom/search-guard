@@ -76,7 +76,7 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
     public static final String TRUSTSTORE_ID_3 = "truststore-id-003";
 
     private static final User USER_ADMIN = new User("admin").roles(ALL_ACCESS
-            .tenantPermission("cluster:admin:searchguard:tenant:signals:*")
+            .withTenantPermission("cluster:admin:searchguard:tenant:signals:*")
             .on("SGS_GLOBAL_TENANT"));
     private static final User READONLY_USER = new User("readonly_user")//
         .roles(new Role("read-only-role").indexPermissions("SGS_READ").on("*"));

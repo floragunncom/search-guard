@@ -21,9 +21,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchsupport.util.LocalClusterAliasExtractor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -62,14 +62,19 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import com.floragunn.searchguard.authz.DocumentWhitelist;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.enterprise.dlsfls.DlsRestriction;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchsupport.meta.Meta;
+import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 
 public class DlsFilterLevelActionHandler {
 
     private static final Logger log = LogManager.getLogger(DlsFilterLevelActionHandler.class);
+
+    private static final Function<SearchRequest, String> LOCAL_CLUSTER_ALIAS_GETTER = ReflectiveAttributeAccessors
+            .protectedObjectAttr("localClusterAlias", String.class);
 
     public static SyncAuthorizationFilter.Result handle(Action action, ActionRequest request, ActionListener<?> listener,
             DlsRestriction.IndexMap restrictionMap, ResolvedIndices resolved, Client nodeClient, ClusterService clusterService,
@@ -180,7 +185,7 @@ public class DlsFilterLevelActionHandler {
             documentWhitelist.applyTo(threadContext);
         }
 
-        String localClusterAlias = LocalClusterAliasExtractor.getLocalClusterAliasFromSearchRequest(searchRequest);
+        String localClusterAlias = LOCAL_CLUSTER_ALIAS_GETTER.apply(searchRequest);
 
         if (localClusterAlias != null) {
             try {
@@ -196,6 +201,10 @@ public class DlsFilterLevelActionHandler {
         }
 
         searchRequest.source().query(filterLevelQueryBuilder);
+
+        if (log.isTraceEnabled()) {
+            log.trace("Executing search request {}", searchRequest);
+        }
 
         nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
             @Override
@@ -214,6 +223,7 @@ public class DlsFilterLevelActionHandler {
 
             @Override
             public void onFailure(Exception e) {
+                log.error("DLS filter level failure", e);
                 listener.onFailure(e);
             }
         });
@@ -394,19 +404,17 @@ public class DlsFilterLevelActionHandler {
 
     private boolean createQueryExtension(String localClusterAlias) throws IOException {
         BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery().minimumShouldMatch(1);
-        DocumentWhitelist documentWhitelist = new DocumentWhitelist();
+        DocumentWhitelist.Builder documentWhitelist = new DocumentWhitelist.Builder();
 
         int queryCount = 0;
 
-        Set<String> indices = resolved.getLocalAndRemoteIndices();
-
-        for (String index : indices) {
+        for (Meta.IndexLikeObject index : Meta.IndexLikeObject.resolveDeep(resolved.getLocal().getUnion())) {
             String prefixedIndex;
 
             if (localClusterAlias != null) {
-                prefixedIndex = localClusterAlias + ":" + index;
+                prefixedIndex = localClusterAlias + ":" + index.name();
             } else {
-                prefixedIndex = index;
+                prefixedIndex = index.name();
             }
 
             DlsRestriction dlsRestriction = this.restrictionMap.getIndexMap().get(index);
@@ -443,12 +451,31 @@ public class DlsFilterLevelActionHandler {
             }
         }
 
+        if (requiresIndexScoping) {
+            // We also need to add remote indices to the query to let them pass
+
+            for (String remoteIndex : resolved.getRemoteIndices()) {
+                String prefixedIndex;
+
+                if (localClusterAlias != null) {
+                    prefixedIndex = localClusterAlias + ":" + remoteIndex;
+                } else {
+                    prefixedIndex = remoteIndex;
+                }
+
+                // This index has no DLS configured, thus it is unrestricted.
+                // To allow the index in a complex query, we need to add the query below to let the index pass.
+                dlsQueryBuilder.should(QueryBuilders.termQuery("_index", prefixedIndex));
+
+            }
+        }
+
         if (queryCount == 0) {
             // Return false to indicate that no query manipulation is necessary
             return false;
         } else {
             this.filterLevelQueryBuilder = dlsQueryBuilder;
-            this.documentWhitelist = documentWhitelist;
+            this.documentWhitelist = documentWhitelist.build();
             return true;
         }
     }
