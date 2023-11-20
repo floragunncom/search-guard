@@ -569,7 +569,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
     protected abstract String componentName();
 
-    public synchronized void updateIndices(Meta indexMetadata) {
+    public void updateIndices(Meta indexMetadata) {
         StatefulRules<SingleRule> statefulRules = this.statefulRules;
 
         if (statefulRules == null || !statefulRules.indexMetadata.equals(indexMetadata)) {

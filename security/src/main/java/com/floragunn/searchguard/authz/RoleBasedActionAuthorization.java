@@ -1004,7 +1004,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
     }
 
+<<<<<<< alias-privileges-es8-compact
     public void update(Meta indexMetadata) {
+=======
+    private void update(Meta indexMetadata) {
+>>>>>>> 850d544 foo
         if (stateful == null || !stateful.indexMetadata.equals(indexMetadata)) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
                 if (log.isTraceEnabled()) {
@@ -1028,6 +1032,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
         }
     }
+<<<<<<< alias-privileges-es8-compact
     
     /**
      * Updates the stateful index configuration asynchronously with the index metadata from the current cluster state.
@@ -1038,6 +1043,18 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     public synchronized void updateStatefulIndexPrivilegesAsync(ClusterService clusterService, ThreadPool threadPool) {
         long currentMetadataVersion = clusterService.state().metadata().version();
         
+=======
+
+    /**
+     * Updates the stateful index configuration asynchronously with the index metadata from the current cluster state.
+     * As the update process can take some seconds for clusters with many indices, this method "de-bounces" the updates,
+     * i.e., a further update will be only initiated after the previous update has finished. This is okay as this class
+     * can handle the case that it do not have the most recent information. It will fall back to slower methods then.
+     */
+    public synchronized void updateStatefulIndexPrivilegesAsync(ClusterService clusterService, ThreadPool threadPool) {
+        long currentMetadataVersion = clusterService.state().metadata().version();
+
+>>>>>>> 850d544 foo
         StatefulPermissions stateful = this.stateful;
 
         if (stateful != null && currentMetadataVersion <= stateful.indexMetadata.version()) {
@@ -1056,6 +1073,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             return;
                         }
                     }
+<<<<<<< alias-privileges-es8-compact
                     
                     Meta indexMetadata = Meta.from(clusterService);
 
@@ -1079,6 +1097,37 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     }
                 }
             });
+=======
+
+                    Meta indexMetadata = Meta.from(clusterService);
+
+                    synchronized (RoleBasedActionAuthorization.this) {
+                        if (indexMetadata.version() <= RoleBasedActionAuthorization.this.stateful.indexMetadata.version()) {
+                            return;
+                        }
+                    }
+
+                    try {
+                        log.debug("Updating ActionPrivileges with metadata version {}", indexMetadata.version());
+                        update(indexMetadata);
+                    } catch (Exception e) {
+                        log.error("Error while updating ActionPrivileges", e);
+                    } finally {
+                        synchronized (RoleBasedActionAuthorization.this) {
+                            if (RoleBasedActionAuthorization.this.updateFuture.isCancelled()) {
+                                return;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    public synchronized void shutdown() {
+        if (this.updateFuture != null && !this.updateFuture.isDone()) {
+            this.updateFuture.cancel(true);
+>>>>>>> 850d544 foo
         }
     }    
 
@@ -1492,7 +1541,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
+<<<<<<< alias-privileges-es8-compact
                                     ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+=======
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
+>>>>>>> 850d544 foo
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (String index : indexPattern.iterateMatching(indexNames)) {
@@ -1532,7 +1585,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
+<<<<<<< alias-privileges-es8-compact
                                     ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+=======
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
+>>>>>>> 850d544 foo
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::name)) {
@@ -1699,7 +1756,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
+<<<<<<< alias-privileges-es8-compact
                                     ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+=======
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
+>>>>>>> 850d544 foo
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : indexPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
@@ -1868,8 +1929,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     }
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
-
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (String alias : indexPattern.iterateMatching(dataStreamNames)) {
@@ -1912,7 +1972,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::name)) {

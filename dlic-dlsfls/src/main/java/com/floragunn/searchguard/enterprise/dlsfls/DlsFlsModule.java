@@ -42,6 +42,7 @@ import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -83,6 +84,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private FlsQueryCacheWeightProvider flsQueryCacheWeightProvider;
     private ClusterService clusterService;
     private Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>> directoryReaderWrapperFactory;
+    private ThreadPool threadPool;
 
     public DlsFlsModule() {
         this.componentState.addPart(directoryReaderWrapperComponentState);
@@ -114,6 +116,8 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
         this.componentState.addParts(this.dlsFlsValve.getComponentState(), this.dlsFlsSearchOperationListener.getComponentState(),
                 this.flsFieldFilter.getComponentState(), this.flsQueryCacheWeightProvider.getComponentState());
 
+        this.threadPool = baseDependencies.getThreadPool();
+
         baseDependencies.getConfigurationRepository().subscribeOnChange((ConfigMap configMap) -> {
             DlsFlsProcessedConfig config = DlsFlsProcessedConfig.createFrom(configMap, componentState, Meta.from(clusterService));
 
@@ -124,6 +128,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
             }
 
             this.config.set(config);
+            oldConfig.shutdown();
         });
 
         baseDependencies.getLicenseRepository().subscribeOnLicenseChange((SearchGuardLicense license) -> {
@@ -135,7 +140,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
             @Override
             public void clusterChanged(ClusterChangedEvent event) {
                 DlsFlsProcessedConfig config = DlsFlsModule.this.config.get();
-                config.updateIndices(Meta.from(event.state().getMetadata()));
+                config.updateIndicesAsync(clusterService, threadPool);
             }
         });
 

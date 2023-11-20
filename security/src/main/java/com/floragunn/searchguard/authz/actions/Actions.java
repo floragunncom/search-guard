@@ -183,6 +183,7 @@ import static com.floragunn.searchguard.authz.actions.Action.AdditionalDimension
 public class Actions {
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
+    private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> clusterActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions;
 
@@ -196,19 +197,20 @@ public class Actions {
         //
         // Additionally, extended settings are applied for some actions, such as additionally needed privileges.
 
-        indexLike(IndexAction.INSTANCE).aliasesResolveToWriteTarget();
-        indexLike(GetAction.INSTANCE);
-        indexLike(TermVectorsAction.INSTANCE);
-        indexLike(DeleteAction.INSTANCE);
-        indexLike(UpdateAction.INSTANCE);
-        index(TransportSearchAction.TYPE);
-        index(TransportExplainAction.TYPE);
-        indexLike(ResolveIndexAction.INSTANCE);
+        indexLike(IndexAction.INSTANCE).performanceCritical().aliasesResolveToWriteTarget();
+        indexLike(GetAction.INSTANCE).performanceCritical();
+        indexLike(TermVectorsAction.INSTANCE).performanceCritical();
+        indexLike(DeleteAction.INSTANCE).performanceCritical();
+        indexLike(UpdateAction.INSTANCE).performanceCritical();
+        index(TransportSearchAction.TYPE).performanceCritical();
+        index(TransportExplainAction.TYPE).performanceCritical();
+        indexLike(ResolveIndexAction.INSTANCE).performanceCritical();
 
-        indexLike(UpdateByQueryAction.INSTANCE);
-        indexLike(DeleteByQueryAction.INSTANCE);
+        indexLike(UpdateByQueryAction.INSTANCE).performanceCritical();
+        indexLike(DeleteByQueryAction.INSTANCE).performanceCritical();
 
         indexLike(TransportShardBulkAction.ACTION_NAME)//
+                .performanceCritical()//
                 .requestType(BulkShardRequest.class)//
                 .requestItemsA(BulkShardRequest::items, (item) -> item.request().opType())
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.DELETE, "indices:data/write/delete")
@@ -217,9 +219,11 @@ public class Actions {
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.UPDATE, "indices:data/write/index");
 
         indexLike(ClusterSearchShardsAction.INSTANCE) //
-                .requiresAdditionalPrivileges(always(), "indices:data/read/search");
+                .performanceCritical().requiresAdditionalPrivileges(always(), "indices:data/read/search");
         index(TransportSearchShardsAction.TYPE) //
-                .requiresAdditionalPrivileges(always(), "indices:data/read/search");
+                .performanceCritical().requiresAdditionalPrivileges(always(), "indices:data/read/search");
+
+        indexLike(MultiGetAction.NAME + "[shard]").performanceCritical();
 
         indexLike(MultiGetAction.NAME + "[shard]");
 
@@ -236,10 +240,8 @@ public class Actions {
         indexLike(IndicesSegmentsAction.INSTANCE);
         indexLike(IndicesShardStoresAction.INSTANCE);
 
-        index(CreateIndexAction.INSTANCE)
-            .requestType(CreateIndexRequest.class)//
-            .requiresAdditionalPrivileges(ifNotEmpty(CreateIndexRequest::aliases), "indices:admin/aliases")
-            .additionalDimensions(MANAGE_ALIASES);
+        index(CreateIndexAction.INSTANCE).performanceCritical().requestType(CreateIndexRequest.class)//
+                .requiresAdditionalPrivileges(ifNotEmpty(CreateIndexRequest::aliases), "indices:admin/aliases").additionalDimensions(MANAGE_ALIASES);
         index(OpenIndexAction.INSTANCE);
         index(CloseIndexAction.INSTANCE);
         index(ResizeAction.INSTANCE).additionalDimensions(RESIZE_TARGET);
@@ -251,18 +253,16 @@ public class Actions {
         indexLike(AddIndexBlockAction.INSTANCE);
         indexLike(GetMappingsAction.INSTANCE);
         indexLike(GetFieldMappingsAction.INSTANCE);
-        indexLike(PutMappingAction.INSTANCE);
-        indexLike(AutoPutMappingAction.INSTANCE);
+        indexLike(PutMappingAction.INSTANCE).performanceCritical();
+        indexLike(AutoPutMappingAction.INSTANCE).performanceCritical();
 
         indexLike(IndicesAliasesAction.INSTANCE) //
-            .requestType(IndicesAliasesRequest.class)//
-            .requestItems(IndicesAliasesRequest::getAliasActions, IndicesAliasesRequest.AliasActions::actionType)//
-            .requiresAdditionalPrivilegesForItemType(AliasActions.Type.REMOVE_INDEX, "indices:admin/delete")
-            .additionalDimensions(ALIASES);
-
+                .requestType(IndicesAliasesRequest.class)//
+                .requestItems(IndicesAliasesRequest::getAliasActions, IndicesAliasesRequest.AliasActions::actionType)//
+                .requiresAdditionalPrivilegesForItemType(AliasActions.Type.REMOVE_INDEX, "indices:admin/delete").additionalDimensions(ALIASES);
         indexLike(UpdateSettingsAction.INSTANCE);
         indexLike(AnalyzeAction.INSTANCE);
-        indexLike(AutoCreateAction.INSTANCE);
+        indexLike(AutoCreateAction.INSTANCE).performanceCritical();
 
         cluster(TransportClearScrollAction.TYPE);
         cluster(RecoveryAction.INSTANCE);
@@ -342,7 +342,7 @@ public class Actions {
         indexLike(GetAliasesAction.INSTANCE).additionalDimensions(ALIASES);
         indexLike(GetSettingsAction.INSTANCE);
 
-        indexLike(FieldCapabilitiesAction.INSTANCE);
+        indexLike(FieldCapabilitiesAction.INSTANCE).performanceCritical();
 
         cluster(PutStoredScriptAction.INSTANCE);
         cluster(GetStoredScriptAction.INSTANCE);
@@ -416,6 +416,7 @@ public class Actions {
 
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> clusterActions = new ImmutableSet.Builder<>(actionMap.size());
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> indexLikeActions = new ImmutableSet.Builder<>(actionMap.size());
+        ImmutableSet.Builder<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical= new ImmutableSet.Builder<>(actionMap.size());
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> tenantActions = new ImmutableSet.Builder<>();
 
         for (Action action : actionMap.values()) {
@@ -424,13 +425,17 @@ public class Actions {
             } else if (action.isTenantPrivilege()) {
                 tenantActions.add((WellKnownAction<?, ?, ?>) action);
             } else {
-                indexLikeActions.add((WellKnownAction<?, ?, ?>) action);
+                indexLikeActions.add((WellKnownAction<?, ?, ?>) action);                
+                if (((WellKnownAction<?, ?, ?>) action).isPerformanceCritical()) {
+                    indexLikeActionsPerformanceCritical.add((WellKnownAction<?, ?, ?>) action);
+                }
             }
         }
 
         this.clusterActions = clusterActions.build();
         this.tenantActions = tenantActions.build();
         this.indexLikeActions = indexLikeActions.build();
+        this.indexLikeActionsPerformanceCritical = indexLikeActionsPerformanceCritical.build();
     }
 
     public Action get(String actionName) {
@@ -451,6 +456,10 @@ public class Actions {
         return indexLikeActions;
     }
 
+    public ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical() {
+        return indexLikeActions;
+    }
+    
     public ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions() {
         return tenantActions;
     }
@@ -617,6 +626,7 @@ public class Actions {
         private AliasDataStreamHandling aliasDataStreamHandling = AliasDataStreamHandling.RESOLVE_IF_NECESSARY;
         private Meta.Alias.ResolutionMode aliasResolutionMode = Meta.Alias.ResolutionMode.NORMAL;
         private ImmutableSet<Action.AdditionalDimension> additionalDimensions = ImmutableSet.empty();
+        private boolean performanceCritical = false;
 
         ActionBuilder(String actionName, Scope scope) {
             this.actionName = actionName;
@@ -642,6 +652,11 @@ public class Actions {
             } catch (ClassNotFoundException e) {
                 requestTypeName = requestType;
             }
+            return this;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> performanceCritical() {
+            this.performanceCritical = true;
             return this;
         }
 
@@ -770,7 +785,7 @@ public class Actions {
             return new Action.WellKnownAction<RequestType, RequestItem, RequestItemType>(actionName, scope, requestType, requestTypeName,
                     ImmutableList.of(additionalPrivileges),
                     additionalPrivilegesByItemType != null ? ImmutableMap.of(additionalPrivilegesByItemType) : ImmutableMap.empty(), requestItems,
-                    resources, this.aliasDataStreamHandling, aliasResolutionMode, additionalDimensions, Actions.this);
+                    resources, this.aliasDataStreamHandling, aliasResolutionMode, additionalDimensions, performanceCritical, Actions.this);
         }
 
     }
