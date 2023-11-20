@@ -121,7 +121,8 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                         + context.getRequestInfo().getResolvedIndices() + "\nmode: " + mode);
             }
 
-            ImmutableSet<String> indices = context.getRequestInfo().getResolvedIndices().getLocalIndices();
+            // TODO check for optimization and whether this is correct at all
+            ImmutableSet<String> indices = context.getRequestInfo().getResolvedIndices().getLocal().getDeepUnion();
 
             if (context.getSpecialPrivilegesEvaluationContext() != null && context.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();

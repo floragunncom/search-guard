@@ -200,9 +200,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
                         : ActionGroup.FlattenedIndex.EMPTY;
 
-                actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions,
-                        clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet(), adminOnlyIndices,
-                        authzConfig.getMetricsLevel());
+                actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, clusterService.state().metadata(),
+                        tenants.getCEntries().keySet(), adminOnlyIndices, authzConfig.getMetricsLevel());
 
                 componentState.setConfigVersion(configMap.getVersionsAsString());
                 componentState.replacePart(actionAuthorization.getComponentState());
@@ -218,7 +217,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 RoleBasedActionAuthorization actionAuthorization = PrivilegesEvaluator.this.actionAuthorization;
 
                 if (actionAuthorization != null) {
-                    actionAuthorization.updateIndices(event.state().metadata().indices().keySet());
+                    actionAuthorization.update(event.state().metadata());
                 }
 
             }
