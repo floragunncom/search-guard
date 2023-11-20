@@ -75,21 +75,26 @@ public class TestData {
     private int size;
     private int deletedDocumentCount;
     private int refreshAfter;
+    private int rolloverAfter;
     private Map<String, Map<String, ?>> allDocuments;
     private Map<String, Map<String, ?>> retainedDocuments;
     private Map<String, Map<String, Map<String, ?>>> documentsByDepartment;
     private ImmutableMap<String, Object> additionalAttributes;
     private Set<String> deletedDocuments;
     private long subRandomSeed;
+    private String timestampAttributeName;
 
-    public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes) {
+    public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter, int rolloverAfter,
+            ImmutableMap<String, Object> additionalAttributes, String timestampAttributeName) {
         Random random = new Random(seed);
         this.ipAddresses = createRandomIpAddresses(random);
         this.locationNames = createRandomLocationNames(random);
         this.size = size;
         this.deletedDocumentCount = deletedDocumentCount;
         this.refreshAfter = refreshAfter;
+        this.rolloverAfter = rolloverAfter;
         this.additionalAttributes = additionalAttributes;
+        this.timestampAttributeName = timestampAttributeName;
         createTestDocuments(random);
         this.subRandomSeed = random.nextLong();
     }
@@ -101,8 +106,8 @@ public class TestData {
         Random random = new Random(subRandomSeed);
         long start = System.currentTimeMillis();
 
-        client.admin().indices()
-                .create(new CreateIndexRequest(name).settings(settings).mapping("_doc", "timestamp", "type=date,format=date_optional_time"))
+        client.admin().indices().create(
+                new CreateIndexRequest(name).settings(settings).mapping("_doc", timestampAttributeName, "type=date,format=date_optional_time"))
                 .actionGet();
         int nextRefresh = (int) Math.floor((random.nextGaussian() * 0.5 + 0.5) * refreshAfter);
         int i = 0;
@@ -134,13 +139,10 @@ public class TestData {
         log.info("Test index creation finished after " + (System.currentTimeMillis() - start) + " ms");
     }
 
-    public void createIndex(GenericRestClient client, String name, Settings settings) {
+    public void createIndex(GenericRestClient client, String indexName, Settings settings) {
         try {
-            log.info("creating test index " + name + "; size: " + size + "; deletedDocumentCount: " + deletedDocumentCount + "; refreshAfter: "
+            log.info("creating test index " + indexName + "; size: " + size + "; deletedDocumentCount: " + deletedDocumentCount + "; refreshAfter: "
                     + refreshAfter);
-
-            Random random = new Random(subRandomSeed);
-            long start = System.currentTimeMillis();
 
             DocNode settingsDocNode = DocNode.EMPTY;
 
@@ -148,47 +150,69 @@ public class TestData {
                 settingsDocNode = settingsDocNode.with(key, settings.get(key));
             }
 
-            GenericRestClient.HttpResponse response = client.putJson(name, DocNode.of("mappings.properties.timestamp",
+            GenericRestClient.HttpResponse response = client.putJson(indexName, DocNode.of("mappings.properties.timestamp",
                     DocNode.of("type", "date", "format", "date_optional_time"), "settings", settingsDocNode));
 
             if (response.getStatusCode() != 200) {
-                throw new RuntimeException("Error while creating index " + name + "\n" + response);
+                throw new RuntimeException("Error while creating index " + indexName + "\n" + response);
             }
 
+            putDocuments(client, indexName);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error while creating test index " + indexName, e);
+        }
+    }
+
+    public void putDocuments(GenericRestClient client, String indexName) {
+        try {
+            Random random = new Random(subRandomSeed);
+            long start = System.currentTimeMillis();
+
             int nextRefresh = (int) Math.floor((random.nextGaussian() * 0.5 + 0.5) * refreshAfter);
+            int nextRollover = rolloverAfter != -1 ? rolloverAfter : Integer.MAX_VALUE;
             int i = 0;
 
             for (Map.Entry<String, Map<String, ?>> entry : allDocuments.entrySet()) {
                 String id = entry.getKey();
                 Map<String, ?> document = entry.getValue();
 
-                response = client.putJson(name + "/_doc/" + id, DocNode.wrap(document));
+                GenericRestClient.HttpResponse response = client.putJson(indexName + "/_create/" + id, DocNode.wrap(document));
 
                 if (response.getStatusCode() != 201) {
-                    throw new RuntimeException("Error while creating document " + id + " in " + name + "\n" + response);
+                    throw new RuntimeException("Error while creating document " + id + " in " + indexName + "\n" + response);
                 }
 
                 if (i > nextRefresh) {
-                    client.post(name + "/_refresh");
+                    client.post(indexName + "/_refresh");
                     double g = random.nextGaussian();
 
                     nextRefresh = (int) Math.floor((g * 0.5 + 1) * refreshAfter) + i + 1;
                     log.debug("refresh at " + i + " " + g + " " + (g * 0.5 + 1));
                 }
 
+                if (i > nextRollover) {
+                    response = client.post(indexName + "/_rollover/");
+                    if (response.getStatusCode() != 200) {
+                        throw new RuntimeException("Error while performing rollover of " + indexName + "\n" + response);
+                    }
+
+                    nextRollover += rolloverAfter;
+                }
+
                 i++;
             }
 
-            client.post(name + "/_refresh");
+            client.post(indexName + "/_refresh");
 
             for (String id : deletedDocuments) {
-                client.delete(name + "/_doc/" + id);
+                client.delete(indexName + "/_doc/" + id);
             }
 
-            client.post(name + "/_refresh");
+            client.post(indexName + "/_refresh");
             log.info("Test index creation finished after " + (System.currentTimeMillis() - start) + " ms");
         } catch (Exception e) {
-            throw new RuntimeException("Error while creating test index " + name, e);
+            throw new RuntimeException("Error while wring test documents to index " + indexName, e);
         }
     }
 
@@ -200,7 +224,7 @@ public class TestData {
             ImmutableMap<String, Object> document = ImmutableMap
                     .<String, Object>of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random), "source_loc",
                             randomLocationName(random), "dest_loc", randomLocationName(random), "dept", randomDepartmentName(random))
-                    .with("timestamp", randomTimestamp(random));
+                    .with(timestampAttributeName, randomTimestamp(random));
 
             if (additionalAttributes != null && additionalAttributes.size() != 0) {
                 document = document.with(additionalAttributes);
@@ -325,7 +349,7 @@ public class TestData {
 
         return new TestDocument(entry.getKey(), entry.getValue());
     }
-
+    
     public TestDocument anyDocumentForDepartment(String dept) {
         Map<String, Map<String, ?>> docs = this.documentsByDepartment.get(dept);
 
@@ -336,6 +360,17 @@ public class TestData {
         Map.Entry<String, Map<String, ?>> entry = docs.entrySet().iterator().next();
 
         return new TestDocument(entry.getKey(), entry.getValue());
+    }
+
+    public void additionalDocument(String id, Map<String, Object> source) {
+        this.allDocuments = ImmutableMap.of(allDocuments).with(id, source);
+        this.retainedDocuments = ImmutableMap.of(retainedDocuments).with(id, source);
+        Object dept = source.get("dept");
+        if (dept instanceof String) {
+            documentsByDepartment.computeIfPresent((String) source.get("dept"), (k, v) -> {v.put(id, source); return v;});
+        } else {
+            throw new RuntimeException("Document: %s doesn't contain a 'dept' attribute of String type");
+        }
     }
 
     private static class Key {
@@ -406,8 +441,10 @@ public class TestData {
         private int deletedDocumentCount = -1;
         private double deletedDocumentFraction = 0.06;
         private int refreshAfter = -1;
+        private int rolloverAfter = -1;
         private int segmentCount = 17;
         private Map<String, Object> additionalAttributes = new HashMap<>();
+        private String timestampAttributeName = "timestamp";
 
         public Builder() {
             super();
@@ -433,6 +470,11 @@ public class TestData {
             return this;
         }
 
+        public Builder rolloverAfter(int rolloverAfter) {
+            this.rolloverAfter = rolloverAfter;
+            return this;
+        }
+
         public Builder deletedDocumentFraction(double deletedDocumentFraction) {
             this.deletedDocumentFraction = deletedDocumentFraction;
             return this;
@@ -445,6 +487,11 @@ public class TestData {
 
         public Builder attr(String name, Object value) {
             additionalAttributes.put(name, value);
+            return this;
+        }
+
+        public Builder timestampAttributeName(String timestampAttributeName) {
+            this.timestampAttributeName = timestampAttributeName;
             return this;
         }
 
@@ -464,7 +511,8 @@ public class TestData {
             Key key = toKey();
 
             try {
-                return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes)));
+                return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter, rolloverAfter,
+                        ImmutableMap.of(additionalAttributes), timestampAttributeName));
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }

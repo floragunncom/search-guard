@@ -46,7 +46,7 @@
   </distributionManagement>
 
   <properties>
-    <elasticsearch.version>7.17.18</elasticsearch.version>
+    <elasticsearch.version>7.17.21</elasticsearch.version>
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
@@ -119,7 +119,7 @@
       <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>fluent-collections</artifactId>
-        <version>1.0.1</version>
+        <version>b-generics-covariance-SNAPSHOT</version>
       </dependency>
 
       <dependency>
@@ -563,6 +563,12 @@
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+     
+    <dependency>
+      <groupId>com.github.stephenc.jcip</groupId>
+      <artifactId>jcip-annotations</artifactId>
       <scope>test</scope>
     </dependency>
 

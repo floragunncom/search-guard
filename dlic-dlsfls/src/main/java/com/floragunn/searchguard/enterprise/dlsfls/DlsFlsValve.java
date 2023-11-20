@@ -30,8 +30,13 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
-import java.util.concurrent.atomic.AtomicReference;
+import static org.elasticsearch.rest.RestStatus.INTERNAL_SERVER_ERROR;
 
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -43,18 +48,17 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.sampler.DiversifiedAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.SignificantTermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsConfig.Mode;
@@ -63,10 +67,8 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
-import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
-
-import static org.elasticsearch.rest.RestStatus.INTERNAL_SERVER_ERROR;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvider {
     private static final String MAP_EXECUTION_HINT = "map";
@@ -80,9 +82,10 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
     private final AtomicReference<DlsFlsProcessedConfig> config;
     private final ComponentState componentState = new ComponentState(0, null, "dls_fls_valve", DlsFlsValve.class).initialized();
     private final TimeAggregation applyTimeAggregation = new TimeAggregation.Nanoseconds();
+    private final Supplier<Meta> metaSupplier;
 
     public DlsFlsValve(Client nodeClient, ClusterService clusterService, IndexNameExpressionResolver resolver, GuiceDependencies guiceDependencies,
-            ThreadContext threadContext, AtomicReference<DlsFlsProcessedConfig> config) {
+            ThreadContext threadContext, AtomicReference<DlsFlsProcessedConfig> config, Supplier<Meta> metaSupplier) {
         this.nodeClient = nodeClient;
         this.clusterService = clusterService;
         this.resolver = resolver;
@@ -90,6 +93,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
         this.threadContext = threadContext;
         this.config = config;
         this.componentState.addMetrics("filter_request", applyTimeAggregation);
+        this.metaSupplier = Objects.requireNonNull(metaSupplier, "Meta supplier must not be null");
     }
 
     @Override
@@ -121,30 +125,33 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                         + context.getRequestInfo().getResolvedIndices() + "\nmode: " + mode);
             }
 
-            ImmutableSet<String> indices = context.getRequestInfo().getResolvedIndices().getLocalIndices();
+            ResolvedIndices resolvedIndices = context.getRequestInfo().getMainResolvedIndices();
 
             if (context.getSpecialPrivilegesEvaluationContext() != null && context.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
+
                 SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+                Meta meta = metaSupplier.get();
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, meta, MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, meta, MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), meta, MetricsLevel.NONE);
             }
 
-            boolean hasDlsRestrictions = documentAuthorization.hasDlsRestrictions(context, indices, meter);
-            boolean hasFlsRestrictions = fieldAuthorization.hasFlsRestrictions(context, indices, meter);
-            boolean hasFieldMasking = fieldMasking.hasFieldMaskingRestrictions(context, indices, meter);
+            boolean hasDlsRestrictions = documentAuthorization.hasRestrictions(context, resolvedIndices, meter);
+            boolean hasFlsRestrictions = fieldAuthorization.hasRestrictions(context, resolvedIndices, meter);
+            boolean hasFieldMasking = fieldMasking.hasRestrictions(context, resolvedIndices, meter);
 
             if (!hasDlsRestrictions && !hasFlsRestrictions && !hasFieldMasking) {
                 return SyncAuthorizationFilter.Result.OK;
             }
 
-            DlsRestriction.IndexMap restrictionMap = null;
+            DlsRestriction.IndexMap restrictionMap = DlsRestriction.IndexMap.NONE;
 
             boolean doFilterLevelDls;
 
             if (mode == Mode.FILTER_LEVEL) {
                 doFilterLevelDls = true;
-                restrictionMap = documentAuthorization.getDlsRestriction(context, indices, meter);
+                restrictionMap = documentAuthorization.getRestriction(context,
+                        Meta.IndexLikeObject.resolveDeep(resolvedIndices.getLocal().getUnion()), meter);
             } else if (mode == Mode.LUCENE_LEVEL) {
                 doFilterLevelDls = false;
             } else { // mode == Mode.ADAPTIVE
@@ -154,7 +161,8 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                     doFilterLevelDls = true;
                     log.debug("Doing filter-level DLS due to header");
                 } else {
-                    restrictionMap = documentAuthorization.getDlsRestriction(context, indices, meter);
+                    restrictionMap = documentAuthorization.getRestriction(context,
+                            Meta.IndexLikeObject.resolveDeep(resolvedIndices.getLocal().getUnion()), meter);
                     doFilterLevelDls = restrictionMap.containsTermLookupQuery();
 
                     if (doFilterLevelDls) {
@@ -219,7 +227,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                 }
             }
 
-            if (doFilterLevelDls) {
+            if (doFilterLevelDls && !restrictionMap.isUnrestricted()) {
                 return DlsFilterLevelActionHandler.handle(context.getAction(), (ActionRequest) request, listener, restrictionMap,
                         context.getRequestInfo().getResolvedIndices(), nodeClient, clusterService, guiceDependencies.getIndicesService(), resolver,
                         threadContext);
@@ -242,8 +250,9 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
         if ((dlsFlsProcessedConfig != null) && dlsFlsProcessedConfig.containsValidationError()) {
             log.error(dlsFlsProcessedConfig.getValidationErrorDescription());
             throw new ElasticsearchStatusException(//
-                "Incorrect configuration of SearchGuard roles or roles mapping, please check the log file for more details. ("//
-                    + dlsFlsProcessedConfig.getUniqueValidationErrorToken() + ")", INTERNAL_SERVER_ERROR);
+                    "Incorrect configuration of SearchGuard roles or roles mapping, please check the log file for more details. ("//
+                            + dlsFlsProcessedConfig.getUniqueValidationErrorToken() + ")",
+                    INTERNAL_SERVER_ERROR);
         }
     }
 

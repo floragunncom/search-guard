@@ -237,7 +237,7 @@ public class SearchGuardFilter implements ActionFilter {
 
                 if (request instanceof BulkShardRequest) {
                     for (BulkItemRequest bsr : ((BulkShardRequest) request).items()) {
-                        immutableResult = checkImmutableIndices(bsr.request(), request, listener, actionName, task, auditLog);
+                        immutableResult = checkImmutableIndices(bsr.request(), request, listener, action, task, auditLog);
                         if (immutableResult != null && immutableResult.v1() == ImmutableState.FAILURE) {
                             return;
                         }
@@ -247,7 +247,7 @@ public class SearchGuardFilter implements ActionFilter {
                         }
                     }
                 } else {
-                    immutableResult = checkImmutableIndices(request, request, listener, actionName, task, auditLog);
+                    immutableResult = checkImmutableIndices(request, request, listener, action, task, auditLog);
                     if (immutableResult != null && immutableResult.v1() == ImmutableState.FAILURE) {
                         return;
                     }
@@ -295,7 +295,7 @@ public class SearchGuardFilter implements ActionFilter {
             }
 
             ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
-            PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, mappedRoles, action, request,
+            PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, false, mappedRoles, action, request,
                     eval.isDebugEnabled(), this.actionRequestIntrospector, specialPrivilegesEvaluationContext);
             PrivilegesEvaluationResult privilegesEvaluationResult = eval.evaluate(user, mappedRoles, actionName, request, task,
                     privilegesEvaluationContext, specialPrivilegesEvaluationContext);
@@ -411,7 +411,7 @@ public class SearchGuardFilter implements ActionFilter {
 
     @SuppressWarnings("rawtypes")
     private Tuple<ImmutableState, ActionListener> checkImmutableIndices(Object request, TransportRequest originalRequest,
-            ActionListener originalListener, String action, Task task, AuditLog auditLog) {
+            ActionListener originalListener, Action action, Task task, AuditLog auditLog) {
 
         if (request instanceof DeleteRequest || request instanceof UpdateRequest || request instanceof UpdateByQueryRequest
                 || request instanceof DeleteByQueryRequest || request instanceof DeleteIndexRequest || request instanceof RestoreSnapshotRequest
@@ -428,7 +428,7 @@ public class SearchGuardFilter implements ActionFilter {
                 //    }
                 //}
 
-                auditLog.logImmutableIndexAttempt(originalRequest, action, task);
+                auditLog.logImmutableIndexAttempt(originalRequest, action.name(), task);
 
                 originalListener.onFailure(new ElasticsearchSecurityException("Index is immutable", RestStatus.FORBIDDEN));
                 return new Tuple<ImmutableState, ActionListener>(ImmutableState.FAILURE, originalListener);
@@ -439,7 +439,7 @@ public class SearchGuardFilter implements ActionFilter {
             if (complianceConfig != null && complianceConfig.isIndexImmutable(action, request)) {
                 ((IndexRequest) request).opType(OpType.CREATE);
                 return new Tuple<ImmutableState, ActionListener>(ImmutableState.LISTENER,
-                        new ImmutableIndexActionListener(originalListener, auditLog, originalRequest, action, task));
+                        new ImmutableIndexActionListener(originalListener, auditLog, originalRequest, action.name(), task));
             }
         }
 

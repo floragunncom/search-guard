@@ -61,8 +61,8 @@ import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
@@ -146,6 +146,11 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
         User user = context.getUser();
         ResolvedIndices requestedResolved = context.getRequestInfo().getResolvedIndices();
+        
+        if (requestedResolved == null) {
+            // This request is not index related
+            return NORMAL;
+        }
         
         if (user.getName().equals(kibanaServerUsername)) {
             return NORMAL;
@@ -502,7 +507,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         ImmutableMap.Builder<String, Boolean> result = new ImmutableMap.Builder<>(roles.size());
         result.put(user.getName(), true);
 
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, roles, null, null, false, null, null);
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, false, roles, null, null, false, null, null);
         
         for (String tenant : this.tenantNames) {
             try {

@@ -21,10 +21,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.config.Role;
@@ -33,8 +33,8 @@ import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.F
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
-import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class FlsFieldFilter implements Function<String, Predicate<String>>, ComponentStateProvider {
     private static final String KEYWORD = ".keyword";
@@ -53,7 +53,7 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
     }
 
     @Override
-    public Predicate<String> apply(String index) {
+    public Predicate<String> apply(String indexName) {
         DlsFlsProcessedConfig config = this.config.get();
 
         if (!config.isEnabled()) {
@@ -67,6 +67,7 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
         }
 
         try (Meter meter = Meter.detail(config.getMetricsLevel(), applyAggregation)) {
+            Meta.Index index = (Meta.Index) this.baseContext.getIndexMetaData().getIndexOrLike(indexName);
             RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
 
             if (fieldAuthorization == null) {
@@ -76,17 +77,17 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, ImmutableSet.of(index), MetricsLevel.NONE);
+                 fieldAuthorization = new RoleBasedFieldAuthorization(roles, baseContext.getIndexMetaData(), MetricsLevel.NONE);
             }
 
-            FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index, meter);
+            FlsRule flsRule = fieldAuthorization.getRestriction(privilegesEvaluationContext, index, meter);
             return (field) -> flsRule.isAllowed(removeSuffix(field));
         } catch (PrivilegesEvaluationException e) {
-            log.error("Error while evaluating FLS for index " + index, e);
+            log.error("Error while evaluating FLS for index " + indexName, e);
             componentState.addLastException("filter_fields", e);
-            throw new RuntimeException("Error while evaluating FLS for index " + index, e);
+            throw new RuntimeException("Error while evaluating FLS for index " + indexName, e);
         } catch (RuntimeException e) {
-            log.error("Error while evaluating FLS for index " + index, e);
+            log.error("Error while evaluating FLS for index " + indexName, e);
             componentState.addLastException("filter_fields", e);
             throw e;
         }

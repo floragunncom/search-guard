@@ -23,9 +23,10 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class RestrictedActionAuthorization implements ActionAuthorization {
 
@@ -34,10 +35,10 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
     private final RequestedPrivileges restriction;
 
     RestrictedActionAuthorization(ActionAuthorization base, RequestedPrivileges restriction, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-            Set<String> indices, Set<String> tenants) {
+            Meta meta, Set<String> tenants) {
         this.base = base;
         this.restriction = restriction;
-        this.restrictionSgRoles = new RoleBasedActionAuthorization(restriction.toRolesConfig(), actionGroups, actions, indices, tenants);
+        this.restrictionSgRoles = new RoleBasedActionAuthorization(restriction.toRolesConfig(), actionGroups, actions, meta, tenants);
     }
 
     @Override
@@ -53,17 +54,17 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
     }
 
     @Override
-    public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions,
-            ResolvedIndices resolvedIndices) throws PrivilegesEvaluationException {
+    public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
+            ResolvedIndices resolvedIndices, Action.Scope scope) throws PrivilegesEvaluationException {
         PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles
-                .hasIndexPermission(context.mappedRoles(RequestedPrivileges.RESTRICTION_ROLES), actions, resolvedIndices);
+                .hasIndexPermission(context.mappedRoles(RequestedPrivileges.RESTRICTION_ROLES), primaryAction, actions, resolvedIndices, scope);
 
         if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.OK) {
             // Don't calculate base permission if we already know we will get an empty set
             return restrictedPermission.reason("Privilege was not requested for token");
         }
 
-        return base.hasIndexPermission(context, actions, resolvedIndices);
+        return base.hasIndexPermission(context, primaryAction, actions, resolvedIndices, scope);
     }
 
     @Override

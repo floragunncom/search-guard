@@ -56,6 +56,7 @@ import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(DlsFlsModule.class);
@@ -93,12 +94,13 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
         this.clusterService = baseDependencies.getClusterService();
 
+        Supplier<Meta> metaSupplier = () -> Meta.from(baseDependencies.getClusterService());
         this.dlsFlsBaseContext = new DlsFlsBaseContext(baseDependencies.getAuthInfoService(), baseDependencies.getAuthorizationService(),
-                baseDependencies.getThreadPool().getThreadContext());
+                baseDependencies.getThreadPool().getThreadContext(), metaSupplier);
 
         this.dlsFlsValve = new DlsFlsValve(baseDependencies.getLocalClient(), baseDependencies.getClusterService(),
                 baseDependencies.getIndexNameExpressionResolver(), baseDependencies.getGuiceDependencies(),
-                baseDependencies.getThreadPool().getThreadContext(), config);
+                baseDependencies.getThreadPool().getThreadContext(), config, metaSupplier);
 
         this.dlsFlsSearchOperationListener = new DlsFlsSearchOperationListener(this.dlsFlsBaseContext, config);
 
@@ -113,8 +115,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
                 this.flsFieldFilter.getComponentState(), this.flsQueryCacheWeightProvider.getComponentState());
 
         baseDependencies.getConfigurationRepository().subscribeOnChange((ConfigMap configMap) -> {
-            DlsFlsProcessedConfig config = DlsFlsProcessedConfig.createFrom(configMap, componentState,
-                    clusterService.state().metadata().indices().keySet());
+            DlsFlsProcessedConfig config = DlsFlsProcessedConfig.createFrom(configMap, componentState, Meta.from(clusterService));
 
             DlsFlsProcessedConfig oldConfig = this.config.get();
 
@@ -134,7 +135,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
             @Override
             public void clusterChanged(ClusterChangedEvent event) {
                 DlsFlsProcessedConfig config = DlsFlsModule.this.config.get();
-                config.updateIndices(event.state().metadata().indices().keySet());
+                config.updateIndices(Meta.from(event.state().getMetadata()));
             }
         });
 
