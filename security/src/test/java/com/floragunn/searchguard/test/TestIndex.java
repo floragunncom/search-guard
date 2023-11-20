@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 floragunn GmbH
+ * Copyright 2021-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,20 @@
 
 package com.floragunn.searchguard.test;
 
+import java.util.Map;
+import java.util.Set;
+
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.indices.SystemIndices;
 
-public class TestIndex {
+import com.floragunn.codova.documents.DocNode;
+
+public class TestIndex implements TestIndexLike {
 
     private final String name;
     private final Settings settings;
@@ -35,14 +43,20 @@ public class TestIndex {
     }
 
     public void create(Client client) {
+        ThreadContext threadContext = client.threadPool().getThreadContext();
 
-        try {
-            client.admin().indices().getIndex(new GetIndexRequest().indices(name)).actionGet();
-        } catch (IndexNotFoundException e) {
-            testData.createIndex(client, name, settings);
+        try (StoredContext stored = threadContext.newStoredContext()) {
+             threadContext.putHeader(SystemIndices.SYSTEM_INDEX_ACCESS_CONTROL_HEADER_KEY, "true");
+            try {
+                client.admin().indices().getIndex(new GetIndexRequest().indices(name)).actionGet();
+            } catch (IndexNotFoundException e) {
+                testData.createIndex(client, name, settings);
+            }
+
         }
+
     }
-    
+
     public void create(GenericRestClient client) throws Exception {
         GenericRestClient.HttpResponse response = client.head(name);
         
@@ -57,8 +71,17 @@ public class TestIndex {
         return name;
     }
 
+    @Override
+    public String toString() {
+        return "TestIndex '" + name + "'";
+    }
+
     public TestData getTestData() {
         return testData;
+    }
+    
+    public TestIndex withAdditionalDocument(String id, DocNode docNode) {
+        return new TestIndex(name, settings, testData.withAdditionalDocument(id, docNode.toMap()));
     }
 
     public static Builder name(String name) {
@@ -83,6 +106,11 @@ public class TestIndex {
 
         public Builder shards(int value) {
             settings.put("index.number_of_shards", 5);
+            return this;
+        }
+
+        public Builder hidden() {
+            settings.put("index.hidden", true);
             return this;
         }
 
@@ -126,6 +154,11 @@ public class TestIndex {
             return this;
         }
 
+        public Builder customDocument(String id, Map<String, Object> source) {
+            testDataBuilder.customDocument(id, source);
+            return this;
+        }
+
         public TestIndex build() {
             if (testData == null) {
                 testData = testDataBuilder.get();
@@ -133,6 +166,16 @@ public class TestIndex {
 
             return new TestIndex(name, settings.build(), testData);
         }
+    }
+
+    @Override
+    public Set<String> getDocumentIds() {
+        return getTestData().getRetainedDocuments().keySet();
+    }
+
+    @Override
+    public Map<String, Map<String, ?>> getDocuments() {
+        return getTestData().getRetainedDocuments();
     }
 
 }

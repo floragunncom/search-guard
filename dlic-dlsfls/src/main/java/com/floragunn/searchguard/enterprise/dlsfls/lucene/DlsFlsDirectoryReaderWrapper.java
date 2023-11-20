@@ -16,7 +16,6 @@ package com.floragunn.searchguard.enterprise.dlsfls.lucene;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
@@ -33,8 +32,8 @@ import org.elasticsearch.index.query.SearchExecutionContext;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardUtils;
 
-import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authz.DocumentWhitelist;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.config.Role;
@@ -50,8 +49,9 @@ import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
-import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.meta.Meta;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryReader, DirectoryReader, IOException> {
     private static final Logger log = LogManager.getLogger(DlsFlsDirectoryReaderWrapper.class);
@@ -90,7 +90,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             log.trace("DlsFlsDirectoryReaderWrapper.apply(): No PrivilegesEvaluationContext");           
             return reader;
         }
-
+        
         try (Meter meter = Meter.detail(config.getMetricsLevel(), directoryReaderWrapperApplyAggregation)) {
 
             DlsFlsLicenseInfo licenseInfo = this.licenseInfo.get();
@@ -100,26 +100,29 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             RoleBasedDocumentAuthorization documentAuthorization = config.getDocumentAuthorization();
             RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
             RoleBasedFieldMasking fieldMasking = config.getFieldMasking();
+            DocumentWhitelist documentWhitelist = DocumentWhitelist.get(threadContext);
 
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                Set<String> indices = ImmutableSet.of(index.getName());
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, null, MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, null, MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), null, MetricsLevel.NONE);
             }
+            
+            Meta.Index metaIndex = (Meta.Index) this.dlsFlsBaseContext.getIndexMetaData().getIndexOrLike(this.index.getName());
 
             DlsRestriction dlsRestriction;
 
             if (!this.dlsFlsBaseContext.isDlsDoneOnFilterLevel()) {
-                dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index.getName(), meter);
+                dlsRestriction = documentAuthorization.getRestriction(privilegesEvaluationContext, metaIndex, meter);
             } else {
                 dlsRestriction = DlsRestriction.NONE;
             }
 
-            FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index.getName(), meter);
-            FieldMaskingRule fieldMaskingRule = fieldMasking.getFieldMaskingRule(privilegesEvaluationContext, index.getName(), meter);
+            FlsRule flsRule = fieldAuthorization.getRestriction(privilegesEvaluationContext, metaIndex, meter);
+            FieldMaskingRule fieldMaskingRule = fieldMasking.getRestriction(privilegesEvaluationContext, metaIndex, meter);
             Query dlsQuery;
 
             if (dlsRestriction.isUnrestricted()) {
@@ -129,14 +132,20 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
                         null, Collections.emptyMap());
 
                 // no need for scoring here, so its possible to wrap this in a ConstantScoreQuery
-                dlsQuery = new ConstantScoreQuery(dlsRestriction.toQueryBuilder(queryShardContext, null).build());
+                dlsQuery = new ConstantScoreQuery(dlsRestriction.toQuery(queryShardContext, null));
             }
 
+            if (documentWhitelist.isWhitelistForIndexPresent(index.getName()) && (!flsRule.isAllowAll() || !fieldMaskingRule.isAllowAll())) {
+                log.debug("Lifting FLS/FM for {} due to present document whitelist");
+                flsRule = FlsRule.ALLOW_ALL;
+                fieldMaskingRule = FieldMaskingRule.ALLOW_ALL;
+            }
+            
             if (log.isDebugEnabled()) {
                 log.debug("Applying DLS/FLS:\nIndex: {}\ndlsRestriction: {}\ndlsQuery: {}\nfls: {}\nfieldMasking: {}", indexService.index().getName(),
                         dlsRestriction, dlsQuery, flsRule, fieldMaskingRule);
             }
-
+            
             DlsFlsActionContext dlsFlsContext = new DlsFlsActionContext(dlsQuery, flsRule, fieldMaskingRule, indexService, threadContext, licenseInfo, auditlog,
                     shardId);
 

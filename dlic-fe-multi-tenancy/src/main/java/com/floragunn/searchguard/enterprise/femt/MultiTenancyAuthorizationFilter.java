@@ -27,9 +27,9 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.floragunn.searchguard.authz.TenantManager;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandler;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
 import com.google.common.base.Strings;
@@ -56,7 +56,6 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;

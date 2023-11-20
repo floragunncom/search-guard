@@ -27,7 +27,7 @@ import org.elasticsearch.action.support.ActionFilter;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 
 public class PrivilegesEvaluatorResponse {
     boolean allowed = false;

@@ -83,14 +83,18 @@ public class MultiTenancyRequestMappingTest {
 
     private static final String DOC_ID = "123";
     private static final String KIBANA_INDEX = ".kibana";
+    private static final String KIBANA_ALIAS = KIBANA_INDEX.concat("_1.1.1");
     private static final String KIBANA_SERVER_USER = "kibana_server";
     private static final TestSgConfig.Tenant HR_TENANT = new TestSgConfig.Tenant("hr_tenant");
     private static final TestSgConfig.Tenant IT_TENANT = new TestSgConfig.Tenant("it_tenant");
     private static final TestSgConfig.User USER = new TestSgConfig.User("user")
-            .roles(new TestSgConfig.Role("tenant_access").tenantPermission("*").on(HR_TENANT.getName()).clusterPermissions("*").indexPermissions("*").on(KIBANA_INDEX+"*"));
+            .roles(new TestSgConfig.Role("tenant_access") //
+                .withTenantPermission("*").on(HR_TENANT.getName()).clusterPermissions("*") //
+                .indexPermissions("*").on(KIBANA_INDEX+"*") //
+                .aliasPermissions("*").on(KIBANA_ALIAS));
 
     private static final TestSgConfig.Role LIMITED_ROLE = new TestSgConfig.Role("limited_access_to_global_tenant") //
-        .tenantPermission("SGS_KIBANA_ALL_READ").on(HR_TENANT.getName(), GLOBAL_TENANT_NAME) //
+        .withTenantPermission("SGS_KIBANA_ALL_READ").on(HR_TENANT.getName(), GLOBAL_TENANT_NAME) //
         .indexPermissions("indices:data/read/search").on(KIBANA_INDEX)
         .clusterPermissions("SGS_CLUSTER_MONITOR");
 
@@ -496,7 +500,7 @@ public class MultiTenancyRequestMappingTest {
         String scopedId = scopedId(DOC_ID);
         DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
         addDocumentToIndex(scopedId, doc);
-        String aliasName = KIBANA_INDEX.concat("_1.1.1");
+        String aliasName = KIBANA_ALIAS;
         addAliasToIndex(aliasName);
         try (GenericRestClient client = cluster.getRestClient(USER)) {
 
@@ -956,7 +960,7 @@ public class MultiTenancyRequestMappingTest {
         String scopedId = scopedId(DOC_ID);
         DocNode doc = DocNode.of("a", "a", "b", "b");
         addDocumentToIndex(scopedId, doc);
-        String aliasName = KIBANA_INDEX.concat("_1.1.1");
+        String aliasName = KIBANA_ALIAS;
         addAliasToIndex(aliasName);
         try (GenericRestClient client = cluster.getRestClient(USER)) {
 
@@ -1248,7 +1252,7 @@ public class MultiTenancyRequestMappingTest {
 
     @Test
     public void deleteRequest_indexDoesNotExist() throws Exception {
-        String missingIndex = KIBANA_INDEX.concat("_1.1.1");
+        String missingIndex = KIBANA_ALIAS;
         try (GenericRestClient client = cluster.getRestClient(USER)) {
 
             HttpResponse responseWithoutTenant = client.delete(
@@ -1752,7 +1756,7 @@ public class MultiTenancyRequestMappingTest {
 
     @Test
     public void multiGetRequest_indexDoesNotExist() throws Exception {
-        String firstMissingIndex = KIBANA_INDEX.concat("_1.1.1");
+        String firstMissingIndex = KIBANA_ALIAS;
         String secondMissingIndex = KIBANA_INDEX.concat("_2.2.2");
         String firstId = "1";
         String firstScopedId = scopedId(firstId);
@@ -1957,7 +1961,7 @@ public class MultiTenancyRequestMappingTest {
 
     @Test
     public void searchRequest_withIgnoreUnavailableParam() throws Exception {
-        String indexName = KIBANA_INDEX.concat("_1.1.1");
+        String indexName = KIBANA_ALIAS;
         try (GenericRestClient client = cluster.getRestClient(USER)) {
             //ignore unavailable true
             HttpResponse responseWithoutTenant = client.get(
@@ -2606,7 +2610,7 @@ public class MultiTenancyRequestMappingTest {
 
     @Test
     public void bulkRequest_allActions_indexDoesNotExist() throws Exception {
-        String index = KIBANA_INDEX.concat("_1.1.1");
+        String index = KIBANA_ALIAS;
         String scopedId = scopedId(DOC_ID);
         DocNode docContent = DocNode.of("a", "a");
         try (GenericRestClient client = cluster.getRestClient(USER)) {
@@ -2768,7 +2772,7 @@ public class MultiTenancyRequestMappingTest {
     public void bulkRequest_withRequireAliasParam() throws Exception {
         String scopedId = scopedId(DOC_ID);
         addDocumentToIndex(scopedId, DocNode.of("a", "a"));
-        String aliasName = KIBANA_INDEX.concat("_1.1.1");
+        String aliasName = KIBANA_ALIAS;
         addAliasToIndex(aliasName);
 
         try (GenericRestClient client = cluster.getRestClient(USER)) {

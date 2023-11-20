@@ -93,7 +93,7 @@ public class TenantsTest {
         SALES_TENANT, OPERATIONS_TENANT, RD_TENANT, BD_TENANT, LEGAL_TENANT, IT_TENANT, PR_TENANT, QA_TENANT);
     private static final User USER_SINGLE_TENANT = new User("user_single_tenant") //
         .roles(new Role("single_tenant_access") //
-            .tenantPermission("*") //
+            .withTenantPermission("*") //
             .on(HR_TENANT.getName()) //
             .indexPermissions("*") //
             .on(FRONTEND_INDEX +"*"));
@@ -102,29 +102,29 @@ public class TenantsTest {
 
     private static final User USER_EACH_TENANT_READ = new User("user_each_tenant_read") //
         .roles(new Role("each_tenant_read_access") //
-            .tenantPermission("SGS_KIBANA_ALL_READ") //
+            .withTenantPermission("SGS_KIBANA_ALL_READ") //
             .on(ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName).with(Tenant.GLOBAL_TENANT_ID).toArray(String[]::new)) //
             .indexPermissions("*") //
             .on(FRONTEND_INDEX +"*"));
     private static final User USER_EACH_TENANT_WRITE = new User("user_each_tenant_write") //
         .roles(new Role("each_tenant_write_access") //
-            .tenantPermission("SGS_KIBANA_ALL_WRITE") //
+            .withTenantPermission("SGS_KIBANA_ALL_WRITE") //
             .on(ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName).with(Tenant.GLOBAL_TENANT_ID).toArray(String[]::new)) //
             .indexPermissions("*") //
             .on(FRONTEND_INDEX +"*"));
 
     private static final User USER_SOME_TENANT_ACCESS = new User("user_some_tenant_access") //
         .roles(new Role("some_tenant_access") //
-            .tenantPermission("SGS_KIBANA_ALL_WRITE") //
+            .withTenantPermission("SGS_KIBANA_ALL_WRITE") //
             .on(HR_TENANT.getName(), FINANCE_TENANT.getName(), SALES_TENANT.getName()) //
-            .tenantPermission("SGS_KIBANA_ALL_READ").on(IT_TENANT.getName(), PR_TENANT.getName(), QA_TENANT.getName()) //
+            .withTenantPermission("SGS_KIBANA_ALL_READ").on(IT_TENANT.getName(), PR_TENANT.getName(), QA_TENANT.getName()) //
             .indexPermissions("*") //
             .on(FRONTEND_INDEX +"*"));
 
     private static final User USER_WITH_ACCESS_ONLY_TO_GLOBAL_TENANT = new User("user_with_access_only_to_global_tenant") //
             .roles(new Role("global_tenant_access") //
                     .clusterPermissions("cluster:admin:searchguard:femt:user/available_tenants/get")
-                    .tenantPermission("*")
+                    .withTenantPermission("*")
                     .on(Tenant.GLOBAL_TENANT_ID));
 
     @ClassRule

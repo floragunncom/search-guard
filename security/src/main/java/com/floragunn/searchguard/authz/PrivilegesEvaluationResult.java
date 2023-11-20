@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 floragunn GmbH
+ * Copyright 2021-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package com.floragunn.searchguard.authz;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -27,22 +28,51 @@ import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.CheckTable;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class PrivilegesEvaluationResult {
 
+    /**
+     * The user has all necessary privileges for a action request
+     */
     public static final PrivilegesEvaluationResult OK = new PrivilegesEvaluationResult(Status.OK);
+
+    /**
+     * The user does not have privileges for all requested indices (or aliases or data streams), but for some of the requested indices (or aliases or data streams)
+     */
     public static final PrivilegesEvaluationResult PARTIALLY_OK = new PrivilegesEvaluationResult(Status.PARTIALLY_OK);
+
+    /**
+     * The user does not have privileges for the requested aliases, but for all indices requested by the aliases.
+     */
+    public static final PrivilegesEvaluationResult OK_WHEN_RESOLVED = new PrivilegesEvaluationResult(Status.OK_WHEN_RESOLVED);
+
+    /**
+     * The user does not have any privileges for the requested indices. The user shall get an empty result as response.
+     */
     public static final PrivilegesEvaluationResult EMPTY = new PrivilegesEvaluationResult(Status.EMPTY);
 
+    /**
+     * The user does not have any privileges for the requested indices. The user shall get an error as response.
+     */
     public static final PrivilegesEvaluationResult INSUFFICIENT = new PrivilegesEvaluationResult(Status.INSUFFICIENT);
+
+    /**
+     * The current code could not finally determine the authorization status.
+     */
     public static final PrivilegesEvaluationResult PENDING = new PrivilegesEvaluationResult(Status.PENDING);
 
     private final Status status;
-    private final CheckTable<String, Action> indexToActionPrivilegeTable;
+    private final CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable;
     private final ImmutableList<Error> errors;
     private final ImmutableSet<String> availableIndices;
+    private final ImmutableMap<Action.AdditionalDimension, ImmutableSet<String>> additionalAvailableIndices;
+    private final ImmutableMap<Action.AdditionalDimension, CheckTable<Meta.IndexLikeObject, Action>> additionalIndexToActionPrivilegeTables;
+
     private final String reason;
     private final ImmutableList<ActionFilter> additionalActionFilters;
 
@@ -53,53 +83,62 @@ public class PrivilegesEvaluationResult {
         this.reason = null;
         this.availableIndices = null;
         this.additionalActionFilters = ImmutableList.empty();
+        this.additionalAvailableIndices = ImmutableMap.empty();
+        this.additionalIndexToActionPrivilegeTables = ImmutableMap.empty();
     }
 
     PrivilegesEvaluationResult(Status status, String reason, ImmutableSet<String> availableIndices,
-            CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors,
-            ImmutableList<ActionFilter> additionalActionFilters) {
+            ImmutableMap<Action.AdditionalDimension, ImmutableSet<String>> additionalAvailableIndices,
+            CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable,
+            ImmutableMap<Action.AdditionalDimension, CheckTable<Meta.IndexLikeObject, Action>> additionalIndexToActionPrivilegeTables,
+            ImmutableList<Error> errors, ImmutableList<ActionFilter> additionalActionFilters) {
         this.status = status;
         this.indexToActionPrivilegeTable = indexToActionPrivilegeTable;
         this.errors = errors;
         this.reason = reason;
         this.availableIndices = availableIndices;
+        this.additionalAvailableIndices = additionalAvailableIndices != null ? additionalAvailableIndices : ImmutableMap.empty();
+        this.additionalIndexToActionPrivilegeTables = additionalIndexToActionPrivilegeTables != null ? additionalIndexToActionPrivilegeTables
+                : ImmutableMap.empty();
         this.additionalActionFilters = additionalActionFilters;
     }
 
     public PrivilegesEvaluationResult reason(String reason) {
-        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.indexToActionPrivilegeTable, this.errors,
-                this.additionalActionFilters);
+        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.additionalAvailableIndices,
+                this.indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, this.errors, this.additionalActionFilters);
     }
 
     public PrivilegesEvaluationResult reason(String reason, ImmutableList<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.indexToActionPrivilegeTable, errors,
-                this.additionalActionFilters);
+        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.additionalAvailableIndices,
+                this.indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
     }
 
     public PrivilegesEvaluationResult reason(String reason, Error error) {
-        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.indexToActionPrivilegeTable, ImmutableList.of(errors),
+        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.additionalAvailableIndices,
+                this.indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, ImmutableList.of(errors),
                 this.additionalActionFilters);
     }
 
-    public PrivilegesEvaluationResult with(CheckTable<String, Action> indexToActionPrivilegeTable) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, indexToActionPrivilegeTable, this.errors,
-                this.additionalActionFilters);
+    public PrivilegesEvaluationResult with(CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, this.additionalAvailableIndices,
+                indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, this.errors, this.additionalActionFilters);
     }
 
-    public PrivilegesEvaluationResult with(CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, indexToActionPrivilegeTable, errors,
-                this.additionalActionFilters);
+    public PrivilegesEvaluationResult with(CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, this.additionalAvailableIndices,
+                indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
     }
 
-    public PrivilegesEvaluationResult with(String reason, CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, indexToActionPrivilegeTable, errors,
-                this.additionalActionFilters);
+    public PrivilegesEvaluationResult with(String reason, CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable,
+            ImmutableList<Error> errors) {
+        return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, this.additionalAvailableIndices,
+                indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
     }
 
     public PrivilegesEvaluationResult with(ImmutableList<Error> errors) {
         if (errors.size() != 0) {
-            return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, indexToActionPrivilegeTable, errors,
-                    this.additionalActionFilters);
+            return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, this.additionalAvailableIndices,
+                    indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
         } else {
             return this;
         }
@@ -107,36 +146,112 @@ public class PrivilegesEvaluationResult {
 
     public PrivilegesEvaluationResult with(ActionFilter additionalActionFilter) {
         if (additionalActionFilter != null) {
-            return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, this.indexToActionPrivilegeTable, this.errors,
+            return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, this.additionalAvailableIndices,
+                    this.indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, this.errors,
                     this.additionalActionFilters.with(additionalActionFilter));
         } else {
             return this;
         }
     }
 
-    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices, CheckTable<String, Action> indexToActionPrivilegeTable,
-            ImmutableList<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, indexToActionPrivilegeTable, errors,
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<Meta.IndexLikeObject> availableIndices,
+            CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices.map(Meta.IndexLikeObject::name),
+                this.additionalAvailableIndices, indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors,
                 this.additionalActionFilters);
     }
 
-    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices,
-            CheckTable<String, Action> indexToActionPrivilegeTable) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, indexToActionPrivilegeTable, errors,
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<Meta.IndexLikeObject> availableIndices,
+            CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices.map(Meta.IndexLikeObject::name),
+                this.additionalAvailableIndices, indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors,
                 this.additionalActionFilters);
+    }
+
+    /*
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices,
+            CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, this.additionalAvailableIndices,
+                indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
+    }*/
+
+    public PrivilegesEvaluationResult availableAdditionally(Action.AdditionalDimension role,
+            ImmutableSet<String> addtionalAvailableIndices, CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable,
+            ImmutableList<Error> errors) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices,
+                this.additionalAvailableIndices.with(role, addtionalAvailableIndices), this.indexToActionPrivilegeTable,
+                this.additionalIndexToActionPrivilegeTables.with(role, indexToActionPrivilegeTable), errors, this.additionalActionFilters);
+    }
+
+    public PrivilegesEvaluationResult availableAdditionally(Action.AdditionalDimension role,
+            ImmutableSet<String> addtionalAvailableIndices, CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices,
+                this.additionalAvailableIndices.with(role, addtionalAvailableIndices), this.indexToActionPrivilegeTable,
+                this.additionalIndexToActionPrivilegeTables.with(role, indexToActionPrivilegeTable), errors, this.additionalActionFilters);
+    }
+
+    public PrivilegesEvaluationResult withAdditional(Action.AdditionalDimension role,
+            PrivilegesEvaluationResult additional) {
+        Status status;
+
+        if (this.status != additional.status) {
+            if (additional.status == Status.INSUFFICIENT || this.status == Status.INSUFFICIENT) {
+                status = Status.INSUFFICIENT;
+            } else if (additional.status == Status.PENDING || this.status == Status.PENDING) {
+                status = Status.PENDING;
+            } else if (additional.status == Status.EMPTY || this.status == Status.EMPTY) {
+                status = Status.EMPTY;
+            } else if (additional.status == Status.OK_WHEN_RESOLVED) {
+                if (this.status == Status.OK || this.status == Status.OK_WHEN_RESOLVED) {
+                    status = Status.OK_WHEN_RESOLVED;
+                } else {
+                    status = this.status;
+                }
+            } else if (additional.status == Status.PARTIALLY_OK) {
+                if (this.status == Status.OK || this.status == Status.OK_WHEN_RESOLVED || this.status == Status.PARTIALLY_OK) {
+                    status = Status.PARTIALLY_OK;
+                } else {
+                    status = this.status;
+                }
+            } else {
+                // result.status == Status.OK
+
+                status = this.status;
+            }
+        } else {
+            status = this.status;
+        }
+
+        String reason = this.reason;
+
+        if (reason == null) {
+            reason = additional.reason;
+        } else if (additional.reason != null) {
+            reason = this.reason + "\n" + additional.reason;
+        }
+
+        return new PrivilegesEvaluationResult(status, reason, availableIndices,
+                additional.availableIndices != null ? this.additionalAvailableIndices.with(role, additional.availableIndices)
+                        : this.additionalAvailableIndices,
+                this.indexToActionPrivilegeTable,
+                additional.indexToActionPrivilegeTable != null
+                        ? this.additionalIndexToActionPrivilegeTables.with(role, additional.indexToActionPrivilegeTable)
+                        : this.additionalIndexToActionPrivilegeTables,
+                errors.with(additional.errors), this.additionalActionFilters.with(additional.additionalActionFilters));
     }
 
     public PrivilegesEvaluationResult missingPrivileges(Action action) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, CheckTable.create("_", ImmutableSet.of(action)),
-                this.errors, this.additionalActionFilters);
-    }
-
-    public PrivilegesEvaluationResult status(Status status) {
-        return new PrivilegesEvaluationResult(status, this.reason, this.availableIndices, this.indexToActionPrivilegeTable, this.errors,
+        return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, this.additionalAvailableIndices,
+                CheckTable.create(Meta.NonExistent.BLANK, ImmutableSet.of(action)), this.additionalIndexToActionPrivilegeTables, this.errors,
                 this.additionalActionFilters);
     }
 
-    public CheckTable<String, Action> getIndexToActionPrivilegeTable() {
+    public PrivilegesEvaluationResult status(Status status) {
+        return new PrivilegesEvaluationResult(status, this.reason, this.availableIndices, this.additionalAvailableIndices,
+                this.indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, this.errors, this.additionalActionFilters);
+    }
+
+    public CheckTable<Meta.IndexLikeObject, Action> getIndexToActionPrivilegeTable() {
         return indexToActionPrivilegeTable;
     }
 
@@ -180,35 +295,81 @@ public class PrivilegesEvaluationResult {
 
     @Override
     public String toString() {
-        StringBuilder result = new StringBuilder("");
+        try {
+            StringBuilder result = new StringBuilder("");
 
-        result.append("Status: ").append(status).append("\n");
+            result.append("Status: ").append(status).append("\n");
 
-        if (reason != null) {
-            result.append("Reason: ").append(reason).append("\n");
-        }
-
-        if (indexToActionPrivilegeTable != null) {
-            String evaluatedPrivileges = indexToActionPrivilegeTable.toString("ok", "MISSING");
-
-            if (evaluatedPrivileges.length() > 30 || evaluatedPrivileges.contains("\n")) {
-                result.append("Evaluated Privileges:\n").append(evaluatedPrivileges).append("\n");
-            } else {
-                result.append("Evaluated Privileges: ").append(evaluatedPrivileges).append("\n");
+            if (reason != null) {
+                result.append("Reason: ").append(reason).append("\n");
             }
-        }
 
-        if (errors.size() == 1) {
-            result.append("Errors: ").append(errors.only());
-        } else if (errors.size() > 1) {
-            result.append("Errors:\n").append(errors.stream().map((e) -> " - " + e + "\n").collect(Collectors.toList())).append("\n");
-        }
+            if (indexToActionPrivilegeTable != null) {
+                String evaluatedPrivileges = indexToActionPrivilegeTable.toString("ok", "MISSING");
 
-        return result.toString();
+                if (evaluatedPrivileges.length() > 30 || evaluatedPrivileges.contains("\n")) {
+                    result.append("Evaluated privileges:\n").append(evaluatedPrivileges).append("\n");
+                } else {
+                    result.append("Evaluated privileges: ").append(evaluatedPrivileges).append("\n");
+                }
+            }
+
+            if (!this.additionalIndexToActionPrivilegeTables.isEmpty()) {
+                for (Map.Entry<Action.AdditionalDimension, CheckTable<Meta.IndexLikeObject, Action>> entry : this.additionalIndexToActionPrivilegeTables
+                        .entrySet()) {
+                    String evaluatedPrivileges = entry.getValue().toString("ok", "MISSING");
+
+                    if (evaluatedPrivileges.length() > 30 || evaluatedPrivileges.contains("\n")) {
+                        result.append("Evaluated privileges for ").append(entry.getKey()).append(":\n").append(evaluatedPrivileges).append("\n");
+                    } else {
+                        result.append("Evaluated privileges for ").append(entry.getKey()).append(": ").append(evaluatedPrivileges).append("\n");
+                    }
+                }
+            }
+
+            if (errors.size() == 1) {
+                result.append("Errors: ").append(errors.only());
+            } else if (errors.size() > 1) {
+                result.append("Errors:\n").append(errors.stream().map((e) -> " - " + e + "\n").collect(Collectors.toList())).append("\n");
+            }
+
+            return result.toString();
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
     }
 
     public static enum Status {
-        OK, PARTIALLY_OK, EMPTY, INSUFFICIENT, PENDING;
+        /**
+         * The user has all necessary privileges for a action request
+         */
+        OK,
+
+        /**
+        * The user does not have privileges for all requested indices (or aliases or data streams), but for some of the requested indices (or aliases or data streams)
+        */
+        PARTIALLY_OK,
+
+        /**
+         * The user does not have privileges for the requested aliases, but for all indices requested by the aliases.
+         */
+        OK_WHEN_RESOLVED,
+
+        /**
+         * The user does not have any privileges for the requested indices. The user shall get an empty result as response.
+         */
+        EMPTY,
+
+        /**
+         * The user does not have any privileges for the requested indices. The user shall get an error as response.
+         */
+        INSUFFICIENT,
+
+        /**
+         * The current code could not finally determine the authorization status.
+         */
+        PENDING;
     }
 
     public static class Error {
@@ -337,13 +498,14 @@ public class PrivilegesEvaluationResult {
     }
 
     private boolean isRelatedToIndexPermission() {
-        return this.indexToActionPrivilegeTable != null && this.indexToActionPrivilegeTable.getColumns().any().isIndexPrivilege();
+        return this.indexToActionPrivilegeTable != null && !this.indexToActionPrivilegeTable.isEmpty()
+                && this.indexToActionPrivilegeTable.getColumns().any().isIndexLikePrivilege();
     }
 
     private List<String> getFlattenedIndexToActionPrivilegeTable() {
         List<String> result = new ArrayList<>();
 
-        for (String index : this.indexToActionPrivilegeTable.getRows()) {
+        for (Meta.IndexLikeObject index : this.indexToActionPrivilegeTable.getRows()) {
             for (Action action : this.indexToActionPrivilegeTable.getColumns()) {
                 if (!this.indexToActionPrivilegeTable.isChecked(index, action)) {
                     result.add(index + ": " + action);
@@ -352,5 +514,9 @@ public class PrivilegesEvaluationResult {
         }
 
         return result;
+    }
+
+    public ImmutableMap<Action.AdditionalDimension, ImmutableSet<String>> getAdditionalAvailableIndices() {
+        return additionalAvailableIndices;
     }
 }

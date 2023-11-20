@@ -85,7 +85,12 @@ sg_aliasmngt:
     - "indices:data/write/*"
     - "indices:data/read/*"
     - "CREATE_INDEX"
-  tenant_permissions: []
+  alias_permissions:
+  - alias_patterns:
+    - "alog*"
+    - "alnp"
+    allowed_actions:
+    - "indices:admin/aliases*"
 sg_transport_client:
   reserved: false
   hidden: false
