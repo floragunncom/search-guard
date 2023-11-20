@@ -42,6 +42,9 @@
 
 package com.floragunn.searchsupport.queries;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.function.Predicate;
@@ -65,6 +68,24 @@ public class WildcardExpressionResolver {
             return suffixWildcard(metadata, indicesLookup, expression, options, includeDataStreams);
         } else {
             return otherWildcard(metadata, indicesLookup, expression, options, includeDataStreams);
+        }
+    }
+    
+    public static List<String> resolveEmptyOrTrivialWildcard(IndicesOptions options, Metadata metadata) {
+        if (options.expandWildcardsOpen() && options.expandWildcardsClosed() && options.expandWildcardsHidden()) {
+            return Arrays.asList(metadata.getConcreteAllIndices());
+        } else if (options.expandWildcardsOpen() && options.expandWildcardsClosed()) {
+            return Arrays.asList(metadata.getConcreteVisibleIndices());
+        } else if (options.expandWildcardsOpen() && options.expandWildcardsHidden()) {
+            return Arrays.asList(metadata.getConcreteAllOpenIndices());
+        } else if (options.expandWildcardsOpen()) {
+            return Arrays.asList(metadata.getConcreteVisibleOpenIndices());
+        } else if (options.expandWildcardsClosed() && options.expandWildcardsHidden()) {
+            return Arrays.asList(metadata.getConcreteAllClosedIndices());
+        } else if (options.expandWildcardsClosed()) {
+            return Arrays.asList(metadata.getConcreteVisibleClosedIndices());
+        } else {
+            return Collections.emptyList();
         }
     }
 
@@ -128,7 +149,7 @@ public class WildcardExpressionResolver {
         return result.build();
     }
 
-    private static IndexMetadata.State excludeState(IndicesOptions options) {
+    public static IndexMetadata.State excludeState(IndicesOptions options) {
         final IndexMetadata.State excludeState;
         if (options.expandWildcardsOpen() && options.expandWildcardsClosed()) {
             excludeState = null;
