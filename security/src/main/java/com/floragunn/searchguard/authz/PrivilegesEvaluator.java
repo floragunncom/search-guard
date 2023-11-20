@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authz.config.ActionGroup;
@@ -123,8 +124,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final ComponentState componentState = new ComponentState(10, null, "privileges_evaluator");
     private final ByteSizeValue statefulIndexMaxHeapSize;
 
+    private final AtomicReference<RoleBasedActionAuthorization> actionAuthorization = new AtomicReference<>();
     private volatile AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
-    private volatile RoleBasedActionAuthorization actionAuthorization = null;
     private volatile TenantManager tenantManager = null;
 
     public PrivilegesEvaluator(ClusterService clusterService, ThreadPool threadPool,
@@ -190,14 +191,20 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
                         : ActionGroup.FlattenedIndex.EMPTY;
 
-                tenantManager = new TenantManager(tenants.getCEntries().keySet(), multiTenancyConfigurationProvider);
-                actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, Meta.from(clusterService.state().metadata()),
+                tenantManager = new TenantManager(tenants.getCEntries().keySet(), multiTenancyConfigurationProvider);                
+                RoleBasedActionAuthorization newActionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, Meta.from(clusterService.state().metadata()),
                         tenants.getCEntries().keySet(), statefulIndexMaxHeapSize, adminOnlyIndices, authzConfig.getMetricsLevel(), multiTenancyConfigurationProvider);
-
+                
+                RoleBasedActionAuthorization oldActionAuthorization = PrivilegesEvaluator.this.actionAuthorization.getAndSet(newActionAuthorization);
+                
                 componentState.setConfigVersion(configMap.getVersionsAsString());
-                componentState.replacePart(actionAuthorization.getComponentState());
+                componentState.replacePart(newActionAuthorization.getComponentState());
                 componentState.replacePart(actionGroups.getComponentState());
                 componentState.updateStateFromParts();
+                
+                if (oldActionAuthorization != null) {
+                    oldActionAuthorization.shutdown();
+                }
             }
         });
 
@@ -205,7 +212,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
             @Override
             public void clusterChanged(ClusterChangedEvent event) {
-                RoleBasedActionAuthorization actionAuthorization = PrivilegesEvaluator.this.actionAuthorization;
+                RoleBasedActionAuthorization actionAuthorization = PrivilegesEvaluator.this.actionAuthorization.get();
 
                 if (actionAuthorization != null) {
                     actionAuthorization.updateStatefulIndexPrivilegesAsync(clusterService, threadPool);
@@ -250,7 +257,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         ActionAuthorization actionAuthorization;
 
         if (specialPrivilegesEvaluationContext == null) {
-            actionAuthorization = this.actionAuthorization;
+            actionAuthorization = this.actionAuthorization.get();
         } else {
             actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
         }
@@ -611,6 +618,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         if (!tenantValid) {
             log.info("Invalid tenant: " + requestedTenant + "; user: " + user);
         }
+        
+        ActionAuthorization actionAuthorization = this.actionAuthorization.get();
 
         for (String privilegeAskedFor : privilegesAskedFor) {
             Action action = actions.get(privilegeAskedFor);
@@ -675,7 +684,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         if (specialPrivilegesEvaluationContext == null) {
             mappedRoles = this.authorizationService.getMappedRoles(user, callerTransportAddress);
-            actionAuthorization = this.actionAuthorization;
+            actionAuthorization = this.actionAuthorization.get();
         } else {
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
@@ -709,7 +718,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         if (specialPrivilegesEvaluationContext == null) {
             mappedRoles = this.authorizationService.getMappedRoles(user, callerTransportAddress);
-            actionAuthorization = this.actionAuthorization;
+            actionAuthorization = this.actionAuthorization.get();
         } else {
             mappedRoles = specialPrivilegesEvaluationContext.getMappedRoles();
             actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
@@ -733,7 +742,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         ActionAuthorization actionAuthorization;
 
         if (context.getSpecialPrivilegesEvaluationContext() == null) {
-            actionAuthorization = this.actionAuthorization;
+            actionAuthorization = this.actionAuthorization.get();
         } else {
             actionAuthorization = context.getSpecialPrivilegesEvaluationContext().getActionAuthorization();
         }
@@ -780,7 +789,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     public RoleBasedActionAuthorization getActionAuthorization() {
-        return actionAuthorization;
+        return actionAuthorization.get();
     }
 
     public RoleMapping.ResolutionMode getRolesMappingResolution() {
@@ -788,7 +797,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     public ActionGroup.FlattenedIndex getActionGroups() {
-        return actionAuthorization.getActionGroups();
+        return actionAuthorization.get().getActionGroups();
     }
 
     public ClusterService getClusterService() {
