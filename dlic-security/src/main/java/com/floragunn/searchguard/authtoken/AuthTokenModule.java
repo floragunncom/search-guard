@@ -20,6 +20,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
@@ -59,10 +64,6 @@ import com.floragunn.searchguard.authtoken.api.TransportRevokeAuthTokenAction;
 import com.floragunn.searchguard.authtoken.api.TransportSearchAuthTokensAction;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
 import com.floragunn.searchguard.authtoken.update.TransportPushAuthTokenUpdateAction;
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConfigMap;
-import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -103,7 +104,7 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         this.configVarService = baseDependencies.getConfigVarService();
 
-        this.configVarService.requestRandomKey("auth_tokens_signing_key_hs512", 512, "authc");
+        this.configVarService.requestRandomKey(AuthTokenServiceConfig.SIGNING_KEY_SECRET, 512, "authc");
 
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(baseDependencies.getLocalClient());
 
@@ -124,7 +125,8 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
 
         authenticationDomain = new AuthTokenAuthenticationDomain(authTokenService);
 
-        baseDependencies.getConfigurationRepository().subscribeOnChange(new ConfigurationChangeListener() {
+        ConfigurationRepository configurationRepository = baseDependencies.getConfigurationRepository();
+        configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
 
             @Override
             public void onChange(ConfigMap configMap) {
@@ -140,7 +142,8 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
 
                     if (!docNode.isNull()) {
                         try {
-                            AuthTokenServiceConfig authTokenServiceConfig = AuthTokenServiceConfig.parse(docNode, null).get();
+                            AuthTokenServiceConfig authTokenServiceConfig = AuthTokenServiceConfig
+                                    .parse(docNode, configurationRepository.getParserContext()).get();
 
                             authTokenService.setConfig(authTokenServiceConfig);
                             componentState.setConfigVersion(sgConfig.getDocVersion());
