@@ -563,6 +563,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.GetAction.Handler.class));
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PutAction.Handler.class));
             actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PatchAction.Handler.class));
+            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.DocumentLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.DocumentLevel.GetAction.Handler.class));
+            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.DocumentLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.DocumentLevel.PutAction.Handler.class));
+            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.DocumentLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.DocumentLevel.PatchAction.Handler.class));
             actions.add(new ActionHandler<>(SearchGuardCapabilities.GetCapabilitiesAction.INSTANCE, SearchGuardCapabilities.GetCapabilitiesAction.TransportAction.class));
             actions.add(new ActionHandler<>(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.INSTANCE, ProtectedConfigIndexService.TriggerConfigIndexCreationAction.TransportAction.class));
 

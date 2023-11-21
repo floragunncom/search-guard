@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import com.floragunn.searchguard.configuration.ConfigurationRepository.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
@@ -194,9 +195,11 @@ public abstract class TypeLevelConfigApi {
                         } else {
                             configMap = request.getConfig();
                         }
-                        
-                        try (SgDynamicConfiguration<T> config = SgDynamicConfiguration.fromMap(configMap, configType,
-                                configurationRepository.getParserContext().withExternalResources()).get()) {
+
+                        Context context = configurationRepository.getParserContext()
+                                .withExternalResources().withoutLenientValidation();
+
+                        try (SgDynamicConfiguration<T> config = SgDynamicConfiguration.fromMap(configMap, configType, context).get()) {
 
                             this.configurationRepository.update(configType, config, request.getIfMatch());
                             return new StandardResponse(200).message("Configuration has been updated");

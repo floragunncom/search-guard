@@ -58,8 +58,10 @@ public class SessionLongRunningIntegrationTest {
     static TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
 
     static TestSgConfig TEST_SG_CONFIG = new TestSgConfig().resources("session").authc(AUTHC)
-            .frontendAuthc("default", new TestSgConfig.FrontendAuthc("basic").label("Basic Login"))//
-            .frontendAuthc("test_fe", new TestSgConfig.FrontendAuthc(TestApiAuthenticationFrontend.class.getName()).label("Test Login"))
+            .frontendAuthc("default", new TestSgConfig.FrontendAuthc()
+                    .authDomain(new TestSgConfig.FrontendAuthDomain("basic").label("Basic Login")))//
+            .frontendAuthc("test_fe", new TestSgConfig.FrontendAuthc()
+                    .authDomain(new TestSgConfig.FrontendAuthDomain(TestApiAuthenticationFrontend.class.getName()).label("Test Login")))
             .user(NO_ROLES_USER).user(BASIC_USER).sessions(SESSIONS);
 
     @ClassRule
