@@ -1034,14 +1034,64 @@ public class ActionRequestIntrospector {
                 this.clusterState = null;
             }
 
+            private Local(ImmutableSet<ConcreteIndex> pureIndices, ImmutableSet<Alias> aliases, ImmutableSet<DataStream> dataStreams,
+                    ImmutableSet<String> nonExistingIndices, ClusterState clusterState, ImmutableSet<String> unionOfAliasesAndDataStreams,
+                    ImmutableSet<String> union) {
+                this.pureIndices = pureIndices;
+                this.aliases = aliases;
+                this.dataStreams = dataStreams;
+                this.nonExistingIndices = nonExistingIndices;
+                this.unionOfAliasesAndDataStreams = unionOfAliasesAndDataStreams;
+                this.union = union;
+                this.clusterState = clusterState;
+            }
+
             boolean isEmpty() {
                 return union.isEmpty();
             }
 
             Local with(Local other) {
-                // TODO update pureIndices
-                return new Local(this.pureIndices.with(other.pureIndices), this.aliases.with(other.aliases), this.dataStreams.with(other.dataStreams),
-                        this.nonExistingIndices.with(other.nonExistingIndices), this.clusterState != null ? this.clusterState : other.clusterState);
+                if (this.union.equals(other.union)) {
+                    return this;
+                }
+                
+                if (this.unionOfAliasesAndDataStreams.equals(other.unionOfAliasesAndDataStreams)) {
+                    return new Local(this.pureIndices.with(other.pureIndices), this.aliases, this.dataStreams,
+                            this.nonExistingIndices.with(other.nonExistingIndices),
+                            this.clusterState != null ? this.clusterState : other.clusterState, this.unionOfAliasesAndDataStreams, this.union.with(other.union));
+                } else {
+                    // Remove entries from pureIndices which are contained in the other object's aliases or data streams (and vice versa)
+                    // This ensures the contract that pureIndices only contains indices which are not already indirectly contained in aliases or dataStreams
+                    
+                    ImmutableSet.Builder<ConcreteIndex> mergedPureIndices = new ImmutableSet.Builder<>(this.pureIndices.size() + other.pureIndices.size());
+                    
+                    for (ConcreteIndex index : this.pureIndices) {
+                        if (index.getParentDataStream() != null && other.dataStreams.contains(index.getParentDataStream())) {
+                            continue;
+                        }
+                        
+                        if (index.getAliases() != null && other.unionOfAliasesAndDataStreams.containsAny(index.getAliases())) {
+                            continue;
+                        }
+                        
+                        mergedPureIndices.add(index);
+                    }
+                    
+                    for (ConcreteIndex index : other.pureIndices) {
+                        if (index.getParentDataStream() != null && this.dataStreams.contains(index.getParentDataStream())) {
+                            continue;
+                        }
+                        
+                        if (index.getAliases() != null && this.unionOfAliasesAndDataStreams.containsAny(index.getAliases())) {
+                            continue;
+                        }
+                        
+                        mergedPureIndices.add(index);
+                    }
+                    
+                    return new Local(mergedPureIndices.build(), this.aliases.with(other.aliases), this.dataStreams.with(other.dataStreams),
+                            this.nonExistingIndices.with(other.nonExistingIndices), this.clusterState != null ? this.clusterState : other.clusterState);
+                } 
             }
 
             public int size() {
@@ -1080,6 +1130,10 @@ public class ActionRequestIntrospector {
             }
 
             public Set<String> resolveDeep(String aliasOrDataStream) {
+                if (this.clusterState == null) {
+                    return ImmutableSet.empty();
+                }
+                
                 IndexAbstraction indexAbstraction = this.clusterState.metadata().getIndicesLookup().get(aliasOrDataStream);
 
                 if (indexAbstraction == null) {
@@ -1133,6 +1187,10 @@ public class ActionRequestIntrospector {
                 return result.build();
             }
 
+            boolean hasAliasesOrDataStreams() {
+                return !aliases.isEmpty() || !dataStreams.isEmpty();
+            }
+            
             @Override
             public String toString() {
                 String result = this.asString;
@@ -1219,6 +1277,7 @@ public class ActionRequestIntrospector {
 
                     if (index.startsWith("-")) {
                         index = index.substring(1);
+                        index = DateMathExpressionResolver.resolveExpression(index);
 
                         if (index.contains("*")) {
                             Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
@@ -1226,11 +1285,12 @@ public class ActionRequestIntrospector {
 
                             excludeNames.addAll(matchedAbstractions.keySet());
                         } else {
-                            excludeNames.add(DateMathExpressionResolver.resolveExpression(index));
+                            excludeNames.add(index);
                         }
                     } else {
-                        if (index.contains("*")) {
-                            // TODO date math?
+                        index = DateMathExpressionResolver.resolveExpression(index);
+
+                        if (index.contains("*")) {                            
 
                             Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
                                     request.indicesOptions, request.includeDataStreams);
@@ -1251,15 +1311,14 @@ public class ActionRequestIntrospector {
                                 }
                             }
                         } else {
-                            String resolved = DateMathExpressionResolver.resolveExpression(index);
-                            if (excludeNames.contains(resolved)) {
+                            if (excludeNames.contains(index)) {
                                 continue;
                             }
 
-                            IndexAbstraction indexAbstraction = indicesLookup.get(resolved);
+                            IndexAbstraction indexAbstraction = indicesLookup.get(index);
 
                             if (indexAbstraction == null) {
-                                nonExistingIndices.add(resolved);
+                                nonExistingIndices.add(index);
                             } else if (indexAbstraction instanceof Alias) {
                                 if (!request.indicesOptions.ignoreAliases()) {
                                     aliases.add((Alias) indexAbstraction);
@@ -1355,6 +1414,22 @@ public class ActionRequestIntrospector {
 
             public ImmutableSet<String> getUnionOfAliasesAndDataStreams() {
                 return unionOfAliasesAndDataStreams;
+            }
+
+            @Override
+            public int hashCode() {
+                return union.hashCode();
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (this == obj) {
+                    return true;
+                } else if (obj instanceof Local) {
+                    return this.union.equals(((Local) obj).union);
+                } else {
+                    return false;
+                }
             }
 
         }

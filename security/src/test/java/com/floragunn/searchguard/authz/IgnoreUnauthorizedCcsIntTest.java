@@ -198,6 +198,31 @@ public class IgnoreUnauthorizedCcsIntTest {
     }
 
     @Test
+    public void search_localAndRemoteWildcard() throws Exception {
+        String query = "my_remote:*,*/_search?size=1000&" + ccsMinimizeRoundtrips;
+
+        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
+            HttpResponse httpResponse = restClient.get(query);
+
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse,
+                    json(distinctNodesAt("hits.hits[*]",
+                            matches(ImmutableMap
+                                    .of("a1", index_coord_a1, "a2", index_coord_a2, "b1", index_coord_b1, "b2", index_coord_b2, "c1", index_coord_c1)
+                                    .with(ImmutableMap.of("my_remote:a1", index_remote_a1, "my_remote:a2", index_remote_a2, "my_remote:b1",
+                                            index_remote_b1, "my_remote:b2", index_remote_b2, "my_remote:r1", index_remote_r1))))));
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
+            HttpResponse httpResponse = restClient.get(query);
+
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches(ImmutableMap.of("a1", index_coord_a1, "a2", index_coord_a2)
+                    .with(ImmutableMap.of("my_remote:a1", index_remote_a1, "my_remote:a2", index_remote_a2))))));
+        }
+    }
+
+    @Test
     public void search_wildcardWildcard() throws Exception {
         String query = "*:*/_search?size=1000&" + ccsMinimizeRoundtrips;
 
@@ -602,7 +627,7 @@ public class IgnoreUnauthorizedCcsIntTest {
             Assert.assertThat(httpResponse,
                     json(distinctNodesAt("aggregations.clusteragg.buckets[?(@.key == 'remote')].doc_count", containsInAnyOrder(342))));
         }
-
+        
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.postJson(query, body);
 
