@@ -142,9 +142,20 @@ public abstract class DocumentLevelConfigApi {
             protected final CompletableFuture<StandardResponse> doExecute(Request request) {
                 return supplyAsync(() -> {
                     try {
-                        T entry = configType.getParser().parse(DocNode.wrap(request.getConfig()), configurationRepository.getParserContext()).get();
+                        ConfigurationRepository.Context context = configurationRepository.getParserContext()
+                                .withExternalResources().withoutLenientValidation();
+                        T entry = configType.getParser().parse(DocNode.wrap(request.getConfig()), context).get();
 
                         this.configurationRepository.addOrUpdate(configType, request.getId(), entry, request.getIfMatch());
+
+                        try {
+                            if (entry instanceof AutoCloseable) {
+                                ((AutoCloseable) entry).close();
+                            }
+                        } catch (Exception e) {
+                            log.warn("Error while closing {}", entry, e);
+                        }
+
                         return new StandardResponse(200).message("Configuration has been updated");
                     } catch (ConfigValidationException e) {
                         return new StandardResponse(400).error(e);

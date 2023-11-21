@@ -145,18 +145,18 @@ public class TestSgConfig {
         return frontendAuthc("default", frontendAuthcz);
     }
 
-    public TestSgConfig frontendAuthc(String configId, FrontendAuthc... frontendAuthcz) {
+    public TestSgConfig frontendAuthc(String configId, FrontendAuthc... frontendAuthc) {
         if (overrideFrontendConfigSettings == null) {
             overrideFrontendConfigSettings = new NestedValueMap();
         }
 
-        List<NestedValueMap> values = new ArrayList<>();
+        NestedValueMap mergedConfigs = new NestedValueMap();
 
-        for (FrontendAuthc authcz : frontendAuthcz) {
-            values.add(NestedValueMap.copy(authcz.toMap()));
+        for (FrontendAuthc authc : frontendAuthc) {
+            mergedConfigs.putAll(NestedValueMap.copy(authc.toMap()));
         }
 
-        overrideFrontendConfigSettings.put(new Path(configId, "auth_domains"), values);
+        overrideFrontendConfigSettings.put(configId, mergedConfigs);
 
         return this;
     }
@@ -1162,25 +1162,55 @@ public class TestSgConfig {
     }
 
     public static class FrontendAuthc {
+
+        private List<FrontendAuthDomain> authDomains = new ArrayList<>();
+        private FrontendLoginPage loginPage;
+
+        public FrontendAuthc( ) {
+        }
+
+        public FrontendAuthc authDomain(FrontendAuthDomain authDomain) {
+            this.authDomains.add(authDomain);
+            return this;
+        }
+
+        public FrontendAuthc loginPage(FrontendLoginPage loginPage) {
+            this.loginPage = loginPage;
+            return this;
+        }
+
+        NestedValueMap toMap() {
+            NestedValueMap result = new NestedValueMap();
+            result.put("auth_domains", authDomains.stream()
+                    .map(FrontendAuthDomain::toMap)
+                    .collect(Collectors.toList()));
+            if(loginPage != null) {
+                result.put("login_page", loginPage.toMap());
+            }
+            return result;
+        }
+    }
+
+    public static class FrontendAuthDomain {
         private final String type;
         private String label;
         private NestedValueMap moreProperties = new NestedValueMap();
 
-        public FrontendAuthc(String type) {
+        public FrontendAuthDomain(String type) {
             this.type = type;
         }
 
-        public FrontendAuthc label(String label) {
+        public FrontendAuthDomain label(String label) {
             this.label = label;
             return this;
         }
 
-        public FrontendAuthc config(String key, Object value) {
+        public FrontendAuthDomain config(String key, Object value) {
             this.moreProperties.put(Path.parse(key), value);
             return this;
         }
 
-        public FrontendAuthc config(String key, Object value, Object... kvPairs) {
+        public FrontendAuthDomain config(String key, Object value, Object... kvPairs) {
             this.moreProperties.put(Path.parse(key), value);
 
             if (kvPairs != null && kvPairs.length >= 2) {
@@ -1196,6 +1226,24 @@ public class TestSgConfig {
             NestedValueMap result = this.moreProperties.clone();
             result.put("type", type);
             result.put("label", label);
+            return result;
+        }
+    }
+
+    public static class FrontendLoginPage {
+
+        private String brandImage;
+
+        public FrontendLoginPage brandImage(String brandImage) {
+            this.brandImage = brandImage;
+            return this;
+        }
+
+        NestedValueMap toMap() {
+            NestedValueMap result = new NestedValueMap();
+            if (brandImage != null) {
+                result.put("brand_image", brandImage);
+            }
             return result;
         }
     }

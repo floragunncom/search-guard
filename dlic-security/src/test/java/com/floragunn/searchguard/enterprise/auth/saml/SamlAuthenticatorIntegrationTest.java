@@ -56,15 +56,15 @@ public class SamlAuthenticatorIntegrationTest {
 
         TestSgConfig testSgConfig = new TestSgConfig().resources("saml")//
                 .frontendAuthc("default", //
-                        new TestSgConfig.FrontendAuthc("saml").label("SAML Label")//
+                        new TestSgConfig.FrontendAuthc().authDomain(new TestSgConfig.FrontendAuthDomain("saml").label("SAML Label")//
                                 .config("user_mapping.roles.from", "saml_response.roles", //
                                         "saml.idp.metadata_url", mockSamlIdpServer.getMetadataUri(), //
-                                        "saml.idp.entity_id", mockSamlIdpServer.getIdpEntityId()))//
+                                        "saml.idp.entity_id", mockSamlIdpServer.getIdpEntityId())))//
                 .frontendAuthc("invalid", //
-                        new TestSgConfig.FrontendAuthc("saml").label("SAML Label")//
+                        new TestSgConfig.FrontendAuthc().authDomain(new TestSgConfig.FrontendAuthDomain("saml").label("SAML Label")//
                                 .config("user_mapping.roles.from", "saml_response.roles", //
                                         "saml.idp.metadata_url", mockSamlIdpServer.getMetadataUri(), //
-                                        "saml.idp.entity_id", "invalid"))//
+                                        "saml.idp.entity_id", "invalid")))//
                 .frontendAuthcDebug("invalid", true);
 
         cluster = new LocalCluster.Builder().sslEnabled().singleNode().resources("saml").enterpriseModulesEnabled().sgConfig(testSgConfig).start();

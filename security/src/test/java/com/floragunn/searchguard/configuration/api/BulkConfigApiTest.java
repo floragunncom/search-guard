@@ -144,7 +144,7 @@ public class BulkConfigApiTest {
 
             Assert.assertEquals(updateResponse.getBody(), 400, updateResponse.getStatusCode());
 
-            DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
+            DocNode updateResponseDoc = updateResponse.getBodyAsDocNode();
 
             Assert.assertEquals(updateResponse.getBody(), "'tenants.my_new_test_tenant.xxx': Unsupported attribute",
                     updateResponseDoc.getAsNode("error").get("message"));
@@ -168,7 +168,7 @@ public class BulkConfigApiTest {
 
             Assert.assertEquals(updateResponse.getBody(), 400, updateResponse.getStatusCode());
 
-            DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
+            DocNode updateResponseDoc = updateResponse.getBodyAsDocNode();
 
             Assert.assertEquals(updateResponse.getBody(), "'foo': Invalid config type: foo", updateResponseDoc.getAsNode("error").get("message"));
         }
@@ -191,7 +191,7 @@ public class BulkConfigApiTest {
 
             Assert.assertEquals(updateResponse.getBody(), 400, updateResponse.getStatusCode());
 
-            DocNode updateResponseDoc = DocNode.wrap(DocReader.json().read(updateResponse.getBody()));
+            DocNode updateResponseDoc = updateResponse.getBodyAsDocNode();
 
             Assert.assertEquals(
                     updateResponse.getBody(), "'tenants.content.my_new_test_tenant': Invalid value",
@@ -200,6 +200,32 @@ public class BulkConfigApiTest {
             Assert.assertEquals(
                     updateResponse.getBody(), "Non-static entry",
                     updateResponseDoc.getAsNode("error").getAsNode("details").getAsListOfNodes("tenants.content.my_new_test_tenant").get(0).get("expected")
+            );
+        }
+    }
+
+    @Test
+    public void putTestValidationError4_frontendAuthcLoginPageWithRelativePathShouldBeRejected() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            HttpResponse response = client.get("/_searchguard/config");
+            DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
+
+            Map<String, Object> frontendAuthc = new LinkedHashMap<>(responseDoc.getAsNode("frontend_authc").getAsNode("content"));
+
+            frontendAuthc.put("default", ImmutableMap.of("login_page", ImmutableMap.of("brand_image", "/relative/img.png")));
+
+            DocNode updateRequestDoc = DocNode.of("frontend_authc.content", frontendAuthc);
+
+            HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc.toJsonString());
+
+            Assert.assertEquals(updateResponse.getBody(), 400, updateResponse.getStatusCode());
+
+            DocNode updateResponseDoc = updateResponse.getBodyAsDocNode();
+
+            Assert.assertEquals(
+                    updateResponse.getBody(), "'frontend_authc.default.login_page.brand_image': Must be an absolute URI",
+                    updateResponseDoc.getAsNode("error").get("message")
             );
         }
     }

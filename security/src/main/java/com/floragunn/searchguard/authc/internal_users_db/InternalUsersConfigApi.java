@@ -151,7 +151,8 @@ public class InternalUsersConfigApi {
             protected CompletableFuture<StandardResponse> doExecute(PutAction.Request request) {
                 return supplyAsync(() -> {
                     try {
-                        InternalUser internalUser = InternalUser.parse(request.getValue().toDocNode(), configRepository.getParserContext()).get();
+                        InternalUser internalUser = InternalUser.parse(request.getValue().toDocNode(), configRepository.getParserContext()
+                                .withoutLenientValidation()).get();
 
                         return this.configRepository.addOrUpdate(CType.INTERNALUSERS, request.getId(), internalUser, request.getIfMatch());
                     } catch (ConfigValidationException e) {

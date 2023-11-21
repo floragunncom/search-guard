@@ -84,7 +84,7 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
                 .of(vNode.get("auth_domains").asList((documentNode) -> FrontendAuthenticationDomain.parse(documentNode, context, metricsLevel)));
         checkForMultipleAuthDomainsWithAutoSelectEnabled(result.authDomains, validationErrors);
 
-        result.loginPage = vNode.get("login_page").withDefault(LoginPage.DEFAULT).by(LoginPage::parse);
+        result.loginPage = vNode.get("login_page").withDefault(LoginPage.DEFAULT).by(loginPage -> LoginPage.parse(loginPage, context));
         result.debug = vNode.get("debug").withDefault(false).asBoolean();
 
         vNode.checkForUnusedAttributes();
@@ -231,12 +231,16 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
         private String title = "Please log in";
         private String buttonStyle = "";
 
-        public static LoginPage parse(DocNode documentNode) throws ConfigValidationException {
+        public static LoginPage parse(DocNode documentNode, ConfigurationRepository.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(documentNode, validationErrors);
 
             LoginPage result = new LoginPage();
-            result.brandImage = vNode.get("brand_image").withDefault(DEFAULT.brandImage).asURI();
+            if (context != null && ! context.isLenientValidationRequested()) {
+                result.brandImage = vNode.get("brand_image").withDefault(DEFAULT.brandImage).asAbsoluteURI();
+            } else {
+                result.brandImage = vNode.get("brand_image").withDefault(DEFAULT.brandImage).asURI();
+            }
             result.showBrandImage = vNode.get("show_brand_image").withDefault(true).asBoolean();
             result.title = vNode.get("title").asString();
             result.buttonStyle = vNode.get("button_style").asString();

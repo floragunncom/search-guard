@@ -115,7 +115,7 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
         public Response(UnparsedMessage message) throws ConfigValidationException {
             super(message);
             DocNode docNode = message.requiredDocNode();
-            this.loginPage = FrontendAuthcConfig.LoginPage.parse(docNode.getAsNode("login_page"));
+            this.loginPage = FrontendAuthcConfig.LoginPage.parse(docNode.getAsNode("login_page"), null);
             this.authMethods = docNode.getAsListFromNodes("auth_methods", AuthMethod::new);
         }
 
