@@ -69,11 +69,12 @@ public class OidcAuthenticatorIntegrationTest {
         //Java 17 java.net.BindException: Can't assign requested address
         httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
 
-        TestSgConfig testSgConfig = new TestSgConfig().resources("oidc").frontendAuthc(new TestSgConfig.FrontendAuthc("oidc").label("Label").config(
-                "oidc.idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "oidc.client_id", "Der Klient", "oidc.client_secret",
-                "Das Geheimnis", "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","), "oidc.idp.proxy.host",
-                "127.0.0.8", "oidc.idp.proxy.port", httpProxy.getPort(), "oidc.idp.proxy.scheme", "http", "oidc.idp.tls.trusted_cas",
-                "#{file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}", "oidc.idp.tls.verify_hostnames", false));
+        TestSgConfig testSgConfig = new TestSgConfig().resources("oidc").frontendAuthc(new TestSgConfig.FrontendAuthc()
+                .authDomain(new TestSgConfig.FrontendAuthDomain("oidc").label("Label").config(
+                        "oidc.idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "oidc.client_id", "Der Klient", "oidc.client_secret",
+                        "Das Geheimnis", "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","), "oidc.idp.proxy.host",
+                        "127.0.0.8", "oidc.idp.proxy.port", httpProxy.getPort(), "oidc.idp.proxy.scheme", "http", "oidc.idp.tls.trusted_cas",
+                        "#{file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}", "oidc.idp.tls.verify_hostnames", false)));
 
         cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().singleNode().resources("oidc").sgConfig(testSgConfig).start();
     }

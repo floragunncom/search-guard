@@ -754,7 +754,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
                     LinkedHashMap<String, T> result = new LinkedHashMap<>();
 
                     for (Map.Entry<String, DocNode> entry : docNode.toMapOfNodes().entrySet()) {
-                        ValidationResult<T> parsedEntry = configType.getParser().parse(entry.getValue(), parserContext.withExternalResources());
+                        ValidationResult<T> parsedEntry = configType.getParser()
+                                .parse(entry.getValue(), parserContext.withExternalResources().withoutLenientValidation());
 
                         if (parsedEntry.hasErrors()) {
                             validationErrors.add(entry.getKey(), parsedEntry.getValidationErrors());
@@ -813,7 +814,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             @SuppressWarnings("unchecked")
             PatchableDocument<T> entry = (PatchableDocument<T>) document;
-            T newEntry = entry.patch(patch, parserContext.withExternalResources());
+            T newEntry = entry.patch(patch, parserContext.withExternalResources().withoutLenientValidation());
             
             try {
                 update(configType, configInstance.with(id, newEntry), matchETag);
@@ -969,7 +970,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             try {
                 @SuppressWarnings({ "unchecked", "rawtypes" }) // XXX weird generics issue
                 ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration
-                        .fromMap(configMap, ctype, parserContext.withExternalResources());
+                        .fromMap(configMap, ctype, parserContext.withExternalResources().withoutLenientValidation());
 
                 try {
                     if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
@@ -1128,6 +1129,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         private final StaticSettings staticSettings;
         private final NamedXContentRegistry xContentRegistry;
         private final boolean externalResourceCreationEnabled;
+        private final boolean lenientValidationEnabled;
 
         public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings,
                 NamedXContentRegistry xContentRegistry) {
@@ -1136,15 +1138,17 @@ public class ConfigurationRepository implements ComponentStateProvider {
             this.staticSettings = staticSettings;
             this.xContentRegistry = xContentRegistry;
             this.externalResourceCreationEnabled = false;
+            this.lenientValidationEnabled = true;
         }
         
         private Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings,
-                NamedXContentRegistry xContentRegistry, boolean externalResourceCreationEnabled) {
+                NamedXContentRegistry xContentRegistry, boolean externalResourceCreationEnabled, boolean lenientValidationEnabled) {
             this.variableResolvers = variableResolvers;
             this.searchGuardModulesRegistry = searchGuardModulesRegistry;
             this.staticSettings = staticSettings;
             this.xContentRegistry = xContentRegistry;
             this.externalResourceCreationEnabled = externalResourceCreationEnabled;
+            this.lenientValidationEnabled = lenientValidationEnabled;
         }
 
 
@@ -1170,9 +1174,22 @@ public class ConfigurationRepository implements ComponentStateProvider {
         public boolean isExternalResourceCreationEnabled() {
             return externalResourceCreationEnabled;
         }
-        
+
+        @Override
+        public boolean isLenientValidationRequested() {
+            return lenientValidationEnabled;
+        }
+
         public Context withExternalResources() {
-            return new Context(this.variableResolvers, this.searchGuardModulesRegistry, this.staticSettings, this.xContentRegistry, true);
+            return new Context(this.variableResolvers, this.searchGuardModulesRegistry, this.staticSettings,
+                    this.xContentRegistry, true, this.lenientValidationEnabled
+            );
+        }
+
+        public Context withoutLenientValidation() {
+            return new Context(this.variableResolvers, this.searchGuardModulesRegistry, this.staticSettings,
+                    this.xContentRegistry, this.externalResourceCreationEnabled, false
+            );
         }
     }
 
