@@ -58,6 +58,10 @@ import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
+/**
+ * TODO aliases create deep exclusions
+ *
+ */
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
     private static final String USER_TENANT = "__user__";
@@ -263,7 +267,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
             }
 
-            if (resolved.getLocalShallowUnion().isEmpty()) {
+            if (resolved.getLocal().getUnion().isEmpty()) {
                 log.debug("No local indices; grant the request");
                 indexActionCheckResults_ok.increment();
 
@@ -274,7 +278,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             // Shallow index checks
             // --------------------
 
-            CheckTable<String, Action> shallowCheckTable = CheckTable.create(resolved.getLocalShallowUnion(), actions);
+            CheckTable<String, Action> shallowCheckTable = CheckTable.create(resolved.getLocal().getUnion(), actions);
 
             StatefulAliasPermssions statefulAlias = this.statefulAlias;
             if (statefulAlias != null) {
@@ -327,13 +331,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 log.trace("Permissions before exclusions:\n" + shallowCheckTable);
             }
 
-            shallowCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i) || universallyDeniedIndices.matches(resolved.getLocal().resolveDeep(i)));
-            
+            shallowCheckTable
+                    .uncheckRowIf((i) -> universallyDeniedIndices.matches(i) || universallyDeniedIndices.matches(resolved.getLocal().resolveDeep(i)));
+
             if (log.isTraceEnabled()) {
                 log.trace("Permissions after universallyDeniedIndices exclusions:\n" + shallowCheckTable);
             }
 
-            // TODO check alias members
             indexExclusions.uncheckExclusions(shallowCheckTable, user, mappedRoles, actions, resolved, context, meter);
 
             if (log.isTraceEnabled()) {
@@ -1065,7 +1069,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                             if (indexPattern != null) {
                                 for (String index : checkTable.iterateCheckedRows(action)) {
-                                    if (indexPattern.matches(index, user, context, subMeter)) {
+                                    if (indexPattern.matches(index, user, context, subMeter)
+                                            || indexPattern.matches(resolved.getLocal().resolveDeep(index), user, context, subMeter)) {
                                         checkTable.uncheck(index, action);
                                     }
                                 }
@@ -1098,7 +1103,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                                     if (actionPattern.matches(action.name())) {
                                         for (String index : checkTable.iterateCheckedRows(action)) {
-                                            if (indexPattern.matches(index, user, context, subMeter)) {
+                                            if (indexPattern.matches(index, user, context, subMeter)
+                                                    || indexPattern.matches(resolved.getLocal().resolveDeep(index), user, context, subMeter)) {
                                                 checkTable.uncheck(index, action);
                                             }
                                         }
@@ -1331,7 +1337,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     static class StatefulAliasPermssions implements ComponentStateProvider {
         private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToAliasToRoles;
-        private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> excludedActionToIndexToRoles;
+        private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> excludedActionToAliasToRoles;
         private final ImmutableSet<String> rolesWithTemplatedExclusions;
         private final ImmutableSet<String> aliases;
 
@@ -1346,7 +1352,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
                                     .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
 
-            ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> excludedActionToIndexToRoles = //
+            ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> excludedActionToAliasToRoles = //
                     new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
                             .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
                                     .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
@@ -1361,7 +1367,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     String roleName = entry.getKey();
                     Role role = entry.getValue();
 
-                    /* TODO
                     for (Role.ExcludeIndex excludedIndexPermissions : role.getExcludeIndexPermissions()) {
                         ImmutableSet<String> permissions = actionGroups.resolve(excludedIndexPermissions.getActions());
                     
@@ -1386,8 +1391,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 Action action = actions.get(permission);
                     
                                 if (action instanceof WellKnownAction) {
-                                    for (String index : indexPattern.iterateMatching(indexNames)) {
-                                        excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
+                                    for (String alias : indexPattern.iterateMatching(aliasNames)) {
+                                        excludedActionToAliasToRoles.get((WellKnownAction<?, ?, ?>) action).get(alias).add(roleName);
                                     }
                                 }
                             } else {
@@ -1396,15 +1401,14 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
                                         .matching((a) -> pattern.matches(a.name()));
                     
-                                for (String index : indexPattern.iterateMatching(indexNames)) {
+                                for (String alias : indexPattern.iterateMatching(aliasNames)) {
                                     for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                        excludedActionToIndexToRoles.get(action).get(index).add(roleName);
+                                        excludedActionToAliasToRoles.get(action).get(alias).add(roleName);
                                     }
                                 }
                             }
                         }
                     }
-                    */
 
                     for (Role.Index indexPermissions : role.getIndexPermissions()) {
                         ImmutableSet<String> permissions = actionGroups.resolve(indexPermissions.getAllowedActions());
@@ -1455,7 +1459,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
 
             this.actionToAliasToRoles = actionToAliasToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
-            this.excludedActionToIndexToRoles = excludedActionToIndexToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
+            this.excludedActionToAliasToRoles = excludedActionToAliasToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
             this.rolesWithTemplatedExclusions = rolesWithTemplatedExclusions.build();
             this.aliases = ImmutableSet.of(aliasNames);
 
@@ -1495,7 +1499,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 ImmutableMap<String, ImmutableSet<String>> aliasToRoles = actionToAliasToRoles.get(action);
 
                 if (aliasToRoles != null) {
-                    for (Alias alias : resolvedIndices.getLocalAliases()) {
+                    for (Alias alias : resolvedIndices.getLocal().getAliases().values()) {
                         ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(alias.getName());
 
                         if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
@@ -1507,7 +1511,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         }
                     }
 
-                    for (DataStream dataStream : resolvedIndices.getLocalDataStreams()) {
+                    for (DataStream dataStream : resolvedIndices.getLocal().getDataStreams().values()) {
                         ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(dataStream.getName());
 
                         if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
@@ -1534,7 +1538,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 return true;
             }
 
-            ImmutableMap<String, ImmutableSet<String>> indexToRoles = excludedActionToIndexToRoles.get(action);
+            ImmutableMap<String, ImmutableSet<String>> indexToRoles = excludedActionToAliasToRoles.get(action);
 
             if (indexToRoles == null) {
                 return false;
@@ -1718,6 +1722,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             throw new PrivilegesEvaluationException("Error while evaluating date math expression: " + dateMathExpression, e);
                         }
                     }
+                }
+            }
+
+            return false;
+        }
+
+        public boolean matches(Iterable<String> indices, User user, PrivilegesEvaluationContext context, Meter meter)
+                throws PrivilegesEvaluationException {
+            for (String index : indices) {
+                if (this.matches(index, user, context, meter)) {
+                    return true;
                 }
             }
 
