@@ -23,4 +23,8 @@ public class ExceptionsMatchers {
     public static Matcher<Throwable> causeIsInstanceOfMatcher(Class<? extends Throwable> expectedCauseType) {
         return new CauseIsInstanceOfMatcher(expectedCauseType);
     }
+
+    public static Matcher<Throwable> messageContainsMatcher(String substring) {
+        return new ExceptionMessageContainsMatcher(substring);
+    }
 }

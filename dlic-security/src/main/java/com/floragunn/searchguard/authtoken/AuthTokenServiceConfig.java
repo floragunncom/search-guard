@@ -18,6 +18,14 @@ import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.List;
 
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidatingFunction;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.ValidationResult;
+import com.floragunn.codova.validation.VariableResolvers;
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.support.JoseParsers;
 import org.apache.cxf.rs.security.jose.common.JoseUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
@@ -28,13 +36,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.Parser.Context;
 import com.floragunn.codova.documents.patch.PatchableDocument;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.codova.validation.ValidatingDocNode;
-import com.floragunn.codova.validation.ValidatingFunction;
-import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
-import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPermissions;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
 import com.floragunn.searchguard.configuration.CType;
@@ -45,6 +47,7 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
             AuthTokenServiceConfig.class, AuthTokenServiceConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
     public static final String DEFAULT_AUDIENCE = "searchguard_tokenauth";
+    static final String SIGNING_KEY_SECRET = "auth_tokens_signing_key_hs512";
 
     private boolean enabled;
     private JsonWebKey jwtSigningKey;
@@ -116,6 +119,7 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
     public static ValidationResult<AuthTokenServiceConfig> parse(DocNode jsonNode, Parser.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors, context);
+        VariableResolvers variableResolvers = context.variableResolvers();
 
         AuthTokenServiceConfig result = new AuthTokenServiceConfig();
         result.source = jsonNode;
@@ -128,7 +132,20 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
             } else if (vJsonNode.hasNonNull("jwt_signing_key_hs512")) {
                 result.jwtSigningKey = vJsonNode.get("jwt_signing_key_hs512").by(JWK_HS512_SIGNING_KEY_PARSER);
             } else {
-                validationErrors.add(new MissingAttribute("jwt_signing_key", jsonNode));
+                try {
+                    Object key = variableResolvers.toMap().get("var").apply(SIGNING_KEY_SECRET);
+
+                    if (key instanceof String) {
+                        result.jwtSigningKey = JoseParsers.parseJwkHs512SigningKey((String) key);
+                    } else {
+                        throw new ConfigValidationException(
+                                new ValidationError("jwt_signing_key_hs512", "Unexpected variable value for " + SIGNING_KEY_SECRET));
+                    }
+                } catch (ConfigValidationException e) {
+                    validationErrors.add(null, e);
+                } catch (Exception e) {
+                    validationErrors.add(new ValidationError(null, e.getMessage()).cause(e));
+                }
             }
 
             if (vJsonNode.hasNonNull("jwt_encryption_key")) {

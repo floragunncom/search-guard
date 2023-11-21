@@ -17,22 +17,15 @@ package com.floragunn.searchguard.authtoken;
 import java.util.Collections;
 import java.util.Map;
 
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -53,6 +46,18 @@ import com.google.common.io.BaseEncoding;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
+
+import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
+import static com.floragunn.searchsupport.junit.matcher.ExceptionsMatchers.messageContainsMatcher;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 
 public class AuthTokenIntegrationTest {
     private static String SGCONFIG = //
@@ -125,6 +130,75 @@ public class AuthTokenIntegrationTest {
     }
 
     @Test
+    public void tokenWithDefaultSigningKeyTest() throws Exception {
+        final String tokenWithConfiguredSigningKey;
+        final String tokenWithDefaultSigningKey;
+        try {
+            try (GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
+                CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                        RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
+
+                request.setTokenName("token_with_configured_signing_key");
+
+                HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
+
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                tokenWithConfiguredSigningKey = response.getBodyAsDocNode().getAsString("token");
+                assertThat(tokenWithConfiguredSigningKey, notNullValue());
+            }
+
+            //remove configured signing key
+            DocNode config = DocNode.of("enabled", true);
+            DocNode updatedConfig = updateAuthTokenServiceConfig(config);
+            assertThat(updatedConfig.get("jwt_signing_key"), nullValue());
+            assertThat(updatedConfig.get("jwt_signing_key_hs512"), nullValue());
+
+            try (GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
+                CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                        RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
+
+                request.setTokenName("token_with_default_signing_key");
+
+                HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
+
+                System.out.println(response.getBody());
+
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                tokenWithDefaultSigningKey = response.getBodyAsDocNode().getAsString("token");
+
+                assertThat(tokenWithDefaultSigningKey, notNullValue());
+                assertThat(getJwtHeaderValue(tokenWithDefaultSigningKey, "alg"), equalTo("HS512"));
+            }
+
+            try (GenericRestClient client = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + tokenWithConfiguredSigningKey))) {
+                HttpResponse response = client.postJson("/pub_test_allow_because_from_token/_search", "{\"query\":{\"match_all\":{}}}");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_UNAUTHORIZED));
+
+                response = client.postJson("/pub_test_deny/_search", "{\"query\":{\"match_all\":{}}}");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_UNAUTHORIZED));
+            }
+
+            try (GenericRestClient client = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + tokenWithDefaultSigningKey))) {
+                HttpResponse response = client.postJson("/pub_test_allow_because_from_token/_search", "{\"query\":{\"match_all\":{}}}");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = client.postJson("/pub_test_deny/_search", "{\"query\":{\"match_all\":{}}}");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
+            }
+        } finally {
+            //revert original auth token service config
+            DocNode originalConfig = DocNode.parse(Format.YAML).from(SGCONFIG).findSingleNodeByJsonPath("sg_config.dynamic.auth_token_provider");
+            DocNode updatedConfig = updateAuthTokenServiceConfig(originalConfig);
+            assertThat(updatedConfig, anyOf(
+                    hasEntry(equalTo("jwt_signing_key"), notNullValue()),
+                    hasEntry(equalTo("jwt_signing_key_hs512"), notNullValue()))
+            );
+        }
+    }
+
+    @Test
     public void basicTest() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
             CreateAuthTokenRequest request = new CreateAuthTokenRequest(
@@ -134,46 +208,41 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            //System.out.println(response.getBody());
-
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
-            Assert.assertNotNull(token);
-            Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
+            assertThat(token, notNullValue());
+            assertThat(getJwtHeaderValue(token, "alg"), equalTo("HS512"));
 
             String tokenPayload = getJwtPayload(token);
             Map<String, Object> parsedTokenPayload = DocReader.json().readObject(tokenPayload);
-            Assert.assertEquals(tokenPayload, "spock",
-                    JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
-            Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") != null);
+            assertThat(tokenPayload, JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration())
+                    .parse(parsedTokenPayload).read("sub"), equalTo("spock")
+            );
+            assertThat(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c"), notNullValue());
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
                 searchResponse = client.search("pub_test_deny");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("not_allowed_from_token", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("not_allowed_from_token"));
             }
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
+                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                    Assert.assertEquals(1, searchResponse.hits().total().value());
-                    Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                    assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                    assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
-                    try {
-
-                        searchResponse = client.search("pub_test_deny");
-                        Assert.fail(searchResponse.toString());
-                    } catch (Exception e) {
-                        Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
-                    }
+                    assertThatThrown(() -> client.search("pub_test_deny"),
+                            messageContainsMatcher("Insufficient permissions")
+                    );
                 }
             }
         }
@@ -192,45 +261,42 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
 
-            Assert.assertNotNull(token);
-            Assert.assertEquals("HS512", getJwtHeaderValue(token, "alg"));
+            assertThat(token, notNullValue());
+            assertThat(getJwtHeaderValue(token, "alg"), equalTo("HS512"));
 
             String tokenPayload = getJwtPayload(token);
             Map<String, Object> parsedTokenPayload = DocReader.json().readObject(tokenPayload);
-            Assert.assertEquals(tokenPayload, "spock",
-                    JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration()).parse(parsedTokenPayload).read("sub"));
-            Assert.assertTrue(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c") == null);
+            assertThat(tokenPayload, JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration())
+                    .parse(parsedTokenPayload).read("sub"), equalTo("spock")
+            );
+            assertThat(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c"), nullValue());
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
                 searchResponse = client.search("pub_test_deny");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("not_allowed_from_token", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("not_allowed_from_token"));
             }
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
+                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                    Assert.assertEquals(1, searchResponse.hits().total().value());
-                    Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                    assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                    assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
-                    try {
-
-                        searchResponse = client.search("pub_test_deny");
-                        Assert.fail(searchResponse.toString());
-                    } catch (Exception e) {
-                        Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
-                    }
+                    assertThatThrown(() -> client.search("pub_test_deny"),
+                            messageContainsMatcher("Insufficient permissions")
+                    );
                 }
             }
         }
@@ -249,14 +315,16 @@ public class AuthTokenIntegrationTest {
 
                 HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-                Assert.assertEquals(200, response.getStatusCode());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
             }
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(403, response.getStatusCode());
-            Assert.assertEquals("Cannot create token. Token limit per user exceeded. Max number of allowed tokens is 10",
-                    response.getBodyAsDocNode().findSingleNodeByJsonPath("error.root_cause[0].reason").toString());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
+            assertThat(response.getBody(),
+                    response.getBodyAsDocNode().findSingleNodeByJsonPath("error.root_cause[0].reason").toString(),
+                    equalTo("Cannot create token. Token limit per user exceeded. Max number of allowed tokens is 10")
+            );
         }
     }
 
@@ -271,12 +339,10 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            //System.out.println(response.getBody());
-
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
-            Assert.assertNotNull(token);
+            assertThat(token, notNullValue());
 
             try (GenericRestClient tokenAuthRestClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
 
@@ -286,9 +352,8 @@ public class AuthTokenIntegrationTest {
                 request.setTokenName("this_token_should_not_be_created");
 
                 response = tokenAuthRestClient.postJson("/_searchguard/authtoken", request);
-                Assert.assertEquals(response.getBody(), 403, response.getStatusCode());
-                Assert.assertTrue(response.getBody(),
-                        response.getBody().contains("Insufficient permissions"));
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
+                assertThat(response.getBody(), response.getBody(), containsString("Insufficient permissions"));
             }
         }
     }
@@ -302,41 +367,35 @@ public class AuthTokenIntegrationTest {
 
             request.setTokenName("my_new_token");
 
-            //System.out.println(request.toJson());
+            System.out.println(request.toJson());
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            //System.out.println(response.getBody());
-
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
-            Assert.assertNotNull(token);
+            assertThat(token, notNullValue());
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("picard", "picard")) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("user_attr_foo");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
-                try {
-                    searchResponse = client.search("user_attr_qux");
-                } catch (Exception e) {
-                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
-                }
+                assertThatThrown(() -> client.search("user_attr_qux"),
+                        messageContainsMatcher("Insufficient permissions")
+                );
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("user_attr_foo");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));;
 
-                try {
-                    searchResponse = client.search("user_attr_qux");
-                } catch (Exception e) {
-                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
-                }
+                assertThatThrown(() -> client.search("user_attr_qux"),
+                        messageContainsMatcher("Insufficient permissions")
+                );
             }
         }
     }
@@ -352,29 +411,29 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
-            Assert.assertNotNull(token);
+            assertThat(token, notNullValue());
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("admin", "admin")) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("dls_user_attr");
 
-                Assert.assertEquals(2, searchResponse.hits().total().value());
+                assertThat(searchResponse.hits().total().value(), equalTo(2L));
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("picard", "picard")) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("dls_user_attr");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("dls_user_attr");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
             }
         }
     }
@@ -390,44 +449,40 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
             String id = response.getBodyAsDocNode().getAsString("id");
 
-            Assert.assertNotNull(token);
-            Assert.assertNotNull(id);
+            assertThat(token, notNullValue());
+            assertThat(id, notNullValue());
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
+                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                    Assert.assertEquals(1, searchResponse.hits().total().value());
-                    Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                    assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                    assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
-                    try {
-
-                        searchResponse = client.search("pub_test_deny");
-                        Assert.fail(searchResponse.toString());
-                    } catch (Exception e) {
-                        Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
-                    }
+                    assertThatThrown(() -> client.search("pub_test_deny"),
+                            messageContainsMatcher("Insufficient permissions")
+                    );
                 }
             }
 
             response = restClient.delete("/_searchguard/authtoken/" + id);
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
             Thread.sleep(100);
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
 
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
 
-                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
-                    Assert.fail(searchResponse.toString());
-
-                } catch (ElasticsearchException e) {
-                    Assert.assertEquals(e.getMessage(), RestStatus.UNAUTHORIZED.getStatus(), e.status());
+                    ElasticsearchStatusException statusException = (ElasticsearchStatusException) assertThatThrown(
+                            () -> client.search("pub_test_allow_because_from_token"),
+                            instanceOf(ElasticsearchStatusException.class)
+                    );
+                    assertThat(statusException.getMessage(), statusException.status(), equalTo(RestStatus.UNAUTHORIZED));
                 }
             }
         }
@@ -452,35 +507,34 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request.toJson());
 
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
             String id = response.getBodyAsDocNode().getAsString("id");
 
-            Assert.assertNotNull(token);
-            Assert.assertNotNull(id);
+            assertThat(token, notNullValue());
+            assertThat(id, notNullValue());
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token"    );
+                    co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                    Assert.assertEquals(1, searchResponse.hits().total().value());
-                    Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                    assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                    assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
                 }
             }
 
             response = restClient.delete("/_searchguard/authtoken/" + id);
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
             Thread.sleep(100);
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    try {
-                        co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
-                        Assert.fail(searchResponse.toString());
-                    } catch (ElasticsearchException e) {
-                        Assert.assertEquals(e.getMessage(), RestStatus.UNAUTHORIZED.getStatus(), e.status());
-                    }
+                    ElasticsearchStatusException statusException = (ElasticsearchStatusException) assertThatThrown(
+                            () -> client.search("pub_test_allow_because_from_token"),
+                            instanceOf(ElasticsearchStatusException.class)
+                    );
+                    assertThat(statusException.getMessage(), statusException.status(), equalTo(RestStatus.UNAUTHORIZED));
                 }
             }
 
@@ -491,7 +545,7 @@ public class AuthTokenIntegrationTest {
     public void getAndSearchTest() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient("spock", "spock");
                 GenericRestClient picardRestClient = cluster.getRestClient("picard", "picard");
-                GenericRestClient admindRestClient = cluster.getRestClient("admin", "admin")) {
+                GenericRestClient adminRestClient = cluster.getRestClient("admin", "admin")) {
 
             CreateAuthTokenRequest request = new CreateAuthTokenRequest(
                     RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
@@ -500,26 +554,26 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             request.setTokenName("get_and_search_test_token_2");
 
             response = restClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             request.setTokenName("get_and_search_test_token_picard");
 
             response = picardRestClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String picardsTokenId = response.getBodyAsDocNode().getAsString("token");
 
             response = restClient.get("/_searchguard/authtoken/_search");
 
-            Assert.assertEquals(200, response.getStatusCode());
-            Assert.assertFalse(response.getBody(), response.getBody().contains("\"picard\""));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response.getBody(), response.getBody(), not(containsString("\"picard\"")));
 
             String searchRequest = "{\n" + //
                     "    \"query\": {\n" + //
@@ -533,34 +587,32 @@ public class AuthTokenIntegrationTest {
 
             response = restClient.postJson("/_searchguard/authtoken/_search", searchRequest);
 
-            //System.out.println(response.getBody());
-
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             DocNode jsonNode = response.getBodyAsDocNode();
 
-            Assert.assertEquals(response.getBody(), 2, jsonNode.getAsNode("hits", "total", "value").toNumber());
-            Assert.assertEquals(response.getBody(), "spock", jsonNode.findSingleNodeByJsonPath("hits.hits[0]._source.user_name").toString());
-            Assert.assertEquals(response.getBody(), "spock", jsonNode.findSingleNodeByJsonPath("hits.hits[1]._source.user_name").toString());
+            assertThat(response.getBody(), jsonNode.getAsNode("hits", "total", "value").toNumber(), equalTo(2));
+            assertThat(response.getBody(), jsonNode.findSingleNodeByJsonPath("hits.hits[0]._source.user_name").toString(), equalTo("spock"));
+            assertThat(response.getBody(), jsonNode.findSingleNodeByJsonPath("hits.hits[1]._source.user_name").toString(), equalTo("spock"));
 
             String id = jsonNode.getAsNode("hits").getAsListOfNodes("hits").get(0).getAsString("_id");
             String tokenName = jsonNode.getAsNode("hits").getAsListOfNodes("hits").get(0).getAsNode("_source").getAsString("token_name");
 
             response = restClient.get("/_searchguard/authtoken/" + id);
 
-            Assert.assertEquals(response.getBody(), tokenName, response.getBodyAsDocNode().getAsString("token_name"));
+            assertThat(response.getBody(), response.getBodyAsDocNode().getAsString("token_name"), equalTo(tokenName));
 
             response = restClient.get("/_searchguard/authtoken/" + picardsTokenId);
 
-            Assert.assertEquals(404, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
 
-            response = admindRestClient.postJson("/_searchguard/authtoken/_search", searchRequest);
+            response = adminRestClient.postJson("/_searchguard/authtoken/_search", searchRequest);
 
             jsonNode = response.getBodyAsDocNode();
 
-            Assert.assertEquals(response.getBody(), 3, jsonNode.get("hits", "total", "value"));
-            Assert.assertTrue(response.getBody(), response.getBody().contains("\"spock\""));
-            Assert.assertTrue(response.getBody(), response.getBody().contains("\"picard\""));
+            assertThat(response.getBody(), jsonNode.get("hits", "total", "value"), equalTo(3));
+            assertThat(response.getBody(), response.getBody(), containsString("\"spock\""));
+            assertThat(response.getBody(), response.getBody(), containsString("\"picard\""));
         }
     }
 
@@ -622,46 +674,42 @@ public class AuthTokenIntegrationTest {
 
             request.setTokenName("my_new_token");
 
-            //System.out.println(request.toJson());
+            System.out.println(request.toJson());
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            //System.out.println(response.getBody());
-
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
-            Assert.assertNotNull(token);
-            Assert.assertEquals("A256KW", getJwtHeaderValue(token, "alg"));
-            Assert.assertEquals("A256CBC-HS512", getJwtHeaderValue(token, "enc"));
-            Assert.assertFalse("JWT payload seems to be unencrypted because it contains the user name in clear text: " + getJwtPayload(token),
-                    getJwtPayload(token).contains("spock"));
+            assertThat(token, notNullValue());
+            assertThat(getJwtHeaderValue(token, "alg"), equalTo("A256KW"));
+            assertThat(getJwtHeaderValue(token, "enc"), equalTo("A256CBC-HS512"));
+            assertThat(
+                    "JWT payload seems to be unencrypted because it contains the user name in clear text: " + getJwtPayload(token),
+                    getJwtPayload(token), not(containsString("spock"))
+            );
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
                 searchResponse = client.search("pub_test_deny");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("not_allowed_from_token", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("not_allowed_from_token"));
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
-                try {
-
-                    searchResponse = client.search("pub_test_deny");
-                    Assert.fail(searchResponse.toString());
-                } catch (Exception e) {
-                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
-                }
+                assertThatThrown(() -> client.search("pub_test_deny"),
+                        messageContainsMatcher("Insufficient permissions")
+                );
             }
 
         }
@@ -730,42 +778,38 @@ public class AuthTokenIntegrationTest {
 
             request.setTokenName("my_new_token");
 
-            //System.out.println(request.toJson());
+            System.out.println(request.toJson());
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
-            Assert.assertNotNull(token);
-            Assert.assertEquals("ES256", getJwtHeaderValue(token, "alg"));
-            Assert.assertTrue(getJwtPayload(token), getJwtPayload(token).contains("spock"));
+            assertThat(token, notNullValue());
+            assertThat(getJwtHeaderValue(token, "alg"), equalTo("ES256"));
+            assertThat(getJwtPayload(token), getJwtPayload(token), containsString("spock"));
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient("spock", "spock")) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
                 searchResponse = client.search("pub_test_deny");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("not_allowed_from_token", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("not_allowed_from_token"));
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
-                Assert.assertEquals(1, searchResponse.hits().total().value());
-                Assert.assertEquals("allowed", searchResponse.hits().hits().get(0).source().get("this_is"));
+                assertThat(searchResponse.hits().total().value(), equalTo(1L));
+                assertThat(searchResponse.hits().hits().get(0).source().get("this_is"), equalTo("allowed"));
 
-                try {
-
-                    searchResponse = client.search("pub_test_deny");
-                    Assert.fail(searchResponse.toString());
-                } catch (Exception e) {
-                    Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
-                }
+                assertThatThrown(() -> client.search("pub_test_deny"),
+                        messageContainsMatcher("Insufficient permissions")
+                );
             }
 
         }
@@ -781,17 +825,17 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
-            Assert.assertNotNull(token);
+            assertThat(token, notNullValue());
 
             response = restClient.get("_searchguard/api/roles");
-            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             try (GenericRestClient tokenAuthRestClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
                 response = restClient.get("_searchguard/api/roles");
-                Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
             }
         }
     }
@@ -806,17 +850,17 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            Assert.assertEquals(200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
-            Assert.assertNotNull(token);
+            assertThat(token, notNullValue());
 
             response = restClient.get("_searchguard/api/roles");
-            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             try (GenericRestClient tokenAuthRestClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
                 response = tokenAuthRestClient.get("_searchguard/api/roles");
-                Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
             }
         }
     }
@@ -832,18 +876,18 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request.toJson());
 
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             String token = response.getBodyAsDocNode().getAsString("token");
-            Assert.assertNotNull(token);
+            assertThat(token, notNullValue());
 
             response = restClient.get("_searchguard/api/roles");
-            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
             try (GenericRestClient tokenAuthRestClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
 
                 response = tokenAuthRestClient.get("_searchguard/api/roles");
-                Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
             }
         }
     }
@@ -854,8 +898,8 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.get("/_searchguard/authtoken/_info");
 
-            Assert.assertEquals(200, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), Boolean.TRUE, response.getBodyAsDocNode().get("enabled"));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response.getBody(), response.getBodyAsDocNode().get("enabled"), equalTo(Boolean.TRUE));
         }
     }
     
@@ -866,11 +910,11 @@ public class AuthTokenIntegrationTest {
         
         try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {                        
             HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));                        
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
             
             response = restClient.get("/_searchguard/config");
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertEquals(config.toMap(), response.getBodyAsDocNode().get("auth_token_service", "content"));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response.getBodyAsDocNode().get("auth_token_service", "content"), equalTo(config.toMap()));
         }
     }
 
@@ -885,6 +929,18 @@ public class AuthTokenIntegrationTest {
         int p2 = jwt.indexOf('.', p + 1);
         String headerBase4 = jwt.substring(p + 1, p2 != -1 ? p2 : jwt.length());
         return new String(BaseEncoding.base64Url().decode(headerBase4));
+    }
+
+    private DocNode updateAuthTokenServiceConfig(DocNode newConfig) throws Exception {
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
+            HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", newConfig));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+            response = restClient.get("/_searchguard/config");
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response.getBodyAsDocNode().get("auth_token_service", "content"), equalTo(newConfig.toMap()));
+            return response.getBodyAsDocNode().findSingleNodeByJsonPath("auth_token_service.content");
+        }
     }
 
 }
