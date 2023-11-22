@@ -11,6 +11,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
+import com.floragunn.signals.proxy.service.ProxyCrudService;
+import com.floragunn.signals.proxy.service.persistence.ProxyData;
+import com.floragunn.signals.proxy.service.persistence.ProxyRepository;
 import com.floragunn.signals.truststore.service.TruststoreCrudService;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.truststore.service.persistence.TruststoreData;
@@ -76,6 +80,7 @@ public class Signals extends AbstractLifecycleComponent {
     private ThreadPool threadPool;
 
     private TrustManagerRegistry trustManagerRegistry;
+    private HttpProxyHostRegistry httpProxyHostRegistry;
 
     public Signals(Settings settings, ComponentState componentState) {
         this.componentState = componentState;
@@ -115,9 +120,13 @@ public class Signals extends AbstractLifecycleComponent {
 
             this.accountRegistry = new AccountRegistry(signalsSettings);
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
-            TruststoreRepository repository = new TruststoreRepository(signalsSettings, privilegedConfigClient);
-            TruststoreCrudService truststoreCrudService = new TruststoreCrudService(repository);
+            TruststoreRepository truststoreRepository = new TruststoreRepository(signalsSettings, privilegedConfigClient);
+            TruststoreCrudService truststoreCrudService = new TruststoreCrudService(truststoreRepository);
             this.trustManagerRegistry = new TrustManagerRegistry(truststoreCrudService);
+
+            ProxyRepository proxyRepository = new ProxyRepository(signalsSettings, privilegedConfigClient);
+            ProxyCrudService proxyCrudService = new ProxyCrudService(proxyRepository);
+            this.httpProxyHostRegistry = new HttpProxyHostRegistry(proxyCrudService);
             return Collections.singletonList(this);
 
         } catch (Exception e) {
@@ -163,12 +172,14 @@ public class Signals extends AbstractLifecycleComponent {
         IndexNames indexNames = signalsSettings.getStaticSettings().getIndexNames();
 
         String[] allIndexes = new String[] { indexNames.getWatches(), indexNames.getWatchesState(), indexNames.getWatchesTriggerState(),
-                indexNames.getAccounts(), indexNames.getSettings(), IndexNames.TRUSTSTORES };
+                indexNames.getAccounts(), indexNames.getSettings(), IndexNames.TRUSTSTORES, IndexNames.PROXIES };
 
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatches()).mapping(Watch.getIndexMapping(), 2)
                 .mappingUpdate(0, Watch.getIndexMappingUpdate()).dependsOnIndices(allIndexes).onIndexReady(this::init)));
-        ConfigIndex configIndex = new ConfigIndex(IndexNames.TRUSTSTORES).mapping(TruststoreData.MAPPINGS);
-        componentState.addPart(protectedConfigIndexService.createIndex(configIndex));
+        ConfigIndex truststoreConfigIndex = new ConfigIndex(IndexNames.TRUSTSTORES).mapping(TruststoreData.MAPPINGS);
+        componentState.addPart(protectedConfigIndexService.createIndex(truststoreConfigIndex));
+        ConfigIndex proxyConfigIndex = new ConfigIndex(IndexNames.PROXIES).mapping(ProxyData.MAPPINGS);
+        componentState.addPart(protectedConfigIndexService.createIndex(proxyConfigIndex));
         componentState.addPart(
                 protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState())));
@@ -208,7 +219,7 @@ public class Signals extends AbstractLifecycleComponent {
 
             SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                     internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState, diagnosticContext, threadPool,
-                    trustManagerRegistry);
+                    trustManagerRegistry, httpProxyHostRegistry);
 
             tenants.put(name, signalsTenant);
 
@@ -245,6 +256,7 @@ public class Signals extends AbstractLifecycleComponent {
             componentState.setState(State.INITIALIZING, "reading_accounts");
             accountRegistry.init(client);
             loadAllTruststores();
+            loadAllProxies();
 
             componentState.setState(State.INITIALIZING, "initializing_keys");
             if (signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() != null) {
@@ -359,6 +371,14 @@ public class Signals extends AbstractLifecycleComponent {
         }
     }
 
+    private void loadAllProxies() throws SignalsInitializationException {
+        try {
+            httpProxyHostRegistry.reloadAll();
+        } catch (Exception e) {
+            throw new SignalsInitializationException("Cannot load all http proxies.", e);
+        }
+    }
+
     synchronized void updateTenants(Set<String> configuredTenants) {
         configuredTenants = new HashSet<>(configuredTenants);
 
@@ -434,6 +454,9 @@ public class Signals extends AbstractLifecycleComponent {
 
     public TrustManagerRegistry getTruststoreRegistry() {
         return trustManagerRegistry;
+    }
+    public HttpProxyHostRegistry getHttpProxyHostRegistry() {
+        return httpProxyHostRegistry;
     }
 
     public SignalsSettings getSignalsSettings() {

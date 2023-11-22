@@ -19,6 +19,7 @@ package com.floragunn.signals;
 
 import java.util.concurrent.ExecutionException;
 
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
@@ -48,7 +49,6 @@ import com.floragunn.signals.watch.WatchBuilder;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
 import net.jcip.annotations.NotThreadSafe;
-import org.mockito.Mockito;
 
 import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 
@@ -61,6 +61,8 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
 
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
+    private static TrustManagerRegistry trustManagerRegistry;
+    private static HttpProxyHostRegistry httpProxyHostRegistry;
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/signals").nodeSettings("signals.enabled", true,
@@ -84,6 +86,8 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     public static void setupDependencies() {
         scriptService = cluster.getInjectable(ScriptService.class);
         throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
+        trustManagerRegistry = cluster.getInjectable(Signals.class).getTruststoreRegistry();
+        httpProxyHostRegistry = cluster.getInjectable(Signals.class).getHttpProxyHostRegistry();
     }
 
     @Test
@@ -107,7 +111,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             Thread.sleep(2000);

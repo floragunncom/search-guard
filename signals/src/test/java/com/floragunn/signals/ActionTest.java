@@ -1,5 +1,6 @@
 package com.floragunn.signals;
 
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URI;
 import java.security.cert.CertificateException;
@@ -11,11 +12,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.browserup.bup.BrowserUpProxy;
+import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.signals.execution.ActionExecutionException;
+import com.floragunn.signals.execution.ExecutionEnvironment;
+import com.floragunn.signals.execution.WatchExecutionContext;
+import com.floragunn.signals.execution.WatchExecutionContextData;
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
+import com.floragunn.signals.watch.common.HttpClientConfig;
+import com.floragunn.signals.watch.common.HttpProxyConfig;
+import com.floragunn.signals.watch.common.HttpRequestConfig;
+import com.floragunn.signals.watch.common.TlsClientAuthConfig;
+import com.floragunn.signals.watch.common.TlsConfig;
 import com.jayway.jsonpath.JsonPath;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
+import org.apache.http.HttpHost;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -24,6 +40,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -43,10 +60,6 @@ import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.signals.accounts.AccountRegistry;
-import com.floragunn.signals.execution.ActionExecutionException;
-import com.floragunn.signals.execution.ExecutionEnvironment;
-import com.floragunn.signals.execution.WatchExecutionContext;
-import com.floragunn.signals.execution.WatchExecutionContextData;
 import com.floragunn.signals.support.InlineMustacheTemplate;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.handlers.ActionExecutionResult;
@@ -59,10 +72,6 @@ import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
 import com.floragunn.signals.watch.action.handlers.slack.SlackAction;
 import com.floragunn.signals.watch.action.handlers.slack.SlackActionConf;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
-import com.floragunn.signals.watch.common.HttpClientConfig;
-import com.floragunn.signals.watch.common.HttpRequestConfig;
-import com.floragunn.signals.watch.common.TlsClientAuthConfig;
-import com.floragunn.signals.watch.common.TlsConfig;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 import com.google.common.collect.ImmutableMap;
 import com.icegreen.greenmail.util.GreenMail;
@@ -194,10 +203,13 @@ public class ActionTest {
             + "k+4D/wGJWWkW0NJN/7bGVkq5nXORzCMvN3r/UcovhEbDKAiMfIZz4eGw76xpqCmR\n"//
             + "puulRd0958X0/eOUE8jLSHCJsdGmwfOoJ0U=\n" //
             + "-----END ENCRYPTED PRIVATE KEY-----\n";
-    public static final String UPLOADED_TRUSTSTORE_ID = "my-uploaded-truststore-id";
+    private static final String UPLOADED_TRUSTSTORE_ID = "my-uploaded-truststore-id";
+    private static final String UPLOADED_PROXY_ID = "my-uploaded-proxy-id";
 
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
+
+    private static BrowserUpProxy httpProxy;
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -209,6 +221,7 @@ public class ActionTest {
     
     private final TrustManagerRegistry trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
     private final X509ExtendedTrustManager trustManager = Mockito.mock(X509ExtendedTrustManager.class);
+    private final HttpProxyHostRegistry httpProxyHostRegistry = Mockito.mock(HttpProxyHostRegistry.class);
 
     @BeforeClass
     public static void setupTestData() throws Throwable {
@@ -225,14 +238,23 @@ public class ActionTest {
     }
 
     @BeforeClass
-    public static void setupDependencies() {
+    public static void setupDependencies() throws Throwable {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
+        httpProxy = new BrowserUpProxyServer();
+        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
     
     @Before
     public void resetMock() {
-        Mockito.reset(trustManagerRegistry, trustManager);
+        Mockito.reset(trustManagerRegistry, trustManager, httpProxyHostRegistry);
+    }
+
+    @AfterClass
+    public static void tearDown() {
+        if (httpProxy != null) {
+            httpProxy.abort();
+        }
     }
 
     @Test
@@ -255,7 +277,7 @@ public class ActionTest {
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             webhookAction.execute(ctx);
 
@@ -286,7 +308,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null, null, STRICT));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, null, null, null, STRICT));
 
             webhookAction.execute(ctx);
 
@@ -312,7 +334,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null, STRICT));
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             webhookAction.execute(ctx);
 
@@ -339,7 +361,7 @@ public class ActionTest {
                     "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
             tlsConfig.setInlineTruststorePem(ROOT_CA_CERT);
@@ -374,7 +396,7 @@ public class ActionTest {
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry,
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, httpProxyHostRegistry,
                 null, STRICT));
 
             webhookAction.execute(ctx);
@@ -403,7 +425,7 @@ public class ActionTest {
                 "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
 
@@ -440,7 +462,7 @@ public class ActionTest {
             Mockito.doThrow(new CertificateException("Used for test purpose"))
                 .when(trustManager).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, httpProxyHostRegistry, null,
                 STRICT));
 
             TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
@@ -478,7 +500,7 @@ public class ActionTest {
             Mockito.doThrow(new CertificateException("Used for test purpose"))
                 .when(rejectingTrustManager).checkServerTrusted(any(X509Certificate[].class), anyString(), any(Socket.class));
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, httpProxyHostRegistry, null,
                 STRICT));
 
             TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
@@ -524,7 +546,7 @@ public class ActionTest {
             // Trust manager does not throw any exceptions this means that server certificates are validated correctly by WebHook action
             when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, httpProxyHostRegistry, null,
                 STRICT));
 
             TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
@@ -573,7 +595,7 @@ public class ActionTest {
             // Trust manager does not throw any exceptions this means that server certificates are validated correctly by WebHook action
             when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, httpProxyHostRegistry, null,
                 STRICT));
 
             TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
@@ -622,7 +644,7 @@ public class ActionTest {
             // Trust manager does not throw any exceptions this means that server certificates are validated correctly by WebHook action
             when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager), Optional.of(trustManager), Optional.of(trustManager), Optional.of(trustManager), Optional.of(trustManager));
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, httpProxyHostRegistry, null,
                 STRICT));
 
             TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
@@ -667,7 +689,7 @@ public class ActionTest {
             // Trust manager does not throw any exceptions this means that server certificates are validated correctly by WebHook action
             when(trustManagerRegistry.findTrustManager(UPLOADED_TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
 
-            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, null,
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry, httpProxyHostRegistry, null,
                 STRICT));
 
             TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
@@ -692,6 +714,131 @@ public class ActionTest {
     }
 
     @Test
+    public void testWebhookActionWithUploadedProxy() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
+
+            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+
+            HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
+                    new ValidatingDocNode(DocNode.of("proxy", UPLOADED_PROXY_ID), new ValidationErrors()), httpProxyHostRegistry, STRICT
+            );
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, httpProxyConfig);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            webhookAction.execute(ctx);
+
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+        }
+    }
+
+    @Test
+    public void testWebhookActionWithUploadedProxy_shouldDetectProxyChange() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
+
+            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+
+            HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
+                    new ValidatingDocNode(DocNode.of("proxy", UPLOADED_PROXY_ID), new ValidationErrors()), httpProxyHostRegistry, STRICT
+            );
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, httpProxyConfig);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            //first time - proxy works as expected
+            webhookAction.execute(ctx);
+
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+
+            //proxy config updated
+            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("127.0.0.10:" + httpProxy.getPort())));
+
+            ActionExecutionException actionExecutionException = (ActionExecutionException) assertThatThrown(() -> webhookAction.execute(ctx), instanceOf(ActionExecutionException.class));
+
+            Assert.assertTrue(actionExecutionException.getMessage().contains("Connect to 127.0.0.10:"));
+            Assert.assertTrue(actionExecutionException.getMessage().contains("[/127.0.0.10] failed: Connection refused (Connection refused)"));
+        }
+    }
+
+    @Test
+    public void testWebhookActionWithUploadedProxy_shouldDetectProxyRemoval() throws Exception {
+
+        try (Client client = cluster.getInternalNodeClient(); //
+             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("path", "hook");
+            runtimeData.put("body", "stuff");
+
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
+                    "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
+
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
+
+            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+
+            HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
+                    new ValidatingDocNode(DocNode.of("proxy", UPLOADED_PROXY_ID), new ValidationErrors()), httpProxyHostRegistry, STRICT
+            );
+
+            HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, httpProxyConfig);
+            WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
+
+            //first time - proxy works as expected
+            webhookAction.execute(ctx);
+
+            Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
+
+            // proxy config removed
+            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.empty());
+
+            ActionExecutionException actionExecutionException = (ActionExecutionException) assertThatThrown(() -> webhookAction.execute(ctx), instanceOf(ActionExecutionException.class));
+
+            Assert.assertTrue(actionExecutionException.getMessage().contains("We are not accepting connections from /127.0.0.1; only: /127.0.0.9"));
+        }
+    }
+
+    @Test
     public void testWebhookActionWithTlsClientAuth() throws Exception {
 
         try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
@@ -707,7 +854,7 @@ public class ActionTest {
                     "/{{data.path}}", null, "{{data.body}}", null, null, null, null);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             TlsClientAuthConfig tlsClientAuthConfig = new TlsClientAuthConfig();
             tlsClientAuthConfig.setInlineAuthCertsPem(KIRK_CERT);
@@ -754,7 +901,7 @@ public class ActionTest {
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             webhookAction.execute(ctx);
 
@@ -785,7 +932,7 @@ public class ActionTest {
             WebhookAction webhookAction = new WebhookAction(httpRequestConfig, httpClientConfig);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             webhookAction.execute(ctx);
 
@@ -950,7 +1097,7 @@ public class ActionTest {
 
             SlackAction slackAction = new SlackAction(c);
             slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
@@ -998,7 +1145,7 @@ public class ActionTest {
 
             SlackAction slackAction = new SlackAction(c);
             slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
@@ -1049,7 +1196,7 @@ public class ActionTest {
 
             SlackAction slackAction = new SlackAction(c);
             slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
@@ -1100,7 +1247,7 @@ public class ActionTest {
 
             SlackAction slackAction = new SlackAction(c);
             slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
@@ -1122,7 +1269,7 @@ public class ActionTest {
 
             try {
                 slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                    trustManagerRegistry, null, STRICT));
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
             } catch (Exception e) {
                 Assert.assertTrue(e.getMessage().contains("'text': Required attribute is missing"));
             }
@@ -1184,7 +1331,7 @@ public class ActionTest {
 
             SlackAction slackAction = new SlackAction(c);
             slackAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             slackAction.execute(ctx);
 
@@ -1228,7 +1375,7 @@ public class ActionTest {
             emailAction.setAttachments(ImmutableMap.of("test2", attachment2, "test1", attachment1));
 
             emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -1295,7 +1442,7 @@ public class ActionTest {
             emailAction.setAttachments(ImmutableMap.of("test2", attachment2, "test1", attachment1));
 
             emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -1358,7 +1505,7 @@ public class ActionTest {
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
             emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -1422,7 +1569,7 @@ public class ActionTest {
             emailAction.setAttachments(ImmutableMap.of("test", attachment));
 
             emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -1481,7 +1628,7 @@ public class ActionTest {
 
             try {
                 emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                    trustManagerRegistry, null, STRICT));
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
             } catch (ConfigValidationException e) {
                 Assert.assertTrue(e.getMessage().contains("Both body and html_body are empty"));
             }
@@ -1508,7 +1655,7 @@ public class ActionTest {
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
                 httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                    trustManagerRegistry, null, STRICT));
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
                 EmailAccount emailDestination = new EmailAccount();
                 emailDestination.setHost("localhost");
@@ -1536,7 +1683,7 @@ public class ActionTest {
                 emailAction.setAttachments(ImmutableMap.of("test", attachment, "test2", attachment2));
 
                 emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                    trustManagerRegistry, null, STRICT));
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
                 WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                         ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
@@ -1586,7 +1733,7 @@ public class ActionTest {
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
                 httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                    trustManagerRegistry, null, STRICT));
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
                 EmailAccount emailDestination = new EmailAccount();
                 emailDestination.setHost("localhost");
@@ -1614,7 +1761,7 @@ public class ActionTest {
                 emailAction.setAttachments(ImmutableMap.of("test", attachment, "test2", attachment2));
 
                 emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                    trustManagerRegistry, null, STRICT));
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
                 WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                         ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
@@ -1664,7 +1811,7 @@ public class ActionTest {
                 HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
 
                 httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                    trustManagerRegistry, null, STRICT));
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
                 EmailAccount emailDestination = new EmailAccount();
                 emailDestination.setHost("localhost");
@@ -1697,7 +1844,7 @@ public class ActionTest {
                 emailAction.setAttachments(ImmutableMap.of("attachment3", attachment3, "test", attachment, "test2", attachment2));
 
                 emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                    trustManagerRegistry, null, STRICT));
+                    trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
                 WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                         ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
@@ -1772,7 +1919,7 @@ public class ActionTest {
             emailAction.setAccount("test_destination");
 
             emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
@@ -1829,7 +1976,7 @@ public class ActionTest {
             emailAction.setAccount("test_destination");
 
             emailAction.compileScripts(new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, null, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),

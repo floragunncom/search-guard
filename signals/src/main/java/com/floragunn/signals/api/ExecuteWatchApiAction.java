@@ -62,7 +62,7 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
             final String id = request.param("id");
             request.param("tenant");
             WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
-                null, throttlePeriodParser, LENIENT);
+                null, null, throttlePeriodParser, LENIENT);
             final RequestBody requestBody = RequestBody.parse(watchInitializationService, request.content().utf8ToString());
 
             if (log.isDebugEnabled()) {

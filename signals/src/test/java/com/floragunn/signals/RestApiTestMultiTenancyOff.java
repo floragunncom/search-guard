@@ -2,6 +2,7 @@ package com.floragunn.signals;
 
 import java.util.concurrent.ExecutionException;
 
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
@@ -123,7 +124,7 @@ public class RestApiTestMultiTenancyOff {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);

@@ -22,6 +22,7 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
@@ -83,9 +84,10 @@ public class HttpClientConfig extends WatchElement {
         }
         
         if (proxyConfig != null) {            
-            if (proxyConfig.getType() == HttpProxyConfig.Type.USE_SPECIFIC_PROXY) {
+            if (ProxyTypeProvider.Type.USE_INLINE_PROXY == proxyConfig.getType() ||
+                    ProxyTypeProvider.Type.USE_STORED_PROXY == proxyConfig.getType()) {
                 proxy = proxyConfig.getProxy();
-            } else if (proxyConfig.getType() == HttpProxyConfig.Type.USE_NO_PROXY) {
+            } else if (proxyConfig.getType() == ProxyTypeProvider.Type.USE_NO_PROXY) {
                 proxy = null;
             }
         }
@@ -122,8 +124,7 @@ public class HttpClientConfig extends WatchElement {
             builder.field("tls", tlsConfig);
         }
         
-        if (proxyConfig != null && proxyConfig.getType() != HttpProxyConfig.Type.USE_DEFAULT_PROXY) {
-            builder.field("proxy");
+        if (proxyConfig != null && proxyConfig.getType() != ProxyTypeProvider.Type.USE_DEFAULT_PROXY) {
             proxyConfig.toXContent(builder, params);
         }
 
@@ -131,7 +132,7 @@ public class HttpClientConfig extends WatchElement {
     }
 
     public static HttpClientConfig create(ValidatingDocNode jsonObject, TrustManagerRegistry trustManagerRegistry,
-        ValidationLevel validationLevel) throws ConfigValidationException {
+                                          HttpProxyHostRegistry httpProxyHostRegistry, ValidationLevel validationLevel) throws ConfigValidationException {
         Integer connectionTimeout = null;
         Integer readTimeout = null;
         TlsConfig tlsConfig = null;
@@ -148,7 +149,7 @@ public class HttpClientConfig extends WatchElement {
         }
         
         tlsConfig = jsonObject.get("tls").by(node -> TlsConfig.create(node, trustManagerRegistry, validationLevel));
-        proxyConfig = jsonObject.get("proxy").byString(HttpProxyConfig::create);
+        proxyConfig = HttpProxyConfig.create(jsonObject, httpProxyHostRegistry, validationLevel);
 
         return new HttpClientConfig(connectionTimeout, readTimeout, tlsConfig, proxyConfig);
     }

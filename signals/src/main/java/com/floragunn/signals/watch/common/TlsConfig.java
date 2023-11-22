@@ -75,7 +75,7 @@ public class TlsConfig implements ToXContentObject {
     /**
      * Various actions use TlsConfig class. Each watch can be composed of multiple actions. Even if some actions have incorrect
      * configuration other actions can still work correctly. The TlsConfig is parsed in two cases. When a new Watch is created or updated
-     * or when the watch is loaded during plugin start time. Valdation in both described cases should work in various ways. When a watch is
+     * or when the watch is loaded during plugin start time. Validation in both described cases should work in various ways. When a watch is
      * created then all validation errors should be reported to the end user. Therefore, strict validation is performed in such case. Other
      * behaviour is needed when a watch is loaded during security plugin initialization phase. In such case lenient validation should be
      * applied. That means if one of the action which belongs to the watch contain an error (e.g. invalid trust store id) then only action

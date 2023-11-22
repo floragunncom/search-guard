@@ -35,6 +35,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -193,7 +194,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
@@ -277,7 +278,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, testSink, 1);
@@ -359,7 +360,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             log.info("Created watch; as it should find one doc in " + testSource + ", it should go to severity ERROR and write exactly one doc to "
@@ -430,7 +431,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch_with_dash", 1);
@@ -465,7 +466,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             Assert.assertTrue(response.getBody(), watch.getSchedule().getTriggers().isEmpty());
@@ -491,7 +492,7 @@ public class RestApiTest {
             Assert.assertFalse(response.getBody(), response.getBody().contains("auth_token"));
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", watchId, response.getBody(), -1);
 
             Assert.assertNull(response.getBody(), watch.getAuthToken());
@@ -944,6 +945,70 @@ public class RestApiTest {
         }
     }
 
+    @Test
+    public void testWatchWithProxyLoadedFromConfiguration() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "http_proxy_loaded_from_config";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String proxyId = "proxy-1";
+        String proxyPath = "/_signals/proxies/" + proxyId;
+
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+            HttpResponse response = restClient.putJson(proxyPath, DocNode.of("name", "proxy", "uri", "http://127.0.0.8:" + httpProxy.getPort()));
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).throttledFor("0")
+                    .name("testhook").build();
+            response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            Thread.sleep(600);
+
+            Assert.assertEquals(0, webhookProvider.getRequestCount());
+
+            watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri())
+                    .proxy(proxyId).throttledFor("0").name("testhook").build();
+            response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(600);
+
+            Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+        }
+    }
+
+    @Test
+    public void testWatchWithProxyLoadedFromConfiguration_givenProxyDoesNotExist() throws Exception {
+
+        String tenant = "_main";
+        String watchId = "http_proxy_loaded_from_config";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+                GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri())
+                    .proxy("missing-proxy-id").throttledFor("0").name("testhook").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertEquals("Http proxy 'missing-proxy-id' not found.",
+                    response.getBodyAsDocNode().getAsNode("detail")
+                            .getAsListOfNodes("actions[testhook].proxy").get(0).get("error")
+            );
+
+        }
+    }
+
     @Ignore
     @Test
     public void testPutWatchWithCredentials() throws Exception {
@@ -1033,7 +1098,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
@@ -1066,7 +1131,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
@@ -1220,6 +1285,38 @@ public class RestApiTest {
             Assert.assertTrue(getResponse.toString(), getResponse.getSource().get("testsource") == null);
             Assert.assertTrue(getResponse.toString(), getResponse.getSource().get("teststatic") != null);
 
+        }
+    }
+
+    @Test
+    public void testExecuteWatchByIdWhichUsesStoredProxyConfig() throws Exception {
+        String tenant = "_main";
+        String watchId = "stored_proxy_exec_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String proxyId = "stored-proxy";
+        String proxyPath = "/_signals/proxies/" + proxyId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources();
+             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/tls_endpoint")) {
+
+            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+            HttpResponse response = restClient.putJson(proxyPath, DocNode.of("name", "stored-proxy", "uri", "http://127.0.0.8:" + httpProxy.getPort()));
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Watch watch = new WatchBuilder("test_with_stored_proxy").cronTrigger("0 0 */1 * * ?")
+                    .then().postWebhook(webhookProvider.getUri()).proxy(proxyId).name("webhook")
+                    .build();
+
+            response = restClient.putJson(watchPath, watch.toJson());
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = restClient.postJson(watchPath + "/_execute", "{}");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("status.code", "ACTION_EXECUTED"));
+            assertThat(webhookProvider.getRequestCount(), greaterThan(0));
         }
     }
 
@@ -2213,7 +2310,7 @@ public class RestApiTest {
                             "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null, null);
 
                     httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                        Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT));
+                        Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT));
 
                     EmailAccount destination = new EmailAccount();
                     destination.setHost("localhost");
@@ -3181,7 +3278,7 @@ public class RestApiTest {
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
         WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-            Mockito.mock(TrustManagerRegistry.class), throttlePeriodParser, STRICT);
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
         return Watch.parseFromElasticDocument(initService, "test", id, response.getBody(), -1);
     }
 
