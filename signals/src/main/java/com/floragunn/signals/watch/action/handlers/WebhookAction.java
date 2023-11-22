@@ -118,7 +118,10 @@ public class WebhookAction extends ActionHandler {
                 ValidationLevel validationLevel = watchInitService.getValidationLevel();
                 log.debug("Create webhook action with validation level '{}' and initialization context '{}'.",
                     validationLevel, watchInitService);
-                httpClientConfig = HttpClientConfig.create(vJsonNode, watchInitService.getTrustManagerRegistry(), validationLevel);
+                httpClientConfig = HttpClientConfig.create(
+                        vJsonNode, watchInitService.getTrustManagerRegistry(),
+                        watchInitService.getHttpProxyHostRegistry(), validationLevel
+                );
             } catch (ConfigValidationException e) {
                 validationErrors.add(null, e);
             }

@@ -429,8 +429,10 @@ public class EmailAction extends ActionHandler {
                         if (t == AttachmentType.REQUEST) {
                             if (element.hasNonNull("request")) {
                                 try {
-                                    HttpClientConfig httpClientConfig = HttpClientConfig.create(element,
-                                        watchInitService.getTrustManagerRegistry(), STRICT);
+                                    HttpClientConfig httpClientConfig = HttpClientConfig
+                                            .create(element, watchInitService.getTrustManagerRegistry(),
+                                                    watchInitService.getHttpProxyHostRegistry(), STRICT
+                                            );
                                     attachment.setHttpClientConfig(httpClientConfig);
                                 } catch (ConfigValidationException e) {
                                     validationErrors.add(null, e);

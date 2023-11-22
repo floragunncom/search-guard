@@ -85,7 +85,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     .withDefault(Pattern.createUnchecked("cluster:admin:searchguard:config/*", "cluster:admin:searchguard:internal/*")).asPattern();
     static final StaticSettings.Attribute<Pattern> ADMIN_ONLY_INDICES = //
             StaticSettings.Attribute.define("searchguard.admin_only_indices").withDefault(Pattern.createUnchecked("searchguard", ".searchguard",
-                    ".searchguard_*", ".signals_watches*", ".signals_accounts", ".signals_settings")).asPattern();
+                    ".searchguard_*", ".signals_watches*", ".signals_accounts", ".signals_settings", ".signals_truststores", ".signals_proxies")).asPattern();
     static final StaticSettings.Attribute<Boolean> CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES = //
             StaticSettings.Attribute.define("searchguard.check_snapshot_restore_write_privileges").withDefault(true).asBoolean();
 

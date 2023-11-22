@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.script.SignalsScriptContextFactory;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
@@ -38,14 +39,17 @@ public class WatchInitializationService {
      * Can be <code>null</code> when action is executed by REST API
      */
     private final TrustManagerRegistry trustManagerRegistry;
+    private final HttpProxyHostRegistry httpProxyHostRegistry;
 
     private final ValidationLevel validationLevel;
 
     public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService,
-            TrustManagerRegistry trustManagerRegistry, ThrottlePeriodParser throttlePeriodParser, ValidationLevel validationLevel) {
+                                      TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry,
+                                      ThrottlePeriodParser throttlePeriodParser, ValidationLevel validationLevel) {
         this.accountRegistry = accountRegistry;
         this.scriptService = scriptService;
         this.trustManagerRegistry = trustManagerRegistry;
+        this.httpProxyHostRegistry = httpProxyHostRegistry;
         this.throttlePeriodParser = throttlePeriodParser;
         this.validationLevel = Objects.requireNonNull(validationLevel, "Life cycle stage is required");
     }
@@ -156,6 +160,10 @@ public class WatchInitializationService {
         return trustManagerRegistry;
     }
 
+    public HttpProxyHostRegistry getHttpProxyHostRegistry() {
+        return httpProxyHostRegistry;
+    }
+
     public ValidationLevel getValidationLevel() {
         return this.validationLevel;
     }
@@ -163,6 +171,7 @@ public class WatchInitializationService {
     @Override
     public String toString() {
         return "WatchInitializationService{" + "scriptService=" + scriptService + ", accountRegistry=" + accountRegistry
-            + ", trustManagerRegistry=" + trustManagerRegistry + ", lifecycleStage=" + validationLevel + '}';
+                + ", trustManagerRegistry=" + trustManagerRegistry  + ", httpProxyConfigRegistry=" + httpProxyHostRegistry
+                + ", lifecycleStage=" + validationLevel + '}';
     }
 }

@@ -162,7 +162,10 @@ public class PagerDutyAction extends ActionHandler implements AutoResolveActionH
 					ValidationLevel validationLevel = watchInitializationService.getValidationLevel();
 					eventConfig = PagerDutyEventConfig.create(watchInitializationService, vJsonNode.getDocumentNode().getAsNode("event"));
 					httpClientConfig =
-						HttpClientConfig.create(vJsonNode, watchInitializationService.getTrustManagerRegistry(), validationLevel);
+						HttpClientConfig.create(
+                                vJsonNode, watchInitializationService.getTrustManagerRegistry(),
+                                watchInitializationService.getHttpProxyHostRegistry(), validationLevel
+                        );
                 } catch (ConfigValidationException e) {
                     validationErrors.add("event", e);
                 }

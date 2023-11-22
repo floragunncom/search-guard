@@ -13,10 +13,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.watch.common.TlsConfig;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -78,6 +83,7 @@ import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @NotThreadSafe
 public class CheckTest {
@@ -106,11 +112,13 @@ public class CheckTest {
             .enableModule(SignalsModule.class).build();
     
     private TrustManagerRegistry trustManagerRegistry;
+    private HttpProxyHostRegistry httpProxyHostRegistry;
     private X509ExtendedTrustManager trustManager;
 
     @Before
     public void createMocks() {
         this.trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
+        this.httpProxyHostRegistry = Mockito.mock(HttpProxyHostRegistry.class);
         this.trustManager = Mockito.mock(X509ExtendedTrustManager.class);
     }
 
@@ -153,7 +161,7 @@ public class CheckTest {
 
         SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"x\"} }}");
         searchInput.compileScripts(new WatchInitializationService(null, scriptService,
-            trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -178,7 +186,7 @@ public class CheckTest {
 
         SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"{{data.match}}\"} }}");
         searchInput.compileScripts(new WatchInitializationService(null, scriptService,
-            trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("match"), "xx");
@@ -203,10 +211,10 @@ public class CheckTest {
 
         Client client = cluster.getInternalNodeClient();
 
-        SearchInput searchInput = new SearchInput("test", "test", "testsource",
-                "{\"query\": {\"range\" : {\"date\": {\"gte\": \"{{trigger.scheduled_time}}||-1M\", \"lt\": \"{{trigger.scheduled_time}}\", \"format\": \"strict_date_time\"} } }}");
-        searchInput.compileScripts(new WatchInitializationService(null, scriptService,
-            trustManagerRegistry, throttlePeriodParser, STRICT));
+            SearchInput searchInput = new SearchInput("test", "test", "testsource",
+                    "{\"query\": {\"range\" : {\"date\": {\"gte\": \"{{trigger.scheduled_time}}||-1M\", \"lt\": \"{{trigger.scheduled_time}}\", \"format\": \"strict_date_time\"} } }}");
+            searchInput.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("match"), "xx");
@@ -284,7 +292,7 @@ public class CheckTest {
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
                 WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                    trustManagerRegistry, throttlePeriodParser, STRICT);
+                    trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT);
                 watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(),
                         -1);
 
@@ -309,7 +317,7 @@ public class CheckTest {
                     null, null, null, null, null, null);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -339,7 +347,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                 null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry,
-                throttlePeriodParser ,STRICT));
+                    httpProxyHostRegistry, throttlePeriodParser ,STRICT));
 
             TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
             tlsConfig.setTruststoreId(TRUSTSTORE_ID);
@@ -370,7 +378,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -402,7 +410,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -430,7 +438,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -445,8 +453,63 @@ public class CheckTest {
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("We are not accepting connections from"));
             }
 
+            HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
+                    new ValidatingDocNode(DocNode.of("proxy", "http://127.0.0.8:" + httpProxy.getPort()), new ValidationErrors()),
+                    httpProxyHostRegistry,
+                    STRICT
+            );
             httpInput = new HttpInput("test", "test", httpRequestConfig,
-                    new HttpClientConfig(null, null, null, HttpProxyConfig.create("http://127.0.0.8:" + httpProxy.getPort())));
+                    new HttpClientConfig(null, null, null, httpProxyConfig));
+
+            boolean result = httpInput.execute(ctx);
+
+            Assert.assertTrue(result);
+
+            Map<?, ?> inputResult = (Map<?, ?>) runtimeData.get("test");
+
+            Assert.assertEquals("bar", inputResult.get("foo"));
+            Assert.assertEquals(55, inputResult.get("x"));
+        }
+    }
+
+    @Test
+    public void httpInput_proxyConfigLoadedFromConfigurationTest() throws Exception {
+        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
+            Client client = cluster.getInternalNodeClient();
+
+            String uploadedProxyId = "my-proxy-1";
+
+            webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
+            webserviceProvider.setResponseContentType("text/json");
+            webserviceProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
+                    null, null, null, null, null, null);
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+
+            HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
+
+            NestedValueMap runtimeData = new NestedValueMap();
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+
+            try {
+                httpInput.execute(ctx);
+                Assert.fail();
+            } catch (CheckExecutionException e) {
+                Assert.assertTrue(e.getMessage(), e.getMessage().contains("We are not accepting connections from"));
+            }
+
+            when(httpProxyHostRegistry.findHttpProxyHost(uploadedProxyId)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+
+            HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
+                    new ValidatingDocNode(DocNode.of("proxy", uploadedProxyId), new ValidationErrors()),
+                    httpProxyHostRegistry,
+                    STRICT
+            );
+            httpInput = new HttpInput("test", "test", httpRequestConfig,
+                    new HttpClientConfig(null, null, null, httpProxyConfig));
 
             boolean result = httpInput.execute(ctx);
 
@@ -472,7 +535,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, "application/x-yaml");
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -498,7 +561,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(1, 1, null, null));
 
@@ -521,7 +584,7 @@ public class CheckTest {
 
         Condition scriptCondition = new Condition(null, "data.x.hits.total > 5", "painless", Collections.emptyMap());
         scriptCondition.compileScripts(new WatchInitializationService(null, scriptService,
-            trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -540,7 +603,7 @@ public class CheckTest {
 
         Condition scriptCondition = new Condition(null, "data.x.hits.total > 510", "painless", Collections.emptyMap());
         scriptCondition.compileScripts(new WatchInitializationService(null, scriptService,
-            trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -559,7 +622,7 @@ public class CheckTest {
 
         Condition scriptCondition = new Condition(null, "data.x.hits.hits.length > data.constants.threshold", "painless", Collections.emptyMap());
         scriptCondition.compileScripts(new WatchInitializationService(null, scriptService,
-            trustManagerRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -578,9 +641,9 @@ public class CheckTest {
 
         Client client = cluster.getInternalNodeClient();
 
-        Calc calc = new Calc(null, "data.x.y = 5", "painless", Collections.emptyMap());
-        calc.compileScripts(new WatchInitializationService(null, scriptService,
-            trustManagerRegistry, throttlePeriodParser, STRICT));
+            Calc calc = new Calc(null, "data.x.y = 5", "painless", Collections.emptyMap());
+            calc.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);

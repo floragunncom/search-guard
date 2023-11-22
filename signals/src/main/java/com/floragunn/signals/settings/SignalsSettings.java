@@ -538,6 +538,7 @@ public class SignalsSettings {
         public static class IndexNames {
 
             public static final String TRUSTSTORES = ".signals_truststores";
+            public static final String PROXIES = ".signals_proxies";
             public static StaticSettings.Attribute<String> WATCHES =  StaticSettings.Attribute.define("signals.index_names.watches").withDefault(".signals_watches").asString();
             public static StaticSettings.Attribute<String> WATCHES_STATE =  StaticSettings.Attribute.define("signals.index_names.watches_state").withDefault(".signals_watches_state").asString();
             public static StaticSettings.Attribute<String> WATCHES_TRIGGER_STATE =  StaticSettings.Attribute.define("signals.index_names.watches_trigger_state").withDefault(
