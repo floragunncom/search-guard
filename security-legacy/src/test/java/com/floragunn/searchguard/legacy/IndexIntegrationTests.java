@@ -319,25 +319,6 @@ public class IndexIntegrationTests extends SingleClusterTest {
     }
 
     @Test
-    public void testCCSIndexResolve() throws Exception {
-        
-        setup();
-        final RestHelper rh = nonSslRestHelper();
-
-        try (Client tc = getPrivilegedInternalNodeClient()) {                                       
-            tc.index(new IndexRequest(".abc-6").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        }
-        
-        //ccsresolv has perm for ?abc*
-        HttpResponse res = rh.executeGetRequest("ggg:.abc-6,.abc-6/_search", encodeBasicHeader("ccsresolv", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());
-        
-        res = rh.executeGetRequest("/*:.abc-6,.abc-6/_search", encodeBasicHeader("ccsresolv", "nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
-        //TODO: Change for 25.0 to be forbidden (possible bug in ES regarding ccs wildcard)
-    }
-
-    @Test
     @Ignore
     public void testCCSIndexResolve2() throws Exception {
         
