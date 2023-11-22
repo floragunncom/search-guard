@@ -11,6 +11,8 @@ import com.floragunn.signals.actions.summary.LoadOperatorSummaryHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.TransportAckWatchAction;
 import com.floragunn.signals.api.AckAndGetWatchApiAction;
+import com.floragunn.signals.proxy.rest.ProxyApi;
+import com.floragunn.signals.proxy.rest.TransportProxyUpdatedAction;
 import com.floragunn.signals.script.SignalsScriptContextFactory;
 import com.floragunn.signals.truststore.rest.DeleteTruststoreAction;
 import com.floragunn.signals.truststore.rest.FindAllTruststoresAction;
@@ -132,7 +134,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
                     new AckAndGetWatchApiAction(settings), CreateOrReplaceTruststoreAction.REST_API, FindOneTruststoreAction.REST_API,
-                    DeleteTruststoreAction.REST_API, FindAllTruststoresAction.REST_API, LoadOperatorSummaryAction.REST_API);
+                    DeleteTruststoreAction.REST_API, FindAllTruststoresAction.REST_API, ProxyApi.REST_API, LoadOperatorSummaryAction.REST_API
+            );
         } else {
             return Collections.emptyList();
         }
@@ -169,6 +172,11 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(FindAllTruststoresAction.INSTANCE, FindAllTruststoresAction.FindAllTruststoresHandler.class),
                     new ActionHandler<>(DeleteTruststoreAction.INSTANCE, DeleteTruststoreAction.DeleteTruststoreHandler.class),
                     new ActionHandler<>(TransportTruststoreUpdatedAction.TruststoreUpdatedActionType.INSTANCE, TransportTruststoreUpdatedAction.class),
+                    new ActionHandler<>(ProxyApi.CreateOrReplaceProxyAction.INSTANCE, ProxyApi.CreateOrReplaceProxyAction.CreateOrUpdateProxyHandler.class),
+                    new ActionHandler<>(ProxyApi.FindOneProxyAction.INSTANCE, ProxyApi.FindOneProxyAction.FindOneProxyHandler.class),
+                    new ActionHandler<>(ProxyApi.DeleteProxyAction.INSTANCE, ProxyApi.DeleteProxyAction.DeleteProxyHandler.class),
+                    new ActionHandler<>(ProxyApi.FindAllProxiesAction.INSTANCE, ProxyApi.FindAllProxiesAction.FindAllProxiesHandler.class),
+                    new ActionHandler<>(TransportProxyUpdatedAction.ProxyUpdatedActionType.INSTANCE, TransportProxyUpdatedAction.class),
                     new ActionHandler<>(LoadOperatorSummaryAction.INSTANCE, LoadOperatorSummaryHandler.class)
             );
         } else {

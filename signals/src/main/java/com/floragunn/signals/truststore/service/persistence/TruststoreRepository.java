@@ -20,7 +20,9 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.client.SearchScroller;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames;
 import org.elasticsearch.action.DocWriteResponse;
@@ -30,6 +32,7 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -69,12 +72,18 @@ public class TruststoreRepository {
     public List<TruststoreData> findAll() {
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
         sourceBuilder.sort(TruststoreData.FIELD_STORE_TIME);
-        SearchResponse searchResponse = client.search(new SearchRequest(IndexNames.TRUSTSTORES).source(sourceBuilder)).actionGet();
-        try {
-            return searchResponseToTruststores(searchResponse);
-        } catch (ConfigValidationException e) {
-            throw new RuntimeException("Cannot parse trust store content stored in an index.", e);
-        }
+        TimeValue scrollTimeout = new TimeValue(1000);
+        SearchRequest searchRequest = new SearchRequest(IndexNames.TRUSTSTORES).source(sourceBuilder);
+        SearchScroller searchScroller = new SearchScroller(client);
+        List<TruststoreData> results = new ArrayList<>();
+        searchScroller.scroll(searchRequest, scrollTimeout, (searchHit) -> {
+            try {
+                return searchHitToTruststoreData(searchHit);
+            } catch (ConfigValidationException e) {
+                throw new RuntimeException("Cannot parse trust store content stored in an index.", e);
+            }
+        }, results::addAll);
+        return results;
     }
 
     public Optional<TruststoreData> findOneById(String truststoreId)  {
@@ -89,15 +98,6 @@ public class TruststoreRepository {
 
     private Optional<TruststoreData> getResponseToTruststoreData(GetResponse response) throws ConfigValidationException {
         return response.isExists() ? Optional.of(jsonToTruststoreData(response.getId(), response.getSourceAsString())) : Optional.empty();
-    }
-
-    private List<TruststoreData> searchResponseToTruststores(SearchResponse searchResponse) throws ConfigValidationException {
-        List<TruststoreData> list = new ArrayList<>();
-        for (SearchHit hit : searchResponse.getHits().getHits()) {
-            TruststoreData truststoreData = searchHitToTruststoreData(hit);
-            list.add(truststoreData);
-        }
-        return list;
     }
 
     private TruststoreData searchHitToTruststoreData(SearchHit searchHit) throws ConfigValidationException {

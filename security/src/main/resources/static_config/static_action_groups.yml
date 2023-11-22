@@ -393,3 +393,49 @@ SGS_SIGNALS_ACCOUNT_MANAGE:
   type: "signals"
   description: "Grants permissions to write Signals Accounts"
 
+### Proxies
+
+SGS_SIGNALS_PROXY_CONFIG_READ:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:signals:proxies/findone"
+    - "cluster:admin:searchguard:signals:proxies/findall"
+  type: "signals"
+  description: "Grants permissions to read Signals Proxies"
+
+SGS_SIGNALS_PROXY_CONFIG_WRITE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - SGS_SIGNALS_PROXY_CONFIG_READ
+    - "cluster:admin:searchguard:signals:proxies/delete"
+    - "cluster:admin:searchguard:signals:proxies/createorreplace"
+  type: "signals"
+  description: "Grants permissions to write Signals Proxies"
+
+### Truststores
+
+SGS_SIGNALS_TRUSTSTORE_CONFIG_READ:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:signals:truststores/findone"
+    - "cluster:admin:searchguard:signals:truststores/findall"
+  type: "signals"
+  description: "Grants permissions to read Signals Truststores"
+
+SGS_SIGNALS_TRUSTSTORE_CONFIG_WRITE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - SGS_SIGNALS_TRUSTSTORE_CONFIG_READ
+    - "cluster:admin:searchguard:signals:truststores/delete"
+    - "cluster:admin:searchguard:signals:truststores/createorreplace"
+  type: "signals"
+  description: "Grants permissions to write Signals Truststores"
+

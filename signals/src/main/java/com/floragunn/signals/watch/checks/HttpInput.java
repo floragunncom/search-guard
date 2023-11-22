@@ -151,7 +151,7 @@ public class HttpInput extends AbstractInput {
         
         try {
             httpClientConfig = HttpClientConfig.create(vJsonNode, watchInitService.getTrustManagerRegistry(),
-                watchInitService.getValidationLevel());
+                watchInitService.getHttpProxyHostRegistry(), watchInitService.getValidationLevel());
         } catch (ConfigValidationException e) {
             validationErrors.add(null, e);
         }

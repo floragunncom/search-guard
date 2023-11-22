@@ -18,10 +18,15 @@ import java.util.TimeZone;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
+import com.floragunn.signals.watch.common.HttpClientConfig;
+import com.floragunn.signals.watch.common.HttpProxyConfig;
+import com.floragunn.signals.watch.common.HttpRequestConfig;
+import com.floragunn.signals.watch.common.TlsConfig;
 import com.jayway.jsonpath.JsonPath;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
-import com.floragunn.signals.watch.common.TlsConfig;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.mockito.Mockito;
@@ -31,14 +36,11 @@ import org.quartz.TimeOfDay;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
@@ -58,9 +60,6 @@ import com.floragunn.signals.watch.checks.Condition;
 import com.floragunn.signals.watch.checks.SearchInput;
 import com.floragunn.signals.watch.checks.StaticInput;
 import com.floragunn.signals.watch.checks.Transform;
-import com.floragunn.signals.watch.common.HttpClientConfig;
-import com.floragunn.signals.watch.common.HttpProxyConfig;
-import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.common.auth.Auth;
 import com.floragunn.signals.watch.common.auth.BasicAuth;
 import com.floragunn.signals.watch.init.WatchInitializationService;
@@ -68,6 +67,7 @@ import com.floragunn.signals.watch.severity.SeverityLevel;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 import com.floragunn.signals.watch.severity.SeverityMapping.Element;
 
+import static com.floragunn.signals.watch.common.ValidationLevel.LENIENT;
 import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 
 // TODO split triggers and inputs into sep builders
@@ -288,7 +288,7 @@ public class WatchBuilder {
                 propertyMap.put(Path.parse(String.valueOf(properties[i])), properties[i + 1]);
             }
             WatchInitializationService watchInitService = new WatchInitializationService(null, null,
-                Mockito.mock(TrustManagerRegistry.class), null, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
             ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(
                 watchInitService, DocNode.parse(Format.JSON).from(propertyMap.toJsonString()));
 
@@ -441,9 +441,10 @@ public class WatchBuilder {
         private String body;
         private JsonPath jsonBodyFrom;
         private Map<String, String> headers = new HashMap<>();
-        private HttpProxyConfig proxy;
+        private String proxy;
 
         private TrustManagerRegistry trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
+        private HttpProxyHostRegistry httpProxyHostRegistry = Mockito.mock(HttpProxyHostRegistry.class);
 
         private String truststoreId;
 
@@ -458,12 +459,8 @@ public class WatchBuilder {
             return this;
         }
 
-        public WebhookActionBuilder proxy(String proxy) throws ConfigValidationException {
-            if (proxy != null) {
-                this.proxy = HttpProxyConfig.create(proxy);
-            } else {
-                this.proxy = null;
-            }
+        public WebhookActionBuilder proxy(String proxy) {
+            this.proxy = proxy;
             return this;
         }
 
@@ -504,8 +501,19 @@ public class WatchBuilder {
                 tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
                 tlsConfig.setTruststoreId(truststoreId);
             }
+            HttpProxyConfig proxyConfig = null;
+            if (! Strings.isNullOrEmpty(proxy)) {
+                try {
+                    proxyConfig = HttpProxyConfig.create(
+                            new ValidatingDocNode(DocNode.of("proxy", proxy), new ValidationErrors()),
+                            httpProxyHostRegistry, LENIENT
+                    );
+                } catch (ConfigValidationException e) {
+                    throw new RuntimeException(e);
+                }
+            }
             return new WebhookAction(new HttpRequestConfig(method, uri, null, null, body, jsonBodyFrom, headers, auth, null),
-                    new HttpClientConfig(null, null, tlsConfig, proxy));
+                    new HttpClientConfig(null, null, tlsConfig, proxyConfig));
         }
     }
 

@@ -23,6 +23,10 @@ public class DocNodeMatchers {
         return new ContainsFieldValuePointedByJsonPathMatcher(jsonPath, value);
     }
 
+    public static Matcher<DocNode> containsNullValue(String jsonPath) {
+        return new ContainsNullValuePointedByJsonPathMatcher(jsonPath);
+    }
+
     public static <T> Matcher<DocNode> containsAnyValues(String jsonPatch, T...values) {
         Objects.requireNonNull(values, "Expected values array is null");
         Class<?> elementClass = values.getClass().getComponentType();

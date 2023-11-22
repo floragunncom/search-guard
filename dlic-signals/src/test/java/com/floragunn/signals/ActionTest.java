@@ -1,18 +1,30 @@
 package com.floragunn.signals;
 
+import com.browserup.bup.BrowserUpProxy;
+import com.browserup.bup.BrowserUpProxyServer;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ValidatingDocNode;
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.HttpClientConfig;
+import com.floragunn.signals.watch.common.HttpProxyConfig;
 import com.floragunn.signals.watch.common.TlsConfig;
+
+import java.net.InetAddress;
 import java.net.URI;
 
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import java.util.Optional;
 import javax.net.ssl.X509ExtendedTrustManager;
+
+import org.apache.http.HttpHost;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -54,6 +66,9 @@ public class ActionTest {
 
 	private final TrustManagerRegistry trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
 	private final X509ExtendedTrustManager trustManager = Mockito.mock(X509ExtendedTrustManager.class);
+	private final HttpProxyHostRegistry httpProxyHostRegistry = Mockito.mock(HttpProxyHostRegistry.class);
+
+	private static BrowserUpProxy httpProxy;
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().nodeSettings("signals.enabled", true)
@@ -73,10 +88,19 @@ public class ActionTest {
     }
 
     @BeforeClass
-    public static void setupDependencies() {
+    public static void setupDependencies() throws Exception {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
+		httpProxy = new BrowserUpProxyServer();
+		httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
+
+	@AfterClass
+	public static void tearDown() {
+		if (httpProxy != null) {
+			httpProxy.abort();
+		}
+	}
 
     @Test
     public void testPagerDutyAction() throws Exception {
@@ -94,11 +118,11 @@ public class ActionTest {
 		runtimeData.put("component", "stuff");
 		runtimeData.put("summary", "kaputt");
 
-		WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
-				Mockito.mock(TrustManagerRegistry.class));
-		WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,
-			Mockito.mock(TrustManagerRegistry.class), null, STRICT);
+        WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+                ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+                trustManagerRegistry);
+        WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
 
 		PagerDutyEventConfig eventConfig = new PagerDutyEventConfig();
 		eventConfig.setDedupKey(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_key"));
@@ -140,9 +164,9 @@ public class ActionTest {
 
 			WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
 				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
-				Mockito.mock(TrustManagerRegistry.class));
+				trustManagerRegistry);
 			WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,
-				Mockito.mock(TrustManagerRegistry.class), null, STRICT);
+				trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
 
 			PagerDutyEventConfig eventConfig = new PagerDutyEventConfig();
 			eventConfig.setDedupKey(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_key"));
@@ -172,6 +196,57 @@ public class ActionTest {
 		}
 	}
 
+	@Test
+	public void testPagerDutyActionWithStoredProxyConfig() throws Exception {
+
+		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")) {
+			Client client = cluster.getInternalNodeClient();
+
+			webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+			String proxyId = "test-proxy";
+			PagerDutyAccount account = new PagerDutyAccount("bla");
+			account.setUri(webhookProvider.getUri());
+
+			AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+			Mockito.when(accountRegistry.lookupAccount("test_account", PagerDutyAccount.class)).thenReturn(account);
+
+			NestedValueMap runtimeData = new NestedValueMap();
+			runtimeData.put("path", "hook");
+			runtimeData.put("component", "stuff");
+			runtimeData.put("summary", "kaputt");
+
+			WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+				trustManagerRegistry);
+			WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,
+				trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
+
+			PagerDutyEventConfig eventConfig = new PagerDutyEventConfig();
+			eventConfig.setDedupKey(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_key"));
+
+			PagerDutyEventConfig.Payload payload = new PagerDutyEventConfig.Payload();
+			payload.setComponent(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "{{data.component}}"));
+			payload.setEventClass(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_class"));
+			payload.setSource(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "hell"));
+			payload.setSummary(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "{{data.summary}}"));
+
+			eventConfig.setPayload(payload);
+
+			when(httpProxyHostRegistry.findHttpProxyHost(proxyId)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+
+			HttpProxyConfig proxyConfig = HttpProxyConfig.create(new ValidatingDocNode(DocNode.of("proxy", proxyId), new ValidationErrors()), httpProxyHostRegistry, STRICT);
+
+			HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, proxyConfig);
+			PagerDutyAction pagerDutyAction = new PagerDutyAction("test_account", eventConfig, false, httpClientConfig);
+
+			pagerDutyAction.execute(ctx);
+
+			Assert.assertEquals(
+				"{\"routing_key\":\"bla\",\"event_action\":\"trigger\",\"dedup_key\":\"my_key\",\"payload\":{\"summary\":\"kaputt\",\"source\":\"hell\",\"severity\":\"error\",\"component\":\"stuff\",\"group\":null,\"class\":\"my_class\",\"custom_details\":null}}",
+				webhookProvider.getLastRequestBody());
+		}
+	}
+
     @Test
     public void testJiraAction() throws Exception {
 
@@ -190,9 +265,9 @@ public class ActionTest {
 
             WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
-                    Mockito.mock(TrustManagerRegistry.class));
+                    trustManagerRegistry);
             WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,//
-                Mockito.mock(TrustManagerRegistry.class), null, STRICT);
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
 
             JiraIssueConfig jiraIssueConfig = new JiraIssueConfig("bug",
                     InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "Look: {{data.summary}}"),
@@ -229,9 +304,9 @@ public class ActionTest {
 
 			WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
 				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
-				Mockito.mock(TrustManagerRegistry.class));
+				trustManagerRegistry);
 			WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,//
-				Mockito.mock(TrustManagerRegistry.class), null, STRICT);
+				trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
 
 			JiraIssueConfig jiraIssueConfig = new JiraIssueConfig("bug",
 				InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "Look: {{data.summary}}"),
@@ -246,6 +321,51 @@ public class ActionTest {
 			tlsConfig.init();
 
 			HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, tlsConfig, null);
+			JiraAction jiraAction = new JiraAction("test_account", "Project", jiraIssueConfig, httpClientConfig);
+
+			jiraAction.execute(ctx);
+
+			Assert.assertEquals(
+				"{\"fields\":{\"project\":{\"key\":\"Project\"},\"summary\":\"Look: kaputt\",\"description\":\"Indeed: kaputt\",\"issuetype\":{\"name\":\"bug\"},\"components\":[{\"name\":\"stuff\"}]}}",
+				webhookProvider.getLastRequestBody());
+		}
+	}
+
+	@Test
+	public void testJiraActionWithStoredProxyConfig() throws Exception {
+
+		try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+
+			webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+			String proxyId = "test-proxy";
+
+			JiraAccount account = new JiraAccount(new URI(webhookProvider.getUri()), "x", "y");
+
+			AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+			Mockito.when(accountRegistry.lookupAccount("test_account", JiraAccount.class)).thenReturn(account);
+
+			NestedValueMap runtimeData = new NestedValueMap();
+			runtimeData.put("path", "hook");
+			runtimeData.put("component", "stuff");
+			runtimeData.put("summary", "kaputt");
+
+			WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+				trustManagerRegistry);
+			WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,//
+				trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
+
+			JiraIssueConfig jiraIssueConfig = new JiraIssueConfig("bug",
+				InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "Look: {{data.summary}}"),
+				InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "Indeed: {{data.summary}}"));
+
+			jiraIssueConfig.setComponentTemplate(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "{{data.component}}"));
+
+			when(httpProxyHostRegistry.findHttpProxyHost(proxyId)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+
+			HttpProxyConfig proxyConfig = HttpProxyConfig.create(new ValidatingDocNode(DocNode.of("proxy", proxyId), new ValidationErrors()), httpProxyHostRegistry, STRICT);
+
+			HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, proxyConfig);
 			JiraAction jiraAction = new JiraAction("test_account", "Project", jiraIssueConfig, httpClientConfig);
 
 			jiraAction.execute(ctx);

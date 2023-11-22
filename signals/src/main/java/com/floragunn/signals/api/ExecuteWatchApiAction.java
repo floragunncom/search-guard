@@ -65,7 +65,7 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
             //if not ES 8 throws an exception
             request.param("tenant");
             WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
-                null, throttlePeriodParser, LENIENT);
+                null, null, throttlePeriodParser, LENIENT);
             final RequestBody requestBody = RequestBody.parse(watchInitializationService, request.content().utf8ToString());
 
             if (log.isDebugEnabled()) {

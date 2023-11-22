@@ -164,7 +164,10 @@ public class JiraAction extends ActionHandler {
 				ValidationLevel validationLevel = watchInitializationService.getValidationLevel();
                 issueConfig = JiraIssueConfig.create(watchInitializationService, vJsonNode.get("issue").asDocNode());
 				httpClientConfig =
-					HttpClientConfig.create(vJsonNode, watchInitializationService.getTrustManagerRegistry(), validationLevel);
+					HttpClientConfig.create(
+                            vJsonNode, watchInitializationService.getTrustManagerRegistry(),
+                            watchInitializationService.getHttpProxyHostRegistry(), validationLevel
+                    );
             } catch (ConfigValidationException e) {
                 validationErrors.add("issue", e);
             }

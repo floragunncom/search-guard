@@ -28,17 +28,22 @@ import static com.floragunn.signals.truststore.rest.TruststoreLoader.CERT_3_SUBJ
 import static com.floragunn.signals.truststore.rest.TruststoreLoader.CERT_4_ISSUER;
 import static com.floragunn.signals.truststore.rest.TruststoreLoader.CERT_4_SUBJECT;
 import static com.floragunn.signals.truststore.rest.TruststoreLoader.NAME_TRUST_STORE;
+import static com.floragunn.signals.truststore.rest.TruststoreLoader.PEM_ONE_CERTIFICATES;
+import static com.floragunn.signals.truststore.rest.TruststoreLoader.PEM_THREE_CERTIFICATES;
+import static com.floragunn.signals.truststore.rest.TruststoreLoader.PEM_TWO_CERTIFICATES;
 import static com.floragunn.signals.truststore.rest.TruststoreLoader.storeTruststore;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.Date;
+import java.util.*;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import org.apache.http.HttpStatus;
@@ -185,34 +190,26 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
     @Test
     public void shouldGetListWithMultipleTruststores() throws Exception {
         try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
-            storeTruststore(client, TRUSTSTORE_ID_1, TruststoreLoader.PEM_ONE_CERTIFICATES);
-            storeTruststore(client, TRUSTSTORE_ID_2, TruststoreLoader.PEM_TWO_CERTIFICATES);
-            storeTruststore(client, TRUSTSTORE_ID_3, TruststoreLoader.PEM_THREE_CERTIFICATES);
+
+            List<DocNode> truststores = saveRandomTruststores(12);
 
             HttpResponse response = client.get("/_signals/truststores");
 
             log.info("Get all truststores response '{}'", response.getBody());
             assertThat(response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data", 3));
-            assertThat(body,  containsValue("data[0].id", TRUSTSTORE_ID_1));
-            assertThat(body,  docNodeSizeEqualTo("data[0].certificates", 1));
-            assertThat(body,  containsValue("data[0].certificates[0].issuer", CERT_1_ISSUER));
-            assertThat(body,  containsValue("data[0].certificates[0].subject", CERT_1_SUBJECT));
-            assertThat(body,  containsValue("data[1].id", TRUSTSTORE_ID_2));
-            assertThat(body,  docNodeSizeEqualTo("data[1].certificates", 2));
-            assertThat(body,  containsValue("data[1].certificates[0].issuer", CERT_4_ISSUER));
-            assertThat(body,  containsValue("data[1].certificates[0].subject", CERT_4_SUBJECT));
-            assertThat(body,  containsValue("data[1].certificates[1].issuer", CERT_2_ISSUER));
-            assertThat(body,  containsValue("data[1].certificates[1].subject", CERT_2_ISSUER));
-            assertThat(body,  containsValue("data[2].id", TRUSTSTORE_ID_3));
-            assertThat(body,  docNodeSizeEqualTo("data[2].certificates", 3));
-            assertThat(body,  containsValue("data[2].certificates[0].issuer", CERT_1_ISSUER));
-            assertThat(body,  containsValue("data[2].certificates[0].subject", CERT_1_SUBJECT));
-            assertThat(body,  containsValue("data[2].certificates[1].issuer", CERT_2_ISSUER));
-            assertThat(body,  containsValue("data[2].certificates[1].subject", CERT_2_SUBJECT));
-            assertThat(body,  containsValue("data[2].certificates[2].issuer", CERT_3_ISSUER));
-            assertThat(body,  containsValue("data[2].certificates[2].subject", CERT_3_SUBJECT));
+            List<DocNode> responseData = response.getBodyAsDocNode().getAsListOfNodes("data");
+            assertThat(responseData, hasSize(truststores.size()));
+            for (int i = 0; i < truststores.size(); i++) {
+                assertThat(responseData.get(i), containsValue("id", truststores.get(i).get("id")));
+
+                List<DocNode> truststoreCerts = truststores.get(i).getAsListOfNodes("certificates");
+                assertThat(responseData.get(i), docNodeSizeEqualTo("certificates", truststoreCerts.size()));
+
+                for (int j = 0; j < truststoreCerts.size(); j++) {
+                    assertThat(responseData.get(i), containsValue("certificates[" + j + "].issuer", truststoreCerts.get(j).get("issuer")));
+                    assertThat(responseData.get(i), containsValue("certificates[" + j + "].subject", truststoreCerts.get(j).get("subject")));
+                }
+            }
         }
     }
 
@@ -388,7 +385,8 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
 
     @Test
     public void shouldNotAccessTruststoreIndexDirectly() throws Exception {
-        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN);
+            GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
             storeTruststore(client, TRUSTSTORE_ID_1, TruststoreLoader.PEM_THREE_CERTIFICATES);
             storeTruststore(client, TRUSTSTORE_ID_2, TruststoreLoader.PEM_TWO_CERTIFICATES);
             storeTruststore(client, TRUSTSTORE_ID_3, TruststoreLoader.PEM_ONE_CERTIFICATES);
@@ -397,9 +395,12 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
             assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("data", 3));
 
             response = client.get("/" + IndexNames.TRUSTSTORES + "/_search");
+            assertThat(response.getStatusCode(), equalTo(403));
+
+            response = adminCertClient.get("/" + IndexNames.TRUSTSTORES + "/_search");
             assertThat(response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("hits.total.value", 0));
+            assertThat(body, containsValue("hits.total.value", 3));
         }
     }
 
@@ -468,6 +469,36 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
 
             log.info("Upload truststore status code '{}' and response body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(200));
+        }
+    }
+
+    private List<DocNode> saveRandomTruststores(int noOfTruststores) throws Exception {
+        try(GenericRestClient client = cluster.getRestClient(USER_ADMIN)) {
+            Map<Integer, DocNode> certNoToRepresentation = ImmutableMap.of(
+                    1, DocNode.array(DocNode.of("issuer", CERT_1_ISSUER, "subject", CERT_1_SUBJECT)),
+                    2, DocNode.array(
+                            DocNode.of("issuer", CERT_4_ISSUER, "subject", CERT_4_SUBJECT),
+                            DocNode.of("issuer", CERT_2_ISSUER, "subject", CERT_2_ISSUER)
+                    ),
+                    3, DocNode.array(
+                            DocNode.of("issuer", CERT_1_ISSUER, "subject", CERT_1_SUBJECT),
+                            DocNode.of("issuer", CERT_2_ISSUER, "subject", CERT_2_SUBJECT),
+                            DocNode.of("issuer", CERT_3_ISSUER, "subject", CERT_3_SUBJECT)
+                    )
+            );
+            Map<Integer, String> certNoToPem = ImmutableMap.of(
+                    1, PEM_ONE_CERTIFICATES,
+                    2, PEM_TWO_CERTIFICATES,
+                    3, PEM_THREE_CERTIFICATES
+            );
+            List<DocNode> trustStores = new ArrayList<>();
+            for (int trustNo = 1; trustNo <= noOfTruststores; trustNo++) {
+                int certNo = new Random().nextInt(3) + 1;
+                String trustName = "name-" + trustNo;
+                storeTruststore(client, String.valueOf(trustNo), certNoToPem.get(certNo), trustName);
+                trustStores.add(DocNode.of("id", trustNo, "name", trustName, "certificates", certNoToRepresentation.get(certNo)));
+            }
+            return trustStores;
         }
     }
 }
