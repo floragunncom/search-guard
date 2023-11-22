@@ -37,7 +37,6 @@ import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.IndicesRequest.Replaceable;
-import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -70,7 +69,6 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotUtils;
-import org.elasticsearch.transport.RemoteClusterService;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -167,7 +165,7 @@ public class ActionRequestIntrospector {
             } else if (request instanceof ReindexRequest) {
                 return CLUSTER_REQUEST;
             } else {
-                log.warn("Unknown action request: " + request.getClass().getName());
+                log.warn("Unknown action request: {} ", request.getClass().getName());
                 return UNKNOWN;
             }
 
@@ -204,9 +202,9 @@ public class ActionRequestIntrospector {
             return CLUSTER_REQUEST;
         } else {
             if (action.startsWith("index:")) {
-                log.warn("Unknown action request: " + request.getClass().getName());
+                log.warn("Unknown action request: {}", request.getClass().getName());
             } else {
-                log.debug("Unknown action request: " + request.getClass().getName());
+                log.debug("Unknown action request: {}", request.getClass().getName());
             }
             return UNKNOWN;
         }
@@ -367,7 +365,7 @@ public class ActionRequestIntrospector {
             }
             return renamedIndices;
         } catch (PatternSyntaxException e) {
-            log.error("Unable to parse the regular expression denoted in 'rename_pattern'. Please correct the pattern an try again.", e);
+            log.error("Unable to parse the regular expression denoted in 'rename_pattern'. Please correct the pattern and try again.", e);
             throw e;
         }
     }
