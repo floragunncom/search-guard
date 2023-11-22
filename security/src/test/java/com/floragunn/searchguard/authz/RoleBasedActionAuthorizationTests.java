@@ -25,6 +25,7 @@ import org.elasticsearch.cluster.metadata.IndexAbstraction.Alias;
 import org.elasticsearch.cluster.metadata.IndexAbstraction.ConcreteIndex;
 import org.elasticsearch.cluster.metadata.IndexAbstraction.DataStream;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.Index;
 import org.junit.Assert;
 import org.junit.Test;
@@ -693,7 +694,7 @@ public class RoleBasedActionAuthorizationTests {
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
                     resolvedIndices(alias("alias_constant_a").of("index_a1", "index_a2"), index("index_b")));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-            Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_constant_a1", "index_constant_a2")));
+            Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_constant_a")));
 
             /*
             result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction), indexConstantA);
@@ -734,7 +735,9 @@ public class RoleBasedActionAuthorizationTests {
     }
 
     private static ConcreteIndex index(String name) {
-        return new ConcreteIndex(IndexMetadata.builder(name).numberOfShards(1).numberOfReplicas(1).build());
+        return new ConcreteIndex(IndexMetadata.builder(name)
+                .settings(Settings.builder().put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), org.elasticsearch.Version.CURRENT))
+                .numberOfShards(1).numberOfReplicas(1).build());
     }
 
     private static AliasBuilder alias(String name) {
@@ -753,8 +756,12 @@ public class RoleBasedActionAuthorizationTests {
         }
 
         Alias of(String... indices) {
-            return new Alias(AliasMetadata.builder(this.name).build(),
-                    ImmutableList.ofArray(indices).map(i -> IndexMetadata.builder(i).numberOfShards(1).numberOfReplicas(1).build()));
+            AliasMetadata aliasMetadata = AliasMetadata.builder(this.name).build();
+
+            return new Alias(aliasMetadata,
+                    ImmutableList.ofArray(indices).map(i -> IndexMetadata.builder(i)
+                            .settings(Settings.builder().put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), org.elasticsearch.Version.CURRENT))
+                            .numberOfShards(1).numberOfReplicas(1).putAlias(aliasMetadata).build()));
         }
     }
 
