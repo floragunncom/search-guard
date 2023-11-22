@@ -580,8 +580,8 @@ public class ActionRequestIntrospector {
         private final boolean writeRequest;
         private final boolean createIndexRequest;
         private final ClusterState clusterState;
-        private ImmutableSet<String> remoteIndices;
-        private List<String> localIndices;
+        private final ImmutableSet<String> remoteIndices;
+        private final ImmutableList<String> localIndices;
 
         IndicesRequestInfo(String role, IndicesRequest indicesRequest, ClusterState clusterState) {
             this.indices = indicesRequest.indices() != null ? ImmutableList.ofArray(indicesRequest.indices()) : ImmutableList.empty();
@@ -592,9 +592,9 @@ public class ActionRequestIntrospector {
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
-            this.isAll = this.expandWildcards
-                    ? IndexNameExpressionResolver.isAllIndices(indices) || (indices.size() == 1 && indices.only().equals("*"))
-                    : false;
+            this.localIndices = this.indices.matching((i) -> !i.contains(":"));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
+            this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
             this.containsNegation = this.containsWildcards && !this.isAll && containsNegation(this.indices);
             this.writeRequest = indicesRequest instanceof DocWriteRequest;
@@ -612,7 +612,9 @@ public class ActionRequestIntrospector {
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
-            this.isAll = this.expandWildcards ? IndexNameExpressionResolver.isAllIndices(indices) || (index.equals("*")) : false;
+            this.localIndices = this.indices.matching((i) -> !i.contains(":"));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
+            this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(index) : false;
             this.containsNegation = false;
             this.writeRequest = false;
@@ -629,9 +631,9 @@ public class ActionRequestIntrospector {
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
-            this.isAll = this.expandWildcards
-                    ? IndexNameExpressionResolver.isAllIndices(indices) || (indices.size() == 1 && indices.get(0).equals("*"))
-                    : false;
+            this.localIndices = this.indices.matching((i) -> !i.contains(":"));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
+            this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
             this.containsNegation = this.containsWildcards && !this.isAll && containsNegation(this.indices);
             this.writeRequest = false;
@@ -708,19 +710,22 @@ public class ActionRequestIntrospector {
         }
 
         public boolean isAll() {
-            if (expandWildcards) {
-                return IndexNameExpressionResolver.isAllIndices(indices) || (indices.size() == 1 && indices.get(0).equals("*"));
-            } else {
+            return this.isAll;
+        }
+        
+        private boolean isAll(List<String> localIndices, ImmutableSet<String> remoteIndices) {
+            if (localIndices.isEmpty() && !remoteIndices.isEmpty()) {
                 return false;
             }
+            
+            return IndexNameExpressionResolver.isAllIndices(localIndices)
+                    || (localIndices.size() == 1 && (localIndices.get(0) == null || localIndices.get(0).equals("*")));
         }
 
         ResolvedIndices resolveIndices() {
             if (isAll()) {
-                return new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(), ImmutableSet.of(this));
+                return new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.of(this));
             }
-
-            checkForRemoteIndices();
 
             if (localIndices.size() == 0) {
                 return new ResolvedIndices(false, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.empty());
@@ -756,44 +761,6 @@ public class ActionRequestIntrospector {
             }
 
             return result;
-        }
-
-        private void checkForRemoteIndices() {
-            if (this.remoteIndices == null || this.localIndices == null) {
-                RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
-
-                if (remoteClusterService.isCrossClusterSearchEnabled() && allowsRemoteIndices) {
-                    Map<String, OriginalIndices> groupedIndices = remoteClusterService.groupIndices(indicesOptions, indicesArray,
-                            idx -> resolver.hasIndexAbstraction(idx, clusterService.state()));
-
-                    OriginalIndices localOriginalIndices = groupedIndices.get(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY);
-
-                    localIndices = localOriginalIndices != null ? Arrays.asList(localOriginalIndices.indices()) : Collections.emptyList();
-                    remoteIndices = buildRemoteIndicesSet(groupedIndices);
-                } else {
-                    localIndices = indices;
-                    remoteIndices = ImmutableSet.empty();
-                }
-
-            }
-        }
-
-        private ImmutableSet<String> buildRemoteIndicesSet(Map<String, OriginalIndices> groupedIndices) {
-            if (groupedIndices.size() == 1 && groupedIndices.containsKey(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY)) {
-                return ImmutableSet.empty();
-            }
-
-            Set<String> result = new HashSet<>();
-
-            for (Map.Entry<String, OriginalIndices> entry : groupedIndices.entrySet()) {
-                if (!entry.getKey().equals(RemoteClusterService.LOCAL_CLUSTER_GROUP_KEY)) {
-                    for (String index : entry.getValue().indices()) {
-                        result.add(entry.getKey() + ":" + index);
-                    }
-                }
-            }
-
-            return ImmutableSet.of(result);
         }
 
         @Override
@@ -1201,14 +1168,11 @@ public class ActionRequestIntrospector {
 
             static Local resolve(IndicesRequestInfo request, ClusterState state) {
                 try {
-
-                    request.checkForRemoteIndices();
-
                     if (request.isAll) {
                         return resolveIsAll(request, state);
                     } else if (request.expandWildcards) {
                         return resolveWithPatterns(request, state);
-                        //} else if (request.writeRequest) {
+                        //} else if (request.writeRequest) { TODO
                         //    return request.resolveWriteIndex();
                     } else if (request.createIndexRequest) {
                         return new Local(ImmutableMap.empty(), ImmutableMap.empty(), ImmutableMap.empty(), request.resolveDateMathExpressions());
