@@ -17,6 +17,15 @@
 
 package com.floragunn.searchguard.test;
 
+import com.floragunn.codova.documents.ContentType;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocWriter;
+import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format.UnknownDocTypeException;
+import com.floragunn.codova.documents.patch.DocPatch;
+import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -28,9 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import javax.net.ssl.SSLContext;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -57,16 +64,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.xcontent.ToXContentObject;
-
-import com.floragunn.codova.documents.ContentType;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocWriter;
-import com.floragunn.codova.documents.Document;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.Format.UnknownDocTypeException;
-import com.floragunn.codova.documents.patch.DocPatch;
-import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
-import com.google.common.collect.Lists;
 
 public class GenericRestClient implements AutoCloseable {
     private static final Logger log = LogManager.getLogger(GenericRestClient.class);
@@ -165,6 +162,11 @@ public class GenericRestClient implements AutoCloseable {
     public HttpResponse post(String path) throws Exception {
         HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
         return executeRequest(uriRequest);
+    }
+
+    public HttpResponse post(String path, Header... headers) throws Exception {
+        HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
+        return executeRequest(uriRequest, headers);
     }
 
     public HttpResponse patch(String path, String body) throws Exception {
