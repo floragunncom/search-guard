@@ -1,5 +1,20 @@
 default:
+  http_enabled: true
+  transport_enabled: true
+  order: 0
+  http_authenticator:
+    challenge: true
+    type: "basic"
+    config: {}
+  authentication_backend:
+    type: "intern"
+    config: {}
+  description: "Migrated from v6"
   auth_domains:
-  - type: basic/internal_users_db
-    user_mapping.attrs.from:
-      dept_no: user_entry.attributes.dept_no
+    - type: basic/internal_users_db
+      user_mapping.attrs.from:
+        dept_no: user_entry.attributes.dept_no
+    - type: anonymous
+      user_mapping.user_name: anon
+      user_mapping.roles.static: anon_role
+  basic_internal_auth_domain:
