@@ -287,7 +287,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 if (resultFromStatefulAlias != null) {
                     if (log.isTraceEnabled()) {
-                        log.trace("resultFromStatefulAlias: " + resultFromStatefulAlias);
+                        log.trace("resultFromStatefulAlias: {}", resultFromStatefulAlias);
                     }
 
                     return resultFromStatefulAlias;
@@ -305,7 +305,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 if (resultFromStatefulIndex != null) {
                     if (log.isTraceEnabled()) {
-                        log.trace("resultFromStatefulIndex: " + resultFromStatefulIndex);
+                        log.trace("resultFromStatefulIndex: {}", resultFromStatefulIndex);
                     }
 
                     return resultFromStatefulIndex;
@@ -386,7 +386,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (resultFromStatefulIndex != null) {
                         if (log.isTraceEnabled()) {
-                            log.trace("resultFromStatefulIndex: " + resultFromStatefulIndex);
+                            log.trace("resultFromStatefulIndex: {}", resultFromStatefulIndex);
                         }
 
                         return resultFromStatefulIndex;
@@ -472,7 +472,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     }
                                 } catch (PrivilegesEvaluationException e) {
                                     // We can ignore these errors, as this max leads to fewer privileges than available
-                                    log.error("Error while evaluating index pattern of role " + role + ". Ignoring entry", e);
+                                    log.error("Error while evaluating index pattern of role {}. Ignoring entry", role, e);
                                     this.componentState.addLastException("has_index_permission", e);
                                     localContext.add(new PrivilegesEvaluationResult.Error("Error while evaluating index pattern", e, role));
                                 }
@@ -693,10 +693,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     }
 
                 } catch (ConfigValidationException e) {
-                    log.error("Invalid pattern in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
                     initializationErrors.with(new PrivilegesEvaluationResult.Error("Invalid pattern in role", e, entry.getKey()));
                 } catch (Exception e) {
-                    log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
                     initializationErrors.with(new PrivilegesEvaluationResult.Error("Unexpected exception while processing role", e, entry.getKey()));
                 }
             }
@@ -811,10 +811,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     }
 
                 } catch (ConfigValidationException e) {
-                    log.error("Invalid pattern in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
                     initializationErrors.with(new PrivilegesEvaluationResult.Error("Invalid pattern in role", e, entry.getKey()));
                 } catch (Exception e) {
-                    log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
                     initializationErrors.with(new PrivilegesEvaluationResult.Error("Unexpected exception while processing role", e, entry.getKey()));
                 }
             }
@@ -922,10 +922,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     }
 
                 } catch (ConfigValidationException e) {
-                    log.error("Invalid configuration in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    log.error("Invalid configuration in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
                     initializationErrors.with(new PrivilegesEvaluationResult.Error("Invalid pattern in role", e, entry.getKey()));
                 } catch (Exception e) {
-                    log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
                     initializationErrors.with(new PrivilegesEvaluationResult.Error("Unexpected exception while processing role", e, entry.getKey()));
                 }
             }
@@ -1005,10 +1005,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     }
 
                 } catch (ConfigValidationException e) {
-                    log.error("Invalid configuration in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    log.error("Invalid configuration in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
                     rolesToInitializationErrors.get(entry.getKey()).with(e);
                 } catch (Exception e) {
-                    log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
                     rolesToInitializationErrors.get(entry.getKey()).with(e);
                 }
             }
@@ -1241,10 +1241,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     }
 
                 } catch (ConfigValidationException e) {
-                    log.error("Invalid pattern in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
                     rolesToInitializationErrors.get(entry.getKey()).with(e);
                 } catch (Exception e) {
-                    log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
                     rolesToInitializationErrors.get(entry.getKey()).with(e);
                 }
             }
@@ -1450,10 +1450,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     }
 
                 } catch (ConfigValidationException e) {
-                    log.error("Invalid pattern in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
                     rolesToInitializationErrors.get(entry.getKey()).with(e);
                 } catch (Exception e) {
-                    log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
                     rolesToInitializationErrors.get(entry.getKey()).with(e);
                 }
             }
@@ -1633,10 +1633,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     }
 
                 } catch (ConfigValidationException e) {
-                    log.error("Invalid configuration in role: " + entry + "\nThis should have been caught before. Ignoring role.", e);
+                    log.error("Invalid configuration in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
                     initializationErrors.with(new PrivilegesEvaluationResult.Error("Invalid configuration in role", e, entry.getKey()));
                 } catch (Exception e) {
-                    log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
+                    log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
                     initializationErrors.with(new PrivilegesEvaluationResult.Error("Unexpected exception while processing role", e, entry.getKey()));
                 }
             }

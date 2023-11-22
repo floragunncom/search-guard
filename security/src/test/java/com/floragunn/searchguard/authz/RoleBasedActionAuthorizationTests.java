@@ -667,7 +667,7 @@ public class RoleBasedActionAuthorizationTests {
 
     public static class AliasPermissions {
         @Test
-        public void wellKnown_constantAction_constantIndex_statefulIndices() throws Exception {
+        public void wellKnown_constantAction_constantAlias_statefulIndices() throws Exception {
             Action indexAction = actions.get("indices:data/write/index");
             Action otherAction = actions.get("indices:data/write/delete");
 
@@ -690,7 +690,11 @@ public class RoleBasedActionAuthorizationTests {
 
             PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), aliasConstantA);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-
+            
+            ResolvedIndices indexA1 = resolvedIndices(index("index_a1"));
+            result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexA1);
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
                     resolvedIndices(alias("alias_constant_a").of("index_a1", "index_a2"), index("index_b")));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
