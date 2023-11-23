@@ -73,6 +73,14 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
 
     public static final String SG_FILTER_LEVEL_FEMT_DONE = ConfigConstants.SG_CONFIG_PREFIX + "filter_level_femt_done";
 
+    private static final ImmutableSet<String> READ_ONLY_ALLOWED_ACTIONS = ImmutableSet.of(
+                "indices:admin/get",
+                "indices:data/read/get",
+                "indices:data/read/search",
+                "indices:data/read/msearch",
+                "indices:data/read/mget",
+                "indices:data/read/mget[shard]");
+
     private final Action KIBANA_ALL_SAVED_OBJECTS_WRITE;
     private final Action KIBANA_ALL_SAVED_OBJECTS_READ;
 
@@ -313,7 +321,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
             return false;
         }
 
-        if (tenantAccess.isWriteProhibited() && action.name().startsWith("indices:data/write")) {
+        if (tenantAccess.isWriteProhibited() && !READ_ONLY_ALLOWED_ACTIONS.contains(action.name())) {
             log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, username);
             return false;
         }
