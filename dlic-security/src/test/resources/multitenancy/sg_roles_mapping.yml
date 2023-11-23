@@ -171,7 +171,4 @@ all_mighty:
     - "admin"
 sg_anonymous:
   backend_roles:
-    - anon_role
-anonymous_rw:
-  backend_roles:
-    - anon_role
+    - sg_anonymous_backendrole

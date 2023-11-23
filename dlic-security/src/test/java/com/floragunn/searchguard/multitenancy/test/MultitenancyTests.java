@@ -455,7 +455,7 @@ public class MultitenancyTests {
 
     @Test
     public void checksActionsOfReadOnlyAnonymousAgainstMultitenancy() throws Exception {
-        final String tenant = "sg_anonymous";
+        final String tenant = "anonymous_ro";
         final BasicHeader header = new BasicHeader("sgtenant", tenant);
 
         try (GenericRestClient restClient = cluster.getRestClient(header)) {

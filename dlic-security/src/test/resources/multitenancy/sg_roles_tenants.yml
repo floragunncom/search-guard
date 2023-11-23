@@ -75,7 +75,7 @@ kibana_7_12_alias_test:
 kibana_7_12_alias_creation_test:
   reserved: false
   hidden: false 
-sg_anonymous:
+anonymous_ro:
   reserved: false
   hidden: false
 anonymous_rw:
