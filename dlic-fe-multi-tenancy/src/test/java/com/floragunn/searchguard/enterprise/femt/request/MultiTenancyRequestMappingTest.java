@@ -49,7 +49,6 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
@@ -61,12 +60,15 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
+import static org.apache.http.HttpStatus.SC_FORBIDDEN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
 public class MultiTenancyRequestMappingTest {
+
+    public static final String GLOBAL_TENANT_NAME = "SGS_GLOBAL_TENANT";
 
     private static final String DOC_ID = "123";
     private static final String KIBANA_INDEX = ".kibana";
@@ -75,13 +77,18 @@ public class MultiTenancyRequestMappingTest {
     private static final TestSgConfig.User USER = new TestSgConfig.User("user")
             .roles(new TestSgConfig.Role("tenant_access").tenantPermission("*").on(HR_TENANT.getName()).clusterPermissions("*").indexPermissions("*").on(KIBANA_INDEX+"*"));
 
+    private static final TestSgConfig.User LIMITED_USER = new TestSgConfig.User("limited_user") //
+        .roles(new TestSgConfig.Role("limited_access_to_global_tenant") //
+            .tenantPermission("SGS_KIBANA_ALL_READ").on(HR_TENANT.getName(), GLOBAL_TENANT_NAME) //
+            .clusterPermissions("SGS_CLUSTER_MONITOR"));
+
     private final TenantManager tenantManager = new TenantManager(ImmutableSet.of(HR_TENANT.getName()));
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled()
             .nodeSettings("action.destructive_requires_name", false)
             .enterpriseModulesEnabled()
-            .user(USER)
+            .users(USER, LIMITED_USER)
             .frontendMultiTenancy(new TestSgConfig.FrontendMultiTenancy(true).index(KIBANA_INDEX).serverUser(KIBANA_SERVER_USER))
             .tenants(HR_TENANT)
             .build();
@@ -2978,6 +2985,15 @@ public class MultiTenancyRequestMappingTest {
                     unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForBulkRequests(responseWithoutTenant), DOC_ID),
                     equalTo(responseBodyWithoutFieldsWhichMayDifferForBulkRequests(responseWithTenant).toJsonString())
             );
+        }
+    }
+
+    @Test
+    public void shouldNotDeleteFrontendIndexWithReadOnlyPermissions() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(LIMITED_USER, new BasicHeader("sg_tenant", "SGS_GLOBAL_TENANT"))) {
+            HttpResponse response = client.delete(KIBANA_INDEX);
+
+            assertThat(response.getStatusCode(), equalTo(SC_FORBIDDEN));
         }
     }
 
