@@ -14,7 +14,7 @@ sg_config:
       server_username: "kibanaserver"
       index: ".kibana"
     http:
-      anonymous_auth_enabled: false
+      anonymous_auth_enabled: true
       xff:
         enabled: true
         internalProxies: ".*"

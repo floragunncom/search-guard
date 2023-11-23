@@ -18,9 +18,16 @@ import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.Interce
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
 
+import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
+import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
+import com.floragunn.searchguard.sgconf.ConfigModel;
+import com.floragunn.searchguard.sgconf.DynamicConfigModel;
+import com.floragunn.searchguard.sgconf.SgRoles;
+import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
+import com.floragunn.searchguard.user.User;
+import com.google.common.collect.ImmutableSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -48,17 +55,17 @@ import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchguard.resolver.IndexResolverReplacer.Resolved;
-import com.floragunn.searchguard.sgconf.ConfigModel;
-import com.floragunn.searchguard.sgconf.DynamicConfigModel;
-import com.floragunn.searchguard.sgconf.SgRoles;
-import com.floragunn.searchguard.sgconf.SgRoles.TenantPermissions;
-import com.floragunn.searchguard.user.User;
-
 public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
 
     private static final String USER_TENANT = "__user__";
+    private static final ImmutableSet<String> READ_ONLY_ALLOWED_ACTIONS = ImmutableSet.of(
+        "indices:admin/get",
+        "indices:data/read/get",
+        "indices:data/read/search",
+        "indices:data/read/msearch",
+        "indices:data/read/mget",
+        "indices:data/read/mget[shard]"
+    );
 
     protected final Logger log = LogManager.getLogger(this.getClass());
     private final String kibanaServerUsername;
@@ -101,7 +108,7 @@ public class PrivilegesInterceptorImpl extends PrivilegesInterceptor {
                 log.debug("request " + request.getClass());
             }
 
-            if (!tenantPermissions.isWritePermitted() && action.startsWith("indices:data/write")) {
+            if (!tenantPermissions.isWritePermitted() && !READ_ONLY_ALLOWED_ACTIONS.contains(action)) {
                 log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, user.getName());
                 return false;
             }

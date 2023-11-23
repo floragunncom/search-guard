@@ -1,11 +1,33 @@
 /*
- * Copyright 2017-2021 by floragunn GmbH - All rights reserved
+ * Based on https://github.com/opensearch-project/opensearch-dashboards-functional-test/pull/608
+ * from Apache 2 licensed OpenSearch
  *
+ * Original license header:
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ *
+ * Modifications Copyright OpenSearch Contributors. See
+ * GitHub history for details.
+ *
+ * Modifications:
+ *
+ * Copyright 2023 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed here is distributed on an "AS IS" BASIS,
+ * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  * This software is free of charge for non-commercial and academic use.
  * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
@@ -14,9 +36,27 @@
 
 package com.floragunn.searchguard.multitenancy.test;
 
+import static com.floragunn.searchguard.multitenancy.test.TenantAccessMatcher.Action.CREATE_DOCUMENT;
+import static com.floragunn.searchguard.multitenancy.test.TenantAccessMatcher.Action.DELETE_INDEX;
+import static com.floragunn.searchguard.multitenancy.test.TenantAccessMatcher.Action.UPDATE_DOCUMENT;
+import static com.floragunn.searchguard.multitenancy.test.TenantAccessMatcher.Action.UPDATE_INDEX;
+import static com.floragunn.searchguard.multitenancy.test.TenantAccessMatcher.canPerformFollowingActions;
+import static com.floragunn.searchguard.test.AbstractSGUnitTest.encodeBasicHeader;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.floragunn.searchguard.multitenancy.test.TenantAccessMatcher.Action;
+import com.floragunn.searchguard.support.WildcardMatcher;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
+import com.floragunn.searchguard.test.helper.rest.GenericRestClient.HttpResponse;
+import com.google.common.collect.ImmutableMap;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.DocWriteResponse;
@@ -45,19 +85,19 @@ import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.support.WildcardMatcher;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.TestSgConfig;
-import com.floragunn.searchguard.test.helper.rest.GenericRestClient;
-import com.google.common.collect.ImmutableMap;
-
 public class MultitenancyTests {
 
     private final static TestSgConfig.User USER_DEPT_01 = new TestSgConfig.User("user_dept_01").attr("dept_no", "01").roles("sg_tenant_user_attrs");
     private final static TestSgConfig.User USER_DEPT_02 = new TestSgConfig.User("user_dept_02").attr("dept_no", "02").roles("sg_tenant_user_attrs");
+    private final static TestSgConfig.User HR_USER_READ_ONLY = new TestSgConfig.User("hr_user_read_only").roles("hr_tenant_read_only_access");
+    private final static TestSgConfig.User HR_USER_READ_WRITE = new TestSgConfig.User("hr_user_read_write").roles("hr_tenant_read_write_access");
+
+    public static final String TENANT_WRITABLE = Boolean.toString(true);
+    public static final String TENANT_NOT_WRITABLE = Boolean.toString(false);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").users(USER_DEPT_01, USER_DEPT_02).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy")
+        .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_WRITE, HR_USER_READ_ONLY).build();
 
     @Test
     public void testMt() throws Exception {
@@ -69,6 +109,9 @@ public class MultitenancyTests {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
             response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "business_intelligence"));
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
+
+            response = client.delete(".kibana", new BasicHeader("sgtenant", "business_intelligence"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
             response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "human_resources"));
@@ -384,5 +427,76 @@ public class MultitenancyTests {
             }
         }
 
+    }
+
+    @Test
+    public void checksActionsOfReadOnlyUserAgainstMultitenancy() throws Exception {
+        final String tenant = "test_tenant_ro";
+        final BasicHeader header = new BasicHeader("sgtenant", tenant);
+
+        try (GenericRestClient restClient = cluster.getRestClient(HR_USER_READ_ONLY, header)) {
+            assertAdminCanCreateTenantIndex(restClient, tenant);
+            assertTenantWriteable(restClient, tenant, TENANT_NOT_WRITABLE);
+            assertThat(restClient, canPerformFollowingActions(EnumSet.noneOf(Action.class)));
+        }
+    }
+
+    @Test
+    public void checksActionsOfReadWriteUserAgainstMultitenancy() throws Exception {
+        final String tenant = "test_tenant_rw";
+        final BasicHeader header = new BasicHeader("sgtenant", tenant);
+
+        try (GenericRestClient restClient = cluster.getRestClient(HR_USER_READ_WRITE, header)) {
+            assertAdminCanCreateTenantIndex(restClient, tenant);
+            assertTenantWriteable(restClient, tenant, TENANT_WRITABLE);
+            assertThat(restClient, canPerformFollowingActions(EnumSet.of(CREATE_DOCUMENT, UPDATE_DOCUMENT, UPDATE_INDEX, DELETE_INDEX)));
+        }
+    }
+
+    @Test
+    public void checksActionsOfReadOnlyAnonymousAgainstMultitenancy() throws Exception {
+        final String tenant = "sg_anonymous";
+        final BasicHeader header = new BasicHeader("sgtenant", tenant);
+
+        try (GenericRestClient restClient = cluster.getRestClient(header)) {
+            assertAdminCanCreateTenantIndex(restClient, tenant);
+            assertTenantWriteable(restClient, tenant, TENANT_NOT_WRITABLE);
+            assertThat(restClient, canPerformFollowingActions(EnumSet.noneOf(Action.class)));
+        }
+    }
+
+    @Test
+    public void checksActionsOfReadWriteAnonymousAgainstMultitenancy() throws Exception {
+        final String tenant = "anonymous_rw";
+        final BasicHeader header = new BasicHeader("sgtenant", tenant);
+
+        try (GenericRestClient restClient = cluster.getRestClient(header)) {
+            assertAdminCanCreateTenantIndex(restClient, tenant);
+            assertTenantWriteable(restClient, tenant, TENANT_WRITABLE);
+            assertThat(restClient, canPerformFollowingActions(EnumSet.of(CREATE_DOCUMENT, UPDATE_DOCUMENT, UPDATE_INDEX, DELETE_INDEX)));
+        }
+    }
+
+    private static void assertTenantWriteable(GenericRestClient restClient, String tenant, String isTenantWritable)
+        throws Exception {
+        final HttpResponse authInfo = restClient.get("/_searchguard/authinfo?pretty");
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNode = objectMapper.readTree(authInfo.getBody());
+
+        // Print debug information
+        System.out.println("JSON Response: " + authInfo.getBody());
+        System.out.println("Actual Tenant Writability: " + jsonNode.findValue("sg_tenants").findValue(tenant).asText());
+
+
+        assertThat(jsonNode.findValue("sg_tenants").findValue(tenant).asText(), equalTo(isTenantWritable));
+    }
+
+    private static void assertAdminCanCreateTenantIndex(GenericRestClient restClient, String tenant) throws Exception {
+        final HttpResponse adminIndexDocToCreateTenant = restClient.putJson(
+            ".kibana/_doc/5.6.0",
+            "{\"buildNum\": 15460, \"defaultIndex\": \"anon\", \"tenant\": \"" + tenant + "\"}",
+            encodeBasicHeader("admin", "admin")
+        );
+        assertThat(adminIndexDocToCreateTenant.getBody(), adminIndexDocToCreateTenant.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
     }
 }
