@@ -48,7 +48,6 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -190,9 +189,9 @@ public class SearchGuardCapabilities {
 
         Capabilities(StreamInput in) throws IOException {
             this.searchGuardVersion = in.readOptionalString();
-            this.capabilities = ImmutableSet.of(in.readSet(StreamInput::readString));
-            this.uiCapabilities = ImmutableSet.of(in.readSet(StreamInput::readString));
-            this.publicCapabilities = ImmutableSet.of(in.readSet(StreamInput::readString));
+            this.capabilities = ImmutableSet.of(in.readCollectionAsSet(StreamInput::readString));
+            this.uiCapabilities = ImmutableSet.of(in.readCollectionAsSet(StreamInput::readString));
+            this.publicCapabilities = ImmutableSet.of(in.readCollectionAsSet(StreamInput::readString));
             this.allCapabilities = capabilities.with(uiCapabilities).with(publicCapabilities);
         }
 
@@ -321,7 +320,7 @@ public class SearchGuardCapabilities {
 
         public static final RestApi REST_API = new RestApi()//
                 .responseHeaders(SearchGuardVersion.header())//
-                .handlesGet("/_searchguard/capabilities/cluster_wide").with(GetCapabilitiesAction.INSTANCE, (params, body) -> new Request())//
+                .handlesGet("/_searchguard/capabilities/cluster_wide").with(GetCapabilitiesAction.INSTANCE, (params, body) -> new Request(), Response::status)//
                 .name("/_searchguard/capabilities/cluster_wide");
 
         protected GetCapabilitiesAction() {
@@ -348,7 +347,7 @@ public class SearchGuardCapabilities {
             }
         }
 
-        public static class Response extends BaseNodesResponse<NodeResponse> implements StatusToXContentObject {
+        public static class Response extends BaseNodesResponse<NodeResponse> implements ToXContentObject {
 
             public Response(StreamInput in) throws IOException {
                 super(in);
@@ -360,12 +359,12 @@ public class SearchGuardCapabilities {
 
             @Override
             public List<NodeResponse> readNodesFrom(StreamInput in) throws IOException {
-                return in.readList(NodeResponse::new);
+                return in.readCollectionAsList(NodeResponse::new);
             }
 
             @Override
             public void writeNodesTo(StreamOutput out, List<NodeResponse> nodes) throws IOException {
-                out.writeList(nodes);
+                out.writeCollection(nodes);
             }
 
             @Override
@@ -388,7 +387,6 @@ public class SearchGuardCapabilities {
                 return builder;
             }
 
-            @Override
             public RestStatus status() {
                 return RestStatus.OK;
             }
@@ -455,7 +453,7 @@ public class SearchGuardCapabilities {
             public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                     ActionFilters actionFilters, SearchGuardCapabilities capabilities) {
                 super(GetCapabilitiesAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new,
-                        ThreadPool.Names.MANAGEMENT);
+                        threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
                 this.capabilities = capabilities;
             }

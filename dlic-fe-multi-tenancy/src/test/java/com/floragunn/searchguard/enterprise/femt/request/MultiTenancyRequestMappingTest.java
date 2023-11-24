@@ -32,6 +32,7 @@ import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -41,7 +42,6 @@ import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
@@ -372,7 +372,7 @@ public class MultiTenancyRequestMappingTest {
     public void getRequest_withVersionParam() throws Exception {
         String scopedId = scopedId(DOC_ID);
 
-        IndexResponse indexResponse = addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
+        DocWriteResponse indexResponse = addDocumentToIndex(scopedId, DocNode.of("aa", "a", "ab", "b", "bb", "b"));
         long docVersion = indexResponse.getVersion();
         try (GenericRestClient client = cluster.getRestClient(USER)) {
 
@@ -505,7 +505,7 @@ public class MultiTenancyRequestMappingTest {
     public void updateRequest_withIfSeqNoAndIfPrimaryTermParams() throws Exception {
         String scopedId = scopedId(DOC_ID);
         DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
-        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        DocWriteResponse indexResponse = addDocumentToIndex(scopedId, doc);
         long seqNo = indexResponse.getSeqNo();
         long primaryTerm = indexResponse.getPrimaryTerm();
         try (GenericRestClient client = cluster.getRestClient(USER)) {
@@ -846,7 +846,7 @@ public class MultiTenancyRequestMappingTest {
     public void indexRequest_withIfSeqNoAndIfPrimaryTermParams() throws Exception {
         String scopedId = scopedId(DOC_ID);
         DocNode doc = DocNode.of("a", "a", "b", "b");
-        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        DocWriteResponse indexResponse = addDocumentToIndex(scopedId, doc);
         long seqNo = indexResponse.getSeqNo();
         long primaryTerm = indexResponse.getPrimaryTerm();
         try (GenericRestClient client = cluster.getRestClient(USER)) {
@@ -1002,7 +1002,7 @@ public class MultiTenancyRequestMappingTest {
     public void indexRequest_withVersionParam() throws Exception {
         String scopedId = scopedId(DOC_ID);
         DocNode doc = DocNode.of("a", "a", "b", "b");
-        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        DocWriteResponse indexResponse = addDocumentToIndex(scopedId, doc);
         long version = indexResponse.getVersion() + 1;
         try (GenericRestClient client = cluster.getRestClient(USER)) {
 
@@ -1121,7 +1121,7 @@ public class MultiTenancyRequestMappingTest {
     public void deleteRequest_withIfSeqNoAndIfPrimaryTermParams() throws Exception {
         String scopedId = scopedId(DOC_ID);
         DocNode doc = DocNode.of("a", "a", "b", "b");
-        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        DocWriteResponse indexResponse = addDocumentToIndex(scopedId, doc);
         long seqNo = indexResponse.getSeqNo();
         long primaryTerm = indexResponse.getPrimaryTerm();
         try (GenericRestClient client = cluster.getRestClient(USER)) {
@@ -1275,7 +1275,7 @@ public class MultiTenancyRequestMappingTest {
     public void deleteRequest_withVersionParam() throws Exception {
         String scopedId = scopedId(DOC_ID);
         DocNode doc = DocNode.of("a", "a", "b", "b");
-        IndexResponse indexResponse = addDocumentToIndex(scopedId, doc);
+        DocWriteResponse indexResponse = addDocumentToIndex(scopedId, doc);
         long version = indexResponse.getVersion();
         try (GenericRestClient client = cluster.getRestClient(USER)) {
 
@@ -3192,16 +3192,16 @@ public class MultiTenancyRequestMappingTest {
         return new BasicHeader("sg_tenant", HR_TENANT.getName());
     }
 
-    private IndexResponse addDocumentToIndex(String id, String routing, DocNode doc) {
+    private DocWriteResponse addDocumentToIndex(String id, String routing, DocNode doc) {
         try (Client client = cluster.getInternalNodeClient()) {
-            IndexResponse indexResponse = client.index(new IndexRequest(KIBANA_INDEX).id(id).source(doc)
+            DocWriteResponse indexResponse = client.index(new IndexRequest(KIBANA_INDEX).id(id).source(doc)
                     .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).routing(routing)).actionGet();
             assertThat(indexResponse.status().getStatus(), equalTo(HttpStatus.SC_CREATED));
             return indexResponse;
         }
     }
 
-    private IndexResponse addDocumentToIndex(String id, DocNode doc) {
+    private DocWriteResponse addDocumentToIndex(String id, DocNode doc) {
         return addDocumentToIndex(id, null, doc);
     }
 

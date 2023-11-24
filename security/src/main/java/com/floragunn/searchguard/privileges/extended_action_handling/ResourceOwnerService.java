@@ -32,6 +32,7 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
@@ -107,7 +108,7 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
         componentState.addPart(this.indexCleanupAgent.getComponentState());
     }
 
-    public void storeOwner(String resourceType, Object id, User owner, long expires, ActionListener<IndexResponse> actionListener) {
+    public void storeOwner(String resourceType, Object id, User owner, long expires, ActionListener<DocWriteResponse> actionListener) {
         if (!indexReady.get()) {
             actionListener.onFailure(new Exception("Index " + index + " not ready"));
             return;
@@ -263,10 +264,10 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
                         }
                     }
 
-                    storeOwner(newResource.getType(), id, currentUser, expiresMillis, new ActionListener<IndexResponse>() {
+                    storeOwner(newResource.getType(), id, currentUser, expiresMillis, new ActionListener<DocWriteResponse>() {
 
                         @Override
-                        public void onResponse(IndexResponse indexResponse) {
+                        public void onResponse(DocWriteResponse indexResponse) {
                             actionListener.onResponse(actionResponse);
                         }
 

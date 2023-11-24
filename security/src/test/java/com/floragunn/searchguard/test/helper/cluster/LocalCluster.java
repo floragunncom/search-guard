@@ -50,7 +50,6 @@ import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -276,7 +275,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     }
 
     private static void writeConfigToIndexAndReload(Client client, CType<?> configType, String searchGuardIndex, String config) {
-        IndexResponse response = client
+        DocWriteResponse response = client
                 .index(new IndexRequest(searchGuardIndex).id(configType.toLCString()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
                         .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(stringToUtfByteArray(config)))))
                 .actionGet();

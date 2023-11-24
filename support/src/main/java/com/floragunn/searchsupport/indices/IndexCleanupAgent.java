@@ -164,7 +164,7 @@ public class IndexCleanupAgent implements ComponentStateProvider {
         if (isMaster && cleanupJob == null) {
             synchronized (IndexCleanupAgent.this) {
                 if (cleanupJob == null) {
-                    cleanupJob = threadPool.scheduleWithFixedDelay(() -> cleanupExpiredEntries(), cleanupInterval, ThreadPool.Names.GENERIC);
+                    cleanupJob = threadPool.scheduleWithFixedDelay(() -> cleanupExpiredEntries(), cleanupInterval, threadPool.generic());
                 }
                 componentState.setState(State.INITIALIZED);
             }

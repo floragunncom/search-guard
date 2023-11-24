@@ -30,12 +30,12 @@ public class AckWatchResponse extends BaseNodesResponse<TransportAckWatchAction.
 
     @Override
     public List<TransportAckWatchAction.NodeResponse> readNodesFrom(final StreamInput in) throws IOException {
-        return in.readList(TransportAckWatchAction.NodeResponse::readNodeResponse);
+        return in.readCollectionAsList(TransportAckWatchAction.NodeResponse::readNodeResponse);
     }
 
     @Override
     public void writeNodesTo(final StreamOutput out, List<TransportAckWatchAction.NodeResponse> nodes) throws IOException {
-        out.writeList(nodes);
+        out.writeCollection(nodes);
     }
 
     @Override

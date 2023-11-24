@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
-import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -160,10 +160,10 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
             throw new RuntimeException(e);
         }
 
-        saveAnUpdateConfigs(client, request, CType.INTERNALUSERS, internaluser, new OnSucessActionListener<IndexResponse>(channel) {
+        saveAnUpdateConfigs(client, request, CType.INTERNALUSERS, internaluser, new OnSucessActionListener<DocWriteResponse>(channel) {
             
             @Override
-            public void onResponse(IndexResponse response) {
+            public void onResponse(DocWriteResponse response) {
                 if (userExisted) {
                     successResponse(channel, "'" + username + "' updated.");
                 } else {

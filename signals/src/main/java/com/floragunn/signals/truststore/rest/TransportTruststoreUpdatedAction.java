@@ -58,7 +58,7 @@ public class TransportTruststoreUpdatedAction extends
     public TransportTruststoreUpdatedAction(ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
         ActionFilters actionFilters, Signals signals) {
         super(NAME,threadPool, clusterService, transportService, actionFilters, TruststoreUpdatedRequest::new, NodeRequest::new,
-            ThreadPool.Names.MANAGEMENT);
+                threadPool.executor(ThreadPool.Names.MANAGEMENT));
         this.trustManagerRegistry = Objects.requireNonNull(signals.getTruststoreRegistry(), "Truststore registry is required");
     }
 
@@ -222,12 +222,12 @@ public class TransportTruststoreUpdatedAction extends
 
         @Override
         protected List<NodeResponse> readNodesFrom(StreamInput in) throws IOException {
-            return in.readList(NodeResponse::new);
+            return in.readCollectionAsList(NodeResponse::new);
         }
 
         @Override
         protected void writeNodesTo(StreamOutput out, List<NodeResponse> nodes) throws IOException {
-            out.writeList(nodes);
+            out.writeCollection(nodes);
         }
     }
 }

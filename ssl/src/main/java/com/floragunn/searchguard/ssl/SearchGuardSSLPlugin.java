@@ -69,8 +69,9 @@ import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.telemetry.TelemetryProvider;
+import org.elasticsearch.telemetry.tracing.Tracer;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
@@ -290,7 +291,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
                                                ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
                                                Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
                                                IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier,
-                                               Tracer tracer, AllocationService allocationService, IndicesService indicesService) {
+                                               TelemetryProvider telemetryProvider, AllocationService allocationService, IndicesService indicesService) {
 
         final List<Object> components = new ArrayList<>(1);
 

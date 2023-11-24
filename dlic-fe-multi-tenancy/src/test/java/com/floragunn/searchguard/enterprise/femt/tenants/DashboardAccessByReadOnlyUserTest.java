@@ -14,11 +14,11 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.BeforeClass;
@@ -68,7 +68,7 @@ public class DashboardAccessByReadOnlyUserTest {
             CreateIndexResponse response = client.admin().indices().create(request).actionGet();
             assertThat(response.isAcknowledged(), equalTo(true));
             ImmutableMap<String, ?> source = ImmutableMap.of("sg_tenant", TenantManager.toInternalTenantName(HR_TENANT.getName()));
-            IndexResponse createTenantResponse = client.index(new IndexRequest(FRONTEND_INDEX).source(source).setRefreshPolicy(IMMEDIATE)).actionGet();
+            DocWriteResponse createTenantResponse = client.index(new IndexRequest(FRONTEND_INDEX).source(source).setRefreshPolicy(IMMEDIATE)).actionGet();
             assertThat(createTenantResponse.status(), equalTo(CREATED));
         }
     }

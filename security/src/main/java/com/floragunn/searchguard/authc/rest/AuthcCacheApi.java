@@ -22,15 +22,15 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.rest.action.RestStatusToXContentListener;
+import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.Document;
@@ -61,7 +61,7 @@ public class AuthcCacheApi {
                     return (RestChannel channel) -> {
                         try {
                             client.execute(DeleteAction.INSTANCE, new DeleteAction.Request(),
-                                    new RestStatusToXContentListener<>(channel));
+                                    new RestToXContentListener<>(channel, DeleteAction.Response::status));
                         } catch (Exception e) {
                             LOG.error(e);
                             channel.sendResponse(new StandardResponse(e).toRestResponse());
@@ -101,7 +101,7 @@ public class AuthcCacheApi {
             }
         }
 
-        public static class Response extends BaseNodesResponse<NodeResponse> implements StatusToXContentObject, Document<Response> {
+        public static class Response extends BaseNodesResponse<NodeResponse> implements ToXContentObject, Document<Response> {
             protected Response(StreamInput in) throws IOException {
                 super(in);
             }
@@ -112,15 +112,14 @@ public class AuthcCacheApi {
 
             @Override
             protected List<NodeResponse> readNodesFrom(StreamInput in) throws IOException {
-                return in.readList(NodeResponse::new);
+                return in.readCollectionAsList(NodeResponse::new);
             }
 
             @Override
             protected void writeNodesTo(StreamOutput out, List<NodeResponse> nodes) throws IOException {
-                out.writeList(nodes);
+                out.writeCollection(nodes);
             }
 
-            @Override
             public RestStatus status() {
                 return hasFailures() ? RestStatus.INTERNAL_SERVER_ERROR : RestStatus.OK;
             }
@@ -163,7 +162,7 @@ public class AuthcCacheApi {
 
             @Inject
             public TransportAction(ThreadPool threadPool, ClusterService clusterService, TransportService transportService, ActionFilters actionFilters, AuthenticatingRestFilter authenticatingRestFilter) {
-                super(NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new, ThreadPool.Names.MANAGEMENT);
+                super(NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
                 this.authenticatingRestFilter = authenticatingRestFilter;
             }
 

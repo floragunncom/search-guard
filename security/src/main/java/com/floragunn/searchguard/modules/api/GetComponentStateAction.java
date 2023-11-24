@@ -51,11 +51,11 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
@@ -140,7 +140,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         }
     }
 
-    public static class Response extends BaseNodesResponse<NodeResponse> implements StatusToXContentObject, Document<Response> {
+    public static class Response extends BaseNodesResponse<NodeResponse> implements ToXContentObject, Document<Response> {
 
         private String message;
         private Health health;
@@ -156,12 +156,12 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
 
         @Override
         public List<NodeResponse> readNodesFrom(StreamInput in) throws IOException {
-            return in.readList(NodeResponse::new);
+            return in.readCollectionAsList(NodeResponse::new);
         }
 
         @Override
         public void writeNodesTo(StreamOutput out, List<NodeResponse> nodes) throws IOException {
-            out.writeList(nodes);
+            out.writeCollection(nodes);
         }
 
         public List<ComponentState> getMergedComponentState() {
@@ -378,7 +378,6 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
             return builder;
         }
 
-        @Override
         public RestStatus status() {
             if (getMergedComponentState().size() != 0) {
                 return RestStatus.OK;
@@ -469,7 +468,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                 ActionFilters actionFilters, SearchGuardModulesRegistry modulesRegistry) {
             super(GetComponentStateAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new,
-                    ThreadPool.Names.MANAGEMENT);
+                    threadPool.executor(ThreadPool.Names.MANAGEMENT));
             this.modulesRegistry = modulesRegistry;
         }
 

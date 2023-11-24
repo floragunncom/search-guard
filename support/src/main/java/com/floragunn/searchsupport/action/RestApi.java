@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -40,12 +41,10 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestResponseListener;
 
@@ -342,7 +341,7 @@ public class RestApi extends BaseRestHandler {
          * To be used with basic action classes from Elasticsearch/OpenSearch
          */
         public <RequestType extends ActionRequest, ResponseType extends ActionResponse> RestApi with(ActionType<ResponseType> action,
-                RestRequestParser<RequestType> requestParser) {
+                RestRequestParser<RequestType> requestParser, Function<ResponseType, RestStatus> getStatusFunction) {
             if (action == null) {
                 throw new IllegalArgumentException("action must not be null");
             }
@@ -372,8 +371,7 @@ public class RestApi extends BaseRestHandler {
                         @Override
                         public RestResponse buildResponse(ResponseType response) throws Exception {
                             Format responseDocType = Format.JSON;
-                            RestStatus status = (response instanceof StatusToXContentObject) ? ((StatusToXContentObject) response).status()
-                                    : RestStatus.OK;
+                            RestStatus status = getStatusFunction.apply(response);
                             String body;
 
                             if (response instanceof Document) {
