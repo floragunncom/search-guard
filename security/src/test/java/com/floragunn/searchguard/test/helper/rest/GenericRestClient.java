@@ -160,6 +160,11 @@ public class GenericRestClient implements AutoCloseable {
         return executeRequest(uriRequest);
     }
 
+    public HttpResponse post(String path, Header... headers) throws Exception {
+        HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
+        return executeRequest(uriRequest, headers);
+    }
+
     public HttpResponse patch(String path, String body) throws Exception {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(body));

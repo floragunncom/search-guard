@@ -506,3 +506,27 @@ sg_tenant_user_attrs:
     - "business_intelligence"
     allowed_actions:
     - "SGS_KIBANA_ALL_READ"    
+hr_tenant_read_only_access:
+  cluster_permissions:
+    - "CLUSTER_COMPOSITE_OPS_RO"
+  tenant_permissions:
+    - tenant_patterns:
+        - "test_tenant_ro"
+      allowed_actions:
+        - "SGS_KIBANA_ALL_READ"
+hr_tenant_read_write_access:
+  cluster_permissions:
+    - "CLUSTER_COMPOSITE_OPS"
+  tenant_permissions:
+    - tenant_patterns:
+        - "test_tenant_rw"
+      allowed_actions:
+        - "SGS_KIBANA_ALL_WRITE"
+all_mighty:
+  cluster_permissions:
+    - "ALL"
+  tenant_permissions:
+    - tenant_patterns:
+        - "*"
+      allowed_actions:
+        - "*"

@@ -74,4 +74,4 @@ kibana_7_12_alias_test:
   hidden: false 
 kibana_7_12_alias_creation_test:
   reserved: false
-  hidden: false 
+  hidden: false
