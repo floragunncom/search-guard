@@ -19,9 +19,9 @@ package com.floragunn.searchguard;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.MultiTenancyChecker.IndexRepository;
 import junit.framework.TestCase;
-import org.elasticsearch.Version;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.IndexVersion;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -111,7 +111,7 @@ public class MultiTenancyCheckerIndexNamesTest extends TestCase {
         IndexRepository indexRepository = Mockito.mock(IndexRepository.class);
         MultiTenancyChecker checker = new MultiTenancyChecker(Settings.builder().build(), indexRepository);
         IndexMetadata mock = Mockito.mock(IndexMetadata.class);
-        Mockito.when(mock.getCreationVersion()).thenReturn(Version.V_8_3_1);
+        Mockito.when(mock.getCreationVersion()).thenReturn(IndexVersion.V_8_3_1);
         ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of(indexName, mock);
         when(indexRepository.findIndicesMetadata()).thenReturn(indices);
 
