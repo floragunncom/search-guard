@@ -163,7 +163,7 @@ public class AuthcCacheApi {
 
             @Inject
             public TransportAction(ThreadPool threadPool, ClusterService clusterService, TransportService transportService, ActionFilters actionFilters, AuthenticatingRestFilter authenticatingRestFilter) {
-                super(NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new, ThreadPool.Names.MANAGEMENT, NodeResponse.class);
+                super(NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new, ThreadPool.Names.MANAGEMENT);
                 this.authenticatingRestFilter = authenticatingRestFilter;
             }
 

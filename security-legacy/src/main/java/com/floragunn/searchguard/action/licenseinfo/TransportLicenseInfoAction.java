@@ -54,7 +54,7 @@ public class TransportLicenseInfoAction extends
             final TransportService transportService, final LicenseRepository licenseRepository, final ActionFilters actionFilters) {
 
         super(LicenseInfoAction.NAME, threadPool, clusterService, transportService, actionFilters, LicenseInfoRequest::new,
-                TransportLicenseInfoAction.NodeLicenseRequest::new, ThreadPool.Names.MANAGEMENT, LicenseInfoNodeResponse.class);
+                TransportLicenseInfoAction.NodeLicenseRequest::new, ThreadPool.Names.MANAGEMENT);
 
         this.licenseRepository = licenseRepository;
         this.settings = settings;
