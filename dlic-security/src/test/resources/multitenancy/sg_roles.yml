@@ -530,16 +530,3 @@ all_mighty:
         - "*"
       allowed_actions:
         - "*"
-sg_anonymous:
-  cluster_permissions:
-    - "SGS_CLUSTER_COMPOSITE_OPS_RO"
-  tenant_permissions:
-    - tenant_patterns:
-        - "anonymous_ro"
-      allowed_actions:
-        - "SGS_KIBANA_ALL_READ"
-    - tenant_patterns:
-        - "anonymous_rw"
-      allowed_actions:
-        - "SGS_KIBANA_ALL_READ"
-        - "SGS_KIBANA_ALL_WRITE"

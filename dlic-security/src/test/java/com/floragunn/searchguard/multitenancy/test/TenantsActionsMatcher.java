@@ -70,7 +70,7 @@ public class TenantsActionsMatcher extends TypeSafeDiagnosingMatcher<GenericRest
             }
 
             final HttpResponse getKibana = restClient.get(".kibana");
-            if (getKibana.getStatusCode() != HttpStatus.SC_OK) {
+            if (getKibana.getStatusCode() != HttpStatus.SC_OK && getKibana.getStatusCode() != HttpStatus.SC_NOT_FOUND) {
                 mismatchDescription.appendText(".kibana GET call response is not HTTP/200");
                 return false;
             }
@@ -83,7 +83,7 @@ public class TenantsActionsMatcher extends TypeSafeDiagnosingMatcher<GenericRest
             }
 
             final HttpResponse deleteKibana = restClient.delete(".kibana");
-            expectedStatus = allowedActions.contains(DELETE_INDEX) ? HttpStatus.SC_OK : HttpStatus.SC_FORBIDDEN   ;
+            expectedStatus = allowedActions.contains(DELETE_INDEX) ? HttpStatus.SC_OK : HttpStatus.SC_FORBIDDEN;
             if (deleteKibana.getStatusCode() != expectedStatus) {
                 mismatchDescription.appendText(".kibana delete call response is not HTTP/").appendValue(expectedStatus);
                 return false;

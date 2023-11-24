@@ -43,6 +43,7 @@ import static com.floragunn.searchguard.multitenancy.test.TenantAccessMatcher.Ac
 import static com.floragunn.searchguard.multitenancy.test.TenantAccessMatcher.canPerformFollowingActions;
 import static com.floragunn.searchguard.test.AbstractSGUnitTest.encodeBasicHeader;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -81,6 +82,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.xcontent.XContentType;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -98,6 +100,14 @@ public class MultitenancyTests {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy")
         .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_WRITE, HR_USER_READ_ONLY).build();
+
+    @After
+    public void tearDown() throws Exception {
+        try (Client client = cluster.getInternalNodeClient()){
+            AcknowledgedResponse deleteResponse = client.admin().indices().delete(new DeleteIndexRequest(".kibana*")).actionGet();
+            assertThat(deleteResponse.isAcknowledged(), equalTo(true));
+        }
+    }
 
     @Test
     public void testMt() throws Exception {
@@ -435,7 +445,7 @@ public class MultitenancyTests {
         final BasicHeader header = new BasicHeader("sgtenant", tenant);
 
         try (GenericRestClient restClient = cluster.getRestClient(HR_USER_READ_ONLY, header)) {
-            assertAdminCanCreateTenantIndex(restClient, tenant);
+            assertAdminCanCreateTenantAndDefaultKibanaIndices(restClient, tenant);
             assertTenantWriteable(restClient, tenant, TENANT_NOT_WRITABLE);
             assertThat(restClient, canPerformFollowingActions(EnumSet.noneOf(Action.class)));
         }
@@ -447,7 +457,7 @@ public class MultitenancyTests {
         final BasicHeader header = new BasicHeader("sgtenant", tenant);
 
         try (GenericRestClient restClient = cluster.getRestClient(HR_USER_READ_WRITE, header)) {
-            assertAdminCanCreateTenantIndex(restClient, tenant);
+            assertAdminCanCreateTenantAndDefaultKibanaIndices(restClient, tenant);
             assertTenantWriteable(restClient, tenant, TENANT_WRITABLE);
             assertThat(restClient, canPerformFollowingActions(EnumSet.of(CREATE_DOCUMENT, UPDATE_DOCUMENT, UPDATE_INDEX, DELETE_INDEX)));
         }
@@ -455,11 +465,50 @@ public class MultitenancyTests {
 
     @Test
     public void checksActionsOfReadOnlyAnonymousAgainstMultitenancy() throws Exception {
-        final String tenant = "anonymous_ro";
+        final String tenant = "SGS_GLOBAL_TENANT";
         final BasicHeader header = new BasicHeader("sgtenant", tenant);
 
-        try (GenericRestClient restClient = cluster.getRestClient(header)) {
-            assertAdminCanCreateTenantIndex(restClient, tenant);
+        try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient();
+             GenericRestClient restClient = cluster.getRestClient(header)) {
+            String roleConfig = "{\n" +
+                    "  \"cluster_permissions\": [\n" +
+                    "    \"SGS_CLUSTER_COMPOSITE_OPS_RO\"\n" +
+                    "  ],\n" +
+                    "  \"tenant_permissions\": [\n" +
+                    "    {\n" +
+                    "      \"tenant_patterns\": [\n" +
+                    "        \"SGS_GLOBAL_TENANT\"\n" +
+                    "      ],\n" +
+                    "      \"allowed_actions\": [\n" +
+                    "        \"SGS_KIBANA_ALL_READ\"\n" +
+                    "      ]\n" +
+                    "    }\n" +
+                    "  ],\n" +
+                    "  \"index_permissions\": [\n" +
+                    "    {\n" +
+                    "      \"index_patterns\": [\n" +
+                    "        \".kibana\"\n" +
+                    "      ],\n" +
+                    "      \"allowed_actions\": [\n" +
+                    "        \"indices:data/read/search\",\n" +
+                    "        \"indices:data/read/msearch\",\n" +
+                    "        \"indices:data/read/mget\",\n" +
+                    "        \"indices:data/read/get\",\n" +
+                    "        \"indices:admin/get\",\n" +
+                    //
+                    "        \"indices:data/write/index\",\n" +
+                    "        \"indices:data/write/bulk\",\n" +
+                    "        \"indices:data/write/bulk[s]\",\n" +
+                    "        \"indices:data/write/delete\",\n" +
+                    "        \"indices:admin/close\",\n" +
+                    "        \"indices:admin/delete\"\n" +
+                    "      ]\n" +
+                    "    }\n" +
+                    "  ]\n" +
+                    "}";
+            HttpResponse response = adminCertClient.putJson("/_searchguard/api/roles/sg_anonymous", roleConfig);
+            assertThat(response.getBody(), response.getStatusCode(), anyOf(equalTo(HttpStatus.SC_OK), equalTo(HttpStatus.SC_CREATED)));
+            assertAdminCanCreateTenantAndDefaultKibanaIndices(restClient, tenant);
             assertTenantWriteable(restClient, tenant, TENANT_NOT_WRITABLE);
             assertThat(restClient, canPerformFollowingActions(EnumSet.noneOf(Action.class)));
         }
@@ -467,11 +516,51 @@ public class MultitenancyTests {
 
     @Test
     public void checksActionsOfReadWriteAnonymousAgainstMultitenancy() throws Exception {
-        final String tenant = "anonymous_rw";
+        final String tenant = "SGS_GLOBAL_TENANT";
         final BasicHeader header = new BasicHeader("sgtenant", tenant);
 
-        try (GenericRestClient restClient = cluster.getRestClient(header)) {
-            assertAdminCanCreateTenantIndex(restClient, tenant);
+        try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient();
+             GenericRestClient restClient = cluster.getRestClient(header)) {
+            String roleConfig = "{\n" +
+                    "  \"cluster_permissions\": [\n" +
+                    "    \"SGS_CLUSTER_COMPOSITE_OPS_RO\",\n" +
+                    "    \"indices:data/write/bulk\"\n" +
+                    "  ],\n" +
+                    "  \"tenant_permissions\": [\n" +
+                    "    {\n" +
+                    "      \"tenant_patterns\": [\n" +
+                    "        \"SGS_GLOBAL_TENANT\"\n" +
+                    "      ],\n" +
+                    "      \"allowed_actions\": [\n" +
+                    "        \"SGS_KIBANA_ALL_READ\",\n" +
+                    "        \"SGS_KIBANA_ALL_WRITE\"\n" +
+                    "      ]\n" +
+                    "    }\n" +
+                    "  ],\n" +
+                    "  \"index_permissions\": [\n" +
+                    "    {\n" +
+                    "      \"index_patterns\": [\n" +
+                    "        \".kibana\"\n" +
+                    "      ],\n" +
+                    "      \"allowed_actions\": [\n" +
+                    "        \"indices:data/read/search\",\n" +
+                    "        \"indices:data/read/msearch\",\n" +
+                    "        \"indices:data/read/mget\",\n" +
+                    "        \"indices:data/read/get\",\n" +
+                    "        \"indices:admin/get\",\n" +
+                    "        \"indices:data/write/index\",\n" +
+                    "        \"indices:data/write/bulk\",\n" +
+                    "        \"indices:data/write/bulk[s]\",\n" +
+                    "        \"indices:data/write/delete\",\n" +
+                    "        \"indices:admin/close\",\n" +
+                    "        \"indices:admin/delete\"\n" +
+                    "      ]\n" +
+                    "    }\n" +
+                    "  ]\n" +
+                    "}";
+            HttpResponse response = adminCertClient.putJson("/_searchguard/api/roles/sg_anonymous", roleConfig);
+            assertThat(response.getBody(), response.getStatusCode(), anyOf(equalTo(HttpStatus.SC_OK), equalTo(HttpStatus.SC_CREATED)));
+            assertAdminCanCreateTenantAndDefaultKibanaIndices(restClient, tenant);
             assertTenantWriteable(restClient, tenant, TENANT_WRITABLE);
             assertThat(restClient, canPerformFollowingActions(EnumSet.of(CREATE_DOCUMENT, UPDATE_DOCUMENT, UPDATE_INDEX, DELETE_INDEX)));
         }
@@ -491,12 +580,18 @@ public class MultitenancyTests {
         assertThat(jsonNode.findValue("sg_tenants").findValue(tenant).asText(), equalTo(isTenantWritable));
     }
 
-    private static void assertAdminCanCreateTenantIndex(GenericRestClient restClient, String tenant) throws Exception {
+    private static void assertAdminCanCreateTenantAndDefaultKibanaIndices(GenericRestClient restClient, String tenant) throws Exception {
         final HttpResponse adminIndexDocToCreateTenant = restClient.putJson(
             ".kibana/_doc/5.6.0",
             "{\"buildNum\": 15460, \"defaultIndex\": \"anon\", \"tenant\": \"" + tenant + "\"}",
             encodeBasicHeader("admin", "admin")
         );
         assertThat(adminIndexDocToCreateTenant.getBody(), adminIndexDocToCreateTenant.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+        final HttpResponse adminIndexDocToCreateGlobalTenant = restClient.putJson(
+            ".kibana/_doc/5.6.0",
+            "{\"buildNum\": 15460, \"defaultIndex\": \"anon\", \"tenant\": \"" + tenant + "\"}",
+            encodeBasicHeader("admin", "admin"), new BasicHeader("sgtenant", null)
+        );
+        assertThat(adminIndexDocToCreateGlobalTenant.getBody(), adminIndexDocToCreateGlobalTenant.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
     }
 }
