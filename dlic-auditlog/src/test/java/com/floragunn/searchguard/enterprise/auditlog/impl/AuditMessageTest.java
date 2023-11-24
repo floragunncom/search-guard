@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
+import org.elasticsearch.index.IndexVersion;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,7 +43,7 @@ public class AuditMessageTest {
     private final String localNodeName = "test-local-node";
     private final String localNodeHostAddress = "127.0.0.1";
     private final String localNodeHostName = "test-local-node-host";
-    private final Version localNodeVersion = Version.V_7_17_11;
+    private final Version localNodeVersion = Version.CURRENT;
 
     @Before
     public void setUp() {
@@ -52,6 +53,7 @@ public class AuditMessageTest {
         when(localNode.getHostAddress()).thenReturn(localNodeHostAddress);
         when(localNode.getHostName()).thenReturn(localNodeHostName);
         when(localNode.getVersion()).thenReturn(localNodeVersion);
+        when(localNode.getMinIndexVersion()).thenReturn(IndexVersion.current());
         DiscoveryNodes discoveryNodes = DiscoveryNodes.builder().add(localNode).localNodeId(localNodeId).build();
         when(clusterState.nodes()).thenReturn(discoveryNodes);
     }

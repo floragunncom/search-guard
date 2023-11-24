@@ -98,6 +98,6 @@ public class SgAwarePluginsService extends PluginsService {
 
     @Override
     protected void addServerExportsService(Map<String, List<ModuleQualifiedExportsService>> qualifiedExports) {
-        // tests don't run modular
+        // empty for tests
     }
 }
