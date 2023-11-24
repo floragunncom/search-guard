@@ -80,7 +80,7 @@ public class MultiTenancyCheckerTest  {
                 "logs_2023", mockMetadata(IndexVersion.V_8_2_0),
                 ".kibana_92668751_admin_8.7.12_100", mockMetadata(IndexVersion.V_8_3_0)) //
             .with("logs_2024", mockMetadata(IndexVersion.V_8_4_0)) //
-            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_2));
+            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_0));
         when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
@@ -97,7 +97,7 @@ public class MultiTenancyCheckerTest  {
             .with("logs_2024", mockMetadata(IndexVersion.V_8_4_0)) //
             .with(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersion.V_8_5_0)) //
             .with(".kibana_1329513022_ittenant_8.7.0_002", mockMetadata(IndexVersion.V_8_6_0)) //
-            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_2));
+            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_0));
         when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
@@ -114,7 +114,7 @@ public class MultiTenancyCheckerTest  {
             .with("logs_2024", mockMetadata(IndexVersion.V_8_4_0)) //
             .with(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersion.V_8_8_0)) //
             .with(".kibana_1329513022_ittenant_8.7.0_002", mockMetadata(IndexVersion.V_8_8_0)) //
-            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_2));
+            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_0));
         when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
@@ -131,7 +131,7 @@ public class MultiTenancyCheckerTest  {
             .with("logs_2024", mockMetadata(IndexVersion.V_8_4_0)) //
             .with(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersion.V_8_7_0)) // this index cause error
             .with(".kibana_1329513022_ittenant_8.7.0_002", mockMetadata(IndexVersion.V_8_8_0)) //
-            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_2));
+            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_0));
         when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();

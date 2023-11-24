@@ -59,7 +59,7 @@ public class TransportAckWatchAction
     public TransportAckWatchAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
             final TransportService transportService, final ActionFilters actionFilters, final Signals signals) {
         super(AckWatchAction.NAME, threadPool, clusterService, transportService, actionFilters, AckWatchRequest::new,
-                TransportAckWatchAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT);
+                TransportAckWatchAction.NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
         this.signals = signals;
         this.threadPool = threadPool;

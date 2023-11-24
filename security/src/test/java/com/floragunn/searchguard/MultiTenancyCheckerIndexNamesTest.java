@@ -111,7 +111,7 @@ public class MultiTenancyCheckerIndexNamesTest extends TestCase {
         IndexRepository indexRepository = Mockito.mock(IndexRepository.class);
         MultiTenancyChecker checker = new MultiTenancyChecker(Settings.builder().build(), indexRepository);
         IndexMetadata mock = Mockito.mock(IndexMetadata.class);
-        Mockito.when(mock.getCreationVersion()).thenReturn(IndexVersion.V_8_3_1);
+        Mockito.when(mock.getCreationVersion()).thenReturn(IndexVersion.V_8_3_0);
         ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of(indexName, mock);
         when(indexRepository.findIndicesMetadata()).thenReturn(indices);
 

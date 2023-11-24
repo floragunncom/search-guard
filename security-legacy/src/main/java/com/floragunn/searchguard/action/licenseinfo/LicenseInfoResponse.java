@@ -50,12 +50,12 @@ public class LicenseInfoResponse extends BaseNodesResponse<LicenseInfoNodeRespon
 
     @Override
     public List<LicenseInfoNodeResponse> readNodesFrom(final StreamInput in) throws IOException {
-        return in.readList(LicenseInfoNodeResponse::readNodeResponse);
+        return in.readCollectionAsList(LicenseInfoNodeResponse::readNodeResponse);
     }
 
     @Override
     public void writeNodesTo(final StreamOutput out, List<LicenseInfoNodeResponse> nodes) throws IOException {
-        out.writeList(nodes);
+        out.writeCollection(nodes);
     }
 
     @Override

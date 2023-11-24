@@ -64,8 +64,8 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
     }
 
     public AuthTokenPrivilegeBase(StreamInput in) throws IOException {
-        this.backendRoles = in.readStringList();
-        this.searchGuardRoles = in.readStringList();
+        this.backendRoles = in.readStringCollectionAsList();
+        this.searchGuardRoles = in.readStringCollectionAsList();
         this.attributes = in.readMap();
         this.configVersions = in.readOptionalWriteable(ConfigVersionSet::new);
     }

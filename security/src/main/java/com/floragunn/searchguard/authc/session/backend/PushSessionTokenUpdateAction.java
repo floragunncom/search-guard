@@ -115,12 +115,12 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
 
         @Override
         public List<NodeResponse> readNodesFrom(final StreamInput in) throws IOException {
-            return in.readList(NodeResponse::readNodeResponse);
+            return in.readCollectionAsList(NodeResponse::readNodeResponse);
         }
 
         @Override
         public void writeNodesTo(final StreamOutput out, List<NodeResponse> nodes) throws IOException {
-            out.writeList(nodes);
+            out.writeCollection(nodes);
         }
 
         @Override
@@ -193,7 +193,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                 ActionFilters actionFilters, SessionService sessionService) {
             super(PushSessionTokenUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new,
-                    ThreadPool.Names.MANAGEMENT);
+                    threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
             this.sessionService = sessionService;
         }

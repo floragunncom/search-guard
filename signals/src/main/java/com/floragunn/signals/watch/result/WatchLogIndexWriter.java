@@ -3,6 +3,7 @@ package com.floragunn.signals.watch.result;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -67,16 +68,16 @@ public class WatchLogIndexWriter implements WatchLogWriter {
             indexRequest.setRefreshPolicy(refreshPolicy);
 
             if (syncIndexing) {
-                IndexResponse response = client.index(indexRequest).actionGet();
+                DocWriteResponse response = client.index(indexRequest).actionGet();
                 
                 if (log.isDebugEnabled()) {
                     log.debug("Completed sync writing WatchLog: " + watchLog + "\n" + Strings.toString(response));
                 }
             } else {
-                client.index(indexRequest, new ActionListener<IndexResponse>() {
+                client.index(indexRequest, new ActionListener<DocWriteResponse>() {
 
                     @Override
-                    public void onResponse(IndexResponse response) {
+                    public void onResponse(DocWriteResponse response) {
                         if (log.isDebugEnabled()) {
                             log.debug("Completed writing WatchLog: " + watchLog + "\n" + Strings.toString(response));
                         }

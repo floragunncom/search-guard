@@ -28,7 +28,7 @@ import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
@@ -176,10 +176,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
                 existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();) {
 
-            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
+            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
 
                 @Override
-                public void onResponse(IndexResponse response) {
+                public void onResponse(DocWriteResponse response) {
                     successResponse(channel, "'" + name + "' updated.");
 
                 }
@@ -259,10 +259,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
                 existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get()) {
 
-            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
+            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
 
                 @Override
-                public void onResponse(IndexResponse response) {
+                public void onResponse(DocWriteResponse response) {
                     successResponse(channel, "Resource updated.");
                 }
             });

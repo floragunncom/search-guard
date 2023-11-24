@@ -99,12 +99,12 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
 
         @Override
         public List<TransportAction.NodeResponse> readNodesFrom(StreamInput in) throws IOException {
-            return in.readList(TransportAction.NodeResponse::readNodeResponse);
+            return in.readCollectionAsList(TransportAction.NodeResponse::readNodeResponse);
         }
 
         @Override
         public void writeNodesTo(StreamOutput out, List<TransportAction.NodeResponse> nodes) throws IOException {
-            out.writeList(nodes);
+            out.writeCollection(nodes);
         }
 
         @Override
@@ -122,7 +122,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
         public TransportAction(ConfigVarService configVarService, ThreadPool threadPool, ClusterService clusterService,
                 TransportService transportService, ActionFilters actionFilters) {
             super(ConfigVarRefreshAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
-                    TransportAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT);
+                    TransportAction.NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
             this.configVarService = configVarService;
         }
 

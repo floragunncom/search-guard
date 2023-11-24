@@ -8,12 +8,12 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
 
-public class GetWatchStateResponse extends ActionResponse implements StatusToXContentObject {
+public class GetWatchStateResponse extends ActionResponse implements ToXContentObject {
 
     private RestStatus restStatus;
     private Map<String, BytesReference> watchToStatusMap;
@@ -49,7 +49,6 @@ public class GetWatchStateResponse extends ActionResponse implements StatusToXCo
         return builder;
     }
 
-    @Override
     public RestStatus status() {
         return restStatus;
     }
