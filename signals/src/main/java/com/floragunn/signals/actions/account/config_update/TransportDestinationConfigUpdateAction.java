@@ -34,8 +34,7 @@ public class TransportDestinationConfigUpdateAction extends
     public TransportDestinationConfigUpdateAction(Signals signals, final Settings settings, final ThreadPool threadPool,
             final ClusterService clusterService, final TransportService transportService, final ActionFilters actionFilters, final Client client) {
         super(DestinationConfigUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters, DestinationConfigUpdateRequest::new,
-                TransportDestinationConfigUpdateAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT,
-                TransportDestinationConfigUpdateAction.NodeResponse.class);
+                TransportDestinationConfigUpdateAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT);
 
         this.client = client;
         this.signals = signals;

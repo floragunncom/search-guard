@@ -469,7 +469,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                 ActionFilters actionFilters, SearchGuardModulesRegistry modulesRegistry) {
             super(GetComponentStateAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new,
-                    ThreadPool.Names.MANAGEMENT, NodeResponse.class);
+                    ThreadPool.Names.MANAGEMENT);
             this.modulesRegistry = modulesRegistry;
         }
 
