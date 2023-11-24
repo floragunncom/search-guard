@@ -58,7 +58,7 @@ public class TransportTruststoreUpdatedAction extends
     public TransportTruststoreUpdatedAction(ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
         ActionFilters actionFilters, Signals signals) {
         super(NAME,threadPool, clusterService, transportService, actionFilters, TruststoreUpdatedRequest::new, NodeRequest::new,
-            ThreadPool.Names.MANAGEMENT, NodeResponse.class);
+            ThreadPool.Names.MANAGEMENT);
         this.trustManagerRegistry = Objects.requireNonNull(signals.getTruststoreRegistry(), "Truststore registry is required");
     }
 
