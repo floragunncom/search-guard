@@ -70,7 +70,7 @@ public class TenantsActionsMatcher extends TypeSafeDiagnosingMatcher<GenericRest
             }
 
             final HttpResponse getKibana = restClient.get(".kibana");
-            if (getKibana.getStatusCode() != HttpStatus.SC_OK && getKibana.getStatusCode() != HttpStatus.SC_NOT_FOUND) {
+            if (getKibana.getStatusCode() != HttpStatus.SC_OK) {
                 mismatchDescription.appendText(".kibana GET call response is not HTTP/200");
                 return false;
             }
