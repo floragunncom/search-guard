@@ -23,6 +23,11 @@
   <dependencies>
 
     <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>rest-root</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>fluent-collections</artifactId>
     </dependency>
