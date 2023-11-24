@@ -22,12 +22,12 @@ public class SettingsUpdateResponse extends BaseNodesResponse<TransportSettingsU
 
     @Override
     public List<TransportSettingsUpdateAction.NodeResponse> readNodesFrom(final StreamInput in) throws IOException {
-        return in.readList(TransportSettingsUpdateAction.NodeResponse::readNodeResponse);
+        return in.readCollectionAsList(TransportSettingsUpdateAction.NodeResponse::readNodeResponse);
     }
 
     @Override
     public void writeNodesTo(final StreamOutput out, List<TransportSettingsUpdateAction.NodeResponse> nodes) throws IOException {
-        out.writeList(nodes);
+        out.writeCollection(nodes);
     }
 
     @Override

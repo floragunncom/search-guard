@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -65,6 +66,7 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.network.NetworkService;
@@ -102,8 +104,9 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.ReaderContext;
 import org.elasticsearch.search.internal.ScrollContext;
+import org.elasticsearch.telemetry.TelemetryProvider;
+import org.elasticsearch.telemetry.tracing.Tracer;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.Transport.Connection;
 import org.elasticsearch.transport.TransportInterceptor;
@@ -711,7 +714,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             interceptors.add(new TransportInterceptor() {
 
                 @Override
-                public <T extends TransportRequest> TransportRequestHandler<T> interceptHandler(String action, String executor,
+                public <T extends TransportRequest> TransportRequestHandler<T> interceptHandler(String action, Executor executor,
                         boolean forceExecution, TransportRequestHandler<T> actualHandler) {
 
                     return (request, channel, task) -> sgi.getHandler(action, actualHandler).messageReceived(request, channel, task);
@@ -790,11 +793,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                                                ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
                                                Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
                                                IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier
-            , Tracer tracer, AllocationService allocationService, IndicesService indicesService) {
+            , TelemetryProvider telemetryProvider, AllocationService allocationService, IndicesService indicesService) {
 
         if (sslOnly) {
             return super.createComponents(localClient, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry,
-                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier, tracer, allocationService, indicesService);
+                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier, telemetryProvider, allocationService, indicesService);
         }
 
         this.threadPool = threadPool;
@@ -1184,6 +1187,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 // This is crucial line to execute this test in dev as well as prod environment
                 // Please see org.elasticsearch.bootstrap.BootstrapChecks.check(org.elasticsearch.bootstrap.BootstrapContext, boolean, java.util.List<org.elasticsearch.bootstrap.BootstrapCheck>, org.apache.logging.log4j.Logger)
                 return true;
+            }
+
+            @Override
+            public ReferenceDocs referenceDocs() {
+                return ReferenceDocs.BOOTSTRAP_CHECKS;
             }
         });
         log.info("SearchGuard plugin returned '{}' bootstrap checks", bootstrapChecks.size());

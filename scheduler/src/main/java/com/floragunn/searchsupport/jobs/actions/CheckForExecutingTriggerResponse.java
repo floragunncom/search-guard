@@ -25,12 +25,12 @@ public class CheckForExecutingTriggerResponse extends BaseNodesResponse<Transpor
 
     @Override
     public List<TransportCheckForExecutingTriggerAction.NodeResponse> readNodesFrom(final StreamInput in) throws IOException {
-        return in.readList(TransportCheckForExecutingTriggerAction.NodeResponse::readNodeResponse);
+        return in.readCollectionAsList(TransportCheckForExecutingTriggerAction.NodeResponse::readNodeResponse);
     }
 
     @Override
     public void writeNodesTo(final StreamOutput out, List<TransportCheckForExecutingTriggerAction.NodeResponse> nodes) throws IOException {
-        out.writeList(nodes);
+        out.writeCollection(nodes);
     }
 
     @Override

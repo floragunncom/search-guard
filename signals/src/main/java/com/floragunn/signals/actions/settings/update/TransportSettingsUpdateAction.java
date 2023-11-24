@@ -35,7 +35,7 @@ public class TransportSettingsUpdateAction extends
     public TransportSettingsUpdateAction(Signals signals, final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
             final TransportService transportService, final ActionFilters actionFilters, final Client client) {
         super(SettingsUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters, SettingsUpdateRequest::new,
-                TransportSettingsUpdateAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT);
+                TransportSettingsUpdateAction.NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
         this.signals = signals;
         this.client = client;

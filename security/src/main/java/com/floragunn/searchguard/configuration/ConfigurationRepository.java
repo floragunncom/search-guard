@@ -651,7 +651,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 this.threadPool.schedule(() -> {
                     LOGGER.debug("Destroying old configuration: " + discardedConfig);
                     discardedConfig.close();
-                }, TimeValue.timeValueSeconds(10), ThreadPool.Names.GENERIC);
+                }, TimeValue.timeValueSeconds(10), threadPool.generic());
             }
 
         } catch (InterruptedException e) {

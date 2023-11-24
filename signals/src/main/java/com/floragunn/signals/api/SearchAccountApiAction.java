@@ -10,7 +10,7 @@ import java.util.List;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.action.RestStatusToXContentListener;
+import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -52,7 +52,7 @@ public class SearchAccountApiAction extends BaseRestHandler {
         }
 
         return channel -> client.execute(SearchAccountAction.INSTANCE, searchDestinationRequest,
-                new RestStatusToXContentListener<SearchAccountResponse>(channel));
+                new RestToXContentListener<>(channel, SearchAccountResponse::status));
 
     }
 

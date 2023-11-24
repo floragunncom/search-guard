@@ -22,12 +22,12 @@ public class DestinationConfigUpdateResponse extends BaseNodesResponse<Transport
 
     @Override
     public List<TransportDestinationConfigUpdateAction.NodeResponse> readNodesFrom(final StreamInput in) throws IOException {
-        return in.readList(TransportDestinationConfigUpdateAction.NodeResponse::readNodeResponse);
+        return in.readCollectionAsList(TransportDestinationConfigUpdateAction.NodeResponse::readNodeResponse);
     }
 
     @Override
     public void writeNodesTo(final StreamOutput out, List<TransportDestinationConfigUpdateAction.NodeResponse> nodes) throws IOException {
-        out.writeList(nodes);
+        out.writeCollection(nodes);
     }
 
     @Override

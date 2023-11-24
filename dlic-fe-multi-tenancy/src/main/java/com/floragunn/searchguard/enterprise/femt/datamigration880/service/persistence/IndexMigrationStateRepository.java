@@ -26,6 +26,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ResourceAlreadyExistsException;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
@@ -33,7 +34,6 @@ import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
@@ -67,7 +67,7 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
             .id(id) //
             .create(creationRequired) //
             .source(migrationExecutionSummary.toJsonString(), XContentType.JSON);
-        IndexResponse response = client.index(request).actionGet();
+        DocWriteResponse response = client.index(request).actionGet();
         throwOnFailure(response.status(), "Cannot store or update migration status");
     }
 
@@ -102,7 +102,7 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
             .setIfSeqNo(lock.seqNo()) //
             .setIfPrimaryTerm(lock.primaryTerm());
         try {
-            IndexResponse response = client.index(request).actionGet();
+            DocWriteResponse response = client.index(request).actionGet();
             throwOnFailure(response.status(), "Cannot update migration status with lock.");
         } catch (VersionConflictEngineException e) {
             String message = String.format("Optimistic lock failure for data migration document '%s' and lock data '%s'.", id, lock);
