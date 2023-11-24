@@ -35,6 +35,7 @@ import com.floragunn.signals.watch.common.ValidationLevel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
@@ -327,7 +328,7 @@ public class SignalsTenant implements Closeable {
         return getWatchIdForConfigIndex(watch.getId());
     }
 
-    public IndexResponse addWatch(Watch watch, User user, ValidationLevel lifeCycleStage) throws IOException {
+    public DocWriteResponse addWatch(Watch watch, User user, ValidationLevel lifeCycleStage) throws IOException {
 
         try {
             return addWatch(watch.getId(), Strings.toString(watch), user, lifeCycleStage);
@@ -337,7 +338,7 @@ public class SignalsTenant implements Closeable {
         }
     }
 
-    public IndexResponse addWatch(String watchId, String watchJsonString, User user, ValidationLevel validationLevel)
+    public DocWriteResponse addWatch(String watchId, String watchJsonString, User user, ValidationLevel validationLevel)
         throws ConfigValidationException, IOException {
 
         if (log.isInfoEnabled()) {
@@ -363,7 +364,7 @@ public class SignalsTenant implements Closeable {
 
         String newWatchJsonString = DocWriter.json().writeAsString(watchJson);
 
-        IndexResponse indexResponse = privilegedConfigClient.prepareIndex().setIndex(getConfigIndexName()).setId(getWatchIdForConfigIndex(watch.getId()))
+        DocWriteResponse indexResponse = privilegedConfigClient.prepareIndex().setIndex(getConfigIndexName()).setId(getWatchIdForConfigIndex(watch.getId()))
                 .setSource(newWatchJsonString, XContentType.JSON).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute().actionGet();
 
         if (log.isDebugEnabled()) {
@@ -371,10 +372,10 @@ public class SignalsTenant implements Closeable {
         }
 
         if (indexResponse.getResult() == Result.CREATED) {
-            watchStateWriter.put(watch.getId(), new WatchState(name), new ActionListener<IndexResponse>() {
+            watchStateWriter.put(watch.getId(), new WatchState(name), new ActionListener<DocWriteResponse>() {
 
                 @Override
-                public void onResponse(IndexResponse response) {
+                public void onResponse(DocWriteResponse response) {
                     SchedulerConfigUpdateAction.send(privilegedConfigClient, getScopedName());
                 }
 

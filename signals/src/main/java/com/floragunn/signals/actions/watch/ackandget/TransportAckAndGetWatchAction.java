@@ -72,7 +72,7 @@ public class TransportAckAndGetWatchAction
             final TransportService transportService, final ActionFilters actionFilters, final Signals signals) {
         super(
             AckAndGetWatchAction.NAME, threadPool, clusterService, transportService, actionFilters, AckAndGetWatchRequest::new,
-                TransportAckAndGetWatchAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT);
+                TransportAckAndGetWatchAction.NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
         this.signals = signals;
         this.threadPool = threadPool;

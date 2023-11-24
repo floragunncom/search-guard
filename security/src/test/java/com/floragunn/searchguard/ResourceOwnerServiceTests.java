@@ -18,7 +18,6 @@
 package com.floragunn.searchguard;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -36,7 +35,6 @@ import co.elastic.clients.elasticsearch.async_search.SubmitRequest;
 import co.elastic.clients.elasticsearch.async_search.SubmitResponse;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.client.RestHighLevelClient;
-import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
@@ -45,7 +43,6 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -56,7 +53,6 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
@@ -68,7 +64,6 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestHandler.Route;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -374,6 +369,10 @@ public class ResourceOwnerServiceTests {
         public void writeTo(StreamOutput out) throws IOException {
             out.writeOptionalString(id);
             out.writeEnum(restStatus);
+        }
+
+        public RestStatus status() {
+            return restStatus;
         }
 
         public String getId() {

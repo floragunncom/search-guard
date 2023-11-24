@@ -46,7 +46,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
-import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.client.internal.Client;
@@ -65,7 +64,6 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.rest.RestStatus;
@@ -201,7 +199,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
         }
 
         if (!this.pendingIndices.isEmpty()) {
-            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(30), ThreadPool.Names.GENERIC,
+            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(30), threadPool.generic(),
                     () -> checkClusterState(clusterService.state()));
         }
     }
@@ -500,7 +498,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
                                 log.trace("Index " + name + " is not yet ready:\n" + clusterHealthResponse + "\nRetrying.");
                             }
 
-                            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), ThreadPool.Names.GENERIC,
+                            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), threadPool.generic(),
                                     () -> waitForYellowStatus());
                         }
 
@@ -519,7 +517,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
                                 log.trace("Index " + name + " is not yet ready. Retrying.", e);
                             }
 
-                            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), ThreadPool.Names.GENERIC,
+                            threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), threadPool.generic(),
                                     () -> waitForYellowStatus());
                         }
                     });
@@ -550,7 +548,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
                             log.trace("Initialization for " + name + " not yet successful. Retrying.", e);
                         }
 
-                        threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), ThreadPool.Names.GENERIC, () -> tryOnIndexReady());
+                        threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(5), threadPool.generic(), () -> tryOnIndexReady());
 
                     }
 
@@ -668,7 +666,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
         public static final RestApi REST_API = new RestApi()//
                 .responseHeaders(SearchGuardVersion.header())//
-                .handlesPost("/_searchguard/internal/indices/create").with(TriggerConfigIndexCreationAction.INSTANCE, (params, body) -> new Request())//
+                .handlesPost("/_searchguard/internal/indices/create").with(TriggerConfigIndexCreationAction.INSTANCE, (params, body) -> new Request(), Response::status)//
                 .name("/_searchguard/internal/indices/create");
 
         protected TriggerConfigIndexCreationAction() {
@@ -695,7 +693,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             }
         }
 
-        public static class Response extends BaseNodesResponse<NodeResponse> implements StatusToXContentObject {
+        public static class Response extends BaseNodesResponse<NodeResponse> implements ToXContentObject {
 
             public Response(StreamInput in) throws IOException {
                 super(in);
@@ -707,12 +705,12 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
             @Override
             public List<NodeResponse> readNodesFrom(StreamInput in) throws IOException {
-                return in.readList(NodeResponse::new);
+                return in.readCollectionAsList(NodeResponse::new);
             }
 
             @Override
             public void writeNodesTo(StreamOutput out, List<NodeResponse> nodes) throws IOException {
-                out.writeList(nodes);
+                out.writeCollection(nodes);
             }
 
             @Override
@@ -735,7 +733,6 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
                 return builder;
             }
 
-            @Override
             public RestStatus status() {
                 return RestStatus.OK;
             }
@@ -793,7 +790,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                     ActionFilters actionFilters, ProtectedConfigIndexService protectedConfigIndexService) {
                 super(TriggerConfigIndexCreationAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
-                        NodeRequest::new, ThreadPool.Names.MANAGEMENT);
+                        NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
                 this.protectedConfigIndexService = protectedConfigIndexService;
             }

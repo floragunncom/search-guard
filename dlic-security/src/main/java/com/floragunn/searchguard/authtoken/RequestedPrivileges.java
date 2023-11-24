@@ -58,12 +58,12 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     private ImmutableList<ExcludedIndexPermissions> excludedIndexPermissions;
 
     public RequestedPrivileges(StreamInput in) throws IOException {
-        this.clusterPermissions = ImmutableList.of(in.readStringList());
-        this.indexPermissions = ImmutableList.of(in.readList(IndexPermissions::new));
-        this.tenantPermissions = ImmutableList.of(in.readList(TenantPermissions::new));
-        this.excludedClusterPermissions = ImmutableList.of(in.readStringList());
-        this.excludedIndexPermissions = ImmutableList.of(in.readList(ExcludedIndexPermissions::new));
-        List<String> roles = in.readOptionalStringList();
+        this.clusterPermissions = ImmutableList.of(in.readStringCollectionAsList());
+        this.indexPermissions = ImmutableList.of(in.readCollectionAsList(IndexPermissions::new));
+        this.tenantPermissions = ImmutableList.of(in.readCollectionAsList(TenantPermissions::new));
+        this.excludedClusterPermissions = ImmutableList.of(in.readStringCollectionAsList());
+        this.excludedIndexPermissions = ImmutableList.of(in.readCollectionAsList(ExcludedIndexPermissions::new));
+        List<String> roles = in.readOptionalStringCollectionAsList();
         this.roles = roles != null ? ImmutableList.of(roles) : null;
     }
 
@@ -185,10 +185,10 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         out.writeStringCollection(clusterPermissions);
-        out.writeList(indexPermissions);
-        out.writeList(tenantPermissions);
+        out.writeCollection(indexPermissions);
+        out.writeCollection(tenantPermissions);
         out.writeStringCollection(excludedClusterPermissions);
-        out.writeList(excludedIndexPermissions);
+        out.writeCollection(excludedIndexPermissions);
         out.writeOptionalStringCollection(roles);
     }
 
@@ -206,7 +206,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         IndexPermissions(StreamInput in) throws IOException {
-            this.indexPatterns =  ImmutableList.map(in.readStringList(), (s) -> {
+            this.indexPatterns =  ImmutableList.map(in.readStringCollectionAsList(), (s) -> {
                 try {
                     return new Template<>(s, Pattern::create);
                 } catch (ConfigValidationException e) {
@@ -214,7 +214,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                     return null;
                 }
             });
-            this.allowedActions = ImmutableList.of(in.readStringList());
+            this.allowedActions = ImmutableList.of(in.readStringCollectionAsList());
         }
 
         @Override
@@ -303,7 +303,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         TenantPermissions(StreamInput in) throws IOException {
-            this.tenantPatterns = ImmutableList.map(in.readStringList(), (s) -> {
+            this.tenantPatterns = ImmutableList.map(in.readStringCollectionAsList(), (s) -> {
                 try {
                     return new Template<>(s, Pattern::create);
                 } catch (ConfigValidationException e) {
@@ -311,7 +311,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                     return null;
                 }
             });
-            this.allowedActions = ImmutableList.of(in.readStringList());
+            this.allowedActions = ImmutableList.of(in.readStringCollectionAsList());
         }
 
         @Override
@@ -398,7 +398,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         ExcludedIndexPermissions(StreamInput in) throws IOException {
-            this.indexPatterns =  ImmutableList.map(in.readStringList(), (s) -> {
+            this.indexPatterns =  ImmutableList.map(in.readStringCollectionAsList(), (s) -> {
                 try {
                     return new Template<>(s, Pattern::create);
                 } catch (ConfigValidationException e) {
@@ -406,7 +406,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                     return null;
                 }
             });
-            this.actions = ImmutableList.of(in.readStringList());
+            this.actions = ImmutableList.of(in.readStringCollectionAsList());
         }
 
         @Override

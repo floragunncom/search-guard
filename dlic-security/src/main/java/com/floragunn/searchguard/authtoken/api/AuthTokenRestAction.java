@@ -28,7 +28,6 @@ import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.rest.action.RestStatusToXContentListener;
 import org.elasticsearch.rest.action.RestToXContentListener;
 
 import com.floragunn.searchsupport.action.Responses;
@@ -77,7 +76,7 @@ public class AuthTokenRestAction extends BaseRestHandler {
     private RestChannelConsumer handleDelete(String id, NodeClient client) {
         try {
             return channel -> client.execute(RevokeAuthTokenAction.INSTANCE, new RevokeAuthTokenRequest(id),
-                    new RestToXContentListener<RevokeAuthTokenResponse>(channel));
+                    new RestToXContentListener<RevokeAuthTokenResponse>(channel, RevokeAuthTokenResponse::status));
         } catch (Exception e) {
             return channel -> Responses.sendError(channel, e);
         }
@@ -87,7 +86,7 @@ public class AuthTokenRestAction extends BaseRestHandler {
 
         try {
             return channel -> client.execute(GetAuthTokenAction.INSTANCE, new GetAuthTokenRequest(id),
-                    new RestStatusToXContentListener<GetAuthTokenResponse>(channel));
+                    new RestToXContentListener<GetAuthTokenResponse>(channel, GetAuthTokenResponse::status));
         } catch (Exception e) {
             return channel -> Responses.sendError(channel, e);
         }

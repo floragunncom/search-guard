@@ -22,12 +22,12 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.rest.RestStatus;
@@ -50,7 +50,7 @@ public class TruststoreRepository {
         this.client = Objects.requireNonNull(client, "Node client is required");
     }
 
-    public IndexResponse createOrReplace(String truststoreId, TruststoreData truststoreData) {
+    public DocWriteResponse createOrReplace(String truststoreId, TruststoreData truststoreData) {
         Objects.requireNonNull(truststoreId, "Truststore id is required");
         Objects.requireNonNull(truststoreData, "Truststore data are required");
         String json = truststoreData.toJsonString();

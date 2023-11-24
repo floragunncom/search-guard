@@ -10,7 +10,7 @@ import java.util.List;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.action.RestStatusToXContentListener;
+import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -57,7 +57,7 @@ public class SearchWatchApiAction extends BaseRestHandler implements TenantAware
         }
 
         return channel -> client.execute(SearchWatchAction.INSTANCE, searchWatchRequest,
-                new RestStatusToXContentListener<SearchWatchResponse>(channel));
+                new RestToXContentListener<>(channel, SearchWatchResponse::status));
 
     }
 

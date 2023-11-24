@@ -210,10 +210,10 @@ class SessionActivityTracker {
     private void flushWithJitter(String reason, int fixedDelay) {
         if (!lastAccess.isEmpty()) {
             if (this.flushInterval.toMillis() < 2 * 60 * 1000) {
-                threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(random.nextInt(1000) + fixedDelay * 1000), ThreadPool.Names.GENERIC,
+                threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueMillis(random.nextInt(1000) + fixedDelay * 1000), threadPool.generic(),
                         () -> this.flush(reason));
             } else {
-                threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(random.nextInt(20) + fixedDelay), ThreadPool.Names.GENERIC,
+                threadPool.scheduleUnlessShuttingDown(TimeValue.timeValueSeconds(random.nextInt(20) + fixedDelay), threadPool.generic(),
                         () -> this.flush(reason));
             }
 
