@@ -128,6 +128,11 @@ public abstract class MetaImpl implements Meta {
             return other.name().equals(this.name);
         }
 
+        @Override
+        public String toString() {
+            return this.name;
+        }
+
         protected abstract AbstractIndexLike withAlias(String alias);
 
         protected abstract ImmutableSet<Meta.Index> resolveDeepImpl();
@@ -343,6 +348,11 @@ public abstract class MetaImpl implements Meta {
                 }
 
             };
+        }
+
+        @Override
+        public String toString() {
+            return "{indices: " + indices.size() + "; collections: " + indexCollections.size() + "}";
         }
 
         /**
