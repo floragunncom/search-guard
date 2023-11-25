@@ -47,6 +47,8 @@ import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 
+import static com.floragunn.searchsupport.meta.Meta.Mock.*;
+
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ RoleBasedActionAuthorizationTests.ClusterPermissions.class, RoleBasedActionAuthorizationTests.IndexPermissions.class,
         RoleBasedActionAuthorizationTests.AliasPermissions.class })
@@ -71,8 +73,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
 
@@ -96,8 +97,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
 
@@ -127,8 +127,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
 
@@ -157,8 +156,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a");
@@ -194,8 +192,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2");
@@ -231,8 +228,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").attribute("dept_no", "a").build();
 
@@ -279,7 +275,7 @@ public class RoleBasedActionAuthorizationTests {
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
             RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
-                    ImmutableSet.of("index_constant_a1", "index_constant_b"), ImmutableSet.empty(), tenants);
+                    indices("index_constant_a1", "index_constant_b"), tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2");
@@ -315,8 +311,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2");
@@ -352,8 +347,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a1", "index_constant_a2");
@@ -390,8 +384,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indexConstantA = ResolvedIndices.empty().localIndices("index_constant_a");
@@ -436,8 +429,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indexA12 = ResolvedIndices.empty().localIndices("index_a1", "index_a2");
@@ -483,7 +475,7 @@ public class RoleBasedActionAuthorizationTests {
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
             RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
-                    ImmutableSet.of("index_a1", "index_b"), ImmutableSet.empty(), tenants);
+                    indices("index_a1", "index_b"), tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indexA12 = ResolvedIndices.empty().localIndices("index_a1", "index_a2");
@@ -528,8 +520,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indexA12 = ResolvedIndices.empty().localIndices("index_a1", "index_a2");
@@ -579,8 +570,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
 
@@ -619,8 +609,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices indices = ResolvedIndices.empty().localIndices("index_abc", "index_abcd");
@@ -649,8 +638,7 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, null,
-                    tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
 
             User user = User.forUser("test").attribute("a", "abc").build();
             ResolvedIndices indices = ResolvedIndices.empty().localIndices("index_abc", "index_abcd", "index_foo");
@@ -683,18 +671,18 @@ public class RoleBasedActionAuthorizationTests {
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
             RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
-                    ImmutableSet.of("index_a1", "index_a2", "index_b1", "index_b2"), ImmutableSet.of("alias_constant_a"), tenants);
+                    indices("index_a1", "index_a2", "index_b1", "index_b2").alias("alias_constant_a").of("TODO"), tenants);
 
             User user = User.forUser("test").build();
             ResolvedIndices aliasConstantA = resolvedIndices(alias("alias_constant_a").of("index_a1", "index_a2"));
 
             PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), aliasConstantA);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            
+
             ResolvedIndices indexA1 = resolvedIndices(index("index_a1"));
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexA1);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            
+
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
                     resolvedIndices(alias("alias_constant_a").of("index_a1", "index_a2"), index("index_b")));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);

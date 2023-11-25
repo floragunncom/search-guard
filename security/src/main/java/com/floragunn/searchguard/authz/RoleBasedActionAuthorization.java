@@ -21,15 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.metadata.IndexAbstraction.Alias;
-import org.elasticsearch.cluster.metadata.IndexAbstraction.ConcreteIndex;
 import org.elasticsearch.cluster.metadata.IndexAbstraction.DataStream;
-import org.elasticsearch.cluster.metadata.Metadata;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
@@ -57,6 +53,7 @@ import com.floragunn.searchsupport.cstate.metrics.Measurement;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.meta.Meta;
 
 /**
  * TODO aliases create deep exclusions
@@ -103,22 +100,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     private final ComponentState statefulAliasState = new ComponentState("alias_permissions_stateful");
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-            Set<String> indices, Set<String> aliases, Set<String> tenants) {
-        this(roles, actionGroups, actions, indices, aliases, tenants, Pattern.blank(), MetricsLevel.NONE);
+            Meta indexMetadata, Set<String> tenants) {
+        this(roles, actionGroups, actions, indexMetadata, tenants, Pattern.blank(), MetricsLevel.NONE);
     }
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-            Metadata metadata, Set<String> tenants, Pattern universallyDeniedIndices, MetricsLevel metricsLevel) {
-        this(roles, actionGroups, actions, //
-                metadata.getIndicesLookup().values().stream().filter((i) -> i instanceof ConcreteIndex).map((i) -> i.getName())
-                        .collect(Collectors.toSet()),
-                metadata.getIndicesLookup().values().stream().filter((i) -> i instanceof Alias || i instanceof DataStream).map((i) -> i.getName())
-                        .collect(Collectors.toSet()),
-                tenants, universallyDeniedIndices, MetricsLevel.NONE);
-    }
-
-    public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-            Set<String> indices, Set<String> aliases, Set<String> tenants, Pattern universallyDeniedIndices, MetricsLevel metricsLevel) {
+            Meta indexMetadata, Set<String> tenants, Pattern universallyDeniedIndices, MetricsLevel metricsLevel) {
         this.roles = roles;
         this.actionGroups = actionGroups;
         this.actions = actions;
@@ -136,19 +123,18 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         this.componentState.addParts(cluster.getComponentState(), clusterExclusions.getComponentState(), index.getComponentState(),
                 indexExclusions.getComponentState(), tenant.getComponentState(), statefulIndexState);
 
-        if (indices != null) {
+        if (indexMetadata != null) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
-                this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices, universallyDeniedIndices, statefulIndexState);
+                this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indexMetadata, universallyDeniedIndices,
+                        statefulIndexState);
+            }
+
+            try (Meter meter = Meter.basic(metricsLevel, statefulAliasRebuild)) {
+                this.statefulAlias = new StatefulAliasPermssions(roles, actionGroups, actions, indexMetadata, universallyDeniedIndices,
+                        statefulAliasState);
             }
         } else {
             this.statefulIndexState.setState(State.SUSPENDED, "no_index_information");
-        }
-
-        if (aliases != null) {
-            try (Meter meter = Meter.basic(metricsLevel, statefulAliasRebuild)) {
-                this.statefulAlias = new StatefulAliasPermssions(roles, actionGroups, actions, aliases, universallyDeniedIndices, statefulAliasState);
-            }
-        } else {
             this.statefulAliasState.setState(State.SUSPENDED, "no_alias_information");
         }
 
@@ -588,39 +574,19 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
     }
 
-    public void update(Metadata metadata) {
-        ImmutableSet.Builder<String> indices = new ImmutableSet.Builder<>(metadata.getIndicesLookup().size());
-        ImmutableSet.Builder<String> aliases = new ImmutableSet.Builder<>(metadata.getIndicesLookup().size());
-
-        for (Map.Entry<String, IndexAbstraction> entry : metadata.getIndicesLookup().entrySet()) {
-            if (entry.getValue() instanceof Alias || entry.getValue() instanceof DataStream) {
-                aliases.add(entry.getKey());
-            } else {
-                indices.add(entry.getKey());
-            }
-        }
-
-        updateIndices(indices.build());
-        updateAliases(aliases.build());
-    }
-
-    public void updateIndices(Set<String> indices) {
-        StatefulIndexPermssions statefulIndex = this.statefulIndex;
-
-        if (statefulIndex == null || !statefulIndex.indices.equals(indices)) {
+    public void update(Meta indexMetadata) {
+        if (statefulIndex == null || !statefulIndex.indexMetadata.equals(indexMetadata)) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
-                this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices, universallyDeniedIndices, statefulIndexState);
+                this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indexMetadata, universallyDeniedIndices,
+                        statefulIndexState);
                 this.componentState.updateStateFromParts();
             }
         }
-    }
 
-    public void updateAliases(Set<String> aliases) {
-        StatefulAliasPermssions statefulAlias = this.statefulAlias;
-
-        if (statefulAlias == null || !statefulAlias.aliases.equals(aliases)) {
-            try (Meter meter = Meter.basic(metricsLevel, statefulAliasRebuild)) {
-                this.statefulAlias = new StatefulAliasPermssions(roles, actionGroups, actions, aliases, universallyDeniedIndices, statefulAliasState);
+        if (statefulAlias == null || !statefulAlias.indexMetadata.equals(indexMetadata)) {
+            try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
+                this.statefulAlias = new StatefulAliasPermssions(roles, actionGroups, actions, indexMetadata, universallyDeniedIndices,
+                        statefulAliasState);
                 this.componentState.updateStateFromParts();
             }
         }
@@ -1131,13 +1097,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToIndexToRoles;
         private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> excludedActionToIndexToRoles;
         private final ImmutableSet<String> rolesWithTemplatedExclusions;
-        private final ImmutableSet<String> indices;
+        private final Meta indexMetadata;
 
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
         private final ComponentState componentState;
         private final Pattern universallyDeniedIndices;
 
-        StatefulIndexPermssions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Set<String> indexNames,
+        StatefulIndexPermssions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
                 Pattern universallyDeniedIndices, ComponentState componentState) {
             ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToIndexToRoles = //
                     new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
@@ -1153,6 +1119,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                     .defaultValue((k) -> new ImmutableList.Builder<Exception>());
+
+            Iterable<String> indexNames = indexMetadata.namesOfIndices();
 
             for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
                 try {
@@ -1186,6 +1154,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     for (String index : indexPattern.iterateMatching(indexNames)) {
                                         excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                     }
+
+                                    for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
+                                            Meta.IndexCollection::name)) {
+                                        indexCollection.resolveDeepToNames().forEach((index) -> {
+                                            excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
+                                        });
+                                    }
                                 }
                             } else {
                                 Pattern pattern = Pattern.create(permission);
@@ -1197,6 +1172,15 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
                                         excludedActionToIndexToRoles.get(action).get(index).add(roleName);
                                     }
+                                }
+
+                                for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
+                                        Meta.IndexCollection::name)) {
+                                    indexCollection.resolveDeepToNames().forEach((index) -> {
+                                        for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
+                                            excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
+                                        }
+                                    });
                                 }
                             }
                         }
@@ -1224,6 +1208,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     for (String index : indexPattern.iterateMatching(indexNames)) {
                                         actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                     }
+                                    
+                                    for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
+                                            Meta.IndexCollection::name)) {
+                                        indexCollection.resolveDeepToNames().forEach((index) -> {
+                                            actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
+                                        });
+                                    }
                                 }
                             } else {
                                 Pattern pattern = Pattern.create(permission);
@@ -1235,6 +1226,15 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
                                         actionToIndexToRoles.get(action).get(index).add(roleName);
                                     }
+                                }
+                                
+                                for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
+                                        Meta.IndexCollection::name)) {
+                                    indexCollection.resolveDeepToNames().forEach((index) -> {
+                                        for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
+                                            actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
+                                        }
+                                    });
                                 }
                             }
                         }
@@ -1252,7 +1252,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.actionToIndexToRoles = actionToIndexToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
             this.excludedActionToIndexToRoles = excludedActionToIndexToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
             this.rolesWithTemplatedExclusions = rolesWithTemplatedExclusions.build();
-            this.indices = ImmutableSet.of(indexNames);
+            this.indexMetadata = indexMetadata;
 
             this.universallyDeniedIndices = universallyDeniedIndices;
 
@@ -1262,7 +1262,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             if (this.rolesToInitializationErrors.isEmpty()) {
                 this.componentState.setInitialized();
-                this.componentState.setMessage("Initialized with " + indices.size() + " indices");
+                this.componentState.setMessage("Initialized with " + indexMetadata);
             } else {
                 this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
                 this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
@@ -1339,13 +1339,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToAliasToRoles;
         private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> excludedActionToAliasToRoles;
         private final ImmutableSet<String> rolesWithTemplatedExclusions;
-        private final ImmutableSet<String> aliases;
+        private final Meta indexMetadata;
 
         private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
         private final ComponentState componentState;
         private final Pattern universallyDeniedIndices;
 
-        StatefulAliasPermssions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Set<String> aliasNames,
+        StatefulAliasPermssions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
                 Pattern universallyDeniedIndices, ComponentState componentState) {
             ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToAliasToRoles = //
                     new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
@@ -1362,6 +1362,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                     .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
+            Iterable<String> aliasNames = indexMetadata.namesOfIndexCollections();
+
             for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
                 try {
                     String roleName = entry.getKey();
@@ -1369,12 +1371,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     for (Role.ExcludeIndex excludedIndexPermissions : role.getExcludeIndexPermissions()) {
                         ImmutableSet<String> permissions = actionGroups.resolve(excludedIndexPermissions.getActions());
-                    
+
                         if (excludedIndexPermissions.getIndexPatterns().getPattern().isWildcard()) {
                             // This is handled in the static IndexPermissions object.
                             continue;
                         }
-                    
+
                         if (!excludedIndexPermissions.getIndexPatterns().getPatternTemplates().isEmpty()
                                 || !excludedIndexPermissions.getIndexPatterns().getDateMathExpressions().isEmpty()) {
                             // This class can only work on non-templated index patterns. 
@@ -1383,13 +1385,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             rolesWithTemplatedExclusions.add(roleName);
                             continue;
                         }
-                    
+
                         for (String permission : permissions) {
                             Pattern indexPattern = excludedIndexPermissions.getIndexPatterns().getPattern();
-                    
+
                             if (Pattern.isConstant(permission)) {
                                 Action action = actions.get(permission);
-                    
+
                                 if (action instanceof WellKnownAction) {
                                     for (String alias : indexPattern.iterateMatching(aliasNames)) {
                                         excludedActionToAliasToRoles.get((WellKnownAction<?, ?, ?>) action).get(alias).add(roleName);
@@ -1397,10 +1399,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 }
                             } else {
                                 Pattern pattern = Pattern.create(permission);
-                    
+
                                 ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
                                         .matching((a) -> pattern.matches(a.name()));
-                    
+
                                 for (String alias : indexPattern.iterateMatching(aliasNames)) {
                                     for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
                                         excludedActionToAliasToRoles.get(action).get(alias).add(roleName);
@@ -1461,7 +1463,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.actionToAliasToRoles = actionToAliasToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
             this.excludedActionToAliasToRoles = excludedActionToAliasToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
             this.rolesWithTemplatedExclusions = rolesWithTemplatedExclusions.build();
-            this.aliases = ImmutableSet.of(aliasNames);
+            this.indexMetadata = indexMetadata;
 
             this.universallyDeniedIndices = universallyDeniedIndices;
 
@@ -1471,7 +1473,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             if (this.rolesToInitializationErrors.isEmpty()) {
                 this.componentState.setInitialized();
-                this.componentState.setMessage("Initialized with " + aliases.size() + " aliases/data streams");
+                this.componentState.setMessage("Initialized with " + indexMetadata);
             } else {
                 this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
                 this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
