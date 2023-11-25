@@ -86,6 +86,7 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.meta.Meta;
 import com.google.common.base.Strings;
 
 public class PrivilegesEvaluator implements ComponentStateProvider {
@@ -200,7 +201,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
                         : ActionGroup.FlattenedIndex.EMPTY;
 
-                actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, clusterService.state().metadata(),
+                actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, Meta.from(clusterService.state().metadata()),
                         tenants.getCEntries().keySet(), adminOnlyIndices, authzConfig.getMetricsLevel());
 
                 componentState.setConfigVersion(configMap.getVersionsAsString());
@@ -217,7 +218,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 RoleBasedActionAuthorization actionAuthorization = PrivilegesEvaluator.this.actionAuthorization;
 
                 if (actionAuthorization != null) {
-                    actionAuthorization.update(event.state().metadata());
+                    actionAuthorization.update(Meta.from(event.state().metadata()));
                 }
 
             }
