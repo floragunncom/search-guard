@@ -44,11 +44,12 @@ public class PrivilegesInterceptorImplTest {
                                 DocNode.of("tenant_permissions",
                                         Arrays.asList(
                                                 ImmutableMap.of("tenant_patterns", Arrays.asList("*"), "allowed_actions", Arrays.asList("*"))))),
-                        CType.ROLES, null).get();
+                        CType.ROLES, null)
+                .get();
 
         ImmutableSet<String> tenants = ImmutableSet.of("my_tenant", "test");
 
-        RoleBasedActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, null, tenants);
+        RoleBasedActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
         PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, tenants, actions);
 
         User user = User.forUser("test").searchGuardRoles("all_access").build();
