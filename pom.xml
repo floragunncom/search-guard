@@ -462,12 +462,6 @@
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch</artifactId>
       <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.elasticsearch</groupId>
-          <artifactId>elasticsearch-preallocate</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
