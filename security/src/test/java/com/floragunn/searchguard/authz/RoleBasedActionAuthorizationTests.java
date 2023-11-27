@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.authz;
 
+import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
+
 import java.util.Arrays;
 
 import org.elasticsearch.cluster.metadata.AliasMetadata;
@@ -46,8 +48,7 @@ import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
-
-import static com.floragunn.searchsupport.meta.Meta.Mock.*;
+import com.floragunn.searchsupport.meta.Meta;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ RoleBasedActionAuthorizationTests.ClusterPermissions.class, RoleBasedActionAuthorizationTests.IndexPermissions.class,
@@ -654,6 +655,8 @@ public class RoleBasedActionAuthorizationTests {
     }
 
     public static class AliasPermissions {
+        // TODO _all
+        
         @Test
         public void wellKnown_constantAction_constantAlias_statefulIndices() throws Exception {
             Action indexAction = actions.get("indices:data/write/index");
@@ -696,6 +699,59 @@ public class RoleBasedActionAuthorizationTests {
                     resolvedIndices(alias("alias_constant_a").of("index_a1", "index_a2"), index("index_b1")));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
         }
+
+        @Test
+        public void wellKnown_constantAction_indexPattern_statefulIndices() throws Exception {
+            Action indexAction = actions.get("indices:data/write/index");
+
+            Assert.assertTrue(indexAction.toString(), indexAction instanceof WellKnownAction);
+
+            SgDynamicConfiguration<Role> roles = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from(//
+                    "test_role:\n" + //
+                            "  index_permissions:\n" + //
+                            "  - index_patterns: ['alias_a*']\n" + //
+                            "    allowed_actions: ['indices:data/write/index']"),
+                    CType.ROLES, null).get();
+
+            ImmutableSet<String> tenants = ImmutableSet.empty();
+            Meta indexMetadata = indices("index_a11", "index_a12", "index_a21", "index_a22", "index_b1", "index_b2")//
+                    .alias("alias_a1").of("index_a11", "index_a12")//
+                    .alias("alias_a2").of("index_a21", "index_a22")//
+                    .alias("alias_b").of("index_b1", "index_b2");
+
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, indexMetadata,
+                    tenants);
+
+            User user = User.forUser("test").build();
+            ResolvedIndices aliasA1 = resolvedIndices(alias("alias_a1").of("index_a11", "index_a12"));
+
+            PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), aliasA1);
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+
+            ResolvedIndices indexA1 = resolvedIndices(index("index_a11"));
+            result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexA1);
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+
+            result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                    resolvedIndices(alias("alias_a1").of("index_a11", "index_a12"), alias("alias_b").of("index_b1", "index_b2")));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+            Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
+            
+            result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                    resolvedIndices(alias("alias_a1").of("index_a1", "index_a2"), index("index_b1")));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+            Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
+
+            result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                    resolvedIndices(index("index_a11"), index("index_b1")));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+            Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));
+
+            result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction),
+                    resolvedIndices(alias("alias_a1").of("index_a11", "index_a12"), index("index_b1")));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
     }
 
     private static PrivilegesEvaluationContext ctx(User user, String... roles) {

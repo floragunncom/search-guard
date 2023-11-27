@@ -423,15 +423,15 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                 asString.append(pattern);
             }
 
-            if (patternTemplates != null) {
-                if (asString.length() == 0) {
+            if (patternTemplates != null && !patternTemplates.isEmpty()) {
+                if (asString.length() != 0) {
                     asString.append(" ");
                 }
                 asString.append(patternTemplates);
             }
 
-            if (dateMathExpressions != null) {
-                if (asString.length() == 0) {
+            if (dateMathExpressions != null && !dateMathExpressions.isEmpty()) {
+                if (asString.length() != 0) {
                     asString.append(" ");
                 }
                 asString.append(dateMathExpressions);
