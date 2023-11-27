@@ -47,10 +47,10 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.SG_FILTER_LEVEL_FEMT_DONE;
+import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.TEMP_MIGRATION_INDEX_NAME_POSTFIX;
 
 class FrontendDataMigrationInterceptor {
 
-    private static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX = "_reindex_temp";
     private final Logger log = LogManager.getLogger(this.getClass());
     private final String kibanaServerUsername;
     private final ThreadContext threadContext;

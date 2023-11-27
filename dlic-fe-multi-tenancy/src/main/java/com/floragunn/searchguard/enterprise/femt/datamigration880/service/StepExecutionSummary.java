@@ -25,7 +25,11 @@ import javax.annotation.Nullable;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Objects;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.MappingTypes.*;
+
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.MappingTypes.MAPPING_DATE;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.MappingTypes.MAPPING_KEYWORD;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.MappingTypes.MAPPING_LONG;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.MappingTypes.MAPPING_TEXT_WITH_KEYWORD;
 
 public record StepExecutionSummary(long number, LocalDateTime startTime, String name, StepExecutionStatus status, String message,
                                    @Nullable String details)
@@ -52,10 +56,10 @@ public record StepExecutionSummary(long number, LocalDateTime startTime, String 
     }
 
     public StepExecutionSummary(long number, LocalDateTime startTime, String name, StepExecutionStatus status, String message, Throwable details) {
-        this(number, startTime, name, status, message, stacktractToString(details));
+        this(number, startTime, name, status, message, stacktraceToString(details));
     }
 
-    private static String stacktractToString(Throwable ex) {
+    private static String stacktraceToString(Throwable ex) {
         if(ex == null) {
             return null;
         }

@@ -68,7 +68,7 @@ import org.elasticsearch.script.Script;
 
 public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter {
 
-    private static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX = "_reindex_temp";
+    static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX = "_reindex_temp";
 
     public static final String SG_FILTER_LEVEL_FEMT_DONE = ConfigConstants.SG_CONFIG_PREFIX + "filter_level_femt_done";
 
@@ -197,14 +197,17 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
      */
     private SyncAuthorizationFilter.Result handleRequestRequiringSpecialTreatment(TenantAccess tenantAccess,
         PrivilegesEvaluationContext context, ActionListener<BulkResponse> listener) {
-        boolean shouldReturnNotFound = tenantAccess.isReadOnly() && "indices:data/write/bulk".equals(context.getAction().name()) && (context.getRequest() instanceof BulkRequest) && isUpdateRequestDuringLoadingDashboard((BulkRequest)context.getRequest());
+        boolean shouldReturnNotFound = tenantAccess.isReadOnly() &&
+            "indices:data/write/bulk".equals(context.getAction().name()) &&
+            (context.getRequest() instanceof BulkRequest) &&
+            isUpdateRequestDuringLoadingDashboard((BulkRequest)context.getRequest());
         if(shouldReturnNotFound) {
             BulkRequest request = (BulkRequest) context.getRequest();
             notFoundBulkResponseForOnlyBulkRequest(listener, request);
             log.debug("Bulk only request permitted to load frontend dashboard.");
             return Result.INTERCEPTED;
         }
-        return Result.OK;
+        return Result.PASS_ON_FAST_LANE;
     }
 
     private void notFoundBulkResponseForOnlyBulkRequest(ActionListener<BulkResponse> listener, BulkRequest request) {

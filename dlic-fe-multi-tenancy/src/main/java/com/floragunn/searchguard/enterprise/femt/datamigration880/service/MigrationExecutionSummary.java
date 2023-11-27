@@ -25,7 +25,9 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Objects;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.MappingTypes.*;
+
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.MappingTypes.MAPPING_DATE;
+import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.MappingTypes.MAPPING_KEYWORD;
 
 public record MigrationExecutionSummary(LocalDateTime startTime, ExecutionStatus status, @Nullable String tempIndexName,
                                         @Nullable String backupIndexName, ImmutableList<StepExecutionSummary> stages,
