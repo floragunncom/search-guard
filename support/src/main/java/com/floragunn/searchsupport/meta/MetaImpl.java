@@ -308,7 +308,7 @@ public abstract class MetaImpl implements Meta {
                     }
 
                     ImmutableMap<String, Index> indices = ImmutableMap.of(DefaultMetaImpl.this.indices).with(newIndices.build());
-                    ImmutableMap<String, IndexCollection> aliases = ImmutableMap.of(aliasName,
+                    ImmutableMap<String, IndexCollection> aliases = ImmutableMap.of(DefaultMetaImpl.this.indexCollections).with(aliasName,
                             new AliasImpl(aliasName, aliasMembersBuilder.build().values()));
 
                     return new DefaultMetaImpl(indices, aliases);
