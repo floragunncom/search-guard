@@ -48,7 +48,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.metadata.IndexAbstraction;
@@ -56,7 +55,6 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.regex.Regex;
 
-import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 
 public class WildcardExpressionResolver {
@@ -88,19 +86,6 @@ public class WildcardExpressionResolver {
             return Arrays.asList(metadata.getConcreteVisibleClosedIndices());
         } else {
             return Collections.emptyList();
-        }
-    }
-
-    public static List<String> resolveEmptyOrTrivialWildcardWithDataStreams(IndicesOptions options, Metadata metadata, boolean includeDataStreams) {
-        List<String> resolvedExpressions = resolveEmptyOrTrivialWildcard(options, metadata);
-        if (includeDataStreams) {
-            final IndexMetadata.State excludeState = excludeState(options);
-            final Map<String, IndexAbstraction> dataStreamsAbstractions = metadata.getIndicesLookup().entrySet().stream()
-                    .filter(entry -> entry.getValue().getType() == IndexAbstraction.Type.DATA_STREAM)
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-            return ImmutableList.of(dataStreamsAbstractions.keySet()).with(resolvedExpressions);
-        } else {
-            return resolvedExpressions;
         }
     }
 
