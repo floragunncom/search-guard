@@ -710,12 +710,12 @@ public class ActionRequestIntrospector {
         public boolean isAll() {
             return this.isAll;
         }
-        
+
         private boolean isAll(List<String> localIndices, ImmutableSet<String> remoteIndices) {
             if (localIndices.isEmpty() && !remoteIndices.isEmpty()) {
                 return false;
             }
-            
+
             return IndexNameExpressionResolver.isAllIndices(localIndices)
                     || (localIndices.size() == 1 && (localIndices.get(0) == null || localIndices.get(0).equals("*")));
         }
@@ -731,7 +731,8 @@ public class ActionRequestIntrospector {
                 // In case of * wildcards, we defer resolution of indices. Chances are that we do not need to resolve the wildcard at all in this case.
                 return new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.of(this));
             } else {
-                return new ResolvedIndices(false, ResolvedIndices.Local.resolve(this, clusterService.state()), remoteIndices, ImmutableSet.empty());
+                return new ResolvedIndices(false, ResolvedIndices.Local.resolve(this, clusterService.state().metadata()), remoteIndices,
+                        ImmutableSet.empty());
             }
         }
 
@@ -856,7 +857,7 @@ public class ActionRequestIntrospector {
             Local localShallow = this.localShallow;
 
             for (IndicesRequestInfo info : this.deferredRequests) {
-                localShallow = localShallow.with(Local.resolve(info, info.clusterState));
+                localShallow = localShallow.with(Local.resolve(info, info.clusterState.metadata()));
             }
 
             this.deferredRequests = ImmutableSet.empty();
@@ -1164,19 +1165,19 @@ public class ActionRequestIntrospector {
                 return result;
             }
 
-            static Local resolve(IndicesRequestInfo request, ClusterState state) {
+            static Local resolve(IndicesRequestInfo request, Metadata metadata) {
                 try {
                     if (request.isAll) {
-                        return resolveIsAll(request, state);
+                        return resolveIsAll(request, metadata);
                     } else if (request.expandWildcards) {
-                        return resolveWithPatterns(request, state);
+                        return resolveWithPatterns(request, metadata);
                         //} else if (request.writeRequest) { TODO
                         //    return request.resolveWriteIndex();
                     } else if (request.createIndexRequest) {
                         return new Local(ImmutableMap.empty(), ImmutableMap.empty(), ImmutableMap.empty(), request.resolveDateMathExpressions());
                     } else {
                         // No wildcards, no write request, no create index request
-                        return resolveWithoutPatterns(request, state);
+                        return resolveWithoutPatterns(request, metadata);
                     }
                 } catch (RuntimeException e) {
                     log.error("Error while resolving " + request, e);
@@ -1184,9 +1185,7 @@ public class ActionRequestIntrospector {
                 }
             }
 
-            static Local resolveWithPatterns(IndicesRequestInfo request, ClusterState state) {
-
-                Metadata metadata = state.metadata();
+            static Local resolveWithPatterns(IndicesRequestInfo request, Metadata metadata) {
                 SortedMap<String, IndexAbstraction> indicesLookup = metadata.getIndicesLookup();
 
                 ImmutableMap.Builder<String, ConcreteIndex> indices = new ImmutableMap.Builder<>();
@@ -1280,8 +1279,7 @@ public class ActionRequestIntrospector {
                 return new Local(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
             }
 
-            static Local resolveIsAll(IndicesRequestInfo request, ClusterState state) {
-                Metadata metadata = state.metadata();
+            static Local resolveIsAll(IndicesRequestInfo request, Metadata metadata) {
                 SortedMap<String, IndexAbstraction> indicesLookup = metadata.getIndicesLookup();
 
                 ImmutableMap.Builder<String, ConcreteIndex> indices = new ImmutableMap.Builder<>();
@@ -1313,12 +1311,12 @@ public class ActionRequestIntrospector {
                 return new Local(indices.build(), aliases.build(), dataStreams.build(), ImmutableSet.empty());
             }
 
-            static Local resolveWithoutPatterns(IndicesRequestInfo request, ClusterState state) {
+            static Local resolveWithoutPatterns(IndicesRequestInfo request, Metadata metadata) {
                 ImmutableMap.Builder<String, ConcreteIndex> indices = new ImmutableMap.Builder<>();
                 ImmutableSet.Builder<String> nonExistingIndices = new ImmutableSet.Builder<>();
                 ImmutableMap.Builder<String, Alias> aliases = new ImmutableMap.Builder<>();
                 ImmutableMap.Builder<String, DataStream> dataStreams = new ImmutableMap.Builder<>();
-                Map<String, IndexAbstraction> indicesLookup = state.metadata().getIndicesLookup();
+                Map<String, IndexAbstraction> indicesLookup = metadata.getIndicesLookup();
 
                 for (String index : request.localIndices) {
                     String resolved = DateMathExpressionResolver.resolveExpression(index);
