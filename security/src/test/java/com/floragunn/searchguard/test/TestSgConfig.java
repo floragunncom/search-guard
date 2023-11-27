@@ -78,6 +78,8 @@ public class TestSgConfig {
     private NestedValueMap overrideRoleSettings;
     private NestedValueMap overrideRoleMappingSettings;
     private NestedValueMap overrideFrontendConfigSettings;
+    private NestedValueMap overrideFrontendMultiTenancyConfigSettings;
+    private NestedValueMap overrideTenantSettings;
     private Authc authc;
     private DlsFls dlsFls;
     private Privileges privileges;
@@ -156,6 +158,28 @@ public class TestSgConfig {
         }
 
         overrideFrontendConfigSettings.put(new Path(configId, "auth_domains"), values);
+
+        return this;
+    }
+
+    public TestSgConfig frontendMultiTenancy(FrontendMultiTenancy frontendMultiTenancy) {
+        if (overrideFrontendMultiTenancyConfigSettings == null) {
+            overrideFrontendMultiTenancyConfigSettings = new NestedValueMap();
+        }
+
+        overrideFrontendMultiTenancyConfigSettings.putAllFromAnyMap(frontendMultiTenancy.toJsonMap());
+
+        return this;
+    }
+
+    public TestSgConfig tenants(Tenant... tenants) {
+        if (overrideTenantSettings == null) {
+            overrideTenantSettings = new NestedValueMap();
+        }
+
+        for (Tenant tenant : tenants) {
+            overrideTenantSettings.putAllFromAnyMap(tenant.toJsonMap());
+        }
 
         return this;
     }
@@ -305,6 +329,10 @@ public class TestSgConfig {
         result.overrideRoleSettings = overrideRoleSettings != null ? overrideRoleSettings.clone() : null;
         result.overrideSgConfigSettings = overrideSgConfigSettings != null ? overrideSgConfigSettings.clone() : null;
         result.overrideUserSettings = overrideUserSettings != null ? overrideUserSettings.clone() : null;
+        result.overrideRoleMappingSettings = overrideRoleMappingSettings != null ? overrideRoleMappingSettings.clone() : null;
+        result.overrideFrontendConfigSettings = overrideFrontendConfigSettings != null ? overrideFrontendConfigSettings.clone() : null;
+        result.overrideFrontendMultiTenancyConfigSettings = overrideFrontendMultiTenancyConfigSettings != null ? overrideFrontendMultiTenancyConfigSettings.clone() : null;
+        result.overrideTenantSettings = overrideTenantSettings != null ? overrideTenantSettings.clone() : null;
 
         return result;
     }
@@ -321,10 +349,10 @@ public class TestSgConfig {
         writeOptionalConfigToIndex(client, CType.INTERNALUSERS, "sg_internal_users.yml", overrideUserSettings);
         writeOptionalConfigToIndex(client, CType.ROLESMAPPING, "sg_roles_mapping.yml", overrideRoleMappingSettings);
         writeConfigToIndex(client, CType.ACTIONGROUPS, "sg_action_groups.yml");
-        writeConfigToIndex(client, CType.TENANTS, "sg_tenants.yml");
+        writeOptionalConfigToIndex(client, CType.TENANTS, "sg_tenants.yml", overrideTenantSettings);
         writeOptionalConfigToIndex(client, CType.BLOCKS, "sg_blocks.yml", null);
         writeOptionalConfigToIndex(client, CType.FRONTEND_AUTHC, "sg_frontend_authc.yml", overrideFrontendConfigSettings);
-        writeOptionalConfigToIndex(client, "frontend_multi_tenancy", "sg_frontend_multi_tenancy.yml", null);
+        writeOptionalConfigToIndex(client, "frontend_multi_tenancy", "sg_frontend_multi_tenancy.yml", overrideFrontendMultiTenancyConfigSettings);
 
         if (authc != null) {
             writeConfigToIndex(client, CType.AUTHC, authc);
@@ -593,6 +621,7 @@ public class TestSgConfig {
 
         private List<IndexPermission> indexPermissions = new ArrayList<>();
         private List<ExcludedIndexPermission> excludedIndexPermissions = new ArrayList<>();
+        private List<TenantPermission> tenantPermissions = new ArrayList<>();
 
         public Role(String name) {
             this.name = name;
@@ -613,6 +642,10 @@ public class TestSgConfig {
             return new IndexPermission(this, indexPermissions);
         }
 
+        public TenantPermission tenantPermission(String... tenantPermissions) {
+            return new TenantPermission(this, tenantPermissions);
+        }
+
         public ExcludedIndexPermission excludeIndexPermissions(String... indexPermissions) {
             return new ExcludedIndexPermission(this, indexPermissions);
         }
@@ -629,22 +662,26 @@ public class TestSgConfig {
             NestedValueMap map = new NestedValueMap();
             String name = roleNamePrefix + this.name;
 
-            if (this.clusterPermissions.size() > 0) {
+            if (!this.clusterPermissions.isEmpty()) {
                 map.put(new NestedValueMap.Path(name, "cluster_permissions"), this.clusterPermissions);
             }
 
-            if (this.indexPermissions.size() > 0) {
+            if (!this.indexPermissions.isEmpty()) {
                 map.put(new NestedValueMap.Path(name, "index_permissions"),
-                    this.indexPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
+                    this.indexPermissions.stream().map(IndexPermission::toJsonMap).collect(Collectors.toList()));
             }
 
-            if (this.excludedClusterPermissions.size() > 0) {
+            if (!this.excludedClusterPermissions.isEmpty()) {
                 map.put(new NestedValueMap.Path(name, "exclude_cluster_permissions"), this.excludedClusterPermissions);
             }
 
-            if (this.excludedIndexPermissions.size() > 0) {
+            if (!this.excludedIndexPermissions.isEmpty()) {
                 map.put(new NestedValueMap.Path(name, "exclude_index_permissions"), this.excludedIndexPermissions.stream()
                     .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "actions", p.actions)).collect(Collectors.toList()));
+            }
+            if (!this.tenantPermissions.isEmpty()) {
+                map.put(new NestedValueMap.Path(name, "tenant_permissions"),
+                        this.tenantPermissions.stream().map(TenantPermission::toJsonMap).collect(Collectors.toList()));
             }
             return map;
         }
@@ -787,6 +824,80 @@ public class TestSgConfig {
             this.indexPatterns = asList(indexPatterns);
             this.role.excludedIndexPermissions.add(this);
             return this.role;
+        }
+
+    }
+
+    public static class Tenant {
+        private String name;
+        private boolean reserved;
+        private boolean hidden;
+        private boolean isStatic;
+        private String description;
+
+        public Tenant(String name) {
+            this.name = Objects.requireNonNull(name, "Name is required");
+        }
+
+
+        public Tenant reserved(boolean reserved) {
+            this.reserved = reserved;
+            return this;
+        }
+
+        public Tenant hidden(boolean hidden) {
+            this.hidden = hidden;
+            return this;
+        }
+
+        public Tenant isStatic(boolean isStatic) {
+            this.isStatic = isStatic;
+            return this;
+        }
+
+        public Tenant description(String description) {
+            this.description = description;
+            return this;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public NestedValueMap toJsonMap() {
+            NestedValueMap map = new NestedValueMap();
+
+            map.put(new NestedValueMap.Path( this.name, "reserved"), this.reserved);
+            map.put(new NestedValueMap.Path( this.name, "hidden"), this.hidden);
+            map.put(new NestedValueMap.Path( this.name, "static"), this.isStatic);
+            map.put(new NestedValueMap.Path( this.name, "description"), this.description);
+
+            return map;
+        }
+    }
+
+    public static class TenantPermission {
+        private List<String> allowedActions;
+        private List<String> tenantPatterns;
+        private Role role;
+
+        TenantPermission(Role role, String... allowedActions) {
+            this.allowedActions = asList(allowedActions);
+            this.role = role;
+        }
+
+        public Role on(String... tenantPatterns) {
+            this.tenantPatterns = asList(tenantPatterns);
+            this.role.tenantPermissions.add(this);
+            return this.role;
+        }
+
+        public NestedValueMap toJsonMap() {
+            NestedValueMap result = new NestedValueMap();
+
+            result.put("tenant_patterns", tenantPatterns);
+            result.put("allowed_actions", allowedActions);
+            return result;
         }
 
     }
@@ -1167,6 +1278,34 @@ public class TestSgConfig {
             result.put("type", type);
             result.put("label", label);
             return result;
+        }
+    }
+
+    public static class FrontendMultiTenancy {
+        private boolean enabled;
+        private String index;
+        private String serverUser;
+
+        public FrontendMultiTenancy(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public FrontendMultiTenancy index(String index) {
+            this.index = index;
+            return this;
+        }
+
+        public FrontendMultiTenancy serverUser(String serverUser) {
+            this.serverUser = serverUser;
+            return this;
+        }
+
+        NestedValueMap toJsonMap() {
+            NestedValueMap result = new NestedValueMap();
+            result.put("enabled", enabled);
+            result.put("index", index);
+            result.put("server_user", serverUser);
+            return NestedValueMap.of("default", result);
         }
     }
 
