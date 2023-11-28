@@ -15,6 +15,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.IndicesOptions.WildcardStates;
+import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.script.Script;
@@ -100,7 +101,7 @@ public abstract class AbstractSearchInput extends AbstractInput {
             log.debug("Response: " + searchResponse);
         }
 
-        Object result = ObjectTreeXContent.toObjectTree(searchResponse, new MapParams(Collections.emptyMap()),
+        Object result = ObjectTreeXContent.toObjectTree(ChunkedToXContentObject.wrapAsToXContentObject(searchResponse), new MapParams(Collections.emptyMap()),
                 () -> NestedValueMap.createNonCloningMap());
         setResult(ctx, result);
 
