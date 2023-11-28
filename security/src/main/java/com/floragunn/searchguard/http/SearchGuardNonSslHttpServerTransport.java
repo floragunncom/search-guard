@@ -67,7 +67,7 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
     protected class NonSslHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
         
         protected NonSslHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings) {
-            super(transport, handlingSettings, TLSConfig.noTLS(), null, null, null);
+            super(transport, handlingSettings, TLSConfig.noTLS(), null, null);
         }
 
         @Override

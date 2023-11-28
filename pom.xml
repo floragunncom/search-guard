@@ -46,7 +46,7 @@
   </distributionManagement>
 
   <properties>
-    <elasticsearch.version>8.8.2</elasticsearch.version>
+    <elasticsearch.version>8.9.2</elasticsearch.version>
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
@@ -77,7 +77,6 @@
         <groupId>co.elastic.clients</groupId>
         <artifactId>elasticsearch-java</artifactId>
         <version>${elasticsearch.version}</version>
-
       </dependency>
 
       <dependency>
@@ -332,6 +331,11 @@
         <artifactId>reindex-client</artifactId>
         <version>${elasticsearch.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.elasticsearch.plugin</groupId>
+        <artifactId>rest-root</artifactId>
+        <version>${elasticsearch.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>org.hamcrest</groupId>
@@ -548,6 +552,11 @@
       <artifactId>reindex</artifactId>
       <version>${elasticsearch.version}</version>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>rest-root</artifactId>
     </dependency>
 
     <dependency>

@@ -37,7 +37,7 @@ import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.Version;
+import org.elasticsearch.TransportVersion;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -276,7 +276,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         Map<String, Supplier<Transport>> transports = new HashMap<String, Supplier<Transport>>();
         if (transportSSLEnabled) {
             transports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyTransport",
-                    () -> new SearchGuardSSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler,
+                    () -> new SearchGuardSSLNettyTransport(settings, TransportVersion.current(), threadPool, networkService, pageCacheRecycler,
                             namedWriteableRegistry, circuitBreakerService, sharedGroupFactory, sgks, NOOP_SSL_EXCEPTION_HANDLER));
 
         }
