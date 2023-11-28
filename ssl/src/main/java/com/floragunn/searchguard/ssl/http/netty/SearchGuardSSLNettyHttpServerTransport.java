@@ -93,7 +93,7 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
 
         protected SSLHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings,
                 final SearchGuardKeyStore sgks) {
-            super(transport, handlingSettings, TLSConfig.noTLS(), null, null, null);
+            super(transport, handlingSettings, TLSConfig.noTLS(), null, null);
         }
 
         @Override
