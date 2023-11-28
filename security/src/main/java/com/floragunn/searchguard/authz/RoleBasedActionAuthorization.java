@@ -24,8 +24,6 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.cluster.metadata.IndexAbstraction.Alias;
-import org.elasticsearch.cluster.metadata.IndexAbstraction.DataStream;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
@@ -1156,8 +1154,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                         excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                     }
 
-                                    for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
-                                            Meta.IndexCollection::name)) {
+                                    for (Meta.IndexCollection indexCollection : indexPattern
+                                            .iterateMatching(indexMetadata.indexCollections().values(), Meta.IndexCollection::name)) {
                                         indexCollection.resolveDeepToNames().forEach((index) -> {
                                             excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                         });
@@ -1175,7 +1173,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     }
                                 }
 
-                                for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
+                                for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections().values(),
                                         Meta.IndexCollection::name)) {
                                     indexCollection.resolveDeepToNames().forEach((index) -> {
                                         for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
@@ -1209,9 +1207,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     for (String index : indexPattern.iterateMatching(indexNames)) {
                                         actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                     }
-                                    
-                                    for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
-                                            Meta.IndexCollection::name)) {
+
+                                    for (Meta.IndexCollection indexCollection : indexPattern
+                                            .iterateMatching(indexMetadata.indexCollections().values(), Meta.IndexCollection::name)) {
                                         indexCollection.resolveDeepToNames().forEach((index) -> {
                                             actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                         });
@@ -1228,8 +1226,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                         actionToIndexToRoles.get(action).get(index).add(roleName);
                                     }
                                 }
-                                
-                                for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
+
+                                for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections().values(),
                                         Meta.IndexCollection::name)) {
                                     indexCollection.resolveDeepToNames().forEach((index) -> {
                                         for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
@@ -1502,25 +1500,25 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 ImmutableMap<String, ImmutableSet<String>> aliasToRoles = actionToAliasToRoles.get(action);
 
                 if (aliasToRoles != null) {
-                    for (Alias alias : resolvedIndices.getLocal().getAliases().values()) {
-                        ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(alias.getName());
+                    for (Meta.Alias alias : resolvedIndices.getLocal().getAliases().values()) {
+                        ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(alias.name());
 
                         if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
-                                && !isExcluded(action, alias.getName(), user, mappedRoles, context)) {
+                                && !isExcluded(action, alias.name(), user, mappedRoles, context)) {
 
-                            if (checkTable.check(alias.getName(), action)) {
+                            if (checkTable.check(alias.name(), action)) {
                                 break top;
                             }
                         }
                     }
 
-                    for (DataStream dataStream : resolvedIndices.getLocal().getDataStreams().values()) {
-                        ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(dataStream.getName());
+                    for (Meta.DataStream dataStream : resolvedIndices.getLocal().getDataStreams().values()) {
+                        ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(dataStream.name());
 
                         if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
-                                && !isExcluded(action, dataStream.getName(), user, mappedRoles, context)) {
+                                && !isExcluded(action, dataStream.name(), user, mappedRoles, context)) {
 
-                            if (checkTable.check(dataStream.getName(), action)) {
+                            if (checkTable.check(dataStream.name(), action)) {
                                 break top;
                             }
                         }
