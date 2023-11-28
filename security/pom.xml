@@ -95,13 +95,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.elasticsearch.plugin</groupId>
-      <artifactId>rest-root</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-
-    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>5.4.0</version>

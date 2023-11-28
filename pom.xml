@@ -545,8 +545,6 @@
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>rest-root</artifactId>
-      <version>${elasticsearch.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
