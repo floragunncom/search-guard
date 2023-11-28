@@ -6,6 +6,7 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -35,7 +36,8 @@ public class SearchWatchResponse extends ActionResponse implements StatusToXCont
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        this.searchResponse.toXContent(builder, new DelegatingMapParams(Watch.WITHOUT_AUTH_TOKEN_PARAM_MAP, params));
+        ChunkedToXContentObject.wrapAsToXContentObject(this.searchResponse)
+                .toXContent(builder, new DelegatingMapParams(Watch.WITHOUT_AUTH_TOKEN_PARAM_MAP, params));
         return builder;
     }
 
