@@ -26,7 +26,7 @@ import javax.net.ssl.SSLException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.Version;
+import org.elasticsearch.TransportVersion;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkService;
@@ -57,10 +57,10 @@ public class SearchGuardSSLNettyTransport extends Netty4Transport {
     private final SearchGuardKeyStore sgks;
     private final SslExceptionHandler errorHandler;
 
-    public SearchGuardSSLNettyTransport(final Settings settings, final Version version, final ThreadPool threadPool, final NetworkService networkService,
+    public SearchGuardSSLNettyTransport(final Settings settings, final TransportVersion transportVersion, final ThreadPool threadPool, final NetworkService networkService,
                                         final PageCacheRecycler pageCacheRecycler, final NamedWriteableRegistry namedWriteableRegistry,
                                         final CircuitBreakerService circuitBreakerService, SharedGroupFactory sharedGroupFactory, final SearchGuardKeyStore sgks, final SslExceptionHandler errorHandler) {
-        super(settings, version.transportVersion, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, sharedGroupFactory);
+        super(settings, transportVersion, threadPool, networkService, pageCacheRecycler, namedWriteableRegistry, circuitBreakerService, sharedGroupFactory);
 
         this.sgks = sgks;
         this.errorHandler = errorHandler;
