@@ -167,6 +167,18 @@ public class WildcardExpressionResolver {
         }
         return excludeState;
     }
+    
+    public static Predicate<Boolean> excludeStatePredicate(IndicesOptions options) {
+        IndexMetadata.State excludeState = excludeState(options);
+        
+        if (excludeState == IndexMetadata.State.OPEN) {
+            return (b) -> b == true;
+        } else if (excludeState == IndexMetadata.State.CLOSE) {
+            return (b) -> b == false;
+        } else {
+            return null;
+        }
+    }
 
     private static boolean implicitHiddenMatch(String itemName, String expression) {
         return itemName.startsWith(".") && expression.startsWith(".") && Regex.isSimpleMatchPattern(expression);
