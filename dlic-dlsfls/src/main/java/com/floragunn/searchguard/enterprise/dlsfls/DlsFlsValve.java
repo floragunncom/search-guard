@@ -184,9 +184,6 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                     }
                 }
 
-                //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
-                //need to switch off global ordinals because field masking can break ordering
-                //https://www.elastic.co/guide/en/elasticsearch/reference/master/eager-global-ordinals.html#_avoiding_global_ordinal_loading
                 if (hasFieldMasking) {
                     if (searchRequest.source() != null && searchRequest.source().aggregations() != null) {
                         //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
