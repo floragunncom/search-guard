@@ -1,4 +1,4 @@
 variables:
-  # IT_BRANCH: "session-auth"
+  IT_BRANCH: "test_suite_ccs_2_fix"
   SG_KI_PLUGIN: "b-master-SNAPSHOT"
   # KI_VERSION: "7.16.3" 
