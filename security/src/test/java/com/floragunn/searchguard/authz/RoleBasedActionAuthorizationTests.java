@@ -21,14 +21,6 @@ import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
 
 import java.util.Arrays;
 
-import org.elasticsearch.cluster.metadata.AliasMetadata;
-import org.elasticsearch.cluster.metadata.DataStream.TimestampField;
-import org.elasticsearch.cluster.metadata.IndexAbstraction.Alias;
-import org.elasticsearch.cluster.metadata.IndexAbstraction.ConcreteIndex;
-import org.elasticsearch.cluster.metadata.IndexAbstraction.DataStream;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.Index;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,8 +28,6 @@ import org.junit.runners.Suite;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
@@ -656,7 +646,7 @@ public class RoleBasedActionAuthorizationTests {
 
     public static class AliasPermissions {
         // TODO _all
-        
+
         @Test
         public void wellKnown_constantAction_constantAlias_statefulIndices() throws Exception {
             Action indexAction = actions.get("indices:data/write/index");
@@ -672,31 +662,35 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
-                    indices("index_a1", "index_a2", "index_b1", "index_b2").alias("alias_constant_a").of("index_a1", "index_a2"), tenants);
+            Meta indexMetadata = Meta.Mock //
+                    .indices("index_a1", "index_a2", "index_b1", "index_b2") //
+                    .alias("alias_constant_a").of("index_a1", "index_a2");
+
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, indexMetadata,
+                    tenants);
 
             User user = User.forUser("test").build();
-            ResolvedIndices aliasConstantA = resolvedIndices(alias("alias_constant_a").of("index_a1", "index_a2"));
+            ResolvedIndices aliasConstantA = ResolvedIndices.of(indexMetadata, "alias_constant_a");
 
             PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), aliasConstantA);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-            ResolvedIndices indexA1 = resolvedIndices(index("index_a1"));
+            ResolvedIndices indexA1 = ResolvedIndices.of(indexMetadata, "index_a1");
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexA1);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
-                    resolvedIndices(alias("alias_constant_a").of("index_a1", "index_a2"), index("index_b1")));
+                    ResolvedIndices.of(indexMetadata, "alias_constant_a", "index_b1"));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
             Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_constant_a")));
 
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
-                    resolvedIndices(index("index_a1"), index("index_b1")));
+                    ResolvedIndices.of(indexMetadata, "index_a1", "index_b1"));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
             Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a1")));
 
             result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction),
-                    resolvedIndices(alias("alias_constant_a").of("index_a1", "index_a2"), index("index_b1")));
+                    ResolvedIndices.of(indexMetadata, "alias_constant_a", "index_b1"));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
         }
 
@@ -723,32 +717,32 @@ public class RoleBasedActionAuthorizationTests {
                     tenants);
 
             User user = User.forUser("test").build();
-            ResolvedIndices aliasA1 = resolvedIndices(alias("alias_a1").of("index_a11", "index_a12"));
+            ResolvedIndices aliasA1 = ResolvedIndices.of(indexMetadata, "alias_a1");
 
             PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), aliasA1);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
-            ResolvedIndices indexA1 = resolvedIndices(index("index_a11"));
+            ResolvedIndices indexA1 = ResolvedIndices.of(indexMetadata, "index_a11");
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction), indexA1);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
 
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
-                    resolvedIndices(alias("alias_a1").of("index_a11", "index_a12"), alias("alias_b").of("index_b1", "index_b2")));
-            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-            Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
-            
-            result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
-                    resolvedIndices(alias("alias_a1").of("index_a1", "index_a2"), index("index_b1")));
+                    ResolvedIndices.of(indexMetadata, "alias_a1", "alias_b"));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
             Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
 
             result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
-                    resolvedIndices(index("index_a11"), index("index_b1")));
+                    ResolvedIndices.of(indexMetadata, "alias_a1", "index_b1"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+            Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
+
+            result = subject.hasIndexPermission(ctx(user, "test_role"), ImmutableSet.of(indexAction),
+                    ResolvedIndices.of(indexMetadata, "index_a11", "index_b1"));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
             Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));
 
             result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction),
-                    resolvedIndices(alias("alias_a1").of("index_a11", "index_a12"), index("index_b1")));
+                    ResolvedIndices.of(indexMetadata, "alias_a1", "index_b1"));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
         }
 
@@ -756,76 +750,6 @@ public class RoleBasedActionAuthorizationTests {
 
     private static PrivilegesEvaluationContext ctx(User user, String... roles) {
         return new PrivilegesEvaluationContext(user, ImmutableSet.ofArray(roles), null, roles, true, null, null);
-    }
-
-    private static ResolvedIndices resolvedIndices(Object... elements) {
-        ImmutableMap.Builder<String, ConcreteIndex> indices = new ImmutableMap.Builder<>();
-        ImmutableSet.Builder<String> nonExistingIndices = new ImmutableSet.Builder<>();
-        ImmutableMap.Builder<String, Alias> aliases = new ImmutableMap.Builder<>();
-        ImmutableMap.Builder<String, DataStream> dataStreams = new ImmutableMap.Builder<>();
-
-        for (Object e : elements) {
-            if (e instanceof String) {
-                nonExistingIndices.add((String) e);
-            } else if (e instanceof ConcreteIndex) {
-                indices.put(((ConcreteIndex) e).getName(), (ConcreteIndex) e);
-            } else if (e instanceof Alias) {
-                aliases.put(((Alias) e).getName(), (Alias) e);
-            } else if (e instanceof DataStream) {
-                dataStreams.put(((DataStream) e).getName(), (DataStream) e);
-            } else {
-                throw new RuntimeException("Unexpected element " + e);
-            }
-        }
-
-        return ResolvedIndices.empty()
-                .local(new ResolvedIndices.Local(indices.build(), aliases.build(), dataStreams.build(), nonExistingIndices.build()));
-    }
-
-    private static ConcreteIndex index(String name) {
-        return new ConcreteIndex(IndexMetadata.builder(name)
-                .settings(Settings.builder().put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), org.elasticsearch.Version.CURRENT))
-                .numberOfShards(1).numberOfReplicas(1).build());
-    }
-
-    private static AliasBuilder alias(String name) {
-        return new AliasBuilder(name);
-    }
-
-    private static DataStreamBuilder dataStream(String name) {
-        return new DataStreamBuilder(name);
-    }
-
-    private static class AliasBuilder {
-        private final String name;
-
-        AliasBuilder(String name) {
-            this.name = name;
-        }
-
-        Alias of(String... indices) {
-            AliasMetadata aliasMetadata = AliasMetadata.builder(this.name).build();
-
-            return new Alias(aliasMetadata,
-                    ImmutableList.ofArray(indices).map(i -> IndexMetadata.builder(i)
-                            .settings(Settings.builder().put(IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(), org.elasticsearch.Version.CURRENT))
-                            .numberOfShards(1).numberOfReplicas(1).putAlias(aliasMetadata).build()));
-        }
-    }
-
-    private static class DataStreamBuilder {
-        private final String name;
-
-        DataStreamBuilder(String name) {
-            this.name = name;
-        }
-
-        DataStream of(String... indices) {
-            return new DataStream(
-                    new org.elasticsearch.cluster.metadata.DataStream(this.name, new TimestampField("ts"),
-                            ImmutableList.ofArray(indices).map(i -> new Index(i, i)), 1, ImmutableMap.empty(), false, false, false),
-                    ImmutableList.empty());
-        }
     }
 
 }
