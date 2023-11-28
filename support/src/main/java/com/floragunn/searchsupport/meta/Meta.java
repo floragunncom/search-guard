@@ -2,6 +2,7 @@ package com.floragunn.searchsupport.meta;
 
 import java.util.Collection;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
 import com.floragunn.searchsupport.meta.MetaImpl.DefaultMetaImpl;
@@ -12,12 +13,34 @@ import com.floragunn.searchsupport.meta.MetaImpl.DefaultMetaImpl;
  * Provides unified, controlled and uncluttered interfaces to the ES metadata.
  */
 public interface Meta {
-    Iterable<IndexLikeObject> indexLikeObjects();
+    ImmutableMap<String, IndexLikeObject> indexLikeObjects();
 
-    Iterable<Index> indices();
+    ImmutableMap<String, Index> indices();
 
-    Iterable<IndexCollection> indexCollections();
+    ImmutableMap<String, Alias> aliases();
 
+    ImmutableMap<String, DataStream> dataStreams();
+
+    /**
+     * Returns both aliases and dataStreams
+     */
+    ImmutableMap<String, IndexCollection> indexCollections();
+
+    /**
+     * Returns indices that are not contained in an alias or data stream
+     */
+    ImmutableMap<String, Index> indicesWithoutParents();
+    
+    /**
+     * Returns indices that are not hidden 
+     */
+    ImmutableMap<String, Index> nonHiddenIndices();
+
+    /**
+     * Returns indices that are not hidden and which are not contained in an alias or data stream
+     */
+    ImmutableMap<String, Index> nonHiddenIndicesWithoutParents();
+    
     Iterable<String> namesOfIndices();
 
     Iterable<String> namesOfIndexCollections();
@@ -32,6 +55,8 @@ public interface Meta {
 
     Mock.DataStreamBuilder dataStream(String dataStreamName);
 
+    org.elasticsearch.cluster.metadata.Metadata esMetadata();
+    
     interface IndexLikeObject {
         String name();
 
@@ -47,10 +72,11 @@ public interface Meta {
 
         int hashCode();
 
+        boolean isHidden();
     }
 
     interface Index extends IndexLikeObject {
-
+        boolean isOpen();
     }
 
     interface IndexCollection extends IndexLikeObject {
@@ -67,6 +93,10 @@ public interface Meta {
 
     static Meta from(org.elasticsearch.cluster.metadata.Metadata esMetadata) {
         return new DefaultMetaImpl(esMetadata);
+    }
+
+    static Meta from(org.elasticsearch.cluster.service.ClusterService clusterService) {
+        return DefaultMetaImpl.from(clusterService);
     }
 
     /**
