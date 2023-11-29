@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
+import com.floragunn.searchsupport.rest.GuardedHttpRequest;
+import io.netty.handler.ssl.SslHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -33,6 +35,7 @@ import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
+import org.elasticsearch.http.netty4.Netty4HttpChannel;
 import org.elasticsearch.rest.ChunkedRestResponseBody;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
@@ -61,7 +64,10 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
 
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
-        super.incomingRequest(fixNonStandardContentType(httpRequest), httpChannel);
+        final SslHandler sslhandler = (SslHandler) ((Netty4HttpChannel) httpChannel).getNettyChannel().pipeline().get("ssl_http");
+        ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler);
+        HttpRequest fixedRequest = fixNonStandardContentType(httpRequest);
+        super.incomingRequest(new GuardedHttpRequest(fixedRequest, attributes), httpChannel);
     }
 
     /**

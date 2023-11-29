@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.ssl.http.netty;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchsupport.rest.GuardedHttpRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.network.NetworkService;
@@ -26,6 +28,8 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpHandlingSettings;
 import org.elasticsearch.http.HttpPreRequest;
+import org.elasticsearch.http.HttpRequest;
+import org.elasticsearch.http.netty4.Netty4HttpChannel;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -59,6 +63,13 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
         this.sgks = sgks;
         this.errorHandler = errorHandler;
         this.perRequestThreadContext = perRequestThreadContext;
+    }
+
+    @Override
+    public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
+        final SslHandler sslhandler = (SslHandler) ((Netty4HttpChannel) httpChannel).getNettyChannel().pipeline().get("ssl_http");
+        ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler);
+        super.incomingRequest(new GuardedHttpRequest(httpRequest, attributes), httpChannel);
     }
 
     @Override

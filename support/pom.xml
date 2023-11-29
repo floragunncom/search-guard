@@ -20,4 +20,11 @@
   <packaging>jar</packaging>
   <name>Search Guard FLX: Support</name>
 
+  <dependencies>
+    <dependency>
+      <groupId>org.elasticsearch</groupId>
+      <artifactId>elasticsearch</artifactId>
+    </dependency>
+  </dependencies>
+
 </project>
