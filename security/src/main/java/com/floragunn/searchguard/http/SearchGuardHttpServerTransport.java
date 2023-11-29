@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import com.floragunn.searchsupport.rest.GuardedHttpRequest;
+import com.floragunn.searchsupport.rest.AttributedHttpRequest;
 import io.netty.handler.ssl.SslHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -67,7 +67,7 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
         final SslHandler sslhandler = (SslHandler) ((Netty4HttpChannel) httpChannel).getNettyChannel().pipeline().get("ssl_http");
         ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler);
         HttpRequest fixedRequest = fixNonStandardContentType(httpRequest);
-        super.incomingRequest(new GuardedHttpRequest(fixedRequest, attributes), httpChannel);
+        super.incomingRequest(AttributedHttpRequest.create(fixedRequest, attributes), httpChannel);
     }
 
     /**

@@ -18,7 +18,7 @@
 package com.floragunn.searchguard.ssl.http.netty;
 
 import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchsupport.rest.GuardedHttpRequest;
+import com.floragunn.searchsupport.rest.AttributedHttpRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.network.NetworkService;
@@ -69,7 +69,7 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
         final SslHandler sslhandler = (SslHandler) ((Netty4HttpChannel) httpChannel).getNettyChannel().pipeline().get("ssl_http");
         ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler);
-        super.incomingRequest(new GuardedHttpRequest(httpRequest, attributes), httpChannel);
+        super.incomingRequest(AttributedHttpRequest.create(httpRequest, attributes), httpChannel);
     }
 
     @Override

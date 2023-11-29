@@ -13,17 +13,25 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-public class GuardedHttpRequest implements HttpRequest {
+public class AttributedHttpRequest implements HttpRequest {
 
     private final HttpRequest httpRequest;
 
     private ImmutableMap<String, Object> attributes;
 
 
-    public GuardedHttpRequest(HttpRequest httpRequest, ImmutableMap<String, Object> attributes) {
+    private AttributedHttpRequest(HttpRequest httpRequest, ImmutableMap<String, Object> attributes) {
         // TODO provide type safe attribute implementation
         this.httpRequest = Objects.requireNonNull(httpRequest, "Http request is required.");
         this.attributes = attributes;
+    }
+
+    public static AttributedHttpRequest create(HttpRequest httpRequest, ImmutableMap<String, Object> attributes) {
+        if(httpRequest instanceof AttributedHttpRequest request) {
+            ImmutableMap<String, Object> commonAttributes = attributes.with(request.attributes);
+            return new AttributedHttpRequest(httpRequest, commonAttributes);
+        }
+        return new AttributedHttpRequest(httpRequest, attributes);
     }
 
     public Optional<Object> getAttribute(String name) {

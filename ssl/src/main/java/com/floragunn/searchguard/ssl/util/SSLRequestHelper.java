@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.ssl.util;
 
-import com.floragunn.searchsupport.rest.GuardedHttpRequest;
+import com.floragunn.searchsupport.rest.AttributedHttpRequest;
 import io.netty.handler.ssl.SslHandler;
 
 import java.io.File;
@@ -107,8 +107,8 @@ public class SSLRequestHelper {
 
     public static SSLInfo getSSLInfo(final Settings settings, final Path configPath, final RestRequest request, PrincipalExtractor principalExtractor) throws SSLPeerUnverifiedException {
         final SslHandler sslhandler = Optional.ofNullable(request.getHttpRequest())
-            .filter(GuardedHttpRequest.class::isInstance)
-            .map(GuardedHttpRequest.class::cast)
+            .filter(AttributedHttpRequest.class::isInstance)
+            .map(AttributedHttpRequest.class::cast)
             .flatMap(guardedRequest -> guardedRequest.getAttribute("sg_ssl_handler"))
             .filter(SslHandler.class::isInstance)
             .map(SslHandler.class::cast)
