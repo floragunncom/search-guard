@@ -291,63 +291,6 @@ public class RoleBasedActionAuthorizationTests {
                     statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty());
         }
 
-        static class IndexSpec {
-
-            ImmutableList<String> givenPrivs;
-            List<String> requiredPrivs;
-            boolean wildcardPrivs;
-
-            IndexSpec() {
-
-            }
-
-            IndexSpec givenPrivs(String... indexPatterns) {
-                this.givenPrivs = ImmutableList.ofArray(indexPatterns);
-                this.wildcardPrivs = this.givenPrivs.contains("*");
-                return this;
-            }
-
-            @Override
-            public String toString() {
-                return this.givenPrivs.stream().collect(Collectors.joining(","));
-            }
-        }
-
-        static class ActionSpec {
-            String name;
-            ImmutableList<String> givenPrivs;
-            ImmutableSet<Action> requiredPrivs;
-            boolean wellKnownActions;
-
-            ActionSpec(String name) {
-                super();
-                this.name = name;
-            }
-
-            ActionSpec givenPrivs(String... actions) {
-                this.givenPrivs = ImmutableList.ofArray(actions);
-                return this;
-            }
-
-            ActionSpec requiredPrivs(String... requiredPrivs) {
-                this.requiredPrivs = ImmutableSet.ofArray(requiredPrivs).map((a) -> actions.get(a));
-                this.wellKnownActions = this.requiredPrivs.forAnyApplies((a) -> a.name().equals("indices:data/write/index"));
-
-                Assert.assertEquals(this.wellKnownActions, this.requiredPrivs.forAnyApplies((a) -> a instanceof WellKnownAction));
-
-                return this;
-            }
-
-            @Override
-            public String toString() {
-                return name;
-            }
-        }
-
-        static enum Statefulness {
-            STATEFUL, NON_STATEFUL
-        }
-
     }
 
     public static class IndexPermissionsSpecial {
@@ -452,7 +395,164 @@ public class RoleBasedActionAuthorizationTests {
         }
     }
 
+    @RunWith(Parameterized.class)
     public static class AliasPermissions {
+
+        final ActionSpec actionSpec;
+        final IndexSpec indexSpec;
+        final SgDynamicConfiguration<Role> roles;
+        final ImmutableSet<Action> requiredActions;
+        final ImmutableSet<Action> otherActions;
+        final RoleBasedActionAuthorization subject;
+        final User user = User.forUser("test").attribute("dept_no", "a1").build();
+
+        @Test
+        public void positive_alias_full() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions, ResolvedIndices.of(BASIC, "alias_a1"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+        }
+
+        @Test
+        public void positive_index_full() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions, ResolvedIndices.of(BASIC, "index_a11"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+        }
+
+        @Test
+        public void positive_alias_partial() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions,
+                            ResolvedIndices.of(BASIC, "alias_a1", "alias_a2", "alias_b1"));
+
+            if (this.indexSpec.wildcardPrivs) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            } else if (this.indexSpec.givenPrivs.contains("alias_a*") && this.indexSpec.givenPrivs.contains("-alias_a2")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
+            } else if (this.indexSpec.givenPrivs.contains("alias_a*") && !this.indexSpec.givenPrivs.contains("-index_a12")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1", "alias_a2")));
+            } else {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
+            }
+        }
+
+        @Test
+        public void positive_index_partial() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions,
+                            ResolvedIndices.of(BASIC, "index_a11", "index_a12", "index_a21", "index_b1"));
+
+            if (this.indexSpec.wildcardPrivs) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            } else if (this.indexSpec.givenPrivs.contains("alias_a*") && !this.indexSpec.givenPrivs.contains("-index_a12")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12", "index_a21")));
+            } else if (this.indexSpec.givenPrivs.contains("alias_a1") && this.indexSpec.givenPrivs.contains("-index_a12")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));
+            } else {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));
+            }
+        }
+
+        @Test
+        public void negative_wrongRole() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "other_role"), requiredActions, ResolvedIndices.of(BASIC, "index_a11"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
+        @Test
+        public void negative_wrongAction() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), otherActions, ResolvedIndices.of(BASIC, "index_a11"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
+        @Test
+        public void negative_wrongRole_alias() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "other_role"), requiredActions, ResolvedIndices.of(BASIC, "alias_a1"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
+        @Test
+        public void negative_wrongAction_alias() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), otherActions, ResolvedIndices.of(BASIC, "alias_a1"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
+        final static Meta BASIC = indices("index_a11", "index_a12", "index_a21", "index_a22", "index_b1", "index_b2")//
+                .alias("alias_a").of("index_a11", "index_a12", "index_a21", "index_a22")//
+                .alias("alias_a1").of("index_a11", "index_a12")//
+                .alias("alias_a2").of("index_a21", "index_a22")//
+                .alias("alias_b").of("index_b1", "index_b2");
+
+        @Parameters(name = "indices: {0};  actions: {1};  {2}")
+        public static Collection<Object[]> params() {
+            List<Object[]> result = new ArrayList<>();
+
+            for (IndexSpec indexSpec : Arrays.asList(//
+                    new IndexSpec().givenPrivs("*"), //
+                    new IndexSpec().givenPrivs("alias_a1"), //
+                    new IndexSpec().givenPrivs("alias_a*"), // 
+                    new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}"), //
+                    new IndexSpec().givenPrivs("alias_a1", "-index_a12"), //
+                    new IndexSpec().givenPrivs("alias_a*", "-alias_a2"), //
+                    new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}", "-index_a12"))
+
+            ) {
+                for (ActionSpec actionSpec : Arrays.asList(//
+                        new ActionSpec("constant, well known")//
+                                .givenPrivs("indices:data/write/index").requiredPrivs("indices:data/write/index"), //
+                        new ActionSpec("pattern, well known")//
+                                .givenPrivs("indices:data/write/*").requiredPrivs("indices:data/write/index"), //
+                        new ActionSpec("pattern, well known, two required privs")//
+                                .givenPrivs("indices:data/write/*").requiredPrivs("indices:data/write/index", "indices:data/write/delete"), //
+                        new ActionSpec("constant, non well known")//
+                                .givenPrivs("indices:unknown/unwell").requiredPrivs("indices:unknown/unwell"), //
+                        new ActionSpec("pattern, non well known")//
+                                .givenPrivs("indices:unknown/*").requiredPrivs("indices:unknown/unwell"), //
+                        new ActionSpec("pattern, non well known, two required privs")//
+                                .givenPrivs("indices:unknown/*").requiredPrivs("indices:unknown/unwell", "indices:unknown/notatall")//
+
+                )) {
+                    // At the moment, aliases are only supported in the stateful implementation
+                    result.add(new Object[] { indexSpec, actionSpec, Statefulness.STATEFUL });
+                }
+            }
+            return result;
+        }
+
+        public AliasPermissions(IndexSpec indexSpec, ActionSpec actionSpec, Statefulness statefulness) throws Exception {
+            this.indexSpec = indexSpec;
+            this.actionSpec = actionSpec;
+            this.roles = SgDynamicConfiguration
+                    .fromMap(
+                            DocNode.of("test_role",
+                                    DocNode.of("index_permissions",
+                                            DocNode.array(
+                                                    DocNode.of("index_patterns", indexSpec.givenPrivs, "allowed_actions", actionSpec.givenPrivs)))),
+                            CType.ROLES, null)
+                    .get();
+
+            this.requiredActions = actionSpec.requiredPrivs;
+            this.otherActions = actionSpec.wellKnownActions ? ImmutableSet.of(actions.get("indices:data/read/get"))
+                    : ImmutableSet.of(actions.get("indices:foobar/unknown"));
+
+            this.subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
+                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty());
+        }
+
+    }
+
+    public static class AliasPermissionsSpecial {
         // TODO _all
 
         @Test
@@ -560,4 +660,60 @@ public class RoleBasedActionAuthorizationTests {
         return new PrivilegesEvaluationContext(user, ImmutableSet.ofArray(roles), null, roles, true, null, null);
     }
 
+    static class IndexSpec {
+
+        ImmutableList<String> givenPrivs;
+        List<String> requiredPrivs;
+        boolean wildcardPrivs;
+
+        IndexSpec() {
+
+        }
+
+        IndexSpec givenPrivs(String... indexPatterns) {
+            this.givenPrivs = ImmutableList.ofArray(indexPatterns);
+            this.wildcardPrivs = this.givenPrivs.contains("*");
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return this.givenPrivs.stream().collect(Collectors.joining(","));
+        }
+    }
+
+    static class ActionSpec {
+        String name;
+        ImmutableList<String> givenPrivs;
+        ImmutableSet<Action> requiredPrivs;
+        boolean wellKnownActions;
+
+        ActionSpec(String name) {
+            super();
+            this.name = name;
+        }
+
+        ActionSpec givenPrivs(String... actions) {
+            this.givenPrivs = ImmutableList.ofArray(actions);
+            return this;
+        }
+
+        ActionSpec requiredPrivs(String... requiredPrivs) {
+            this.requiredPrivs = ImmutableSet.ofArray(requiredPrivs).map((a) -> actions.get(a));
+            this.wellKnownActions = this.requiredPrivs.forAnyApplies((a) -> a.name().equals("indices:data/write/index"));
+
+            Assert.assertEquals(this.wellKnownActions, this.requiredPrivs.forAnyApplies((a) -> a instanceof WellKnownAction));
+
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+
+    static enum Statefulness {
+        STATEFUL, NON_STATEFUL
+    }
 }
