@@ -938,6 +938,7 @@ public class ActionRequestIntrospector {
             private final ImmutableSet<String> union;
             private String asString;
             private ImmutableSet<String> deepUnion;
+            private Boolean pureIndicesContainsAliasOrDataStreamMembers;
 
             Local(ImmutableMap<String, Meta.Index> pureIndices, ImmutableMap<String, Meta.Alias> aliases,
                     ImmutableMap<String, Meta.DataStream> dataStreams, ImmutableSet<String> nonExistingIndices) {
@@ -1094,6 +1095,27 @@ public class ActionRequestIntrospector {
                 }
 
                 return result.build();
+            }
+
+            public boolean hasAliasOrDataStreamMembersInPureIndices() {
+                Boolean result = this.pureIndicesContainsAliasOrDataStreamMembers;
+
+                if (result == null) {
+                    for (Meta.Index pureIndex : this.pureIndices.values()) {
+                        if (!pureIndex.parentAliasNames().isEmpty() || pureIndex.parentDataStreamName() != null) {
+                            result = true;
+                            break;
+                        }
+                    }
+
+                    if (result == null) {
+                        result = false;
+                    }
+
+                    this.pureIndicesContainsAliasOrDataStreamMembers = result;
+                }
+
+                return result;
             }
 
             boolean hasAliasesOrDataStreams() {
