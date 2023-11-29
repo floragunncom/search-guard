@@ -47,6 +47,10 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.meta.Meta;
 
+/**
+ * TODO index exclusions
+ *
+ */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ RoleBasedActionAuthorizationTests.ClusterPermissions.class, RoleBasedActionAuthorizationTests.IndexPermissions.class,
         RoleBasedActionAuthorizationTests.IndexPermissionsSpecial.class, RoleBasedActionAuthorizationTests.AliasPermissions.class })
@@ -523,8 +527,9 @@ public class RoleBasedActionAuthorizationTests {
                                 .givenPrivs("indices:unknown/*").requiredPrivs("indices:unknown/unwell", "indices:unknown/notatall")//
 
                 )) {
-                    // At the moment, aliases are only supported in the stateful implementation
-                    result.add(new Object[] { indexSpec, actionSpec, Statefulness.STATEFUL });
+                    for (Statefulness statefulness : Statefulness.values()) {
+                        result.add(new Object[] { indexSpec, actionSpec, statefulness });
+                    }
                 }
             }
             return result;
