@@ -23,15 +23,21 @@ public class AttributedHttpRequest implements HttpRequest {
     private AttributedHttpRequest(HttpRequest httpRequest, ImmutableMap<String, Object> attributes) {
         // TODO provide type safe attribute implementation
         this.httpRequest = Objects.requireNonNull(httpRequest, "Http request is required.");
-        this.attributes = attributes;
+        this.attributes = Objects.requireNonNull(attributes, "Request attributes are required");
     }
 
     public static AttributedHttpRequest create(HttpRequest httpRequest, ImmutableMap<String, Object> attributes) {
+        Objects.requireNonNull(httpRequest, "Http request is required.");
+        Objects.requireNonNull(attributes, "Request attributes are required");
         if(httpRequest instanceof AttributedHttpRequest request) {
-            ImmutableMap<String, Object> commonAttributes = attributes.with(request.attributes);
-            return new AttributedHttpRequest(httpRequest, commonAttributes);
+            ImmutableMap<String, Object> commonAttributes = request.attributes.with(attributes);
+            return request.withAttributes(commonAttributes);
         }
         return new AttributedHttpRequest(httpRequest, attributes);
+    }
+
+    private AttributedHttpRequest withAttributes(ImmutableMap<String, Object> commonAttributes) {
+        return new AttributedHttpRequest(this.httpRequest, commonAttributes);
     }
 
     public Optional<Object> getAttribute(String name) {
@@ -55,8 +61,9 @@ public class AttributedHttpRequest implements HttpRequest {
     }
 
     @Override
-    public HttpRequest releaseAndCopy() {
-        return httpRequest.releaseAndCopy();
+    public AttributedHttpRequest releaseAndCopy() {
+        HttpRequest requestCopy = httpRequest.releaseAndCopy();
+        return new AttributedHttpRequest(requestCopy, attributes);
     }
 
     @Override
