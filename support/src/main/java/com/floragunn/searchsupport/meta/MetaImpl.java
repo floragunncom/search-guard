@@ -412,8 +412,9 @@ public abstract class MetaImpl implements Meta {
                         } else {
                             indexLikeObject = new IndexImpl(indexName, singleAliasSet, null, false,
                                     org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN);
-                            newIndices.put(indexName, (Index) indexLikeObject);
                         }
+                        
+                        newIndices.put(indexName, (Index) indexLikeObject);
 
                         aliasMembersBuilder.put(indexName, indexLikeObject);
                     }
@@ -446,8 +447,9 @@ public abstract class MetaImpl implements Meta {
                         } else {
                             indexLikeObject = new IndexImpl(indexName, dataStreamSet, null, false,
                                     org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN);
-                            newIndices.put(indexName, (Index) indexLikeObject);
                         }
+                        
+                        newIndices.put(indexName, (Index) indexLikeObject);
 
                         dataStreamMembersBuilder.put(indexName, indexLikeObject);
                     }
