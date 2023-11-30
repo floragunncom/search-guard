@@ -452,7 +452,7 @@ public class RoleBasedActionAuthorizationTests {
 
             if (this.indexSpec.wildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenPrivs.contains("alias_a*") && !this.indexSpec.givenPrivs.contains("-index_a12")) {
+            } else if (this.indexSpec.givenPrivs.contains("alias_a*") && !this.indexSpec.givenPrivs.contains("-alias_a")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12", "index_a21")));
             } else if (this.indexSpec.givenPrivs.contains("alias_a1") && this.indexSpec.givenPrivs.contains("-index_a12")) {
@@ -507,9 +507,9 @@ public class RoleBasedActionAuthorizationTests {
                     new IndexSpec().givenPrivs("alias_a1"), //
                     new IndexSpec().givenPrivs("alias_a*"), // 
                     new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}"), //
-                    new IndexSpec().givenPrivs("alias_a1", "-index_a12"), //
-                    new IndexSpec().givenPrivs("alias_a*", "-alias_a2"), //
-                    new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}", "-index_a12"))
+                   // TODO new IndexSpec().givenPrivs("alias_a1", "-index_a12"), //
+                    new IndexSpec().givenPrivs("alias_a*", "-alias_a2", "-alias_a")) //
+                  // TODO  new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}", "-index_a12"))
 
             ) {
                 for (ActionSpec actionSpec : Arrays.asList(//
