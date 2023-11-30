@@ -290,7 +290,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
                                                ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
                                                Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
                                                IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier,
-                                               Tracer tracer, AllocationService allocationService, IndicesService indicesService) {
+                                               Tracer tracer, AllocationService allocationService, IndicesService indexServices) {
 
         final List<Object> components = new ArrayList<>(1);
 
