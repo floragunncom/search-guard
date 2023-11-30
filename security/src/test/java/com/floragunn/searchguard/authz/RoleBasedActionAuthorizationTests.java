@@ -50,10 +50,12 @@ import com.floragunn.searchsupport.meta.Meta;
 /**
  * TODO index exclusions
  *
+ * TODO int test IndicesAliasesAction
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ RoleBasedActionAuthorizationTests.ClusterPermissions.class, RoleBasedActionAuthorizationTests.IndexPermissions.class,
-        RoleBasedActionAuthorizationTests.IndexPermissionsSpecial.class, RoleBasedActionAuthorizationTests.AliasPermissions.class })
+        RoleBasedActionAuthorizationTests.IndexPermissionsSpecial.class, RoleBasedActionAuthorizationTests.AliasPermissions.class,
+        RoleBasedActionAuthorizationTests.AliasPermissionsSpecial.class })
 public class RoleBasedActionAuthorizationTests {
 
     private static final Actions actions = new Actions(null);
@@ -507,9 +509,9 @@ public class RoleBasedActionAuthorizationTests {
                     new IndexSpec().givenPrivs("alias_a1"), //
                     new IndexSpec().givenPrivs("alias_a*"), // 
                     new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}"), //
-                   // TODO new IndexSpec().givenPrivs("alias_a1", "-index_a12"), //
+                    // TODO new IndexSpec().givenPrivs("alias_a1", "-index_a12"), //
                     new IndexSpec().givenPrivs("alias_a*", "-alias_a2", "-alias_a")) //
-                  // TODO  new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}", "-index_a12"))
+            // TODO  new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}", "-index_a12"))
 
             ) {
                 for (ActionSpec actionSpec : Arrays.asList(//
@@ -558,8 +560,6 @@ public class RoleBasedActionAuthorizationTests {
     }
 
     public static class AliasPermissionsSpecial {
-        // TODO _all
-
         @Test
         public void wellKnown_constantAction_constantAlias_statefulIndices() throws Exception {
             Action indexAction = actions.get("indices:data/write/index");
