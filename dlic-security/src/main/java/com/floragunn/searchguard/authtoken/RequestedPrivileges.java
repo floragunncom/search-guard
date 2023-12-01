@@ -174,10 +174,11 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         ImmutableList<Role.Index> indexPermissions = this.indexPermissions.map((p) -> p.toRoleIndex());
         ImmutableList<Role.Tenant> tenantPermissions = this.tenantPermissions.map((p) -> p.toRoleTenant());
         ImmutableList<Role.ExcludeIndex> excludeIndexPermissions = this.excludedIndexPermissions.map((p) -> p.toRoleExcludeIndex());
+        ImmutableList<Role.Alias> aliasPermissions = ImmutableList.empty(); // TODO not yet implemented
+        ImmutableList<Role.DataStream> dataStreamPermissions = ImmutableList.empty(); // TODO not yet implemented
 
-        Role role = new Role(null, false, false, false, "requested privileges", clusterPermissions, indexPermissions, tenantPermissions,
-                excludedClusterPermissions, excludeIndexPermissions);
-
+        Role role = new Role(null, false, false, false, "requested privileges", clusterPermissions, indexPermissions, aliasPermissions,
+                dataStreamPermissions, tenantPermissions, excludedClusterPermissions, excludeIndexPermissions);
         
         return SgDynamicConfiguration.of(CType.ROLES, RESTRICTION_ROLE, role);
     }
