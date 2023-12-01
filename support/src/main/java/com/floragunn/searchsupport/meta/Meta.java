@@ -57,6 +57,8 @@ public interface Meta {
 
     org.elasticsearch.cluster.metadata.Metadata esMetadata();
     
+    long version();
+    
     interface IndexLikeObject {
         String name();
 
@@ -90,6 +92,11 @@ public interface Meta {
     interface DataStream extends IndexCollection {
 
     }
+    
+    interface NonExistent extends IndexLikeObject {
+        
+    }
+
 
     static Meta from(org.elasticsearch.cluster.metadata.Metadata esMetadata) {
         return new DefaultMetaImpl(esMetadata);
