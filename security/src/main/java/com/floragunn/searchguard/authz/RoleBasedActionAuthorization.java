@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,7 +70,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     private final ClusterPermissions cluster;
     private final ClusterPermissionExclusions clusterExclusions;
-    private final IndexPermissions index;
+    private final IndexPermissions<Role.Index> index;
+    private final IndexPermissions<Role.Alias> alias;
+    private final IndexPermissions<Role.DataStream> dataStream;
     private final IndexPermissionExclusions indexExclusions;
     private final TenantPermissions tenant;
     private final ComponentState componentState;
@@ -113,7 +116,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         this.cluster = new ClusterPermissions(roles, actionGroups, actions, metricsLevel);
         this.clusterExclusions = new ClusterPermissionExclusions(roles, actionGroups, actions);
-        this.index = new IndexPermissions(roles, actionGroups, actions);
+        this.index = new IndexPermissions<Role.Index>(roles, actionGroups, actions, Role::getIndexPermissions, "index_permissions");
+        this.alias = new IndexPermissions<Role.Alias>(roles, actionGroups, actions, Role::getAliasPermissions, "alias_permissions");
+        this.dataStream = new IndexPermissions<Role.DataStream>(roles, actionGroups, actions, Role::getDataStreamPermissions, "data_stream_permissions");
         this.indexExclusions = new IndexPermissionExclusions(roles, actionGroups, actions);
         this.tenant = new TenantPermissions(roles, actionGroups, actions, this.tenants);
         this.universallyDeniedIndices = universallyDeniedIndices;
@@ -124,12 +129,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         if (indexMetadata != null) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
-                StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups,
-                        actions, indexMetadata, universallyDeniedIndices, statefulIndexState);
-                StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups,
-                        actions, indexMetadata, universallyDeniedIndices, statefulAliasState);
-                StatefulPermissions.DataStream statefulDataStream = new StatefulPermissions.DataStream(roles,
-                        actionGroups, actions, indexMetadata, universallyDeniedIndices, statefulDataStreamState);
+                StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups, actions, indexMetadata,
+                        universallyDeniedIndices, statefulIndexState);
+                StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups, actions, indexMetadata,
+                        universallyDeniedIndices, statefulAliasState);
+                StatefulPermissions.DataStream statefulDataStream = new StatefulPermissions.DataStream(roles, actionGroups, actions, indexMetadata,
+                        universallyDeniedIndices, statefulDataStreamState);
 
                 this.stateful = new StatefulPermissions(statefulIndex, statefulAlias, statefulDataStream, indexMetadata);
             }
@@ -283,9 +288,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
                 // Note: statefulAlias.hasPermission() modifies as a side effect the checkTable. 
                 // We can carry on using this as an intermediate result and further complete checkTable below.
-                
-                PrivilegesEvaluationResult resultFromStatefulDataStream = stateful.dataStream.hasPermission(user, mappedRoles, actions, resolved, context,
-                        shallowCheckTable);
+
+                PrivilegesEvaluationResult resultFromStatefulDataStream = stateful.dataStream.hasPermission(user, mappedRoles, actions, resolved,
+                        context, shallowCheckTable);
 
                 if (resultFromStatefulDataStream != null) {
                     if (log.isTraceEnabled()) {
@@ -457,7 +462,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         ImmutableSet<String> mappedRoles = context.getMappedRoles();
 
         try (Meter subMeter = meter.basic("well_known_action_index_pattern")) {
-            top: for (String role : mappedRoles) {
+            for (String role : mappedRoles) {
                 ImmutableMap<Action, IndexPattern> actionToIndexPattern = index.rolesToActionToIndexPattern.get(role);
 
                 if (log.isTraceEnabled()) {
@@ -472,7 +477,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             for (String index : checkTable.iterateUncheckedRows(action)) {
                                 try {
                                     if (indexPattern.matches(index, user, context, subMeter) && checkTable.check(index, action)) {
-                                        break top;
+                                        return;
                                     }
                                 } catch (PrivilegesEvaluationException e) {
                                     // We can ignore these errors, as this max leads to fewer privileges than available
@@ -702,12 +707,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     public void update(Meta indexMetadata) {
         if (stateful == null || !stateful.indexMetadata.equals(indexMetadata)) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
-                StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups,
-                        actions, indexMetadata, universallyDeniedIndices, statefulIndexState);
-                StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups,
-                        actions, indexMetadata, universallyDeniedIndices, statefulAliasState);
-                StatefulPermissions.DataStream statefulDataStream = new StatefulPermissions.DataStream(roles,
-                        actionGroups, actions, indexMetadata, universallyDeniedIndices, statefulDataStreamState);
+                StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups, actions, indexMetadata,
+                        universallyDeniedIndices, statefulIndexState);
+                StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups, actions, indexMetadata,
+                        universallyDeniedIndices, statefulAliasState);
+                StatefulPermissions.DataStream statefulDataStream = new StatefulPermissions.DataStream(roles, actionGroups, actions, indexMetadata,
+                        universallyDeniedIndices, statefulDataStreamState);
 
                 this.stateful = new StatefulPermissions(statefulIndex, statefulAlias, statefulDataStream, indexMetadata);
 
@@ -952,7 +957,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     }
 
-    static class IndexPermissions implements ComponentStateProvider {
+    static class IndexPermissions<I extends Role.Index> implements ComponentStateProvider {
         private final ImmutableMap<String, ImmutableMap<Action, IndexPattern>> rolesToActionToIndexPattern;
         private final ImmutableMap<String, ImmutableMap<Pattern, IndexPattern>> rolesToActionPatternToIndexPattern;
 
@@ -961,8 +966,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
         private final ComponentState componentState;
 
-        IndexPermissions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions) {
-            this.componentState = new ComponentState("index_permissions");
+        IndexPermissions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Function<Role, Iterable<I>> getPermissionsFunction,  String componentName) {
+            this.componentState = new ComponentState(componentName);
 
             ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>> rolesToActionToIndexPattern = //
                     new ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>>().defaultValue(
@@ -982,7 +987,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     String roleName = entry.getKey();
                     Role role = entry.getValue();
 
-                    for (Role.Index indexPermissions : role.getIndexPermissions()) {
+                    for (I indexPermissions : getPermissionsFunction.apply(role)) {
                         ImmutableSet<String> permissions = actionGroups.resolve(indexPermissions.getAllowedActions());
 
                         for (String permission : permissions) {
@@ -1216,7 +1221,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             return componentState;
         }
     }
-
+    
     static class StatefulPermissions {
 
         final Index index;
@@ -1224,8 +1229,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         final DataStream dataStream;
         final Meta indexMetadata;
 
-        StatefulPermissions(Index index, Alias alias, DataStream dataStream,
-                Meta indexMetadata) {
+        StatefulPermissions(Index index, Alias alias, DataStream dataStream, Meta indexMetadata) {
             this.index = index;
             this.alias = alias;
             this.dataStream = dataStream;
@@ -1500,7 +1504,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         String roleName = entry.getKey();
                         Role role = entry.getValue();
 
-                        for (Role.Alias aliasPermissions : role.getAliasPermissions()) {
+                        for (Role.DataStream aliasPermissions : role.getDataStreamPermissions()) {
                             ImmutableSet<String> permissions = actionGroups.resolve(aliasPermissions.getAllowedActions());
                             Pattern indexPattern = aliasPermissions.getIndexPatterns().getPattern();
 
@@ -1593,19 +1597,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 }
                             }
                         }
-
-                        for (Meta.DataStream dataStream : resolvedIndices.getLocal().getDataStreams().values()) {
-                            ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(dataStream.name());
-
-                            if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
-                                    && !isExcluded(action, dataStream.name(), user, mappedRoles, context)) {
-
-                                if (checkTable.check(dataStream.name(), action)) {
-                                    break top;
-                                }
-                            }
-                        }
-
                     }
                 }
 
@@ -1641,8 +1632,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             private final ComponentState componentState;
             private final Pattern universallyDeniedIndices;
 
-            DataStream(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-                    Meta indexMetadata, Pattern universallyDeniedIndices, ComponentState componentState) {
+            DataStream(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
+                    Pattern universallyDeniedIndices, ComponentState componentState) {
                 ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToDataStreamToRoles = //
                         new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
                                 .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
@@ -1740,18 +1731,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     ImmutableMap<String, ImmutableSet<String>> aliasToRoles = actionToAliasToRoles.get(action);
 
                     if (aliasToRoles != null) {
-                        for (Meta.Alias alias : resolvedIndices.getLocal().getAliases().values()) {
-                            ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(alias.name());
-
-                            if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
-                                    && !isExcluded(action, alias.name(), user, mappedRoles, context)) {
-
-                                if (checkTable.check(alias.name(), action)) {
-                                    break top;
-                                }
-                            }
-                        }
-
                         for (Meta.DataStream dataStream : resolvedIndices.getLocal().getDataStreams().values()) {
                             ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(dataStream.name());
 
