@@ -23,6 +23,7 @@ import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.OpenPointInTimeRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.internal.Client;
@@ -71,6 +72,8 @@ public class RequestHandlerFactory {
             handler = (RequestHandler<T>)  new BulkRequestHandler(nodeClient, threadContext);
         } else if (request instanceof UpdateRequest) {
             handler = (RequestHandler<T>)  new UpdateRequestHandler(nodeClient, threadContext);
+        } else if(request instanceof OpenPointInTimeRequest) {
+            handler = (RequestHandler<T>) new OpenPointInTimeRequestHandler(nodeClient, threadContext);
         }
         return Optional.ofNullable(handler);
     }
