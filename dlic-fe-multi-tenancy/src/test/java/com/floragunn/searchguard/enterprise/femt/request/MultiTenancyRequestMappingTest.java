@@ -3076,6 +3076,213 @@ public class MultiTenancyRequestMappingTest {
         }
     }
 
+    @Test
+    public void updateByQueryRequest_withRefreshParam() throws Exception {
+        // refresh set to true, otherwise from time to time the second request ends with 409 CONFLICT
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", 1, "b", "value", "sg_tenant", internalTenantName());
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            // one doc matches query
+            String scriptAndQuery = """
+                    {
+                      "script": {
+                        "source": "ctx._source.a += params.add_to_a",
+                        "lang": "painless",
+                        "params": {
+                          "add_to_a": 4
+                        }
+                      },
+                      "query": {
+                        "term": {
+                          "b": "value"
+                        }
+                      }
+                    }
+                    """;
+
+            HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update_by_query?refresh=true"), scriptAndQuery
+            );
+
+            HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update_by_query?refresh=true"), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
+
+            // no doc matches query
+            scriptAndQuery = """
+                    {
+                      "script": {
+                        "source": "ctx._source.a += params.add_to_a",
+                        "lang": "painless",
+                        "params": {
+                          "add_to_a": 4
+                        }
+                      },
+                      "query": {
+                        "term": {
+                          "b": "fake-value"
+                        }
+                      }
+                    }
+                    """;
+
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update_by_query?refresh=true"), scriptAndQuery
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update_by_query?refresh=true"), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
+        }
+    }
+
+    @Test
+    public void updateByQueryRequest_withAllowNoIndicesParam() throws Exception {
+        // refresh set to true, otherwise from time to time the second request ends with 409 CONFLICT
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", 1, "b", "value", "sg_tenant", internalTenantName());
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            // allow no indices true
+            String scriptAndQuery = """
+                    {
+                      "script": {
+                        "source": "ctx._source.a += params.add_to_a",
+                        "lang": "painless",
+                        "params": {
+                          "add_to_a": 4
+                        }
+                      },
+                      "query": {
+                        "term": {
+                          "b": "value"
+                        }
+                      }
+                    }
+                    """;
+
+            HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + ",*_1.1.1" + "/_update_by_query?refresh=true&" + "allow_no_indices=" + true
+                    ), scriptAndQuery
+            );
+
+            HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + ",*_1.1.1" + "/_update_by_query?refresh=true&" + "allow_no_indices=" + true
+                    ), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
+
+            // allow no indices false
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + ",*_1.1.1" + "/_update_by_query?refresh=true&" + "allow_no_indices=" + false
+                    ), scriptAndQuery
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + ",*_1.1.1" + "/_update_by_query?refresh=true&" + "allow_no_indices=" + false
+                    ), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
+        }
+    }
+
+    @Test
+    public void updateByQueryRequest_withPreferenceParam() throws Exception {
+        // refresh set to true, otherwise from time to time the second request ends with 409 CONFLICT
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", 1, "b", "value", "sg_tenant", internalTenantName());
+        addDocumentToIndex(scopedId, doc);
+        String preference = "_local";
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            // correct preference
+            String scriptAndQuery = """
+                    {
+                      "script": {
+                        "source": "ctx._source.a += params.add_to_a",
+                        "lang": "painless",
+                        "params": {
+                          "add_to_a": 4
+                        }
+                      },
+                      "query": {
+                        "term": {
+                          "b": "value"
+                        }
+                      }
+                    }
+                    """;
+
+            HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_update_by_query?refresh=true&" + "preference=" + preference
+                    ), scriptAndQuery
+            );
+
+            HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_update_by_query?refresh=true&" + "preference=" + preference
+                    ), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
+
+            // wrong preference
+            preference = preference.concat("-fake");
+
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_update_by_query?refresh=true&" + "preference=" + preference
+                    ), scriptAndQuery
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_update_by_query?refresh=true&" + "preference=" + preference
+                    ), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
+        }
+    }
+
     private DocNode responseBodyWithoutAutoIncrementedFields(HttpResponse response) throws Exception {
         ImmutableSet<String> autoIncrementedFields = ImmutableSet.of("_version", "_seq_no");
         String regexPattern = String.format("\"(%s)\":\"?[\\w\\d]*\"?,", String.join("|", autoIncrementedFields));
