@@ -1,0 +1,50 @@
+---
+_sg_meta:
+  type: "rolesmapping"
+  config_version: 2
+
+sg_all_access:
+  backend_roles: 
+  - all_access
+  users:
+  - "nagilum"
+
+sg_read_access:
+  backend_roles: 
+  - read_access
+  
+sg_public:
+  users:
+  - "*"
+
+sg_signals_admin:
+  backend_roles:
+  - "signals_admin"
+
+sg_redshirts:
+  backend_roles:
+  - "redshirts"  
+  
+sg_activate_deactivate_watches:
+  backend_roles:
+  - "activate_deactivate_watches"  
+
+sg_aim_admin:
+  backend_roles:
+    - "aim_admin"
+
+sg_aim_policy_read:
+  backend_roles:
+    - "aim_policy_read"
+
+sg_aim_policy_manage:
+  backend_roles:
+    - "aim_policy_manage"
+
+sg_aim_policy_instance_read:
+  backend_roles:
+    - "aim_policy_instance_read"
+
+sg_aim_policy_instance_manage:
+  backend_roles:
+    - "aim_policy_instance_manage"

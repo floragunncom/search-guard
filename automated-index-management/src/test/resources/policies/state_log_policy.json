@@ -1,0 +1,43 @@
+{
+  "steps": [
+    {
+      "name": "rollover",
+      "conditions": [
+        {
+          "type": "mock_condition",
+          "uuid": "2b874dbf-7e46-45e3-bca3-faa43011eed2"
+        },
+        {
+          "type": "mock_condition",
+          "uuid": "2f73b82f-d670-4e58-abd7-45501da3d9ce"
+        }
+      ],
+      "actions": [
+        {
+          "type": "rollover"
+        },
+        {
+          "type": "set_read_only"
+        },
+        {
+          "type": "force_merge",
+          "segments": 1
+        }
+      ]
+    },
+    {
+      "name": "delete",
+      "conditions": [
+        {
+          "type": "mock_condition",
+          "uuid": "95d1addf-bb29-4c94-80e3-5c8dbf056a18"
+        }
+      ],
+      "actions": [
+        {
+          "type": "delete"
+        }
+      ]
+    }
+  ]
+}

@@ -18,6 +18,7 @@
   <name>Search Guard FLX</name>
 
   <modules>
+    <module>automated-index-management</module>
     <module>security</module>
     <module>security-legacy</module>
     <module>scheduler</module>
@@ -212,6 +213,18 @@
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <version>4.13.1</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>5.10.0</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.junit.vintage</groupId>
+        <artifactId>junit-vintage-engine</artifactId>
+        <version>5.10.0</version>
       </dependency>
 
       <dependency>
@@ -524,8 +537,24 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <version>4.13.1</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.vintage</groupId>
+      <artifactId>junit-vintage-engine</artifactId>
+      <version>5.10.0</version>
+      <scope>test</scope>
+    </dependency>
+
 
     <dependency>
       <groupId>org.elasticsearch</groupId>
@@ -923,6 +952,7 @@
         </file>
       </activation>
       <modules>
+        <module>automated-index-management</module>
         <module>security</module>
         <module>security-legacy</module>
         <module>scheduler</module>

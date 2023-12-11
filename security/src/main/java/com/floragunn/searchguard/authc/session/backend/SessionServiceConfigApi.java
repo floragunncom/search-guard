@@ -17,6 +17,9 @@
 
 package com.floragunn.searchguard.authc.session.backend;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
@@ -25,7 +28,6 @@ import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
-import com.google.common.collect.ImmutableList;
 
 public class SessionServiceConfigApi extends TypeLevelConfigApi {
 
@@ -35,7 +37,7 @@ public class SessionServiceConfigApi extends TypeLevelConfigApi {
             .handlesPatch("/_searchguard/config/sessions").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
             .name("/_searchguard/config/sessions");
 
-    public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
+    public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
             new ActionHandler<>(SessionServiceConfigApi.GetAction.INSTANCE, SessionServiceConfigApi.GetAction.Handler.class),
             new ActionHandler<>(SessionServiceConfigApi.PutAction.INSTANCE, SessionServiceConfigApi.PutAction.Handler.class),
             new ActionHandler<>(SessionServiceConfigApi.PatchAction.INSTANCE, SessionServiceConfigApi.PatchAction.Handler.class));
