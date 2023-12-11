@@ -48,7 +48,7 @@ public class DashboardAccessByReadOnlyUserTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled() //
-        .nodeSettings("action.destructive_requires_name", false) //
+        .nodeSettings("action.destructive_requires_name", false, "searchguard.single_index_mt_enabled", true) //
         .enterpriseModulesEnabled() //
         .roleMapping(new RoleMapping("SGS_KIBANA_USER").users(USER_READ_ONLY_TENANT.getName())) //
         .users(USER_READ_ONLY_TENANT) //

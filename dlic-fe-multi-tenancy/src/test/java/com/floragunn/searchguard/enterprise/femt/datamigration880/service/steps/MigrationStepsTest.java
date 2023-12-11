@@ -124,6 +124,7 @@ public class MigrationStepsTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
+        .nodeSettings("searchguard.single_index_mt_enabled", true)
         .singleNode()
         .sslEnabled()
         .resources("multitenancy")
