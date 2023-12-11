@@ -409,6 +409,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             moduleRegistry.add(enterpriseModules.toArray(new String[] {}));
         }
 
+        moduleRegistry.add("com.floragunn.aim.AutomatedIndexManagementModule");
         moduleRegistry.add(SessionModule.class.getName());
         moduleRegistry.add("com.floragunn.signals.SignalsModule");
         moduleRegistry.add("com.floragunn.searchguard.legacy.LegacySecurityModule");

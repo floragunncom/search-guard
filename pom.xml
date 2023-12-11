@@ -18,6 +18,7 @@
   <name>Search Guard FLX</name>
 
   <modules>
+    <module>automated-index-management</module>
     <module>security</module>
     <module>security-legacy</module>
     <module>scheduler</module>
@@ -964,6 +965,7 @@
         </file>
       </activation>
       <modules>
+        <module>automated-index-management</module>
         <module>security</module>
         <module>security-legacy</module>
         <module>scheduler</module>

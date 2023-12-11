@@ -401,3 +401,53 @@ SGS_SIGNALS_TRUSTSTORE_CONFIG_WRITE:
   type: "signals"
   description: "Grants permissions to write Signals Truststores"
 
+### Automated Index Management
+
+SGS_AIM_ALL:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:aim:*"
+  type: "aim"
+  description: "Grants all permissions for Automated Index Management"
+
+SGS_AIM_POLICY_READ:
+  reserved: true
+  hidden: false
+  allowed_actions:
+    - "cluster:admin:searchguard:aim:policy/get"
+  type: "aim"
+  description: "Grants read permission for Automated Index Management policies"
+
+SGS_AIM_POLICY_MANAGE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - SGS_AIM_POLICY_READ
+    - "cluster:admin:searchguard:aim:policy/put"
+    - "cluster:admin:searchguard:aim:policy/delete"
+  type: "aim"
+  description: "Grants permissions to read, write and delete for Automated Index Management policies"
+
+SGS_AIM_POLICY_INSTANCE_READ:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - SGS_AIM_POLICY_READ
+    - "cluster:admin:searchguard:aim:policy:instance:state/get"
+  type: "aim"
+  description: "Grants read permission for Automated Index Management policy instances"
+
+SGS_AIM_POLICY_INSTANCE_MANAGE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - SGS_AIM_POLICY_INSTANCE_READ
+    - "cluster:admin:searchguard:aim:policy:instance:retry/post"
+    - "cluster:admin:searchguard:aim:policy:instance:execute/post"
+  type: "aim"
+  description: "Grants permissions to read, execute and retry Automated Index Management policy instances"

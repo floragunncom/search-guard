@@ -163,6 +163,11 @@ public class StaticSettings {
                 return new StringListAttribute(name, ImmutableList.empty(), filtered);
             }
 
+            public StringIndexBuilder index() {
+                @SuppressWarnings({ "unchecked" })
+                Builder<String> castedBuilder = (Builder<String>) this;
+                return new StringIndexBuilder(castedBuilder);
+            }
         }
 
         public static class StringBuilder {
@@ -225,6 +230,23 @@ public class StaticSettings {
             }
         }
 
+        public static class StringIndexBuilder {
+            private final Builder<String> parent;
+            private boolean dynamic = false;
+
+            StringIndexBuilder(Builder<String> parent) {
+                this.parent = parent;
+            }
+
+            public StringIndexBuilder dynamic() {
+                dynamic = true;
+                return this;
+            }
+
+            public Attribute<String> asString() {
+                return new StringIndexAttribute(parent.name, parent.defaultValue, dynamic);
+            }
+        }
     }
 
     static class StringAttribute extends Attribute<String> {
@@ -312,6 +334,23 @@ public class StaticSettings {
         @Override
         protected org.elasticsearch.common.settings.Setting<?> toPlatformInstance() {
             return org.elasticsearch.common.settings.Setting.listSetting(name, defaultValue, Function.identity(), toPlatformProperties());
+        }
+    }
+
+    static class StringIndexAttribute extends Attribute<String> {
+        private final boolean dynamic;
+
+        StringIndexAttribute(String name, String defaultValue, boolean dynamic) {
+            super(name, defaultValue, false);
+            this.dynamic = dynamic;
+        }
+
+        @Override
+        protected org.elasticsearch.common.settings.Setting<String> toPlatformInstance() {
+            if (dynamic) {
+                return org.elasticsearch.common.settings.Setting.simpleString(name, Property.IndexScope, Property.Dynamic);
+            }
+            return org.elasticsearch.common.settings.Setting.simpleString(name, Property.IndexScope);
         }
     }
 

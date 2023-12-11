@@ -1,0 +1,43 @@
+{
+  "steps" : [
+    {
+      "name": "rollover",
+      "conditions" : [
+        {
+          "type": "doc_count",
+          "max_count": 2000000
+        },
+        {
+          "type": "age",
+          "max_age": "24h"
+        }
+      ],
+      "actions": [
+        {
+          "type": "rollover"
+        },
+        {
+          "type": "set_read_only"
+        },
+        {
+          "type": "force_merge",
+          "segments": 1
+        }
+      ]
+    },
+    {
+      "name" : "delete",
+      "conditions" : [
+        {
+          "type": "age",
+          "max_age": "30d"
+        }
+      ],
+      "actions" : [
+        {
+          "type": "delete"
+        }
+      ]
+    }
+  ]
+}
