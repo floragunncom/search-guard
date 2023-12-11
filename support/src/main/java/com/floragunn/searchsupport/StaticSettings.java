@@ -166,11 +166,16 @@ public class StaticSettings {
                 castedBuilder.defaultValue = defaultValue;
                 return new ByteSizeValueBuilder(castedBuilder);
             }
-            
+
             public StringListAttribute asListOfStrings() {
                 return new StringListAttribute(name, ImmutableList.empty(), filtered);
             }
 
+            public StringIndexBuilder index() {
+                @SuppressWarnings({ "unchecked" })
+                Builder<String> castedBuilder = (Builder<String>) this;
+                return new StringIndexBuilder(castedBuilder);
+            }
         }
 
         public static class StringBuilder {
@@ -242,6 +247,23 @@ public class StaticSettings {
 
             public Attribute<ByteSizeValue> asByteSizeValue() {
                 return new ByteSizeValueAttribute(parent.name, parent.defaultValue, parent.filtered);
+            }
+        }
+        public static class StringIndexBuilder {
+            private final Builder<String> parent;
+            private boolean dynamic = false;
+
+            StringIndexBuilder(Builder<String> parent) {
+                this.parent = parent;
+            }
+
+            public StringIndexBuilder dynamic() {
+                dynamic = true;
+                return this;
+            }
+
+            public Attribute<String> asString() {
+                return new StringIndexAttribute(parent.name, parent.defaultValue, dynamic);
             }
         }
     }
@@ -345,7 +367,24 @@ public class StaticSettings {
             return org.elasticsearch.common.settings.Setting.memorySizeSetting(name, defaultValue, toPlatformProperties());
         }
     }
-    
+
+    static class StringIndexAttribute extends Attribute<String> {
+        private final boolean dynamic;
+
+        StringIndexAttribute(String name, String defaultValue, boolean dynamic) {
+            super(name, defaultValue, false);
+            this.dynamic = dynamic;
+        }
+
+        @Override
+        protected org.elasticsearch.common.settings.Setting<String> toPlatformInstance() {
+            if (dynamic) {
+                return org.elasticsearch.common.settings.Setting.simpleString(name, Property.IndexScope, Property.Dynamic);
+            }
+            return org.elasticsearch.common.settings.Setting.simpleString(name, Property.IndexScope);
+        }
+    }
+
     public static class AttributeSet {
         private static final AttributeSet EMPTY = new AttributeSet(ImmutableList.empty());
 
