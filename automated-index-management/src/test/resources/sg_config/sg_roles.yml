@@ -1,0 +1,121 @@
+---
+_sg_meta:
+  type: "roles"
+  config_version: 2
+sg_public:
+  cluster_permissions:
+  - "cluster:monitor/main"
+  index_permissions:
+  - index_patterns:
+    - ".notexistingindexcvnjl9809991"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+  
+sg_admin:
+  cluster_permissions:
+  - "CLUSTER_ALL"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: []
+sg_all_access:
+  cluster_permissions:
+  - "*"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: 
+    - tenant_patterns:
+      - "*"
+      allowed_actions:
+      - "SGS_KIBANA_ALL_WRITE"
+      - "cluster:admin:searchguard:tenant:signals:*"
+sg_read_access:
+  cluster_permissions: []
+  index_permissions:
+  - index_patterns:
+    - "*"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "READ"
+  tenant_permissions: 
+    - tenant_patterns:
+      - SGS_GLOBAL_TENANT
+      allowed_actions:
+      - "SGS_KIBANA_ALL_READ"
+      - "cluster:admin:searchguard:tenant:signals:watch/get"
+      - "cluster:admin:searchguard:tenant:signals:watch/search"
+sg_redshirts:
+  index_permissions:
+  - index_patterns:
+    - "redshirt_index"
+    dls: null
+    fls: null
+    masked_fields: null
+    allowed_actions:
+    - "ALL"
+  tenant_permissions: 
+  - tenant_patterns:
+    - "redshirt_club"
+    allowed_actions:
+      - "SGS_KIBANA_ALL_WRITE"
+      - "cluster:admin:searchguard:tenant:signals:*"
+sg_signals_admin:
+  tenant_permissions: 
+  - tenant_patterns:
+    - SGS_GLOBAL_TENANT
+    allowed_actions:
+      - "cluster:admin:searchguard:tenant:signals:*"
+      
+sg_activate_deactivate_watches:
+  tenant_permissions: 
+  - tenant_patterns:
+    - "*"
+    allowed_actions:
+      - "cluster:admin:searchguard:tenant:signals:watch/activate_deactivate"
+
+sg_aim_admin:
+  cluster_permissions:
+    - SGS_AIM_ALL
+  index_permissions: []
+  tenant_permissions: []
+
+sg_aim_policy_read:
+  cluster_permissions:
+    - SGS_AIM_POLICY_READ
+  index_permissions: []
+  tenant_permissions: []
+
+sg_aim_policy_manage:
+  cluster_permissions:
+    - SGS_AIM_POLICY_MANAGE
+  index_permissions: []
+  tenant_permissions: []
+
+sg_aim_policy_instance_read:
+  cluster_permissions:
+    - SGS_AIM_POLICY_INSTANCE_READ
+  index_permissions: []
+  tenant_permissions: []
+
+sg_aim_policy_instance_manage:
+  cluster_permissions:
+    - SGS_AIM_POLICY_INSTANCE_MANAGE
+  index_permissions: []
+  tenant_permissions: []

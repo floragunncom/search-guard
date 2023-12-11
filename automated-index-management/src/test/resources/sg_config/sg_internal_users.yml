@@ -1,0 +1,77 @@
+---
+_sg_meta:
+  type: "internalusers"
+  config_version: 2
+uhura:
+  hash: "$2y$12$v/k0Zh.Af.jBK7vDjSt.h.WYdR9.AzAhYqAi9ft674sn8i/aiwX5m"
+  backend_roles:
+  - "signals_admin"
+  - "all_access"
+  attributes: {}
+
+redshirt1:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+  - "signals_admin"
+  - "redshirts"
+  - "read_access"
+  attributes: {}  
+  
+redshirt2:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+  - "signals_admin"
+  - "redshirts"
+  attributes: {}    
+  
+redshirt3:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+  - "read_access"
+  - "redshirts"
+  attributes: {}    
+  
+activateshirt:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+  - "read_access"
+  - "activate_deactivate_watches"
+  - "redshirts"
+  attributes: {}    
+  
+  
+noshirt:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+  - "redshirts"
+  attributes: {}
+
+cara:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+    - "aim_admin"
+  attributes: {}
+
+lucy:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+    - "aim_policy_read"
+  attributes: {}
+
+maren:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+    - "aim_policy_manage"
+  attributes: {}
+
+leni:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+    - "aim_policy_instance_read"
+  attributes: {}
+
+lisa:
+  hash: "$2y$12$jOMR3R7CSap0eEE6WdHOwev242EYLH5159is8wRmVWnMyYb8Icwj6"
+  backend_roles:
+    - "aim_policy_instance_manage"
+  attributes: {}
