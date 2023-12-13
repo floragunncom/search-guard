@@ -398,7 +398,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule", "com.floragunn.searchguard.enterprise.dlsfls.DlsFlsModule",
                     "com.floragunn.searchguard.enterprise.dlsfls.legacy.LegacyDlsFlsModule",
                     "com.floragunn.searchguard.enterprise.auditlog.AuditLogModule");
-            if (! settings.getAsBoolean(ConfigConstants.SEARCHGUARD_SINGLE_INDEX_MT_ENABLED, false)) {
+            if (! settings.getAsBoolean("searchguard.unsupported.single_index_mt_enabled", false)) {
                 enterpriseModules = enterpriseModules.without("com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule");
             }
             moduleRegistry.add(enterpriseModules.toArray(new String[] {}));
@@ -1146,8 +1146,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.addAll(ResourceOwnerService.SUPPORTED_SETTINGS);
 
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));
-
-            settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SINGLE_INDEX_MT_ENABLED, false, Property.NodeScope, Property.Filtered));
 
             settings.add(SearchGuardModulesRegistry.DISABLED_MODULES);
             settings.add(EncryptionKeys.ENCRYPTION_KEYS_SETTING);

@@ -53,7 +53,7 @@ public class MultitenancyTests {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
-            .nodeSettings("searchguard.single_index_mt_enabled", true)
+            .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
             .sslEnabled()
             .resources("multitenancy")
             .enterpriseModulesEnabled()

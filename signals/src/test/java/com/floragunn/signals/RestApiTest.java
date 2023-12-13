@@ -125,7 +125,7 @@ public class RestApiTest {
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
-                    "signals.watch_log.sync_indexing", true, "searchguard.single_index_mt_enabled", true)
+                    "signals.watch_log.sync_indexing", true, "searchguard.unsupported.single_index_mt_enabled", true)
             .user(USER_CERTIFICATE)
             .enableModule(SignalsModule.class).enterpriseModulesEnabled().build();
 

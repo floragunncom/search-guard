@@ -210,8 +210,6 @@ public class ConfigConstants {
 
     public static final String SEARCHGUARD_DLS_MODE = "searchguard.dls.mode";
 
-    public static final String SEARCHGUARD_SINGLE_INDEX_MT_ENABLED = "searchguard.single_index_mt_enabled";
-
     // Illegal Opcodes from here on
     public static final String SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE = "searchguard.unsupported.restapi.accept_invalid_license";
     public static final String SEARCHGUARD_UNSUPPORTED_ALLOW_NOW_IN_DLS = "searchguard.unsupported.allow_now_in_dls";
