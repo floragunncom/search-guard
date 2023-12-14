@@ -32,7 +32,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
     public static CType<FeMultiTenancyConfig> TYPE = new CType<FeMultiTenancyConfig>("frontend_multi_tenancy", "Frontend Multi-Tenancy", 10001,
             FeMultiTenancyConfig.class, FeMultiTenancyConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
-    public static final FeMultiTenancyConfig DEFAULT = new FeMultiTenancyConfig(null, true, "kibanaserver", ".kibana");
+    static final FeMultiTenancyConfig DEFAULT = new FeMultiTenancyConfig(null, false, "kibanaserver", ".kibana");
 
     private final DocNode source;
     private final boolean enabled;
@@ -52,7 +52,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-        boolean enabled = vNode.get("enabled").withDefault(true).asBoolean();
+        boolean enabled = vNode.get("enabled").withDefault(DEFAULT.isEnabled()).asBoolean();
         String index = vNode.get("index").withDefault(DEFAULT.getIndex()).asString();
         String serverUsername = vNode.get("server_user").withDefault(DEFAULT.getServerUsername()).asString();
 
@@ -63,7 +63,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors);
 
-        boolean enabled = vNode.get("dynamic.kibana.multitenancy_enabled").withDefault(true).asBoolean();
+        boolean enabled = vNode.get("dynamic.kibana.multitenancy_enabled").withDefault(DEFAULT.isEnabled()).asBoolean();
         String index = vNode.get("dynamic.kibana.index").withDefault(DEFAULT.getIndex()).asString();
         String serverUsername = vNode.get("dynamic.kibana.server_username").withDefault(DEFAULT.getServerUsername()).asString();
 
