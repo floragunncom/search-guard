@@ -86,7 +86,7 @@ public class MultiTenancyRequestMappingTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled()
-            .nodeSettings("action.destructive_requires_name", false)
+            .nodeSettings("action.destructive_requires_name", false, "searchguard.unsupported.single_index_mt_enabled", true)
             .enterpriseModulesEnabled()
             .users(USER, LIMITED_USER)
             .frontendMultiTenancy(new TestSgConfig.FrontendMultiTenancy(true).index(KIBANA_INDEX).serverUser(KIBANA_SERVER_USER))

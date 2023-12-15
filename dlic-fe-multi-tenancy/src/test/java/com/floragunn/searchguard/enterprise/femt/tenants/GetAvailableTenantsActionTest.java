@@ -95,7 +95,7 @@ public class GetAvailableTenantsActionTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled() //
-        .nodeSettings("action.destructive_requires_name", false) //
+        .nodeSettings("action.destructive_requires_name", false, "searchguard.unsupported.single_index_mt_enabled", true) //
         .enterpriseModulesEnabled() //
         .roleMapping(new RoleMapping("SGS_KIBANA_MT_USER").users(USER_SINGLE_TENANT.getName(), USER_EACH_TENANT_READ.getName(),
             USER_EACH_TENANT_WRITE.getName(), USER_SOME_TENANT_ACCESS.getName()),//
