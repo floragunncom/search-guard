@@ -111,6 +111,24 @@ SGS_KIBANA_MT_USER:
         - "*:.management-beats"
       allowed_actions:
         - "SGS_INDICES_ALL"
+    - index_patterns:
+        - ".kibana"
+        - ".kibana-6"
+        - ".kibana_"
+        - '/\.kibana_[0-9]+/'
+        - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+        - ".kibana_task_manager"
+        - '/\.kibana_task_manager_[0-9]+/'
+        - ".kibana_analytics"
+        - '/\.kibana_analytics_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+        - ".kibana_ingest"
+        - '/\.kibana_ingest_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+        - ".kibana_security_solution"
+        - '/\.kibana_security_solution_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+        - ".kibana_alerting_cases"
+        - '/\.kibana_alerting_cases_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+      allowed_actions:
+        - "indices:data/read/open_point_in_time"
 
 SGS_OWN_INDEX:
   reserved: true
