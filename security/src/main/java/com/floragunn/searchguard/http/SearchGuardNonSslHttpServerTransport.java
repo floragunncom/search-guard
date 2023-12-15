@@ -17,14 +17,16 @@
 
 package com.floragunn.searchguard.http;
 
-import java.util.List;
-
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import java.util.function.BiConsumer;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpHandlingSettings;
+import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.http.netty4.internal.HttpValidator;
 import org.elasticsearch.rest.RestRequest;
@@ -32,13 +34,16 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-
 public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransport {
 
-    public SearchGuardNonSslHttpServerTransport(Settings settings, NetworkService networkService, BigArrays bigArrays, ThreadPool threadPool, NamedXContentRegistry xContentRegistry, Dispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory, HttpValidator httpValidator) {
+    private final BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext;
+
+    public SearchGuardNonSslHttpServerTransport(Settings settings, NetworkService networkService, BigArrays bigArrays,
+                                                ThreadPool threadPool, NamedXContentRegistry xContentRegistry, Dispatcher dispatcher,
+                                                ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory,
+                                                HttpValidator httpValidator, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
         super(settings, networkService, bigArrays, threadPool, xContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, httpValidator);
+        this.perRequestThreadContext = perRequestThreadContext;
     }
 
     @Override
@@ -48,13 +53,7 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
 
     @Override
     protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
-        for(String headerName: restRequest.getHeaders().keySet()) {
-            final List<String> headerValues = restRequest.getHeaders().get(headerName);
-
-            if (headerValues != null && !headerValues.isEmpty()) {
-                threadContext.putHeader(headerName, String.join(",", headerValues));
-            }
-        }
+        perRequestThreadContext.accept(restRequest.getHttpRequest(), threadContext);
     }
 
     protected class NonSslHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
