@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.floragunn.codova.validation.ValidationErrors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
@@ -176,6 +177,11 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
                 existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();) {
 
+            ValidationErrors validationErrors = new ValidationErrors();
+            validationErrors.add(configsRelationsValidator.validateConfigRelations(mdc));
+
+            validationErrors.throwExceptionForPresentErrors();
+
             saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
 
                 @Override
@@ -258,6 +264,11 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         try (SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(patchedAsDocNode, null,
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
                 existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get()) {
+
+            ValidationErrors validationErrors = new ValidationErrors();
+            validationErrors.add(configsRelationsValidator.validateConfigRelations(mdc));
+
+            validationErrors.throwExceptionForPresentErrors();
 
             saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
 
