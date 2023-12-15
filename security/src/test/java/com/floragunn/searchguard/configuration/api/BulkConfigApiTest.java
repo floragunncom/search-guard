@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -40,7 +41,8 @@ public class BulkConfigApiTest {
             .roles(new Role("allaccess").indexPermissions("*").on("*").clusterPermissions("*"));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().user(ADMIN_USER).build();
+    public static LocalCluster cluster = new LocalCluster.Builder()
+            .sslEnabled().user(ADMIN_USER).build();
 
     @Test
     public void getTest() throws Exception {
@@ -227,6 +229,69 @@ public class BulkConfigApiTest {
                     updateResponse.getBody(), "'frontend_authc.default.login_page.brand_image': Must be an absolute URI",
                     updateResponseDoc.getAsNode("error").get("message")
             );
+        }
+    }
+
+    @Test
+    public void putTestValidationError5_rolesWhichAssignsPermsToNoExistentTenantsShouldBeRejected() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            String tenantName = "missing1";
+            HttpResponse response = client.get("/_searchguard/config");
+            DocNode responseDoc = response.getBodyAsDocNode();
+
+            Map<String, Object> roles = new LinkedHashMap<>(responseDoc.getAsNode("roles").getAsNode("content"));
+
+            roles.put("my-role", ImmutableMap.of("tenant_permissions", ImmutableMap.of(
+                    "tenant_patterns", Collections.singletonList(tenantName + "*"), "allowed_actions", Collections.singletonList("*"))
+            ));
+
+            DocNode updateRequestDoc = DocNode.of("roles.content", roles);
+
+            //update roles
+            HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc);
+
+            Assert.assertEquals(updateResponse.getBody(), HttpStatus.SC_BAD_REQUEST, updateResponse.getStatusCode());
+
+            DocNode updateResponseDoc = updateResponse.getBodyAsDocNode();
+
+            Assert.assertEquals(
+                    updateResponse.getBody(), "Tenant pattern: '" + tenantName + "*' does not match any tenant",
+                    updateResponseDoc.getAsNode("error").getAsNode("details").getAsListOfNodes("roles.my-role").get(0).get("error")
+            );
+
+            //add tenant
+            Map<String, Object> tenants = new LinkedHashMap<>(responseDoc.getAsNode("tenants").getAsNode("content"));
+            tenants.put(tenantName, ImmutableMap.of("description", "tenant"));
+            response = client.putJson("/_searchguard/config", DocNode.of("tenants.content", tenants));
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+
+            //update roles
+            updateResponse = client.putJson("/_searchguard/config", updateRequestDoc);
+            Assert.assertEquals(updateResponse.getBody(), HttpStatus.SC_OK, updateResponse.getStatusCode());
+        }
+    }
+
+    @Test
+    public void putRoleWhichAssignsPermsToGlobalTenant() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            String tenantName = "SGS_GLOBAL_TENANT";
+            HttpResponse response = client.get("/_searchguard/config");
+            DocNode responseDoc = response.getBodyAsDocNode();
+
+            Map<String, Object> roles = new LinkedHashMap<>(responseDoc.getAsNode("roles").getAsNode("content"));
+
+            roles.put("my-role", ImmutableMap.of("tenant_permissions", ImmutableMap.of(
+                    "tenant_patterns", Collections.singletonList(tenantName + "*"), "allowed_actions", Collections.singletonList("*"))
+            ));
+
+            DocNode updateRequestDoc = DocNode.of("roles.content", roles);
+
+            //update roles
+            HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc);
+
+            Assert.assertEquals(updateResponse.getBody(), HttpStatus.SC_OK, updateResponse.getStatusCode());
         }
     }
 

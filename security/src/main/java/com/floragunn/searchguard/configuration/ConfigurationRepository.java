@@ -171,6 +171,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Context parserContext;
 
     private final IndexNameExpressionResolver resolver;
+    private final ConfigsRelationsValidator configsRelationsValidator;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
             ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
@@ -203,6 +204,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         });
 
         this.resolver = resolver;
+        this.configsRelationsValidator = new ConfigsRelationsValidator(this);
     }
 
     public void initOnNodeStart() {
@@ -694,8 +696,13 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
    
     public <T> StandardResponse addOrUpdate(CType<T> ctype, String id, T entry, String matchETag)
-            throws ConfigUpdateException, ConcurrentConfigUpdateException {
+            throws ConfigUpdateException, ConcurrentConfigUpdateException, ConfigValidationException {
         try {
+            ValidationErrors validationErrors = new ValidationErrors();
+            validationErrors.add(configsRelationsValidator.validateConfigEntryRelations(entry));
+
+            validationErrors.throwExceptionForPresentErrors();
+
             SgDynamicConfiguration<T> configInstance = getConfigurationFromIndex(ctype, "Update of entry " + id);
 
             if (matchETag != null && !configInstance.getETag().equals(matchETag)) {
@@ -707,7 +714,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             configInstance = configInstance.with(id, entry);
 
-            update(ctype, configInstance, matchETag);
+            update(ctype, configInstance, matchETag, false);
 
             if (!alreadyExists) {
                 return new StandardResponse(201).message(ctype.getUiName() + " " + id + " has been created");
@@ -777,7 +784,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 }
             };
 
-            update(configType, SgDynamicConfiguration.of(configType, doc.patch(patch, parserContext)), matchETag);
+            update(configType, SgDynamicConfiguration.of(configType, doc.patch(patch, parserContext)), matchETag, true);
 
             return new StandardResponse(200).message(configType.getUiName() + " has been updated");
 
@@ -816,7 +823,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
             T newEntry = entry.patch(patch, parserContext.withExternalResources().withoutLenientValidation());
             
             try {
-                update(configType, configInstance.with(id, newEntry), matchETag);
+                ValidationErrors validationErrors = new ValidationErrors();
+                validationErrors.add(configsRelationsValidator.validateConfigEntryRelations(newEntry));
+
+                validationErrors.throwExceptionForPresentErrors();
+
+                update(configType, configInstance.with(id, newEntry), matchETag, false);
             } finally {
                 if (newEntry instanceof AutoCloseable) {
                     try {
@@ -852,10 +864,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 throw new NoSuchConfigEntryException(configType, id);
             }
 
-            update(configType, configInstance.without(id), null);
+            update(configType, configInstance.without(id), null, false);
 
             return new StandardResponse(200).message(configType.getUiName() + " " + id + " has been deleted");
-        } catch (ConfigUnavailableException e) {
+        } catch (ConfigUnavailableException | ConfigValidationException e) {
             throw new ConfigUpdateException(e);
         }
     }
@@ -875,7 +887,18 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     public <T> void update(CType<T> ctype, SgDynamicConfiguration<T> configInstance, String matchETag)
-            throws ConfigUpdateException, ConcurrentConfigUpdateException {
+            throws ConfigUpdateException, ConcurrentConfigUpdateException, ConfigValidationException {
+        update(ctype, configInstance, matchETag, true);
+    }
+
+    private  <T> void update(CType<T> ctype, SgDynamicConfiguration<T> configInstance, String matchETag,
+                             boolean validateConfigRelations) throws ConfigUpdateException, ConcurrentConfigUpdateException, ConfigValidationException {
+
+        if (validateConfigRelations) {
+            ValidationErrors validationErrors = new ValidationErrors();
+            validationErrors.add(configsRelationsValidator.validateConfigRelations(configInstance));
+            validationErrors.throwExceptionForPresentErrors();
+        }
 
         IndexRequest indexRequest = new IndexRequest(getEffectiveSearchGuardIndexAndCreateIfNecessary());
 
@@ -932,6 +955,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             throws ConfigUpdateException, ConfigValidationException, ConcurrentConfigUpdateException {
         ValidationErrors validationErrors = new ValidationErrors();
         BulkRequest bulkRequest = new BulkRequest();
+        List<SgDynamicConfiguration<?>> parsedConfigs = new ArrayList<>();
 
         bulkRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
@@ -971,51 +995,48 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 ValidationResult<SgDynamicConfiguration<?>> configInstance = (ValidationResult<SgDynamicConfiguration<?>>) (ValidationResult) SgDynamicConfiguration
                         .fromMap(configMap, ctype, parserContext.withExternalResources().withoutLenientValidation());
 
-                try {
-                    if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
-                        validationErrors.add(ctype.toLCString(), configInstance.getValidationErrors());
-                        continue;
-                    }
+                if (configInstance.getValidationErrors() != null && configInstance.getValidationErrors().hasErrors()) {
+                    validationErrors.add(ctype.toLCString(), configInstance.getValidationErrors());
+                    continue;
+                }
 
-                    String id = ctype.toLCString();
+                String id = ctype.toLCString();
 
-                    IndexRequest indexRequest = new IndexRequest(searchGuardIndex).id(id).source(id,
-                            XContentHelper.toXContent(configInstance.peek().withoutStatic(), XContentType.JSON, false));
+                IndexRequest indexRequest = new IndexRequest(searchGuardIndex).id(id).source(id,
+                        XContentHelper.toXContent(configInstance.peek().withoutStatic(), XContentType.JSON, false));
 
-                    if (matchETag != null) {
-                        try {
-                            int dot = matchETag.indexOf('.');
+                if (matchETag != null) {
+                    try {
+                        int dot = matchETag.indexOf('.');
 
-                            if (dot == -1) {
-                                validationErrors.add(new InvalidAttributeValue(ctype.toLCString(), matchETag, null).message("Invalid E-Tag"));
-                                continue;
-                            }
-
-                            long primaryTerm = Long.parseLong(matchETag.substring(0, dot));
-                            long seqNo = Long.parseLong(matchETag.substring(dot + 1));
-
-                            if (currentConfig != null) {
-                                SgDynamicConfiguration<?> currentConfigInstance = currentConfig.get(ctype);
-
-                                if (currentConfigInstance != null
-                                        && (currentConfigInstance.getPrimaryTerm() != primaryTerm || currentConfigInstance.getSeqNo() != seqNo)) {
-                                    configTypesWithConcurrentModifications.add(ctype.toLCString());
-                                }
-                            }
-
-                            indexRequest.setIfPrimaryTerm(primaryTerm);
-                            indexRequest.setIfSeqNo(seqNo);
-                        } catch (NumberFormatException e) {
+                        if (dot == -1) {
                             validationErrors.add(new InvalidAttributeValue(ctype.toLCString(), matchETag, null).message("Invalid E-Tag"));
                             continue;
                         }
-                    }
 
-                    bulkRequest.add(indexRequest);
-                } finally {
-                    if (configInstance.hasResult()) {
-                        configInstance.peek().close();
+                        long primaryTerm = Long.parseLong(matchETag.substring(0, dot));
+                        long seqNo = Long.parseLong(matchETag.substring(dot + 1));
+
+                        if (currentConfig != null) {
+                            SgDynamicConfiguration<?> currentConfigInstance = currentConfig.get(ctype);
+
+                            if (currentConfigInstance != null
+                                    && (currentConfigInstance.getPrimaryTerm() != primaryTerm || currentConfigInstance.getSeqNo() != seqNo)) {
+                                configTypesWithConcurrentModifications.add(ctype.toLCString());
+                            }
+                        }
+
+                        indexRequest.setIfPrimaryTerm(primaryTerm);
+                        indexRequest.setIfSeqNo(seqNo);
+                    } catch (NumberFormatException e) {
+                        validationErrors.add(new InvalidAttributeValue(ctype.toLCString(), matchETag, null).message("Invalid E-Tag"));
+                        continue;
                     }
+                }
+
+                bulkRequest.add(indexRequest);
+                if(configInstance.hasResult()) {
+                    parsedConfigs.add(configInstance.peek());
                 }
             } catch (ConfigValidationException e) {
                 validationErrors.add(ctype.toLCString(), e);
@@ -1023,6 +1044,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 throw new RuntimeException(e);
             }
         }
+
+        validationErrors.add(configsRelationsValidator.validateConfigsRelations(parsedConfigs));
+
+        parsedConfigs.forEach(SgDynamicConfiguration::close);
+
+        validationErrors.throwExceptionForPresentErrors();
 
         if (!configTypesWithConcurrentModifications.isEmpty()) {
             if (configTypesWithConcurrentModifications.size() == 1) {
@@ -1033,8 +1060,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         + (configTypesWithConcurrentModifications.stream().collect(Collectors.joining(", "))) + " have been concurrently modified.");
             }
         }
-
-        validationErrors.throwExceptionForPresentErrors();
 
         try {
             BulkResponse bulkResponse = privilegedConfigClient.bulk(bulkRequest).actionGet();
@@ -1273,6 +1298,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
         String configuredSearchguardIndexOld = staticSettings.get(NEW_INDEX_NAME);
         String configuredSearchguardIndexNew = staticSettings.get(OLD_INDEX_NAME);
         return ImmutableSet.of(configuredSearchguardIndexOld, configuredSearchguardIndexNew);
+    }
+
+    public ConfigsRelationsValidator getConfigsRelationsValidator() {
+        return configsRelationsValidator;
     }
 
     public enum PatchDefaultHandling {

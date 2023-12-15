@@ -19,6 +19,17 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Map;
 
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigUnavailableException;
+import com.floragunn.searchguard.configuration.ConfigsRelationsValidator;
+import com.floragunn.searchguard.configuration.ConfigurationLoader;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.Hideable;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.StaticDefinable;
+import com.floragunn.searchguard.configuration.StaticSgConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -56,15 +67,6 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.AuthorizationService;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConfigUnavailableException;
-import com.floragunn.searchguard.configuration.ConfigurationLoader;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.Hideable;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.configuration.StaticDefinable;
-import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
@@ -86,6 +88,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected final Settings settings;
 	protected final StaticSgConfig staticSgConfig;
     protected final ConfigurationLoader configLoader;
+	protected final ConfigsRelationsValidator configsRelationsValidator;
 
     protected AbstractApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
             final AdminDNs adminDNs, final ConfigurationRepository configRepository, StaticSgConfig staticSgConfig, final ClusterService cs,
@@ -103,7 +106,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
                 specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
 		this.auditLog = auditLog;
 		this.staticSgConfig = staticSgConfig;
-        this.configLoader = new ConfigurationLoader(client, configRepository);		
+        this.configLoader = new ConfigurationLoader(client, configRepository);
+		this.configsRelationsValidator = configRepository.getConfigsRelationsValidator();
 	}
 
 	protected abstract AbstractConfigurationValidator getValidator(RestRequest request, BytesReference ref, Object... params);
@@ -215,6 +219,11 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         ValidationResult<?> validatedConfig = parser.parse(content, cl.getParserContext());
 
         try {
+			ValidationErrors validationErrors = validatedConfig.getValidationErrors();
+			Object configEntry = validatedConfig.peek();
+			validationErrors.add(configsRelationsValidator.validateConfigEntryRelations(configEntry));
+
+			//validationErrors.throwExceptionForPresentErrors() is not explicitly called, since validatedConfig.get() calls it anyway
             existingConfiguration = existingConfiguration.with(name, validatedConfig.get());
         } catch (ConfigValidationException e) {
             badRequestResponse(channel, e.toJsonString());

@@ -5,3 +5,13 @@ _sg_meta:
 
 mytenant:
   description: "mytenantdesc"
+admin_tenant:
+  description: "admin_tenant"
+tenant1:
+  description: "tenant1"
+tenant2:
+  description: "tenant2"
+tenant3:
+  description: "tenant3"
+tenant4:
+  description: "tenant4"
