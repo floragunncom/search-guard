@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.http.Header;
@@ -413,6 +414,74 @@ public class RolesApiTest {
             Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
         }
 
+    }
+
+    @Test
+    public void putRole_roleWhichAssignsPermsToNoExistentTenantsShouldBeRejected() throws Exception {
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
+
+            String tenantName = "missing1";
+            String roleName = "put_role_with_pattern_matching_no_tenant";
+            DocNode role = DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", Collections.singletonList(tenantName + "*"))));
+
+            HttpResponse response = adminClient.putJson("_searchguard/api/roles/" + roleName, role);
+            Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Tenant pattern: '" + tenantName + "*' does not match any tenant"));
+
+            //add tenant
+            response = adminClient.putJson("/_searchguard/api/tenants/" + tenantName, DocNode.of("description", "tenant"));
+            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = adminClient.putJson("_searchguard/api/roles/" + roleName, role);
+            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+        }
+    }
+
+    @Test
+    public void patchRole_roleWhichAssignsPermsToNoExistentTenantsShouldBeRejected() throws Exception {
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient().trackResources()) {
+
+            String tenantName = "missing1";
+            String roleName = "patch_role_with_pattern_matching_no_tenant";
+
+            DocNode role = DocNode.of("cluster_permissions", Collections.singletonList("MONITOR"));
+            HttpResponse response = adminClient.putJson("/_searchguard/api/roles/" + roleName, role);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            //single patch
+            DocNode singlePatch = DocNode.array(
+                    DocNode.of("op", "add", "path", "/tenant_permissions",
+                            "value", DocNode.array(DocNode.of("tenant_patterns", Collections.singletonList(tenantName + "*")))
+                    )
+            );
+
+            response = adminClient.patch("/_searchguard/api/roles/" + roleName, singlePatch.toJsonString());
+            Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Tenant pattern: '" + tenantName + "*' does not match any tenant"));
+
+            //patch
+            DocNode patch = DocNode.array(
+                    DocNode.of("op", "add", "path", "/" + roleName + "2",
+                            "value", DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", Collections.singletonList(tenantName + "*"))))
+                    )
+            );
+
+            response = adminClient.patch("/_searchguard/api/roles/", patch.toJsonString());
+            Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+            Assert.assertTrue(response.getBody(), response.getBody().contains("Tenant pattern: '" + tenantName + "*' does not match any tenant"));
+
+            //add tenant
+            response = adminClient.putJson("/_searchguard/api/tenants/" + tenantName, DocNode.of("description", "tenant"));
+            Assert.assertEquals(HttpStatus.SC_CREATED, response.getStatusCode());
+
+            //single patch
+            response = adminClient.patch("/_searchguard/api/roles/" + roleName, singlePatch.toJsonString());
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+
+            //patch
+            response = adminClient.patch("/_searchguard/api/roles/", patch.toJsonString());
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        }
     }
 
     protected void setupStarfleetIndex() throws Exception {

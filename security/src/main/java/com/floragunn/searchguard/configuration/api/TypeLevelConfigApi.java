@@ -22,7 +22,13 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
+import com.floragunn.searchguard.configuration.ConfigUnavailableException;
+import com.floragunn.searchguard.configuration.ConfigUpdateException;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ConfigurationRepository.Context;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
@@ -39,12 +45,6 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
-import com.floragunn.searchguard.configuration.ConfigUnavailableException;
-import com.floragunn.searchguard.configuration.ConfigUpdateException;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
@@ -189,7 +189,7 @@ public abstract class TypeLevelConfigApi {
                 return supplyAsync(() -> {
                     try {
                         Map<String, Object> configMap;
-                        
+
                         if (configType.getArity() == CType.Arity.SINGLE) {
                             configMap = ImmutableMap.of("default", request.getConfig());
                         } else {

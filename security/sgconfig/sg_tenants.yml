@@ -8,3 +8,6 @@
 ## Demo tenants
 admin_tenant:
   description: "Demo tenant for admin user"
+
+mytenant:
+  description: "Sample tenant definition for demonstration purposes"
