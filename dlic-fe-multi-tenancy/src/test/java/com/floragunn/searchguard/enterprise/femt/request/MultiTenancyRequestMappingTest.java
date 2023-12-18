@@ -82,11 +82,13 @@ public class MultiTenancyRequestMappingTest {
     private static final TestSgConfig.User USER = new TestSgConfig.User("user")
             .roles(new TestSgConfig.Role("tenant_access").tenantPermission("*").on(HR_TENANT.getName()).clusterPermissions("*").indexPermissions("*").on(KIBANA_INDEX+"*"));
 
+    private static final TestSgConfig.Role LIMITED_ROLE = new TestSgConfig.Role("limited_access_to_global_tenant") //
+        .tenantPermission("SGS_KIBANA_ALL_READ").on(HR_TENANT.getName(), GLOBAL_TENANT_NAME) //
+        .indexPermissions("indices:data/read/search").on(KIBANA_INDEX)
+        .clusterPermissions("SGS_CLUSTER_MONITOR");
+
     private static final TestSgConfig.User LIMITED_USER = new TestSgConfig.User("limited_user")
-        .roles("SGS_KIBANA_MT_USER") //
-        .roles(new TestSgConfig.Role("limited_access_to_global_tenant") //
-            .tenantPermission("SGS_KIBANA_ALL_READ").on(HR_TENANT.getName(), GLOBAL_TENANT_NAME) //
-            .clusterPermissions("SGS_CLUSTER_MONITOR"));
+        .roles("SGS_KIBANA_MT_USER", LIMITED_ROLE.getName());
 
     private final TenantManager tenantManager = new TenantManager(ImmutableSet.of(HR_TENANT.getName()));
 
@@ -95,6 +97,7 @@ public class MultiTenancyRequestMappingTest {
             .nodeSettings("action.destructive_requires_name", false)
             .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
             .enterpriseModulesEnabled()
+            .roles(LIMITED_ROLE)
             .users(USER, LIMITED_USER)
             .frontendMultiTenancy(new TestSgConfig.FrontendMultiTenancy(true).index(KIBANA_INDEX).serverUser(KIBANA_SERVER_USER))
             .tenants(HR_TENANT, IT_TENANT)
@@ -1864,7 +1867,7 @@ public class MultiTenancyRequestMappingTest {
     public void searchRequest_withPointInTimeQuery_success() throws Exception {
         String scopedId = scopedId(DOC_ID);
         addDocumentToIndex(scopedId, DocNode.of("a", "a", "sg_tenant", internalTenantName()));
-        try (GenericRestClient client = cluster.getRestClient(USER)) {
+        try (GenericRestClient client = cluster.getRestClient(LIMITED_USER)) {
             HttpResponse response = client.post("/" + KIBANA_INDEX + "/_pit?keep_alive=500ms", tenantHeader());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             String pitId = response.getBodyAsDocNode().getAsString("id");
@@ -1885,7 +1888,6 @@ public class MultiTenancyRequestMappingTest {
     }
 
     @Test
-    // TODO correct test
     public void searchRequest_withPointInTimeQuery_failure() throws Exception {
         String scopedId = scopedId(DOC_ID);
         addDocumentToIndex(scopedId, DocNode.of("a", "a", "sg_tenant", internalTenantName()));
