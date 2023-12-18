@@ -17,6 +17,13 @@
 
 package com.floragunn.searchguard.ssl.http.netty;
 
+import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
+import com.floragunn.searchguard.ssl.SslExceptionHandler;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.ssl.SslHandler;
+import java.util.function.BiConsumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.network.NetworkService;
@@ -26,45 +33,35 @@ import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpHandlingSettings;
+import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
-import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
-import com.floragunn.searchguard.ssl.SslExceptionHandler;
-
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.handler.codec.DecoderException;
-import io.netty.handler.ssl.SslHandler;
-
-import java.util.List;
-
 public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTransport {
 
     private static final Logger logger = LogManager.getLogger(SearchGuardSSLNettyHttpServerTransport.class);
     private final SearchGuardKeyStore sgks;
     private final SslExceptionHandler errorHandler;
+    private final BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext;
 
     public SearchGuardSSLNettyHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
-            final ThreadPool threadPool, final SearchGuardKeyStore sgks, final NamedXContentRegistry namedXContentRegistry,
-            final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory, final SslExceptionHandler errorHandler) {
+                                                  final ThreadPool threadPool, final SearchGuardKeyStore sgks,
+                                                  final NamedXContentRegistry namedXContentRegistry, final ValidatingDispatcher dispatcher,
+                                                  ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory,
+                                                  final SslExceptionHandler errorHandler,
+                                                  BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
         super(settings, networkService, bigArrays, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, null);
         this.sgks = sgks;
         this.errorHandler = errorHandler;
+        this.perRequestThreadContext = perRequestThreadContext;
     }
 
     @Override
     protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
-        for(String headerName: restRequest.getHeaders().keySet()) {
-            final List<String> headerValues = restRequest.getHeaders().get(headerName);
-
-            if (headerValues != null && !headerValues.isEmpty()) {
-                threadContext.putHeader(headerName, String.join(",", headerValues));
-            }
-        }
+        perRequestThreadContext.accept(restRequest.getHttpRequest(), threadContext);
     }
 
     @Override

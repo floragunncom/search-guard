@@ -17,6 +17,11 @@
 
 package com.floragunn.searchguard.legacy;
 
+import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
+import com.floragunn.searchguard.legacy.test.RestHelper;
+import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
+import com.floragunn.searchguard.legacy.test.SingleClusterTest;
+import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.common.settings.Settings;
@@ -24,12 +29,6 @@ import org.elasticsearch.tasks.Task;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
-import com.floragunn.searchguard.legacy.test.RestHelper;
-import com.floragunn.searchguard.legacy.test.SingleClusterTest;
-import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class TaskTests extends SingleClusterTest {
     
@@ -45,6 +44,19 @@ public class TaskTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_tasks?group_by=parents&pretty"
                 , encodeBasicHeader("nagilum", "nagilum")
                 , new BasicHeader(Task.X_OPAQUE_ID_HTTP_HEADER, "myOpaqueId12"))).getStatusCode());
+        System.out.println(res.getBody());
+        Assert.assertTrue(res.getBody().split("X-Opaque-Id").length > 2);
+    }
+
+    @Test
+    public void testXOpaqueIdHeaderLowerCase() throws Exception {
+        setup(Settings.EMPTY, new DynamicSgConfig(), Settings.EMPTY);
+
+        RestHelper rh = nonSslRestHelper();
+        HttpResponse res;
+        Assert.assertEquals(HttpStatus.SC_OK, (res = rh.executeGetRequest("_tasks?group_by=parents&pretty"
+            , encodeBasicHeader("nagilum", "nagilum")
+            , new BasicHeader(Task.X_OPAQUE_ID_HTTP_HEADER.toLowerCase(), "myOpaqueId12"))).getStatusCode());
         System.out.println(res.getBody());
         Assert.assertTrue(res.getBody().split("X-Opaque-Id").length > 2);
     }

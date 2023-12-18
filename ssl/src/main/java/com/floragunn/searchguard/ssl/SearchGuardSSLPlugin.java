@@ -17,6 +17,15 @@
 
 package com.floragunn.searchguard.ssl;
 
+import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
+import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
+import com.floragunn.searchguard.ssl.rest.SearchGuardSSLInfoAction;
+import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
+import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
+import com.floragunn.searchguard.ssl.transport.SearchGuardSSLTransportInterceptor;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchsupport.StaticSettings;
+import io.netty.util.internal.PlatformDependent;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -31,7 +40,6 @@ import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -73,17 +81,6 @@ import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
-
-import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
-import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
-import com.floragunn.searchguard.ssl.rest.SearchGuardSSLInfoAction;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
-import com.floragunn.searchguard.ssl.transport.SearchGuardSSLTransportInterceptor;
-import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchsupport.StaticSettings;
-
-import io.netty.util.internal.PlatformDependent;
 
 //For ES5 this class has only effect when SSL only plugin is installed
 public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, NetworkPlugin {
@@ -232,8 +229,9 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
             final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
                     configPath, NOOP_SSL_EXCEPTION_HANDLER);
-            final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService, bigArrays,
-                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER);
+            final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService,
+                bigArrays, threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory,
+                NOOP_SSL_EXCEPTION_HANDLER, perRequestThreadContext);
 
             httpTransports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport", () -> sgsnht);
 

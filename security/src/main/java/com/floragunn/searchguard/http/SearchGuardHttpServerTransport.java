@@ -17,10 +17,17 @@
 
 package com.floragunn.searchguard.http;
 
+import com.floragunn.codova.documents.ContentType;
+import com.floragunn.codova.documents.Format.UnknownDocTypeException;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
+import com.floragunn.searchguard.ssl.SslExceptionHandler;
+import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
+import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
+import java.util.function.BiConsumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -30,6 +37,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpChannel;
+import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.RestRequest;
@@ -39,33 +47,22 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
-import com.floragunn.codova.documents.ContentType;
-import com.floragunn.codova.documents.Format.UnknownDocTypeException;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
-import com.floragunn.searchguard.ssl.SslExceptionHandler;
-import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
-import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
-
 public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServerTransport {
     private static final Logger log = LogManager.getLogger(SearchGuardHttpServerTransport.class);
+    private final BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext;
 
     public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService, final BigArrays bigArrays,
             final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
             final NamedXContentRegistry namedXContentRegistry, final ValidatingDispatcher dispatcher, ClusterSettings clusterSettings,
-            SharedGroupFactory sharedGroupFactory) {
-        super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler);
+            SharedGroupFactory sharedGroupFactory, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
+        super(settings, networkService, bigArrays, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings,
+            sharedGroupFactory, sslExceptionHandler, perRequestThreadContext);
+        this.perRequestThreadContext = perRequestThreadContext;
     }
 
     @Override
     protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
-        for(String headerName: restRequest.getHeaders().keySet()) {
-            final List<String> headerValues = restRequest.getHeaders().get(headerName);
-
-            if (headerValues != null && !headerValues.isEmpty()) {
-                threadContext.putHeader(headerName, String.join(",", headerValues));
-            }
-        }
+        perRequestThreadContext.accept(restRequest.getHttpRequest(), threadContext);
     }
 
 
