@@ -103,7 +103,6 @@ public class ScenarioTest {
         assertEquals(200, response.getStatusCode());
     }
 
-    @Disabled
     @Order(2)
     @Test
     public void testMasterNodeShutdown() {
