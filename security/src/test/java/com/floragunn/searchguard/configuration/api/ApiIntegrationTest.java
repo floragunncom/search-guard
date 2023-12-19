@@ -20,6 +20,8 @@ package com.floragunn.searchguard.configuration.api;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import org.apache.http.HttpHeaders;
+import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -31,6 +33,10 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.jayway.jsonpath.JsonPath;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public class ApiIntegrationTest {
     private final static TestSgConfig.User ADMIN_USER = new TestSgConfig.User("admin")
@@ -221,6 +227,97 @@ public class ApiIntegrationTest {
                 );
                 return null;
             });
+        }
+    }
+
+    @Test
+    public void shouldReturnNotFoundResponse_whenSpecificSearchguardRestHandlerDoesNotExist() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            //existing endpoint
+            
+            String endpointPath = "/_searchguard/authinfo";
+            
+            HttpResponse response = client.get(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            response = client.post(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            //delete method is not supported
+            response = client.delete(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_METHOD_NOT_ALLOWED, response.getStatusCode());
+
+            //non-existent endpoints
+            
+            endpointPath = "/_searchguard/authinfo/fake";
+            List<String > optionsAllowHeaderValues = Arrays.asList("HEAD", "POST", "DELETE", "TRACE", "GET", "CONNECT", "PUT", "PATCH");
+            
+            response = client.get(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.post(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.postJson(endpointPath, "{}");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.put(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.putJson(endpointPath, "{}");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.delete(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.patch(endpointPath, "");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.head(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+            //OPTIONS is supported by default by Elasticsearch
+            response = client.options(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            for (String allowHeaderValue : optionsAllowHeaderValues) {
+                Assert.assertTrue(response.getHeaderValue(HttpHeaders.ALLOW).contains(allowHeaderValue));
+            }
+
+            endpointPath = "/_searchguard/fake";
+
+            response = client.get(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.post(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.postJson(endpointPath, "{}");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.put(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.putJson(endpointPath, "{}");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.delete(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.patch(endpointPath, "");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            response = client.head(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+            //OPTIONS is supported by default by Elasticsearch
+            response = client.options(endpointPath);
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+            for (String allowHeaderValue : optionsAllowHeaderValues) {
+                Assert.assertTrue(response.getHeaderValue(HttpHeaders.ALLOW).contains(allowHeaderValue));
+            }
+
+            //not found request should be returned for paths containing up to 100 components
+            for (int i = 25; i <= 100; i += 25) {
+                endpointPath = "/_searchguard" + String.join("", Collections.nCopies(i, "/a"));
+                response = client.get(endpointPath);
+                Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+            }
+
+            //path with more than 100 components
+            endpointPath = "/_searchguard" + String.join("", Collections.nCopies(101, "/a"));
+            response = client.get(endpointPath);
+            Assert.assertNotEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
+            //not found request should be returned only for the '_searchguard' REST namespace
+            endpointPath = "/test/something";
+            response = client.get(endpointPath);
+            Assert.assertNotEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
+
         }
     }
 }

@@ -507,6 +507,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(GetActivatedFrontendConfigAction.REST_API);
                 handlers.add(MigrateConfigIndexApi.REST_API);
                 handlers.add(new AuthenticatingRestFilter.DebugApi());
+                handlers.add(new NotFoundRestHandler());
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
