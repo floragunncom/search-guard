@@ -94,6 +94,8 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         this.fakeLoginPassword = vNode.get("fake_login.password").withDefault("fakeLoginPwd123").asString().getBytes();
 
         validationErrors.throwExceptionForPresentErrors();
+        
+        this.componentState.addPart(this.connectionManager.getComponentState());
     }
 
     @Override
@@ -199,7 +201,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             SearchRequest searchRequest = new SearchRequest(userSearchBaseDn, userSearchScope, filter, this.userSearchAttributes);
             searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
 
-            try {
+            try (Meter subSubMeter = subMeter.detail("ldap_search_operation")) {
                 SearchResult searchResult = connection.search(searchRequest);
 
                 log.trace("User search {} yielded {} results", filter, searchResult.getEntryCount());
@@ -219,7 +221,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
 
     private Set<Entry> searchGroups(SearchResultEntry entry, AuthCredentials credentials, Meter meter) throws AuthenticatorUnavailableException {
         try (Meter subMeter = meter.detail("group_search"); LDAPConnection connection = connectionManager.getConnection()) {
-            return groupSearch.search(connection, entry.getDN(), AttributeSource.from(credentials.getAttributesForUserMapping()), meter);
+            return groupSearch.search(connection, entry.getDN(), AttributeSource.from(credentials.getAttributesForUserMapping()), subMeter);
         }
     }
 

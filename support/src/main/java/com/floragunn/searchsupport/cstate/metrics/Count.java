@@ -18,6 +18,7 @@
 package com.floragunn.searchsupport.cstate.metrics;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 
 import com.floragunn.codova.documents.DocNode;
 
@@ -78,5 +79,45 @@ public class Count extends Measurement<Count> {
     
     public void set(long count) {
         this.count.set(count);
+    }
+    
+    public static class Live extends Measurement<Count> {
+        
+        private final Supplier<Long> countSupplier;
+        
+        public Live(Supplier<Long> countSupplier) {
+            this.countSupplier = countSupplier;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return this.countSupplier.get();
+        }
+
+        @Override
+        public Measurement<Count> clone() {
+            return new Count(this.countSupplier.get());
+        }
+
+        @Override
+        public void addToThis(Count other) {
+            // not supported
+        }
+
+        @Override
+        public void addToThis(Measurement<?> other) {
+            // not supported
+        }
+
+        @Override
+        public String getType() {
+            return TYPE;
+        }
+
+        @Override
+        public void reset() {
+            // not supported
+        }
+        
     }
 }
