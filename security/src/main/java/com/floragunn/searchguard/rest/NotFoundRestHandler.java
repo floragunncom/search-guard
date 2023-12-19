@@ -63,7 +63,7 @@ public class NotFoundRestHandler extends BaseRestHandler {
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
         request.content();
         return restChannel -> restChannel.sendResponse(
-                new BytesRestResponse(RestStatus.NOT_FOUND, XContentType.JSON.mediaTypeWithoutParameters(), "")
+                new BytesRestResponse(RestStatus.NOT_FOUND, XContentType.JSON.mediaType(), "")
         );
     }
 }
