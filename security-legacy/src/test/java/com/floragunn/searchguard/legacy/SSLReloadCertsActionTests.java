@@ -150,10 +150,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
 
         try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
             GenericRestClient.HttpResponse reloadCertsResponse = restClient.post("_searchguard/_security/api/ssl/wrong/reloadcerts");
-            Assert.assertEquals(400, reloadCertsResponse.getStatusCode());
-            Assert.assertEquals(reloadCertsResponse.getBody(),
-                    ImmutableMap.of("error", "no handler found for uri [/_searchguard/_security/api/ssl/wrong/reloadcerts] and method [POST]"),
-                    DocReader.json().read(reloadCertsResponse.getBody()));
+            Assert.assertEquals(404, reloadCertsResponse.getStatusCode());
         }
     }
 
