@@ -18,6 +18,7 @@ import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Collections;
 
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.elasticsearch.action.index.IndexRequest;
@@ -51,11 +52,13 @@ public class LdapIntegrationTest {
 
     static TestCertificate ldapServerCertificate = certificatesContext.create("CN=ldap.example.com,OU=MyOU,O=MyO");
 
+    static String PICTURE_OF_THORE = "U2VhcmNoIEd1YXJk==";
+
     static TestLdapDirectory.Entry KARLOTTA = new TestLdapDirectory.Entry("cn=Karlotta,ou=people,o=TEST").cn("Karlotta").uid("karlotta")
             .userpassword("karlottas-secret").displayName("Karlotta Karl").objectClass("inetOrgPerson");
 
     static TestLdapDirectory.Entry THORE = new TestLdapDirectory.Entry("cn=Thore,ou=people,o=TEST").cn("Thore").uid("tho").userpassword("tho-secret")
-            .objectClass("inetOrgPerson").attr("departmentnumber", "a", "b").attr("businessCategory", "bc_1");
+            .objectClass("inetOrgPerson").attr("departmentnumber", "a", "b").attr("jpegPhoto", PICTURE_OF_THORE).attr("businessCategory", "bc_1");
 
     static TestLdapDirectory.Entry PAUL = new TestLdapDirectory.Entry("cn=Paul,ou=people,o=TEST").cn("Paul").uid("paule").userpassword("p-secret")
             .objectClass("inetOrgPerson");
@@ -67,7 +70,7 @@ public class LdapIntegrationTest {
             .objectClass("groupOfUniqueNames").uniqueMember(KARLOTTA);
 
     static TestLdapDirectory.Entry STD_ACCESS_GROUP = new TestLdapDirectory.Entry("cn=std_access,ou=groups,o=TEST").cn("std_access")
-            .objectClass("groupOfUniqueNames").uniqueMember(THORE);
+            .objectClass("groupOfUniqueNames").attr("description", "My Description").attr("businessCategory", "x").uniqueMember(THORE);
 
     static TestLdapDirectory.Entry BUSINESS_CATEGORY_1_GROUP = new TestLdapDirectory.Entry("cn=bc_1,ou=groups,o=TEST").cn("bc_1")
             .objectClass("groupOfUniqueNames").attr("businessCategory", "bc_1");
@@ -143,7 +146,23 @@ public class LdapIntegrationTest {
                     .acceptIps("127.0.0.18")//
                     .userMapping(new UserMapping()//
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
-                            .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //                    
+                            .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //
+            new Authc.Domain("basic/ldap")//
+                    .description("using retrieve_attributes setting")//
+                    .backend(DocNode.of(//
+                            "idp.hosts", "#{var:ldapHost}", //
+                            "idp.tls.trusted_cas", certificatesContext.getCaCertificate().getCertificateString(), //
+                            "idp.tls.verify_hostnames", false, //
+                            "user_search.filter.by_attribute", "uid", //
+                            "user_search.retrieve_attributes", "uid", //
+                            "group_search.base_dn", TestLdapDirectory.GROUPS.getDn(), //
+                            "group_search.filter.by_attribute", "uniqueMember", //
+                            "group_search.role_name_attribute", "dn", //
+                            "group_search.retrieve_attributes", "businessCategory", //
+                            "group_search.recursive.enabled", true))
+                    .acceptIps("127.0.0.19")//
+                    .userMapping(new UserMapping()//
+                            .userNameFromBackend("ldap_user_entry.uid")), //
             new Authc.Domain("basic/internal_users_db")//
                     .additionalUserInformation(new AdditionalUserInformation("ldap", DocNode.of(//
                             "idp.hosts", "#{var:ldapHost}", //
@@ -158,7 +177,7 @@ public class LdapIntegrationTest {
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
                             .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]"))
 
-    );
+    ).debug().userCacheEnabled(false);
 
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().resources("ldap")//
             .roles(TestSgConfig.Role.ALL_ACCESS, INDEX_PATTERN_WITH_ATTR, INDEX_PATTERN_WITH_ATTR_FOR_RECURSIVE_GROUPS)//
@@ -281,7 +300,6 @@ public class LdapIntegrationTest {
         }
     }
 
-    
     @Test
     public void wrongPassword() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(KARLOTTA.getName(), "wrong-password")) {
@@ -289,12 +307,39 @@ public class LdapIntegrationTest {
             Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
         }
     }
-    
+
     @Test
     public void userNotFound() throws Exception {
         try (GenericRestClient client = cluster.getRestClient("unknown-user", "password")) {
             GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
             Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+        }
+    }
+
+    @Test
+    public void retrieveAttributes() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(THORE)) {
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/auth/debug");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), Arrays.asList(PICTURE_OF_THORE), response.getBodyAsDocNode().findByJsonPath(
+                    "$.debug[?(@.method=='basic/ldap' && @.message=='Backends successful')].details.user_mapping_attributes.ldap_user_entry.jpegPhoto[0]"));
+            Assert.assertEquals(response.getBody(), Arrays.asList("My Description"), response.getBodyAsDocNode().findByJsonPath(
+                    "$.debug[?(@.method=='basic/ldap' && @.message=='Backends successful')].details.user_mapping_attributes.ldap_group_entries[*].description[0]"));
+            Assert.assertEquals(response.getBody(), Arrays.asList("x"), response.getBodyAsDocNode().findByJsonPath(
+                    "$.debug[?(@.method=='basic/ldap' && @.message=='Backends successful')].details.user_mapping_attributes.ldap_group_entries[*].businessCategory[0]"));
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(THORE)) {
+            client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 19 }));
+
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/auth/debug");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), Collections.emptyList(), response.getBodyAsDocNode().findByJsonPath(
+                    "$.debug[?(@.method=='basic/ldap' && @.message=='Backends successful')].details.user_mapping_attributes.ldap_user_entry.jpegPhoto[0]"));
+            Assert.assertEquals(response.getBody(), Collections.emptyList(), response.getBodyAsDocNode().findByJsonPath(
+                    "$.debug[?(@.method=='basic/ldap' && @.message=='Backends successful')].details.user_mapping_attributes.ldap_group_entries[*].description[0]"));
+            Assert.assertEquals(response.getBody(), Arrays.asList("x"), response.getBodyAsDocNode().findByJsonPath(
+                    "$.debug[?(@.method=='basic/ldap' && @.message=='Backends successful')].details.user_mapping_attributes.ldap_group_entries[*].businessCategory[0]"));
         }
     }
 }
