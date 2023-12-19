@@ -36,6 +36,9 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchsupport.PrivilegedCode;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.Count;
 import com.google.common.primitives.Ints;
 import com.unboundid.ldap.sdk.AggregateLDAPConnectionPoolHealthCheck;
 import com.unboundid.ldap.sdk.BindRequest;
@@ -57,7 +60,7 @@ import com.unboundid.ldap.sdk.SimpleBindRequest;
 import com.unboundid.ldap.sdk.StartTLSPostConnectProcessor;
 import com.unboundid.util.ssl.HostNameSSLSocketVerifier;
 
-public final class LDAPConnectionManager implements Closeable {
+public final class LDAPConnectionManager implements Closeable, ComponentStateProvider {
 
     private static final Logger log = LogManager.getLogger(LDAPConnectionManager.class);
     private final LDAPConnectionPool pool;
@@ -65,7 +68,8 @@ public final class LDAPConnectionManager implements Closeable {
     private final int poolMinSize;
     private final int poolMaxSize;
     private final ConnectionStrategy connectionStrategy;
-
+    private final ComponentState componentState = new ComponentState(0, null, "ldap_connection_pool", LDAPConnectionManager.class);
+    
     public static enum ConnectionStrategy {
         FEWEST, FAILOVER, FASTEST, ROUNDROBIN;
     }
@@ -154,6 +158,25 @@ public final class LDAPConnectionManager implements Closeable {
                     pool.setHealthCheckIntervalMillis(healthCheckInterval.toMillis());
                 }
             }
+            
+            componentState.setConfigProperty("min_size", poolMinSize);
+            componentState.setConfigProperty("max_size", poolMaxSize);
+            
+            componentState.addMetrics("current_available_connections", new Count.Live(() -> (long) pool.getCurrentAvailableConnections()));
+            componentState.addMetrics("connections_closed_defunct", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumConnectionsClosedDefunct()));
+            componentState.addMetrics("connections_closed_expired", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumConnectionsClosedExpired()));
+            componentState.addMetrics("connections_closed_unneeded", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumConnectionsClosedUnneeded()));
+            componentState.addMetrics("failed_checkouts", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumFailedCheckouts()));
+            componentState.addMetrics("failed_connection_attempts", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumFailedConnectionAttempts()));
+            componentState.addMetrics("released_back_to_pool", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumReleasedValid()));
+            componentState.addMetrics("successful_checkouts_from_pool", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumSuccessfulCheckouts()));
+            componentState.addMetrics("successful_checkouts_from_pool_after_wait", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumSuccessfulCheckoutsAfterWaiting()));
+            componentState.addMetrics("successful_checkouts_from_pool_without_wait", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumSuccessfulCheckoutsWithoutWaiting()));
+            componentState.addMetrics("successful_checkouts_new_connection", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumSuccessfulCheckoutsNewConnection()));
+            componentState.addMetrics("successful_connection_attempts", new Count.Live(() -> pool.getConnectionPoolStatistics().getNumSuccessfulConnectionAttempts()));
+
+            
+            componentState.setInitialized();
         } else {
             pool = null;
         }
@@ -318,5 +341,10 @@ public final class LDAPConnectionManager implements Closeable {
             delegate.toString(buffer);
             buffer.append("(wrapped by PrivilegedServerSet)");
         }
+    }
+
+    @Override
+    public ComponentState getComponentState() {
+        return componentState;
     }
 }
