@@ -73,6 +73,7 @@ import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextPr
 import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
 import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwnerService;
 import com.floragunn.searchguard.rest.KibanaInfoAction;
+import com.floragunn.searchguard.rest.NotFoundRestHandler;
 import com.floragunn.searchguard.rest.PermissionAction;
 import com.floragunn.searchguard.rest.SSLReloadCertAction;
 import com.floragunn.searchguard.rest.SearchGuardHealthAction;
