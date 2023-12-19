@@ -48,9 +48,11 @@ public class GroupSearch {
     private final String searchBaseDn;
     private final SearchScope searchScope;
     private final SearchFilter searchFilter;
+    private final String[] retrieveAttributes;
     private final boolean recursive;
     private final Pattern recursivePattern;
     private final SearchFilter recursiveSearchFilter;
+    private final String[] recursiveRetrieveAttributes;
     private final int maxRecusionDepth;
     private final String roleNameAttribute;
     private final Cache<Filter, Set<Entry>> searchCache;
@@ -64,9 +66,13 @@ public class GroupSearch {
         this.searchScope = vNode.get("scope").withDefault(SearchScope.SUB).byString(LDAP::getSearchScope);
         this.searchFilter = vNode.get("filter").withDefault(SearchFilter.DEFAULT_GROUP_SEARCH).by(SearchFilter::parseForGroupSearch);
         this.roleNameAttribute = vNode.get("role_name_attribute").withDefault("dn").asString();
+        this.retrieveAttributes = vNode.get("retrieve_attributes")
+                .withListDefault(SearchRequest.ALL_OPERATIONAL_ATTRIBUTES, SearchRequest.ALL_USER_ATTRIBUTES).ofStrings().toArray(new String[0]);        
         this.recursive = vNode.get("recursive.enabled").withDefault(false).asBoolean();
         this.recursiveSearchFilter = vNode.get("recursive.filter").withDefault(this.searchFilter).by(SearchFilter::parseForGroupSearch);
         this.recursivePattern = vNode.get("recursive.enabled_for").by(Pattern::parse);
+        this.recursiveRetrieveAttributes = vNode.get("recursive.retrieve_attributes").withListDefault(this.retrieveAttributes).ofStrings()
+                .toArray(new String[0]);      
         this.maxRecusionDepth = vNode.get("recursive.max_depth").withDefault(30).asInt();
         this.searchCache = vNode.get("cache").withDefault(CacheConfig.DEFAULT).by(CacheConfig::new).build();
 
@@ -116,8 +122,7 @@ public class GroupSearch {
                 }
             }
 
-            SearchRequest searchRequest = new SearchRequest(searchBaseDn, searchScope, filter, SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
-                    SearchRequest.ALL_USER_ATTRIBUTES);
+            SearchRequest searchRequest = new SearchRequest(searchBaseDn, searchScope, filter, GroupSearch.this.retrieveAttributes);
             searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
 
             try {
@@ -167,8 +172,7 @@ public class GroupSearch {
                 Filter filter = Filter.createORFilter(filters);
 
                 try {
-                    SearchRequest searchRequest = new SearchRequest(searchBaseDn, searchScope, filter, SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
-                            SearchRequest.ALL_USER_ATTRIBUTES);
+                    SearchRequest searchRequest = new SearchRequest(searchBaseDn, searchScope, filter, GroupSearch.this.recursiveRetrieveAttributes);
                     searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
 
                     for (SearchResultEntry entry : connection.search(searchRequest).getSearchEntries()) {

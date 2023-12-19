@@ -795,6 +795,8 @@ public class TestSgConfig {
 
         private List<Domain> domains;
         private List<String> trustedProxies;
+        private boolean debug;
+        private boolean userCacheEnabled = true;
 
         public Authc(Domain... domains) {
             this.domains = ImmutableList.ofArray(domains);
@@ -802,6 +804,16 @@ public class TestSgConfig {
 
         public Authc trustedProxies(String... trustedProxies) {
             this.trustedProxies = asList(trustedProxies);
+            return this;
+        }
+        
+        public Authc debug() {
+            this.debug = true;
+            return this;
+        }
+        
+        public Authc userCacheEnabled(boolean userCacheEnabled) {
+            this.userCacheEnabled = userCacheEnabled;
             return this;
         }
 
@@ -1113,8 +1125,7 @@ public class TestSgConfig {
                     return result;
                 }
 
-            }
-
+            }           
         }
 
         @Override
@@ -1126,7 +1137,13 @@ public class TestSgConfig {
             if (trustedProxies != null) {
                 result.put("network", ImmutableMap.of("trusted_proxies", trustedProxies));
             }
-
+            
+            result.put("debug", this.debug);
+            
+            if (!userCacheEnabled) {
+                result.put("user_cache", ImmutableMap.of("enabled", false));
+            }
+            
             return ImmutableMap.of("default", result);
         }
     }
