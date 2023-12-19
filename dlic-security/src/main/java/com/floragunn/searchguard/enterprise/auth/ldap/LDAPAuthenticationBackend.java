@@ -67,6 +67,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     private final String userSearchBaseDn;
     private final SearchScope userSearchScope;
     private final SearchFilter userSearchFilter;
+    private final String [] userSearchAttributes;
     private final GroupSearch groupSearch;
 
     private final boolean fakeLoginEnabled;
@@ -85,6 +86,8 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         this.userSearchBaseDn = vNode.get("user_search.base_dn").withDefault("").asString();
         this.userSearchScope = vNode.get("user_search.scope").withDefault(SearchScope.SUB).byString(LDAP::getSearchScope);
         this.userSearchFilter = vNode.get("user_search.filter").withDefault(SearchFilter.DEFAULT).by(SearchFilter::parseForUserSearch);
+        this.userSearchAttributes = vNode.get("user_search.retrieve_attributes")
+                .withListDefault(SearchRequest.ALL_OPERATIONAL_ATTRIBUTES, SearchRequest.ALL_USER_ATTRIBUTES).ofStrings().toArray(new String[0]);
         this.groupSearch = vNode.get("group_search").by(GroupSearch::new);
         this.fakeLoginEnabled = vNode.get("fake_login.enabled").withDefault(false).asBoolean();
         this.fakeLoginDn = vNode.get("fake_login.password").asString();
@@ -193,8 +196,7 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
                 throw new AuthenticatorUnavailableException("Could not create query for LDAP user search", e.getMessage(), e);
             }
 
-            SearchRequest searchRequest = new SearchRequest(userSearchBaseDn, userSearchScope, filter, SearchRequest.ALL_OPERATIONAL_ATTRIBUTES,
-                    SearchRequest.ALL_USER_ATTRIBUTES);
+            SearchRequest searchRequest = new SearchRequest(userSearchBaseDn, userSearchScope, filter, this.userSearchAttributes);
             searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
 
             try {
