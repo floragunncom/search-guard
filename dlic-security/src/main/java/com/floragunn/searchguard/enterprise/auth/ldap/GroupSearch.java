@@ -129,14 +129,20 @@ public class GroupSearch {
 
                 Set<String> newEntryDns = new HashSet<>();
 
-                for (SearchResultEntry entry : connection.search(searchRequest).getSearchEntries()) {
-                    foundEntries.put(entry.getDN(), entry);
+                try (Meter subMeter = this.meter.detail("ldap_search_operation")) {
+                    
+                    List<SearchResultEntry> searchResult = connection.search(searchRequest).getSearchEntries();                     
+                    subMeter.count("search_result_entries", searchResult.size());
 
-                    if (recursivePattern == null || recursivePattern.matches(entry.getDN())) {
-                        newEntryDns.add(entry.getDN());
+                    for (SearchResultEntry entry : searchResult) {
+                        foundEntries.put(entry.getDN(), entry);
+
+                        if (recursivePattern == null || recursivePattern.matches(entry.getDN())) {
+                            newEntryDns.add(entry.getDN());
+                        }
                     }
                 }
-
+                
                 if (recursive && newEntryDns.size() != 0) {
                     searchNested(newEntryDns, 0);
                 }
@@ -171,11 +177,14 @@ public class GroupSearch {
 
                 Filter filter = Filter.createORFilter(filters);
 
-                try {
+                try (Meter subSubMeter = subMeter.detail("ldap_search_operation")) {
                     SearchRequest searchRequest = new SearchRequest(searchBaseDn, searchScope, filter, GroupSearch.this.recursiveRetrieveAttributes);
                     searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);
-
-                    for (SearchResultEntry entry : connection.search(searchRequest).getSearchEntries()) {
+                    
+                    List<SearchResultEntry> searchResult = connection.search(searchRequest).getSearchEntries();                     
+                    subSubMeter.count("search_result_entries", searchResult.size());
+                    
+                    for (SearchResultEntry entry : searchResult) {
                         if (!foundEntries.containsKey(entry.getDN())) {
                             foundEntries.put(entry.getDN(), entry);
 
