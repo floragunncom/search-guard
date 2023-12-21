@@ -37,7 +37,7 @@ import static com.floragunn.signals.actions.watch.generic.rest.WatchInstanceIdRe
 
 public class GetAllWatchInstancesAction extends Action<GetAllWatchInstancesAction.GetAllWatchInstancesRequest, StandardResponse> {
 
-    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/get_all_instances";
+    public final static String NAME = "cluster:admin:searchguard:tenant:signals:watch/instances/get_all";
     public static final GetAllWatchInstancesAction INSTANCE = new GetAllWatchInstancesAction();
 
     public static final RestApi REST_API = new RestApi().responseHeaders(SearchGuardVersion.header())//
