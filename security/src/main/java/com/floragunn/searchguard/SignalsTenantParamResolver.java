@@ -32,7 +32,7 @@ public class SignalsTenantParamResolver {
 
 
     public static Optional<String> getSignalsTenantFrom(RestRequest request) {
-        if(request.uri().startsWith("/_signals/watch/")) {
+        if(request.uri().startsWith("/_signals/watch/") || request.uri().startsWith("/_signals/tenant/")) {
             return Optional.of(request.uri().split("/")[3]);
         }
 
