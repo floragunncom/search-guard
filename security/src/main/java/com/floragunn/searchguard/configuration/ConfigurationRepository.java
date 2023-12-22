@@ -190,7 +190,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
         this.variableResolvers = new VariableResolvers()
                 .with("file", (file) -> VariableResolvers.FILE_PRIVILEGED.apply(environment.configFile().resolve(file).toAbsolutePath().toString()))
-                .with("env", VariableResolvers.ENV).with("var", (key) -> configVarService.get(key));
+                .with("env", VariableResolvers.ENV).with("var", (key) -> configVarService.get(key))
+                .with("json_file", (file) -> VariableResolvers.JSON_FILE_PRIVILEGED.apply(environment.configFile().resolve(file).toAbsolutePath().toString()));
         this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry);
         this.threadPool = threadPool;
 
