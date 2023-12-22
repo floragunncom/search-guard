@@ -14,13 +14,12 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.admin.start_stop.StartStopAction;
 import com.floragunn.signals.actions.admin.start_stop.StartStopRequest;
 import com.floragunn.signals.actions.admin.start_stop.StartStopResponse;
 import com.google.common.collect.ImmutableList;
 
-public class DeActivateGloballyAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
+public class DeActivateGloballyAction extends SignalsBaseRestHandler {
 
     public DeActivateGloballyAction(Settings settings, RestController controller) {
         super(settings);

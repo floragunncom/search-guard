@@ -31,13 +31,12 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.ack.AckWatchAction;
 import com.floragunn.signals.actions.watch.ack.AckWatchRequest;
 import com.floragunn.signals.actions.watch.ack.AckWatchResponse;
 import com.google.common.collect.ImmutableList;
 
-public class AckWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
+public class AckWatchApiAction extends SignalsTenantAwareRestHandler {
 
     public AckWatchApiAction(Settings settings, RestController controller) {
         super(settings);
@@ -50,7 +49,7 @@ public class AckWatchApiAction extends SignalsBaseRestHandler implements TenantA
     }
 
     @Override
-    protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+    protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
 
         final String watchId = request.param("id");
         final String actionId = request.param("actionId");

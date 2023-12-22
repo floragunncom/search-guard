@@ -21,7 +21,9 @@ import static com.floragunn.searchguard.test.TestSgConfig.Role.ALL_ACCESS;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.not;
 
 import java.net.InetAddress;
 import java.net.URI;
@@ -3141,6 +3143,68 @@ public class RestApiTest {
             Assert.assertNull(watch.toJson(), watchState.getThrottlePeriod());
             Assert.assertNull(watch.toJson(), watchState.getActionByName(actionName).getThrottlePeriod());
 
+        }
+    }
+
+    @Test
+    public void endpointsSupportingTenantParameterShouldNotAcceptPrivateTenant() throws Exception {
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
+
+            HttpResponse response = restClient.get("/_signals/watch/__user__/_search");
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("error.message", "Signals does not support private tenants"));
+
+            response = restClient.get("/_signals/watch/_main/_search");
+            assertThat(response.getBody(), response.getBodyAsDocNode(), not(containsValue("error.message", "Signals does not support private tenants")));
+
+            response = restClient.get("/_signals/watch/__user__/1");
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("error.message", "Signals does not support private tenants"));
+
+            response = restClient.get("/_signals/watch/_main/1");
+            assertThat(response.getBody(), response.getBodyAsDocNode(), not(containsValue("error.message", "Signals does not support private tenants")));
+
+            response = restClient.post("/_signals/watch/__user__/_search");
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("error.message", "Signals does not support private tenants"));
+
+            response = restClient.post("/_signals/watch/_main/_search");
+            assertThat(response.getBody(), response.getBodyAsDocNode(), not(containsValue("error.message", "Signals does not support private tenants")));
+
+            response = restClient.post("/_signals/watch/__user__/1/_execute");
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("error.message", "Signals does not support private tenants"));
+
+            response = restClient.post("/_signals/watch/_main/1/_execute");
+            assertThat(response.getBody(), response.getBodyAsDocNode(), not(containsValue("error.message", "Signals does not support private tenants")));
+
+            response = restClient.put("/_signals/tenant/__user__/_active");
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("error.message", "Signals does not support private tenants"));
+
+            response = restClient.put("/_signals/tenant/_main/_active");
+            assertThat(response.getBody(), response.getBodyAsDocNode(), not(containsValue("error.message", "Signals does not support private tenants")));
+
+            response = restClient.put("/_signals/watch/__user__/1/_ack_and_get");
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("error.message", "Signals does not support private tenants"));
+
+            response = restClient.put("/_signals/watch/_main/1/_ack_and_get");
+            assertThat(response.getBody(), response.getBodyAsDocNode(), not(containsValue("error.message", "Signals does not support private tenants")));
+
+            response = restClient.delete("/_signals/watch/__user__/1");
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("error.message", "Signals does not support private tenants"));
+
+            response = restClient.delete("/_signals/watch/_main/1");
+            assertThat(response.getBody(), response.getBodyAsDocNode(), not(containsValue("error.message", "Signals does not support private tenants")));
+
+            response = restClient.delete("/_signals/watch/__user__/1/_ack/1");
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("error.message", "Signals does not support private tenants"));
+
+            response = restClient.delete("/_signals/watch/_main/1/_ack/1");
+            assertThat(response.getBody(), response.getBodyAsDocNode(), not(containsValue("error.message", "Signals does not support private tenants")));
         }
     }
 

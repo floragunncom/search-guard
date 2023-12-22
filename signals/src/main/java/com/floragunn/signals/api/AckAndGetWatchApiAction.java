@@ -1,6 +1,5 @@
 package com.floragunn.signals.api;
 
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchAction;
 import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchRequest;
 import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchResponse;
@@ -19,16 +18,13 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static java.util.Comparator.comparing;
 import static org.elasticsearch.rest.RestRequest.Method.DELETE;
 import static org.elasticsearch.rest.RestRequest.Method.PUT;
 
-public class AckAndGetWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
+public class AckAndGetWatchApiAction extends SignalsTenantAwareRestHandler {
 
     private static final Logger log = LogManager.getLogger(AckAndGetWatchApiAction.class);
 
@@ -49,7 +45,7 @@ public class AckAndGetWatchApiAction extends SignalsBaseRestHandler implements T
 
 
     @Override
-    protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+    protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
 
         final String watchId = request.param("id");
         final String actionId = request.param("actionId");
