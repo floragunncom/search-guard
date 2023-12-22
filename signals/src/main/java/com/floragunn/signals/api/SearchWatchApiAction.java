@@ -8,22 +8,21 @@ import java.io.IOException;
 import java.util.List;
 
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.rest.BaseRestHandler;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.search.SearchWatchAction;
 import com.floragunn.signals.actions.watch.search.SearchWatchRequest;
 import com.floragunn.signals.actions.watch.search.SearchWatchResponse;
 import com.google.common.collect.ImmutableList;
 
-public class SearchWatchApiAction extends BaseRestHandler implements TenantAwareRestHandler {
+public class SearchWatchApiAction extends SignalsTenantAwareRestHandler {
 
-    public SearchWatchApiAction() {
-        super();
+    public SearchWatchApiAction(Settings settings) {
+        super(settings);
     }
 
     @Override
@@ -32,7 +31,7 @@ public class SearchWatchApiAction extends BaseRestHandler implements TenantAware
     }
 
     @Override
-    protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+    protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
         String scroll = request.param("scroll");
         int from = request.paramAsInt("from", -1);
         int size = request.paramAsInt("size", -1);

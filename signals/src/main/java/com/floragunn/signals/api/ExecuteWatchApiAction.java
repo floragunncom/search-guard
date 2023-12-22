@@ -25,7 +25,6 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchAction;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchRequest;
 import com.floragunn.signals.actions.watch.execute.ExecuteWatchResponse;
@@ -37,7 +36,7 @@ import com.google.common.collect.ImmutableList;
 
 import static com.floragunn.signals.watch.common.ValidationLevel.LENIENT;
 
-public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
+public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
 
     private final Logger log = LogManager.getLogger(this.getClass());
     private final ScriptService scriptService;
@@ -56,7 +55,7 @@ public class ExecuteWatchApiAction extends SignalsBaseRestHandler implements Ten
     }
 
     @Override
-    protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+    protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
         try {
 
             final String id = request.param("id");

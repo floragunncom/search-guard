@@ -26,7 +26,7 @@ import com.floragunn.signals.actions.watch.ackandget.AckAndGetWatchResponse;
 import com.floragunn.signals.actions.watch.ackandget.Acknowledgement;
 import com.google.common.collect.ImmutableList;
 
-public class AckAndGetWatchApiAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
+public class AckAndGetWatchApiAction extends SignalsTenantAwareRestHandler {
 
     private static final Logger log = LogManager.getLogger(AckAndGetWatchApiAction.class);
 
@@ -47,14 +47,14 @@ public class AckAndGetWatchApiAction extends SignalsBaseRestHandler implements T
 
 
     @Override
-    protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+    protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
 
         final String watchId = request.param("id");
         final String actionId = request.param("actionId");
-        
+
         //we need to consume the tenant param here because
         //if not ES 8 throws an exception
-        request.param("tenant");        
+        request.param("tenant");
 
         return channel -> {
 

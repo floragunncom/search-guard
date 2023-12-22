@@ -14,12 +14,11 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.activate_deactivate.DeActivateWatchRequest;
 import com.floragunn.signals.actions.watch.activate_deactivate.DeActivateWatchResponse;
 import com.google.common.collect.ImmutableList;
 
-public class DeActivateWatchAction extends SignalsBaseRestHandler implements TenantAwareRestHandler {
+public class DeActivateWatchAction extends SignalsTenantAwareRestHandler {
 
     public DeActivateWatchAction(Settings settings, RestController controller) {
         super(settings);
@@ -31,7 +30,7 @@ public class DeActivateWatchAction extends SignalsBaseRestHandler implements Ten
     }
 
     @Override
-    protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+    protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
 
         final String id = request.param("id");
 

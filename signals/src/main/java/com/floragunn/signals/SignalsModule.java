@@ -129,10 +129,10 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
         if (enabled) {
             return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService, this.signalsSettings),
-                    new DeActivateWatchAction(settings, controller), new AckWatchApiAction(settings, controller), new SearchWatchApiAction(),
+                    new DeActivateWatchAction(settings, controller), new AckWatchApiAction(settings, controller), new SearchWatchApiAction(settings),
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
-                    new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(), new ConvertWatchApiAction(settings),
+                    new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(settings), new ConvertWatchApiAction(settings),
                     new AckAndGetWatchApiAction(settings), CreateOrReplaceTruststoreAction.REST_API, FindOneTruststoreAction.REST_API,
                     DeleteTruststoreAction.REST_API, FindAllTruststoresAction.REST_API, ProxyApi.REST_API, LoadOperatorSummaryAction.REST_API
             );
