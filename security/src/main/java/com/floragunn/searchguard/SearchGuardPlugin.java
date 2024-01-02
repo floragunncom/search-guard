@@ -558,6 +558,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(RestAuthcConfigApi.GetAction.INSTANCE, RestAuthcConfigApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(RestAuthcConfigApi.PutAction.INSTANCE, RestAuthcConfigApi.PutAction.Handler.class));
             actions.add(new ActionHandler<>(RestAuthcConfigApi.PatchAction.INSTANCE, RestAuthcConfigApi.PatchAction.Handler.class));
+            actions.add(new ActionHandler<>(RestAuthcConfigApi.DeleteAction.INSTANCE, RestAuthcConfigApi.DeleteAction.Handler.class));
             actions.add(new ActionHandler<>(AuthcCacheApi.DeleteAction.INSTANCE, AuthcCacheApi.DeleteAction.TransportAction.class));
             actions.addAll(AuthorizationConfigApi.ACTION_HANDLERS);
             actions.addAll(SearchGuardLicenseKeyApi.ACTION_HANDLERS);
