@@ -17,6 +17,11 @@
 
 package com.floragunn.searchguard.authc.rest;
 
+import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
+import com.floragunn.searchguard.configuration.ConfigUpdateException;
+import com.floragunn.searchsupport.action.Action;
+import com.floragunn.searchsupport.action.StandardRequests;
+import com.floragunn.searchsupport.action.StandardResponse;
 import org.elasticsearch.common.inject.Inject;
 
 import com.floragunn.codova.documents.patch.DocPatch;
@@ -26,12 +31,15 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 
+import java.util.concurrent.CompletableFuture;
+
 public class RestAuthcConfigApi extends TypeLevelConfigApi {
 
     public static final RestApi REST_API = new RestApi()//
             .handlesGet("/_searchguard/config/authc").with(GetAction.INSTANCE)//
             .handlesPut("/_searchguard/config/authc").with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(body.parseAsMap()))//
             .handlesPatch("/_searchguard/config/authc").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
+            .handlesDelete("/_searchguard/config/authc").with(DeleteAction.INSTANCE)
             .name("/_searchguard/config/authc");
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
@@ -80,6 +88,36 @@ public class RestAuthcConfigApi extends TypeLevelConfigApi {
             @Inject
             public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
                 super(INSTANCE, CType.AUTHC, handlerDependencies, configurationRepository);
+            }
+        }
+    }
+
+    public static class DeleteAction extends Action<StandardRequests.EmptyRequest, StandardResponse> {
+        public static final String NAME = "cluster:admin:searchguard:config/authc/delete";
+        public static final DeleteAction INSTANCE = new DeleteAction();
+
+        private DeleteAction() {
+            super(NAME, StandardRequests.EmptyRequest::new, StandardResponse::new);
+        }
+
+        public static class Handler extends Action.Handler<StandardRequests.EmptyRequest, StandardResponse> {
+            private final ConfigurationRepository configurationRepository;
+
+            @Inject
+            public Handler(HandlerDependencies handlerDependencies, ConfigurationRepository configurationRepository) {
+                super(INSTANCE, handlerDependencies);
+                this.configurationRepository = configurationRepository;
+            }
+
+            @Override
+            protected CompletableFuture<StandardResponse> doExecute(StandardRequests.EmptyRequest request) {
+                return supplyAsync(() -> {
+                    try {
+                        return configurationRepository.delete(CType.AUTHC);
+                    } catch (ConfigUpdateException | ConcurrentConfigUpdateException e) {
+                        return new StandardResponse(e);
+                    }
+                });
             }
         }
     }
