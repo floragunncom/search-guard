@@ -279,7 +279,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                         .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(stringToUtfByteArray(config)))))
                 .actionGet();
 
-        if (response.getResult() != DocWriteResponse.Result.UPDATED) {
+        if (! ImmutableSet.of(DocWriteResponse.Result.UPDATED, DocWriteResponse.Result.CREATED).contains(response.getResult())) {
             throw new RuntimeException("Updated failed " + response);
         }
 

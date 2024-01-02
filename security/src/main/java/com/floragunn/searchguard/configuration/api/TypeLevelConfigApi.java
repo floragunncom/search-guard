@@ -29,6 +29,7 @@ import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.ConfigurationRepository.Context;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.Strings;
@@ -103,27 +104,35 @@ public abstract class TypeLevelConfigApi {
 
                         logComplianceEvent(config);
 
-                        Map<String, Object> result = new LinkedHashMap<>();
+                        if (config.documentExists()) {
 
-                        if (configType.getArity() == CType.Arity.SINGLE) {
-                            try {
-                                DocNode parsedConfig = DocNode.parse(Format.JSON).from(config.getUninterpolatedJson());
+                            Map<String, Object> result = new LinkedHashMap<>();
 
-                                if (parsedConfig.hasNonNull("default")) {
-                                    result.put("content", parsedConfig.get("default"));
+                            if (configType.getArity() == CType.Arity.SINGLE) {
+                                try {
+                                    DocNode parsedConfig = DocNode.parse(Format.JSON).from(config.getUninterpolatedJson());
+
+                                    if (parsedConfig.hasNonNull("default")) {
+                                        result.put("content", parsedConfig.get("default"));
+                                    }
+                                } catch (DocumentParseException e) {
+                                    throw new ConfigUnavailableException(e);
                                 }
-                            } catch (DocumentParseException e) {
-                                throw new ConfigUnavailableException(e);
+                            } else {
+                                result.put("content", UnparsedDocument.fromJson(config.getUninterpolatedJson()));
                             }
-                        } else {
-                            result.put("content", UnparsedDocument.fromJson(config.getUninterpolatedJson()));
+
+                            result.put("_version", config.getDocVersion());
+                            result.put("_seq_no", config.getSeqNo());
+                            result.put("_primary_term", config.getPrimaryTerm());
+
+                            return new Response(result);
                         }
 
-                        result.put("_version", config.getDocVersion());
-                        result.put("_seq_no", config.getSeqNo());
-                        result.put("_primary_term", config.getPrimaryTerm());
+                        Response response = new Response();
+                        response.status(HttpStatus.SC_NOT_FOUND);
 
-                        return new Response(result);
+                        return response;
                     } catch (ConfigUnavailableException e) {
                         throw new CompletionException(e);
                     }
