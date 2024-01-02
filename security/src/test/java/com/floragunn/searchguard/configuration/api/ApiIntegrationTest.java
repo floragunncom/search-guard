@@ -20,6 +20,7 @@ package com.floragunn.searchguard.configuration.api;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -31,6 +32,11 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.jayway.jsonpath.JsonPath;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anEmptyMap;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 
 public class ApiIntegrationTest {
     private final static TestSgConfig.User ADMIN_USER = new TestSgConfig.User("admin")
@@ -50,6 +56,26 @@ public class ApiIntegrationTest {
     public void patchAuthc() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             client.patch("/_searchguard/config/authc", new JsonPathPatch(new JsonPathPatch.Operation(JsonPath.compile("debug"), true)));
+        }
+    }
+
+    @Test
+    public void deleteAuthc() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+            cluster.callAndRestoreConfig(CType.AUTHC, () -> {
+                HttpResponse response = client.get("/_searchguard/config/authc");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response.getBody(), response.getBodyAsDocNode(), not(anEmptyMap()));
+
+                response = client.delete("/_searchguard/config/authc");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = client.get("/_searchguard/config/authc");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+                assertThat(response.getBody(), response.getBodyAsDocNode(), anEmptyMap());
+
+                return null;
+            });
         }
     }
 
