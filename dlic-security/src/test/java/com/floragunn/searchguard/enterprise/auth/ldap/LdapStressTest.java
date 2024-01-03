@@ -21,7 +21,7 @@ import java.util.concurrent.Executors;
 
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.BeforeClass;
