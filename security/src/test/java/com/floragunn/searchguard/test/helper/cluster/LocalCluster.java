@@ -484,6 +484,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
+        public Builder authzDebug(boolean debug) {
+            this.testSgConfig.authzDebug(debug);
+            return this;
+        }
+
         public Builder nodeSettings(Object... settings) {
             for (int i = 0; i < settings.length - 1; i += 2) {
                 String key = String.valueOf(settings[i]);

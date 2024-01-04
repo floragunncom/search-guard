@@ -4,10 +4,21 @@ import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
+import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
+import static com.floragunn.searchsupport.junit.matcher.ExceptionsMatchers.messageContainsMatcher;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.configuration.CType;
+import org.apache.http.HttpStatus;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -32,7 +43,6 @@ import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.script.mustache.SearchTemplateRequest;
 import org.elasticsearch.script.mustache.SearchTemplateResponse;
 import org.elasticsearch.xcontent.XContentType;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -223,13 +233,50 @@ public class PrivilegesEvaluatorTest {
     }
 
     @Test
+    public void detailsAboutMissingPermissions_shouldBeReturnedOnlyWhenAuthzDebugIsEnabled() throws Exception {
+        try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient();
+             GenericRestClient userClient = cluster.getRestClient("exclusion_test_user_basic", "secret")) {
+
+            cluster.callAndRestoreConfig(CType.AUTHZ, () -> {
+
+                HttpResponse httpResponse = adminCertClient.get("/_searchguard/config/authz");
+                assertThat(httpResponse, isOk());
+
+                DocNode authzConfig = httpResponse.getBodyAsDocNode();
+                //authz debug enabled
+                authzConfig = authzConfig.with("debug", true);
+
+                httpResponse = adminCertClient.putJson("/_searchguard/config/authz", authzConfig);
+                assertThat(httpResponse, isOk());
+
+                httpResponse = userClient.get("alias_resolve_test_alias_1");
+                assertThat(httpResponse, isForbidden());
+                assertThat(httpResponse.getBody(), httpResponse.getBodyAsDocNode(), containsFieldPointedByJsonPath("error", "missing_permissions"));
+
+                //authz debug disabled
+                authzConfig = authzConfig.with("debug", false);
+
+                httpResponse = adminCertClient.putJson("/_searchguard/config/authz", authzConfig);
+                assertThat(httpResponse, isOk());
+
+                httpResponse = userClient.get("alias_resolve_test_alias_1");
+                assertThat(httpResponse, isForbidden());
+                assertThat(httpResponse.getBody(), httpResponse.getBodyAsDocNode(), not(containsFieldPointedByJsonPath("error", "missing_permissions")));
+
+                return null;
+            });
+
+        }
+    }
+
+    @Test
     public void resolveTestLocal() throws Exception {
 
         try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/resolve_test_*");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2"))));
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2"))));
         }
     }
 
@@ -239,8 +286,8 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("/_resolve/index/my_remote:resolve_test_*");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse,
                     json(nodeAt("indices[*].name", contains("my_remote:resolve_test_allow_remote_1", "my_remote:resolve_test_allow_remote_2"))));
         }
     }
@@ -251,8 +298,8 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("/_resolve/index/resolve_test_*,my_remote:resolve_test_*_remote_*");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2",
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2",
                     "my_remote:resolve_test_allow_remote_1", "my_remote:resolve_test_allow_remote_2"))));
         }
     }
@@ -263,8 +310,8 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("/_resolve/index/alias_resolve_test_*");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(nodeAt("indices[*].name", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, json(nodeAt("indices[*].name", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
                     "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
         }
     }
@@ -275,8 +322,8 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("/alias_resolve_test_*/_search");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
                     "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
         }
     }
@@ -288,8 +335,8 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("/exclude_test_*/_search");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse,
                     json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
         }
     }
@@ -301,8 +348,8 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("/exclude_test_*/_search");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index",
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index",
                     containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2", "exclude_test_disallow_1"))));
         }
     }
@@ -324,23 +371,19 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("/write_exclude_test_*/_search");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
                     "write_exclude_test_allow_2", "write_exclude_test_disallow_1", "write_exclude_test_disallow_2"))));
 
             IndexResponse indexResponse = client.index(new IndexRequest("write_exclude_test_allow_1").source("a", "b"), RequestOptions.DEFAULT);
 
-            Assert.assertEquals(DocWriteResponse.Result.CREATED, indexResponse.getResult());
+            assertThat(indexResponse.getResult(), equalTo(DocWriteResponse.Result.CREATED));
 
-            try {
-                client.index(new IndexRequest("write_exclude_test_disallow_1").source("a", "b"), RequestOptions.DEFAULT);
+            ElasticsearchStatusException e = (ElasticsearchStatusException) assertThatThrown(() ->
+                    client.index(new IndexRequest("write_exclude_test_disallow_1").source("a", "b"), RequestOptions.DEFAULT),
+                    instanceOf(ElasticsearchStatusException.class), messageContainsMatcher("Insufficient permissions"));
 
-                Assert.fail();
-            } catch (ElasticsearchStatusException e) {
-                Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
-            }
-
+            assertThat(e.status(), equalTo(RestStatus.FORBIDDEN));
         }
     }
 
@@ -350,16 +393,16 @@ public class PrivilegesEvaluatorTest {
         try (GenericRestClient restClient = clusterFof.getRestClient("exclusion_test_user_basic", "secret")) {
 
             HttpResponse httpResponse = restClient.get("/exclude_test_*/_search");
-            Assert.assertThat(httpResponse, isForbidden());
+            assertThat(httpResponse, isForbidden());
 
             httpResponse = restClient.get("/exclude_test_allow_*/_search");
-            Assert.assertThat(httpResponse, isOk());
+            assertThat(httpResponse, isOk());
 
-            Assert.assertThat(httpResponse,
+            assertThat(httpResponse,
                     json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
             httpResponse = restClient.get("/exclude_test_disallow_1/_search");
-            Assert.assertThat(httpResponse, isForbidden());
+            assertThat(httpResponse, isForbidden());
         }
     }
 
@@ -369,19 +412,19 @@ public class PrivilegesEvaluatorTest {
         try (GenericRestClient restClient = clusterFof.getRestClient("exclusion_test_user_basic_no_pattern", "secret")) {
 
             HttpResponse httpResponse = restClient.get("/exclude_test_*/_search");
-            Assert.assertThat(httpResponse, isForbidden());
+            assertThat(httpResponse, isForbidden());
 
             httpResponse = restClient.get("/exclude_test_allow_*/_search");
-            Assert.assertThat(httpResponse, isOk());
+            assertThat(httpResponse, isOk());
 
-            Assert.assertThat(httpResponse,
+            assertThat(httpResponse,
                     json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
             httpResponse = restClient.get("/exclude_test_disallow_1/_search");
-            Assert.assertThat(httpResponse, isOk());
+            assertThat(httpResponse, isOk());
 
             httpResponse = restClient.get("/exclude_test_disallow_2/_search");
-            Assert.assertThat(httpResponse, isForbidden());
+            assertThat(httpResponse, isForbidden());
         }
     }
 
@@ -403,22 +446,19 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("/write_exclude_test_*/_search");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("write_exclude_test_allow_1",
                     "write_exclude_test_allow_2", "write_exclude_test_disallow_1", "write_exclude_test_disallow_2"))));
 
             IndexResponse indexResponse = client.index(new IndexRequest("write_exclude_test_allow_1").source("a", "b"), RequestOptions.DEFAULT);
 
-            Assert.assertEquals(DocWriteResponse.Result.CREATED, indexResponse.getResult());
+            assertThat(indexResponse.getResult(), equalTo(DocWriteResponse.Result.CREATED));
 
-            try {
-                client.index(new IndexRequest("write_exclude_test_disallow_1").source("a", "b"), RequestOptions.DEFAULT);
 
-                Assert.fail();
-            } catch (ElasticsearchStatusException e) {
-                Assert.assertEquals(RestStatus.FORBIDDEN, e.status());
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("Insufficient permissions"));
-            }
+            ElasticsearchStatusException e = (ElasticsearchStatusException) assertThatThrown(() ->
+                    client.index(new IndexRequest("write_exclude_test_disallow_1").source("a", "b"), RequestOptions.DEFAULT),
+                    instanceOf(ElasticsearchStatusException.class), messageContainsMatcher("Insufficient permissions"));
+            assertThat(e.status(), equalTo(RestStatus.FORBIDDEN));
         }
     }
 
@@ -429,24 +469,24 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = basicCestClient.get("/exclude_test_*/_search");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse,
                     json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
             httpResponse = clusterPermissionCestClient.get("/exclude_test_*/_search");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse,
                     json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
             httpResponse = basicCestClient.postJson("/exclude_test_*/_msearch", "{}\n{\"query\": {\"match_all\": {}}}\n");
-            Assert.assertThat(httpResponse, isOk());
+            assertThat(httpResponse, isOk());
 
-            Assert.assertThat(httpResponse,
+            assertThat(httpResponse,
                     json(nodeAt("responses[0].hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
 
             httpResponse = clusterPermissionCestClient.postJson("/exclude_test_*/_msearch", "{}\n{\"query\": {\"match_all\": {}}}\n");
-            Assert.assertThat(httpResponse, isForbidden());
+            assertThat(httpResponse, isForbidden());
         }
     }
 
@@ -456,15 +496,15 @@ public class PrivilegesEvaluatorTest {
                 GenericRestClient permissionRestClient = cluster.getRestClient("permssion_rest_api_user", "secret")) {
             HttpResponse httpResponse = adminRestClient.get("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
-            Assert.assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/viva']", equalTo(true))));
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
+            assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/viva']", equalTo(true))));
 
             httpResponse = permissionRestClient.get("/_searchguard/permission?permissions=indices:data/read/mtv,indices:data/read/viva");
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
-            Assert.assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/viva']", equalTo(false))));
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/mtv']", equalTo(true))));
+            assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/viva']", equalTo(false))));
         }
 
     }
@@ -486,39 +526,31 @@ public class PrivilegesEvaluatorTest {
         Thread.sleep(300);
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
-            client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
-            Assert.fail();
-        } catch (ElasticsearchStatusException e) {
-            // Expected
-            Assert.assertTrue(e.toString(),
-                    e.getMessage().contains("Insufficient permissions"));
+            assertThatThrown(() ->
+                    client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT),
+                    instanceOf(ElasticsearchStatusException.class), messageContainsMatcher("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
-            client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT);
-            Assert.fail();
-        } catch (ElasticsearchStatusException e) {
-            // Expected
-            Assert.assertTrue(e.toString(),
-                    e.getMessage().contains("Insufficient permissions"));
+            assertThatThrown(() ->
+                    client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT),
+                    instanceOf(ElasticsearchStatusException.class), messageContainsMatcher("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
-            client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT);
-            Assert.fail();
-        } catch (ElasticsearchStatusException e) {
-            // Expected
-            Assert.assertTrue(e.toString(), e.getMessage().contains("Insufficient permissions"));
+            assertThatThrown(() ->
+                    client.indices().shrink(new ResizeRequest(targetIndex, "whatever"), RequestOptions.DEFAULT),
+                    instanceOf(ElasticsearchStatusException.class), messageContainsMatcher("Insufficient permissions"));
         }
 
         try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
             ResizeResponse resizeResponse = client.indices().shrink(new ResizeRequest(targetIndex, sourceIndex), RequestOptions.DEFAULT);
-            Assert.assertTrue(resizeResponse.toString(), resizeResponse.isAcknowledged());
+            assertThat(resizeResponse.toString(), resizeResponse.isAcknowledged(), is(true));
         }
 
         try (Client client = clusterFof.getInternalNodeClient()) {
             IndicesExistsResponse response = client.admin().indices().exists(new IndicesExistsRequest(targetIndex)).actionGet();
-            Assert.assertTrue(response.toString(), response.isExists());
+            assertThat(response.toString(), response.isExists(), is(true));
         }
     }
 
@@ -534,16 +566,13 @@ public class PrivilegesEvaluatorTest {
             SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
             SearchResponse searchResponse = searchTemplateResponse.getResponse();
 
-            Assert.assertEquals(searchResponse.toString(), 1, searchResponse.getHits().getTotalHits().value);
+            assertThat(searchResponse.toString(), searchResponse.getHits().getTotalHits().value, equalTo(1L));
         }
 
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_NO_TEMPLATE_USER)) {
-            SearchTemplateResponse searchTemplateResponse = client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT);
-            SearchResponse searchResponse = searchTemplateResponse.getResponse();
-
-            Assert.fail(searchResponse.toString());
-        } catch (ElasticsearchStatusException e) {
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN, e.status());
+            ElasticsearchStatusException e = (ElasticsearchStatusException) assertThatThrown(() ->
+                    client.searchTemplate(searchTemplateRequest, RequestOptions.DEFAULT), instanceOf(ElasticsearchStatusException.class));
+            assertThat(e.toString(), e.status(), equalTo(RestStatus.FORBIDDEN));
         }
     }
 
@@ -554,11 +583,11 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("*/_search");
 
-            Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
+            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
 
             httpResponse = restClient.get("r*/_search");
 
-            Assert.assertEquals(httpResponse.getBody(), 200, httpResponse.getStatusCode());
+            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_OK));
         }
     }
 
@@ -569,7 +598,7 @@ public class PrivilegesEvaluatorTest {
 
             HttpResponse httpResponse = restClient.get("*/_search");
 
-            Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
+            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
         }
     }
 
@@ -578,11 +607,11 @@ public class PrivilegesEvaluatorTest {
 
         try (GenericRestClient restClient = clusterFof.getRestClient(HIDDEN_TEST_USER)) {
             HttpResponse httpResponse = restClient.get("/*hidden_test*/_search?expand_wildcards=all&pretty=true");
-            Assert.assertEquals(httpResponse.getBody(), 403, httpResponse.getStatusCode());
+            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
 
             httpResponse = restClient.get("/*hidden_test*/_search?pretty=true");
-            Assert.assertEquals(httpResponse.getBody(), 200, httpResponse.getStatusCode());
-            Assert.assertFalse(httpResponse.getBody(), httpResponse.getBody().contains("hidden_test_actually_hidden"));
+            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(httpResponse.getBody(), httpResponse.getBody(), not(containsString("hidden_test_actually_hidden")));
         }
 
     }

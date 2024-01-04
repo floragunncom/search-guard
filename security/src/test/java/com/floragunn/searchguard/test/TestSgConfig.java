@@ -288,6 +288,15 @@ public class TestSgConfig {
         return this;
     }
 
+    public TestSgConfig authzDebug(boolean debug) {
+        if (this.privileges == null) {
+            this.privileges = new Privileges();
+        }
+
+        this.privileges.debug(debug);
+        return this;
+    }
+
     public TestSgConfig sessions(Sessions sessions) {
         this.sessions = sessions;
         return this;
@@ -1472,6 +1481,7 @@ public class TestSgConfig {
 
     public static class Privileges implements Document<Privileges> {
         private boolean ignoreUnauthorizedIndices = true;
+        private boolean debug = false;
 
         public Privileges() {
 
@@ -1486,9 +1496,17 @@ public class TestSgConfig {
             return this;
         }
 
+        public Privileges debug(boolean debug) {
+            this.debug = debug;
+            return this;
+        }
+
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.of("default", ImmutableMap.of("ignore_unauthorized_indices.enabled", ignoreUnauthorizedIndices));
+            return ImmutableMap.of("default", ImmutableMap.of(
+                    "ignore_unauthorized_indices.enabled", ignoreUnauthorizedIndices,
+                    "debug", debug
+            ));
         }
     }
 
