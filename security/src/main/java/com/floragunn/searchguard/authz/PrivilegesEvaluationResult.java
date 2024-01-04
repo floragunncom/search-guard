@@ -304,17 +304,17 @@ public class PrivilegesEvaluationResult {
     public Exception toSecurityException(PrivilegesEvaluationContext context) {
         ElasticsearchSecurityException result = new ElasticsearchSecurityException("Insufficient permissions", RestStatus.FORBIDDEN);
 
-        if (this.indexToActionPrivilegeTable != null) {
-            if (!isRelatedToIndexPermission()) {
-                result.addMetadata("es.missing_permissions",
-                        this.indexToActionPrivilegeTable.getColumns().stream().map((a) -> a.name()).collect(Collectors.toList()));
-
-            } else {
-                result.addMetadata("es.missing_permissions", getFlattenedIndexToActionPrivilegeTable());
-            }
-        }
-
         if (context.isDebugEnabled()) {
+            if (this.indexToActionPrivilegeTable != null) {
+                if (!isRelatedToIndexPermission()) {
+                    result.addMetadata("es.missing_permissions",
+                            this.indexToActionPrivilegeTable.getColumns().stream().map((a) -> a.name()).collect(Collectors.toList()));
+
+                } else {
+                    result.addMetadata("es.missing_permissions", getFlattenedIndexToActionPrivilegeTable());
+                }
+            }
+
             if (reason != null) {
                 result.addMetadata("es.reason_detail", reason);
             }
