@@ -38,7 +38,7 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
     @Inject
     public TransportPutAccountAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(PutAccountAction.NAME, transportService, actionFilters, PutAccountRequest::new);
+        super(PutAccountAction.NAME, transportService, actionFilters, PutAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;

@@ -65,12 +65,11 @@ public class ActionTest {
         // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
         cluster.before();
 
-        try (Client client = cluster.getInternalNodeClient()) {
-            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
-                    .actionGet();
-            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
-                    .actionGet();
-        }
+        Client client = cluster.getInternalNodeClient();
+		client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
+				.actionGet();
+		client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
+				.actionGet();
     }
 
     @BeforeClass
@@ -82,51 +81,51 @@ public class ActionTest {
     @Test
     public void testPagerDutyAction() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")) {
+        Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty");
 
-            PagerDutyAccount account = new PagerDutyAccount("bla");
-            account.setUri(webhookProvider.getUri());
+		PagerDutyAccount account = new PagerDutyAccount("bla");
+		account.setUri(webhookProvider.getUri());
 
-            AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-            Mockito.when(accountRegistry.lookupAccount("test_account", PagerDutyAccount.class)).thenReturn(account);
+		AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
+		Mockito.when(accountRegistry.lookupAccount("test_account", PagerDutyAccount.class)).thenReturn(account);
 
-            NestedValueMap runtimeData = new NestedValueMap();
-            runtimeData.put("path", "hook");
-            runtimeData.put("component", "stuff");
-            runtimeData.put("summary", "kaputt");
+		NestedValueMap runtimeData = new NestedValueMap();
+		runtimeData.put("path", "hook");
+		runtimeData.put("component", "stuff");
+		runtimeData.put("summary", "kaputt");
 
-            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
-                    ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
-                    Mockito.mock(TrustManagerRegistry.class));
-            WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), null, STRICT);
+		WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry,
+				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
+				Mockito.mock(TrustManagerRegistry.class));
+		WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,
+			Mockito.mock(TrustManagerRegistry.class), null, STRICT);
 
-            PagerDutyEventConfig eventConfig = new PagerDutyEventConfig();
-            eventConfig.setDedupKey(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_key"));
+		PagerDutyEventConfig eventConfig = new PagerDutyEventConfig();
+		eventConfig.setDedupKey(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_key"));
 
-            PagerDutyEventConfig.Payload payload = new PagerDutyEventConfig.Payload();
-            payload.setComponent(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "{{data.component}}"));
-            payload.setEventClass(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_class"));
-            payload.setSource(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "hell"));
-            payload.setSummary(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "{{data.summary}}"));
+		PagerDutyEventConfig.Payload payload = new PagerDutyEventConfig.Payload();
+		payload.setComponent(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "{{data.component}}"));
+		payload.setEventClass(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_class"));
+		payload.setSource(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "hell"));
+		payload.setSummary(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "{{data.summary}}"));
 
-            eventConfig.setPayload(payload);
+		eventConfig.setPayload(payload);
 
-			HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
-            PagerDutyAction pagerDutyAction = new PagerDutyAction("test_account", eventConfig, false, httpClientConfig);
+		HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);
+		PagerDutyAction pagerDutyAction = new PagerDutyAction("test_account", eventConfig, false, httpClientConfig);
 
-            pagerDutyAction.execute(ctx);
+		pagerDutyAction.execute(ctx);
 
-            Assert.assertEquals(
-                    "{\"routing_key\":\"bla\",\"event_action\":\"trigger\",\"dedup_key\":\"my_key\",\"payload\":{\"summary\":\"kaputt\",\"source\":\"hell\",\"severity\":\"error\",\"component\":\"stuff\",\"group\":null,\"class\":\"my_class\",\"custom_details\":null}}",
-                    webhookProvider.getLastRequestBody());
-        }
+		Assert.assertEquals(
+				"{\"routing_key\":\"bla\",\"event_action\":\"trigger\",\"dedup_key\":\"my_key\",\"payload\":{\"summary\":\"kaputt\",\"source\":\"hell\",\"severity\":\"error\",\"component\":\"stuff\",\"group\":null,\"class\":\"my_class\",\"custom_details\":null}}",
+				webhookProvider.getLastRequestBody());
     }
 
 	@Test
 	public void testPagerDutyActionWithTLS() throws Exception {
 
-		try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")) {
+		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")) {
+			Client client = cluster.getInternalNodeClient();
 
 			PagerDutyAccount account = new PagerDutyAccount("bla");
 			account.setUri(webhookProvider.getUri());
@@ -176,9 +175,10 @@ public class ActionTest {
     @Test
     public void testJiraAction() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+			Client client = cluster.getInternalNodeClient();
 
-            JiraAccount account = new JiraAccount(new URI(webhookProvider.getUri()), "x", "y");
+			JiraAccount account = new JiraAccount(new URI(webhookProvider.getUri()), "x", "y");
 
             AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
             Mockito.when(accountRegistry.lookupAccount("test_account", JiraAccount.class)).thenReturn(account);
@@ -214,7 +214,8 @@ public class ActionTest {
 	@Test
 	public void testJiraActionWithTLS() throws Exception {
 
-		try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+			Client client = cluster.getInternalNodeClient();
 
 			JiraAccount account = new JiraAccount(new URI(webhookProvider.getUri()), "x", "y");
 

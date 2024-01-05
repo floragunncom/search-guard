@@ -35,7 +35,7 @@ public class TransportDeleteAccountAction extends HandledTransportAction<DeleteA
     @Inject
     public TransportDeleteAccountAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(DeleteAccountAction.NAME, transportService, actionFilters, DeleteAccountRequest::new);
+        super(DeleteAccountAction.NAME, transportService, actionFilters, DeleteAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;

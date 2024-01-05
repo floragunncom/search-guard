@@ -17,11 +17,11 @@
 
 package org.elasticsearch.node;
 
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.plugins.SgAwarePluginsService;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -38,11 +38,21 @@ public class PluginAwareNode extends Node {
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings) {
         this(masterEligible, preparedSettings, Collections.emptyList());
     }
+
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings, List<Class<? extends Plugin>> additionalPlugins) {
-        super(configureESLogging(InternalSettingsPreparer.prepareEnvironment(preparedSettings, Collections.emptyMap(),
-                null, () -> System.getenv("HOSTNAME"))),
-                settings -> new SgAwarePluginsService(settings, additionalPlugins), true);
+        super(NodeConstruction.prepareConstruction(
+            createEnvironment(preparedSettings),
+            new SgNodeServiceProvider(additionalPlugins),
+            true));
         this.masterEligible = masterEligible;
+    }
+
+    private static Environment createEnvironment(Settings preparedSettings) {
+        Settings settings = Settings.builder().put(preparedSettings).put(Client.CLIENT_TYPE_SETTING_S.getKey(), "node").build();
+        return configureESLogging(InternalSettingsPreparer.prepareEnvironment(settings,
+            Collections.emptyMap(),
+            null,
+            () -> System.getenv("HOSTNAME")));
     }
 
     private static Environment configureESLogging(Environment environment) {

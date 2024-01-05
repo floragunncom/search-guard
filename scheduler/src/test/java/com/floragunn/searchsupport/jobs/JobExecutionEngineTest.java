@@ -47,8 +47,8 @@ public class JobExecutionEngineTest {
 
         Scheduler scheduler = null;
 
-        try (Client tc = cluster.getInternalClient()) {
-
+        try {
+            Client tc = cluster.getInternalClient();
             String jobConfig = createIntervalJobConfig(1, "emptyNodeFilterTest", "100ms");
 
             tc.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
@@ -87,8 +87,8 @@ public class JobExecutionEngineTest {
 
         Scheduler scheduler = null;
 
-        try (Client tc = cluster.getInternalClient()) {
-
+        try {
+            Client tc = cluster.getInternalClient();
             String jobConfig = createIntervalJobConfig(1, "basic", "100ms");
 
             tc.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
@@ -126,42 +126,41 @@ public class JobExecutionEngineTest {
     @Ignore("TODO why is this ignored?")
     @Test
     public void triggerUpdateTest() throws Exception {
-        try (Client tc = cluster.getInternalClient()) {
+        Client tc = cluster.getInternalClient();
 
-            String jobConfig = createCronJobConfig(1, "basic", null, "*/1 * * * * ?");
+        String jobConfig = createCronJobConfig(1, "basic", null, "*/1 * * * * ?");
 
-            tc.index(new IndexRequest("testjobconfig").id("trigger_update_test_job").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig,
-                    XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("testjobconfig").id("trigger_update_test_job").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig,
+                XContentType.JSON)).actionGet();
 
-            PluginAwareNode node = cluster.node();
+        PluginAwareNode node = cluster.node();
 
-            ClusterService clusterService = node.injector().getInstance(ClusterService.class);
-            NodeEnvironment nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
+        ClusterService clusterService = node.injector().getInstance(ClusterService.class);
+        NodeEnvironment nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
 
-            Scheduler scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test").configIndex("testjobconfig")
-                    .nodeFilter("node_index:1").jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService, nodeEnvironment)
-                    .nodeComparator(new NodeNameComparator(clusterService)).build();
+        Scheduler scheduler = new SchedulerBuilder<DefaultJobConfig>().client(tc).name("test").configIndex("testjobconfig")
+                .nodeFilter("node_index:1").jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService, nodeEnvironment)
+                .nodeComparator(new NodeNameComparator(clusterService)).build();
 
-            scheduler.start();
+        scheduler.start();
 
-            Thread.sleep(3 * 1000);
+        Thread.sleep(3 * 1000);
 
-            int count1 = TestJob.getCounter("basic");
+        int count1 = TestJob.getCounter("basic");
 
-            jobConfig = createCronJobConfig(1, "basic", null, "* * * * * ?");
-            tc.index(new IndexRequest("testjobconfig").id("trigger_update_test_job").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig,
-                    XContentType.JSON)).actionGet();
-            SchedulerConfigUpdateAction.send(tc, "test");
+        jobConfig = createCronJobConfig(1, "basic", null, "* * * * * ?");
+        tc.index(new IndexRequest("testjobconfig").id("trigger_update_test_job").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig,
+                XContentType.JSON)).actionGet();
+        SchedulerConfigUpdateAction.send(tc, "test");
 
-            Thread.sleep(3 * 1000);
+        Thread.sleep(3 * 1000);
 
-            int count2 = TestJob.getCounter("basic");
+        int count2 = TestJob.getCounter("basic");
 
-            //System.out.println("count1: " + count1 + "; count2: " + count2);
+        //System.out.println("count1: " + count1 + "; count2: " + count2);
 
-            assertTrue("count is " + count2, count2 > count1);
+        assertTrue("count is " + count2, count2 > count1);
 
-        }
 
     }
 

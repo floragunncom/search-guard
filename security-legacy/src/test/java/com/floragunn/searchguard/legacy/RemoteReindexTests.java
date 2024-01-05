@@ -76,18 +76,16 @@ public class RemoteReindexTests extends AbstractSGUnitTest{
         final String cl1BodyMain = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("nagilum","nagilum")).getBody();
         Assert.assertTrue(cl1BodyMain.contains("crl1"));
         
-        try (Client tc = cl1.nodeClient()) {
-            tc.admin().indices().create(new CreateIndexRequest("twutter")).actionGet();
-        }
-        
+        Client tc = cl1.nodeClient();
+        tc.admin().indices().create(new CreateIndexRequest("twutter")).actionGet();
+
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("nagilum","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (Client tc = cl2.nodeClient()) {
-            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
-        
+        tc = cl2.nodeClient();
+        tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
         String reindex = "{"+
             "\"source\": {"+
                 "\"remote\": {"+

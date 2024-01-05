@@ -37,7 +37,7 @@ public class TransportCreateAuthTokenAction extends HandledTransportAction<Creat
     @Inject
     public TransportCreateAuthTokenAction(TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             AuthTokenService authTokenService, AuthInfoService authInfoService) {
-        super(CreateAuthTokenAction.NAME, transportService, actionFilters, CreateAuthTokenRequest::new);
+        super(CreateAuthTokenAction.NAME, transportService, actionFilters, CreateAuthTokenRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.authTokenService = authTokenService;
         this.threadPool = threadPool;

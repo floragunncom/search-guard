@@ -22,6 +22,7 @@ import junit.framework.TestCase;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexVersion;
+import org.elasticsearch.index.IndexVersions;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -111,7 +112,7 @@ public class MultiTenancyCheckerIndexNamesTest extends TestCase {
         IndexRepository indexRepository = Mockito.mock(IndexRepository.class);
         MultiTenancyChecker checker = new MultiTenancyChecker(Settings.builder().build(), indexRepository);
         IndexMetadata mock = Mockito.mock(IndexMetadata.class);
-        Mockito.when(mock.getCreationVersion()).thenReturn(IndexVersion.V_8_3_0);
+        Mockito.when(mock.getCreationVersion()).thenReturn(IndexVersions.V_8_3_0);
         ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of(indexName, mock);
         when(indexRepository.findIndicesMetadata()).thenReturn(indices);
 
