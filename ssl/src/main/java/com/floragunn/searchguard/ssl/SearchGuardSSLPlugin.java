@@ -38,11 +38,8 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.TransportVersion;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.cluster.routing.allocation.AllocationService;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.network.NetworkService;
@@ -55,27 +52,20 @@ import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.env.Environment;
-import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
-import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.telemetry.TelemetryProvider;
 import org.elasticsearch.telemetry.tracing.Tracer;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
-import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
@@ -287,12 +277,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     }
 
     @Override
-    public Collection<Object> createComponents(Client localClient, ClusterService clusterService, ThreadPool threadPool,
-                                               ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
-                                               Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
-                                               IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier,
-                                               TelemetryProvider telemetryProvider, AllocationService allocationService, IndicesService indicesService) {
-
+    public Collection<?> createComponents(PluginServices services) {
         final List<Object> components = new ArrayList<>(1);
 
         if (client) {

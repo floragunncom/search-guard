@@ -38,8 +38,8 @@ import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.search.SearchShardsRequest;
+import org.elasticsearch.action.search.TransportSearchScrollAction;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -56,8 +56,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.script.mustache.MultiSearchTemplateAction;
-import org.elasticsearch.script.mustache.SearchTemplateAction;
+import org.elasticsearch.script.mustache.MustachePlugin;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -88,11 +87,11 @@ public class DlsFilterLevelActionHandler {
             return SyncAuthorizationFilter.Result.OK;
         }
 
-        if (actionName.startsWith(SearchScrollAction.NAME)) {
+        if (actionName.startsWith(TransportSearchScrollAction.TYPE.name())) {
             return SyncAuthorizationFilter.Result.OK;
         }
 
-        if (actionName.equals(SearchTemplateAction.NAME) || actionName.equals(MultiSearchTemplateAction.NAME)) {
+        if (actionName.equals(MustachePlugin.SEARCH_TEMPLATE_ACTION.name()) || actionName.equals(MustachePlugin.MULTI_SEARCH_TEMPLATE_ACTION.name())) {
             // Let it pass; DLS will be handled on a lower level
             return SyncAuthorizationFilter.Result.OK;
         }

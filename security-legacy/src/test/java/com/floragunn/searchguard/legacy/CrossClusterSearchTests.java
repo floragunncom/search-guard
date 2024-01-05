@@ -98,23 +98,21 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl1BodyMain = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("nagilum","nagilum")).getBody();
         Assert.assertTrue(cl1BodyMain.contains("crl1"));
         
-        try (Client tc = cl1.nodeClient()) {
-            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
-        
+        Client tc = cl1.nodeClient();
+        tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("nagilum","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (Client tc = cl2.nodeClient()) {
-            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
-        
+        tc = cl2.nodeClient();
+        tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
         HttpResponse ccs = null;
         
         //System.out.println("###################### query 1");
@@ -156,27 +154,24 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl1BodyMain = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl1BodyMain.contains("crl1"));
         
-        try (Client tc = cl1.nodeClient()) {
-            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("twitter").alias("coordalias"))).actionGet();
+        Client tc = cl1.nodeClient();
+        tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("twitter").alias("coordalias"))).actionGet();
 
-        }
-        
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (Client tc = cl2.nodeClient()) {
-            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("twitter").alias("remotealias"))).actionGet();
+        tc = cl2.nodeClient();
+        tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("twitter").alias("remotealias"))).actionGet();
 
-        }
-        
+
         HttpResponse ccs = null;
         
         //System.out.println("###################### query 1");
@@ -324,11 +319,10 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (Client tc = cl2.nodeClient()) {
-            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
-        
+        Client tc = cl2.nodeClient();
+        tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
         HttpResponse ccs = null;
         
         //System.out.println("###################### query 1");
@@ -352,19 +346,17 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (Client tc = cl1.nodeClient()) {
-            tc.index(new IndexRequest("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
+        Client tc = cl1.nodeClient();
+        tc.index(new IndexRequest("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
         
-        
-        try (Client tc = cl2.nodeClient()) {
-            tc.index(new IndexRequest("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
-        
+        tc = cl2.nodeClient();
+        tc.index(new IndexRequest("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
         HttpResponse ccs = null;
         
         //System.out.println("###################### kibana indices agg");
@@ -432,19 +424,17 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         final String cl2BodyMain = new RestHelper(cl2Info, false, false, getResourceFolder()).executeGetRequest("", encodeBasicHeader("twitter","nagilum")).getBody();
         Assert.assertTrue(cl2BodyMain.contains("crl2"));
         
-        try (Client tc = cl1.nodeClient()) {
-            tc.index(new IndexRequest("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
+        Client tc = cl1.nodeClient();
+        tc.index(new IndexRequest("coordinating").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
         
-        
-        try (Client tc = cl2.nodeClient()) {
-            tc.index(new IndexRequest("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
-        
+        tc = cl2.nodeClient();
+        tc.index(new IndexRequest("remote").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
         HttpResponse ccs = null;
         
         //System.out.println("###################### aggs");

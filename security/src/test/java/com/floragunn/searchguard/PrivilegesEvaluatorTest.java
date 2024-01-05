@@ -141,8 +141,7 @@ public class PrivilegesEvaluatorTest {
 
     @BeforeClass
     public static void setupTestData() {
-
-        try (Client client = cluster.getInternalNodeClient()) {
+            Client client = cluster.getInternalNodeClient();
             client.index(new IndexRequest("resolve_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "resolve_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("resolve_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
@@ -170,54 +169,51 @@ public class PrivilegesEvaluatorTest {
                     "exclude_test_disallow_1", "b", "yy", "date", "1985/01/01")).actionGet();
             client.index(new IndexRequest("exclude_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
-        }
 
-        try (Client client = clusterFof.getInternalNodeClient()) {
-            client.index(new IndexRequest("resolve_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            Client clientFof = clusterFof.getInternalNodeClient();
+            clientFof.index(new IndexRequest("resolve_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "resolve_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("resolve_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            clientFof.index(new IndexRequest("resolve_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "resolve_test_allow_2", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("resolve_test_disallow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            clientFof.index(new IndexRequest("resolve_test_disallow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "resolve_test_disallow_1", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("resolve_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            clientFof.index(new IndexRequest("resolve_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "resolve_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
 
-            client.admin().indices()
+            clientFof.admin().indices()
                     .aliases(new IndicesAliasesRequest()
                             .addAliasAction(new AliasActions(AliasActions.Type.ADD).alias("resolve_test_allow_alias").indices("resolve_test_*")))
                     .actionGet();
 
-            client.index(new IndexRequest("hidden_test_not_hidden").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            clientFof.index(new IndexRequest("hidden_test_not_hidden").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "hidden_test_not_hidden", "b", "y", "date", "1985/01/01")).actionGet();
 
-            client.admin().indices().create(new CreateIndexRequest(".hidden_test_actually_hidden").settings(ImmutableMap.of("index.hidden", true)))
+            clientFof.admin().indices().create(new CreateIndexRequest(".hidden_test_actually_hidden").settings(ImmutableMap.of("index.hidden", true)))
                     .actionGet();
-            client.index(new IndexRequest(".hidden_test_actually_hidden").id("test").source("a", "b").setRefreshPolicy(RefreshPolicy.IMMEDIATE))
+            clientFof.index(new IndexRequest(".hidden_test_actually_hidden").id("test").source("a", "b").setRefreshPolicy(RefreshPolicy.IMMEDIATE))
                     .actionGet();
 
-            client.index(new IndexRequest("exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            clientFof.index(new IndexRequest("exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            clientFof.index(new IndexRequest("exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "exclude_test_allow_2", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("exclude_test_disallow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            clientFof.index(new IndexRequest("exclude_test_disallow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "exclude_test_disallow_1", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("exclude_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            clientFof.index(new IndexRequest("exclude_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
 
-            client.index(new IndexRequest("tttexclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            clientFof.index(new IndexRequest("tttexclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "tttexclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
-        }
 
-        try (Client client = anotherCluster.getInternalNodeClient()) {
-            client.index(new IndexRequest("resolve_test_allow_remote_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x",
+            Client anotherClient = anotherCluster.getInternalNodeClient();
+            anotherClient.index(new IndexRequest("resolve_test_allow_remote_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x",
                     "b", "y", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("resolve_test_allow_remote_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a",
+            anotherClient.index(new IndexRequest("resolve_test_allow_remote_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a",
                     "xx", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("resolve_test_disallow_remote_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a",
+            anotherClient.index(new IndexRequest("resolve_test_disallow_remote_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a",
                     "xx", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("resolve_test_disallow_remote_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a",
+            anotherClient.index(new IndexRequest("resolve_test_disallow_remote_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a",
                     "xx", "b", "yy", "date", "1985/01/01")).actionGet();
-        }
     }
 
     @Test
@@ -307,16 +303,15 @@ public class PrivilegesEvaluatorTest {
 
     @Test
     public void excludeWrite() throws Exception {
-        try (Client client = cluster.getInternalNodeClient()) {
-            client.index(new IndexRequest("write_exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+        Client internalClient = cluster.getInternalNodeClient();
+            internalClient.index(new IndexRequest("write_exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "write_exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("write_exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+            internalClient.index(new IndexRequest("write_exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
                     "write_exclude_test_allow_2", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("write_exclude_test_disallow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+            internalClient.index(new IndexRequest("write_exclude_test_disallow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
                     "index", "write_exclude_test_disallow_1", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("write_exclude_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+            internalClient.index(new IndexRequest("write_exclude_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
                     "index", "write_exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
-        }
         try (GenericRestClient restClient = cluster.getRestClient("exclusion_test_user_write", "secret");
                 RestHighLevelClient client = cluster.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
 
@@ -385,16 +380,15 @@ public class PrivilegesEvaluatorTest {
 
     @Test
     public void excludeWriteFof() throws Exception {
-        try (Client client = clusterFof.getInternalNodeClient()) {
-            client.index(new IndexRequest("write_exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
-                    "write_exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("write_exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
-                    "write_exclude_test_allow_2", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("write_exclude_test_disallow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
-                    "index", "write_exclude_test_disallow_1", "b", "yy", "date", "1985/01/01")).actionGet();
-            client.index(new IndexRequest("write_exclude_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
-                    "index", "write_exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
-        }
+        Client clientFof = clusterFof.getInternalNodeClient();
+        clientFof.index(new IndexRequest("write_exclude_test_allow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+                "write_exclude_test_allow_1", "b", "y", "date", "1985/01/01")).actionGet();
+        clientFof.index(new IndexRequest("write_exclude_test_allow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+                "write_exclude_test_allow_2", "b", "yy", "date", "1985/01/01")).actionGet();
+        clientFof.index(new IndexRequest("write_exclude_test_disallow_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+                "index", "write_exclude_test_disallow_1", "b", "yy", "date", "1985/01/01")).actionGet();
+        clientFof.index(new IndexRequest("write_exclude_test_disallow_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+                "index", "write_exclude_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
 
         try (GenericRestClient restClient = cluster.getRestClient("exclusion_test_user_write", "secret");
                 RestHighLevelClient client = clusterFof.getRestHighLevelClient("exclusion_test_user_write", "secret")) {
@@ -472,14 +466,13 @@ public class PrivilegesEvaluatorTest {
         String sourceIndex = "resize_test_source";
         String targetIndex = "resize_test_target";
 
-        try (Client client = clusterFof.getInternalNodeClient()) {
-            client.index(new IndexRequest(sourceIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index", "a", "b", "y",
-                    "date", "1985/01/01")).actionGet();
+        Client clientFof = clusterFof.getInternalNodeClient();
+        clientFof.index(new IndexRequest(sourceIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index", "a", "b", "y",
+                "date", "1985/01/01")).actionGet();
 
-            client.admin().indices()
-                    .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", true).build()))
-                    .actionGet();
-        }
+        clientFof.admin().indices()
+                .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", true).build()))
+                .actionGet();
 
         Thread.sleep(300);
 
@@ -514,10 +507,9 @@ public class PrivilegesEvaluatorTest {
             Assert.assertTrue(shrinkResponse.toString(), shrinkResponse.acknowledged());
         }
 
-        try (Client client = clusterFof.getInternalNodeClient()) {
-            boolean exists = client.admin().indices().getIndex(new GetIndexRequest().indices(targetIndex)).actionGet().indices().length > 0;
-            Assert.assertTrue(exists);
-        }
+        clientFof = clusterFof.getInternalNodeClient();
+        boolean exists = clientFof.admin().indices().getIndex(new GetIndexRequest().indices(targetIndex)).actionGet().indices().length > 0;
+        Assert.assertTrue(exists);
     }
 
     @Test

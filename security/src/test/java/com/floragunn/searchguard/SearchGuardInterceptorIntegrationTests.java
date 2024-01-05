@@ -114,7 +114,7 @@ public class SearchGuardInterceptorIntegrationTests {
         public MockTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
                 final TransportService transportService, final AdminDNs adminDNs, final ActionFilters actionFilters) {
 
-            super(TYPE.name(), transportService, actionFilters, MockActionRequest::new);
+            super(TYPE.name(), transportService, actionFilters, MockActionRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
             this.threadPool = threadPool;
         }
 

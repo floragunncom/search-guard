@@ -60,12 +60,11 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_composite_config.yml").setSgRoles("sg_roles_composite.yml"), Settings.EMPTY, true);
         final RestHelper rh = nonSslRestHelper();
     
-        try (Client tc = getPrivilegedInternalNodeClient()) {                
-            tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();           
-            tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();      
-            tc.index(new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();            
-        }
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
         String msearchBody = 
                 "{\"index\":\"starfleet\", \"ignore_unavailable\": true}"+System.lineSeparator()+
                 "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}"+System.lineSeparator()+
@@ -87,12 +86,11 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig().setSgRoles("sg_roles_bs.yml"), Settings.EMPTY, true);
         final RestHelper rh = nonSslRestHelper();
         
-        try (Client tc = getPrivilegedInternalNodeClient()) {               
-            //create indices and mapping upfront
-            tc.index(new IndexRequest("test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();           
-            tc.index(new IndexRequest("lorem").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();      
-        }
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        //create indices and mapping upfront
+        tc.index(new IndexRequest("test").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("lorem").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();
+
         String bulkBody = 
         "{ \"index\" : { \"_index\" : \"test\", \"_id\" : \"1\" } }"+System.lineSeparator()+
         "{ \"field2\" : \"value1\" }" +System.lineSeparator()+
@@ -160,23 +158,22 @@ public class IndexIntegrationTests extends SingleClusterTest {
     
         setup();
     
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.index(new IndexRequest("nopermindex").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-    
-            tc.index(new IndexRequest("logstash-1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-    
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd", Locale.ENGLISH);
-            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-            
-            String date = sdf.format(new Date());
-            DocWriteResponse indexResponse = tc.index(new IndexRequest("logstash-"+date).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            
-            //System.out.println("## " + new Date() + " " + date + " " + Strings.toString(indexResponse));
-        }
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("nopermindex").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
+        tc.index(new IndexRequest("logstash-1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("logstash-2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("logstash-3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("logstash-4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd", Locale.ENGLISH);
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+        String date = sdf.format(new Date());
+        DocWriteResponse indexResponse = tc.index(new IndexRequest("logstash-"+date).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
+        //System.out.println("## " + new Date() + " " + date + " " + Strings.toString(indexResponse));
+
         RestHelper rh = nonSslRestHelper();
         
         HttpResponse res = null;
@@ -248,24 +245,23 @@ public class IndexIntegrationTests extends SingleClusterTest {
 
         setup(settings);
     
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.index(new IndexRequest("nopermindex").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-    
-            tc.index(new IndexRequest("logstash-1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-5").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-del").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("logstash-del-ok").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("nopermindex").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-            String date = new SimpleDateFormat("YYYY.MM.dd").format(new Date());
-            tc.index(new IndexRequest("logstash-"+date).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("nopermindex").alias("nopermalias"))).actionGet();
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("searchguard").alias("mysgi"))).actionGet();
-        }
-        
+        tc.index(new IndexRequest("logstash-1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("logstash-2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("logstash-3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("logstash-4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("logstash-5").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("logstash-del").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("logstash-del-ok").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
+        String date = new SimpleDateFormat("YYYY.MM.dd").format(new Date());
+        tc.index(new IndexRequest("logstash-"+date).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
+        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("nopermindex").alias("nopermalias"))).actionGet();
+        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("searchguard").alias("mysgi"))).actionGet();
+
         RestHelper rh = nonSslRestHelper();
         
         HttpResponse res = null;
@@ -324,10 +320,9 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup();
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getPrivilegedInternalNodeClient()) {                                       
-            tc.index(new IndexRequest(".abc-6").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        }
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest(".abc-6").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
         //ccsresolv has perm for ?abc*
         HttpResponse res = rh.executeGetRequest("ggg:.abc-6,.abc-6/_search", encodeBasicHeader("ccsresolv", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, res.getStatusCode());
@@ -344,12 +339,10 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup();
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getPrivilegedInternalNodeClient()) {                                       
-            tc.index(new IndexRequest(".abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("xyz").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("noperm").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":3}", XContentType.JSON)).actionGet();
-
-        }
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest(".abc").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("xyz").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("noperm").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":3}", XContentType.JSON)).actionGet();
         
         HttpResponse res = rh.executeGetRequest("/*:.abc,.abc/_search", encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
@@ -407,13 +400,12 @@ public class IndexIntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig(), Settings.EMPTY, true);
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            //create indices and mapping upfront
-            tc.index(new IndexRequest("foo-index").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();
-            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("foo-index").alias("foo-alias"))).actionGet();
-            tc.admin().indices().delete(new DeleteIndexRequest("foo-index")).actionGet();
-        }
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        //create indices and mapping upfront
+        tc.index(new IndexRequest("foo-index").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"field2\":\"init\"}", XContentType.JSON)).actionGet();
+        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("foo-index").alias("foo-alias"))).actionGet();
+        tc.admin().indices().delete(new DeleteIndexRequest("foo-index")).actionGet();
+
         HttpResponse resc = rh.executeGetRequest("/_cat/aliases", encodeBasicHeader("nagilum", "nagilum"));
         Assert.assertFalse(resc.getBody().contains("foo"));
 
