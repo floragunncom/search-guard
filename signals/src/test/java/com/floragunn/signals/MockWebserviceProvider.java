@@ -34,7 +34,6 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -95,7 +94,7 @@ public class MockWebserviceProvider implements Closeable {
     private InetAddress lastRequestClientAddress;
     private final AtomicInteger requestCount = new AtomicInteger();
     private long responseDelayMs = 0;
-    private InetAddress acceptConnectionsOnlyFromInetAddress;
+    private Header requiredHttpHeader;
     private KeyStore trustStore;
 
     MockWebserviceProvider(String path) throws IOException {
@@ -162,8 +161,8 @@ public class MockWebserviceProvider implements Closeable {
 
     }
 
-    public MockWebserviceProvider acceptConnectionsOnlyFromInetAddress(InetAddress inetAddress) {
-        this.acceptConnectionsOnlyFromInetAddress = inetAddress;
+    public MockWebserviceProvider acceptOnlyRequestsWithHeader(Header header) {
+        this.requiredHttpHeader = header;
         return this;
     }
     
@@ -281,17 +280,18 @@ public class MockWebserviceProvider implements Closeable {
 
         lastRequestClientAddress = connection.getRemoteAddress();
 
-        if (acceptConnectionsOnlyFromInetAddress == null) {
-            return true;
-        }
-
-        if (connection.getRemoteAddress().equals(acceptConnectionsOnlyFromInetAddress)) {
-            return true;
+        if (requiredHttpHeader != null) {
+            List<Header> requestHeaders = Arrays.asList(request.getHeaders(requiredHttpHeader.getName()));
+            if (requestHeaders.stream().anyMatch(header -> requiredHttpHeader.getValue().equals(header.getValue()))) {
+                return true;
+            } else {
+                response.setStatusCode(451);
+                response.setEntity(new StringEntity(
+                        "We are only accepting requests with the '" + requiredHttpHeader.getName() + "' header set to '" + requiredHttpHeader.getValue() + "'"));
+                return false;
+            }
         } else {
-            response.setStatusCode(451);
-            response.setEntity(new StringEntity(
-                    "We are not accepting connections from " + connection.getRemoteAddress() + "; only: " + acceptConnectionsOnlyFromInetAddress));
-            return false;
+            return true;
         }
     }
 

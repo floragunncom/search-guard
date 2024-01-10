@@ -1,22 +1,22 @@
 package com.floragunn.signals;
 
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.HttpClientConfig;
 import com.floragunn.signals.watch.common.HttpProxyConfig;
 import com.floragunn.signals.watch.common.TlsConfig;
 
-import java.net.InetAddress;
 import java.net.URI;
 
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import java.util.Optional;
 import javax.net.ssl.X509ExtendedTrustManager;
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -24,10 +24,10 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -68,7 +68,15 @@ public class ActionTest {
 	private final X509ExtendedTrustManager trustManager = Mockito.mock(X509ExtendedTrustManager.class);
 	private final HttpProxyHostRegistry httpProxyHostRegistry = Mockito.mock(HttpProxyHostRegistry.class);
 
-	private static BrowserUpProxy httpProxy;
+	private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
+
+	@Rule
+	public WireMockRule wireMockProxy = new WireMockRule(WireMockConfiguration.options()
+			.bindAddress("127.0.0.8")
+			.enableBrowserProxying(true)
+			.proxyPassThrough(true)
+			.dynamicPort()
+			.extensions(REQUEST_HEADER_ADDING_FILTER));
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().nodeSettings("signals.enabled", true)
@@ -91,16 +99,7 @@ public class ActionTest {
     public static void setupDependencies() throws Exception {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
-		httpProxy = new BrowserUpProxyServer();
-		httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
-
-	@AfterClass
-	public static void tearDown() {
-		if (httpProxy != null) {
-			httpProxy.abort();
-		}
-	}
 
     @Test
     public void testPagerDutyAction() throws Exception {
@@ -202,7 +201,8 @@ public class ActionTest {
 		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")) {
 			Client client = cluster.getInternalNodeClient();
 
-			webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+			webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
+
 			String proxyId = "test-proxy";
 			PagerDutyAccount account = new PagerDutyAccount("bla");
 			account.setUri(webhookProvider.getUri());
@@ -232,7 +232,7 @@ public class ActionTest {
 
 			eventConfig.setPayload(payload);
 
-			when(httpProxyHostRegistry.findHttpProxyHost(proxyId)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+			when(httpProxyHostRegistry.findHttpProxyHost(proxyId)).thenReturn(Optional.of(HttpHost.create("127.0.0.8:" + wireMockProxy.port())));
 
 			HttpProxyConfig proxyConfig = HttpProxyConfig.create(new ValidatingDocNode(DocNode.of("proxy", proxyId), new ValidationErrors()), httpProxyHostRegistry, STRICT);
 
@@ -336,7 +336,8 @@ public class ActionTest {
 
 		try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
 
-			webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+			webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
+
 			String proxyId = "test-proxy";
 
 			JiraAccount account = new JiraAccount(new URI(webhookProvider.getUri()), "x", "y");
@@ -361,7 +362,7 @@ public class ActionTest {
 
 			jiraIssueConfig.setComponentTemplate(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "{{data.component}}"));
 
-			when(httpProxyHostRegistry.findHttpProxyHost(proxyId)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+			when(httpProxyHostRegistry.findHttpProxyHost(proxyId)).thenReturn(Optional.of(HttpHost.create("127.0.0.8:" + wireMockProxy.port())));
 
 			HttpProxyConfig proxyConfig = HttpProxyConfig.create(new ValidatingDocNode(DocNode.of("proxy", proxyId), new ValidationErrors()), httpProxyHostRegistry, STRICT);
 

@@ -15,25 +15,26 @@
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.io.FileNotFoundException;
-import java.net.InetAddress;
 import java.util.Map;
 
+import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.apache.http.HttpResponse;
 import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.google.common.collect.ImmutableMap;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class OpenIdProviderClientTest {
 
@@ -51,14 +52,20 @@ public class OpenIdProviderClientTest {
     }
 
     protected static MockIpdServer mockIdpServer;
-    protected static BrowserUpProxy httpProxy;
+
+    private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
+
+    @ClassRule
+    public static WireMockRule wireMockProxy = new WireMockRule(WireMockConfiguration.options()
+            .bindAddress("127.0.0.8")
+            .trustAllProxyTargets(true)
+            .enableBrowserProxying(true)
+            .dynamicPort()
+            .extensions(REQUEST_HEADER_ADDING_FILTER));
 
     @BeforeClass
     public static void setUp() throws Exception {
         mockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL).start();
-        httpProxy = new BrowserUpProxyServer();
-        //Java 17 java.net.BindException: Can't assign requested address
-        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
         mockIdpServer.setRequireValidCodes(false);
     }
 
@@ -71,17 +78,15 @@ public class OpenIdProviderClientTest {
                 e.printStackTrace();
             }
         }
-
-        if (httpProxy != null) {
-            httpProxy.abort();
-        }
     }
 
     @Test
     public void proxyTest() throws Exception {
+
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL)
-                .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9")).start()) {
-            OpenIdProviderClient openIdProviderClientWithoutProxySettings = new OpenIdProviderClient(proxyOnlyMockIdpServer.getDiscoverUri(), null,
+                  .acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).start()) {
+
+                OpenIdProviderClient openIdProviderClientWithoutProxySettings = new OpenIdProviderClient(proxyOnlyMockIdpServer.getDiscoverUri(), null,
                     null, true);
 
             proxyOnlyMockIdpServer.setRequireValidCodes(false);
@@ -92,7 +97,7 @@ public class OpenIdProviderClientTest {
             } catch (AuthenticatorUnavailableException e) {
                 Assert.assertTrue(e.getMessage(), e.getMessage().contains("HTTP/1.1 451"));
             }
-            Map<String, Object> proxySettings = ImmutableMap.of("proxy.host", "127.0.0.8", "proxy.port", httpProxy.getPort(), "proxy.scheme", "http");
+            Map<String, Object> proxySettings = ImmutableMap.of("proxy.host", "127.0.0.8", "proxy.port", wireMockProxy.port(), "proxy.scheme", "http");
 
             OpenIdProviderClient openIdProviderClient = new OpenIdProviderClient(proxyOnlyMockIdpServer.getDiscoverUri(), null,
                     ProxyConfig.parse(proxySettings, "proxy"), true);

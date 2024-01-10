@@ -1,6 +1,5 @@
 package com.floragunn.signals;
 
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URI;
 import java.security.cert.CertificateException;
@@ -12,11 +11,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.WatchExecutionContext;
@@ -27,6 +25,8 @@ import com.floragunn.signals.watch.common.HttpProxyConfig;
 import com.floragunn.signals.watch.common.HttpRequestConfig;
 import com.floragunn.signals.watch.common.TlsClientAuthConfig;
 import com.floragunn.signals.watch.common.TlsConfig;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.jayway.jsonpath.JsonPath;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.commons.io.IOUtils;
@@ -40,11 +40,11 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -209,7 +209,15 @@ public class ActionTest {
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
 
-    private static BrowserUpProxy httpProxy;
+    private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
+
+    @Rule
+    public WireMockRule wireMockProxy = new WireMockRule(WireMockConfiguration.options()
+            .bindAddress("127.0.0.8")
+            .enableBrowserProxying(true)
+            .proxyPassThrough(true)
+            .dynamicPort()
+            .extensions(REQUEST_HEADER_ADDING_FILTER));
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -240,20 +248,11 @@ public class ActionTest {
     public static void setupDependencies() throws Throwable {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
-        httpProxy = new BrowserUpProxyServer();
-        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
     
     @Before
     public void resetMock() {
         Mockito.reset(trustManagerRegistry, trustManager, httpProxyHostRegistry);
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        if (httpProxy != null) {
-            httpProxy.abort();
-        }
     }
 
     @Test
@@ -722,7 +721,7 @@ public class ActionTest {
         try (Client client = cluster.getInternalNodeClient(); //
              MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
-            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -737,7 +736,7 @@ public class ActionTest {
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
                     trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
-            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + wireMockProxy.port())));
 
             HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
                     new ValidatingDocNode(DocNode.of("proxy", UPLOADED_PROXY_ID), new ValidationErrors()), httpProxyHostRegistry, STRICT
@@ -758,7 +757,7 @@ public class ActionTest {
         try (Client client = cluster.getInternalNodeClient(); //
              MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
-            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -773,7 +772,7 @@ public class ActionTest {
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
                     trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
-            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + wireMockProxy.port())));
 
             HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
                     new ValidatingDocNode(DocNode.of("proxy", UPLOADED_PROXY_ID), new ValidationErrors()), httpProxyHostRegistry, STRICT
@@ -788,12 +787,12 @@ public class ActionTest {
             Assert.assertEquals(runtimeData.get("body"), webhookProvider.getLastRequestBody());
 
             //proxy config updated
-            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("127.0.0.10:" + httpProxy.getPort())));
+            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("168.0.0.10:" + wireMockProxy.port())));
 
             ActionExecutionException actionExecutionException = (ActionExecutionException) assertThatThrown(() -> webhookAction.execute(ctx), instanceOf(ActionExecutionException.class));
 
-            Assert.assertTrue(actionExecutionException.getMessage().contains("Connect to 127.0.0.10:"));
-            Assert.assertTrue(actionExecutionException.getMessage().contains("[/127.0.0.10] failed: Connection refused"));
+            Assert.assertTrue(actionExecutionException.getMessage().contains("Connect to 168.0.0.10:"));
+            Assert.assertTrue(actionExecutionException.getMessage().contains("[/168.0.0.10] failed: Connection refused (Connection refused)"));
         }
     }
 
@@ -803,7 +802,7 @@ public class ActionTest {
         try (Client client = cluster.getInternalNodeClient(); //
              MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
-            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -818,7 +817,7 @@ public class ActionTest {
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
                     trustManagerRegistry, httpProxyHostRegistry, null, STRICT));
 
-            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+            when(httpProxyHostRegistry.findHttpProxyHost(UPLOADED_PROXY_ID)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + wireMockProxy.port())));
 
             HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
                     new ValidatingDocNode(DocNode.of("proxy", UPLOADED_PROXY_ID), new ValidationErrors()), httpProxyHostRegistry, STRICT
@@ -837,7 +836,11 @@ public class ActionTest {
 
             ActionExecutionException actionExecutionException = (ActionExecutionException) assertThatThrown(() -> webhookAction.execute(ctx), instanceOf(ActionExecutionException.class));
 
-            Assert.assertTrue(actionExecutionException.getMessage().contains("We are not accepting connections from /127.0.0.1; only: /127.0.0.9"));
+            Assert.assertTrue(actionExecutionException.getMessage()
+                    .contains(String.format("We are only accepting requests with the '%s' header set to '%s'",
+                            REQUEST_HEADER_ADDING_FILTER.getHeader().getName(),
+                            REQUEST_HEADER_ADDING_FILTER.getHeader().getValue()))
+            );
         }
     }
 
