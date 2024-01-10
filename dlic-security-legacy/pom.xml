@@ -226,24 +226,21 @@
     </dependency>
 
     <dependency>
-      <groupId>com.browserup</groupId>
-      <artifactId>browserup-proxy-core</artifactId>
-      <version>2.1.2</version>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock</artifactId>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>xyz.rogfam</groupId>
-          <artifactId>littleproxy</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>net.minidev</groupId>
+      <artifactId>json-smart</artifactId>
+      <version>2.5.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-flx-support</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -282,13 +279,6 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>5.4.0</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>xyz.rogfam</groupId>
-      <artifactId>littleproxy</artifactId>
-      <version>2.0.5</version>
       <scope>test</scope>
     </dependency>
 

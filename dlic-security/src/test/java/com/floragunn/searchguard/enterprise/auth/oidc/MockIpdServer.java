@@ -20,7 +20,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.BindException;
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -33,6 +32,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -48,11 +48,11 @@ import javax.net.ssl.SSLSocket;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
 import org.apache.http.ExceptionLogger;
+import org.apache.http.Header;
 import org.apache.http.HttpConnectionFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpException;
-import org.apache.http.HttpInetConnection;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -109,7 +109,7 @@ public class MockIpdServer implements Closeable {
     private Map<String, AuthCodeContext> validCodes = new ConcurrentHashMap<>();
     private Map<String, Map<String, Object>> accessTokenToUserInfoMap = new ConcurrentHashMap<>();
 
-    private InetAddress acceptConnectionsOnlyFromInetAddress;
+    private Header requiredHttpHeader;
     private TLSConfig tlsConfig;
 
     private MockIpdServer() {
@@ -209,8 +209,8 @@ public class MockIpdServer implements Closeable {
         httpServer.start();
     }
 
-    public MockIpdServer acceptConnectionsOnlyFromInetAddress(InetAddress inetAddress) {
-        this.acceptConnectionsOnlyFromInetAddress = inetAddress;
+    public MockIpdServer acceptOnlyRequestsWithHeader(Header header) {
+        this.requiredHttpHeader = header;
         return this;
     }
 
@@ -404,14 +404,15 @@ public class MockIpdServer implements Closeable {
 
     private boolean checkAccess(HttpRequest request, HttpResponse response, HttpContext context)
             throws UnsupportedEncodingException, SSLPeerUnverifiedException {
-        if (acceptConnectionsOnlyFromInetAddress != null) {
 
-            HttpInetConnection connection = (HttpInetConnection) context.getAttribute("http.connection");
-
-            if (!connection.getRemoteAddress().equals(acceptConnectionsOnlyFromInetAddress)) {
+        if (requiredHttpHeader != null) {
+            List<Header> requestHeaders = Arrays.asList(request.getHeaders(requiredHttpHeader.getName()));
+            if (requestHeaders.stream().anyMatch(header -> requiredHttpHeader.getValue().equals(header.getValue()))) {
+                return true;
+            } else {
                 response.setStatusCode(451);
-                response.setEntity(new StringEntity("We are not accepting connections from " + connection.getRemoteAddress() + "; only: "
-                        + acceptConnectionsOnlyFromInetAddress));
+                response.setEntity(new StringEntity(
+                        "We are only accepting requests with the '" + requiredHttpHeader.getName() + "' header set to '" + requiredHttpHeader.getValue() + "'"));
                 return false;
             }
         }
@@ -557,8 +558,8 @@ public class MockIpdServer implements Closeable {
             return this;
         }
 
-        public Builder acceptConnectionsOnlyFromInetAddress(InetAddress inetAddress) {
-            mockIdpServer.acceptConnectionsOnlyFromInetAddress = inetAddress;
+        public Builder acceptOnlyRequestsWithHeader(Header header) {
+            mockIdpServer.requiredHttpHeader = header;
             return this;
         }
 

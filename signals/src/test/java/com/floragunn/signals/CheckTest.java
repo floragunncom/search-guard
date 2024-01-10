@@ -1,6 +1,5 @@
 package com.floragunn.signals;
 
-import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URI;
 import java.security.cert.X509Certificate;
@@ -16,11 +15,14 @@ import java.util.Optional;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.watch.common.TlsConfig;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockClassRule;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
@@ -39,16 +41,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
 
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
@@ -75,6 +68,12 @@ import com.floragunn.signals.watch.result.Status;
 import com.floragunn.signals.watch.result.WatchLog;
 
 import net.jcip.annotations.NotThreadSafe;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
 import org.mockito.Mockito;
 
 import javax.net.ssl.X509ExtendedTrustManager;
@@ -93,11 +92,20 @@ public class CheckTest {
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
-    private static BrowserUpProxy httpProxy;
 
     private static TestCertificates testCertificates = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
             .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
             .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build();
+
+    private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
+
+    @ClassRule
+    public static WireMockClassRule wireMockProxy = new WireMockClassRule(WireMockConfiguration.options()
+            .bindAddress("127.0.0.8")
+            .enableBrowserProxying(true)
+            .proxyPassThrough(true)
+            .dynamicPort()
+            .extensions(REQUEST_HEADER_ADDING_FILTER));
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -145,15 +153,6 @@ public class CheckTest {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
         throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
-        httpProxy = new BrowserUpProxyServer();
-        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        if (httpProxy != null) {
-            httpProxy.abort();
-        }
     }
 
     @Test
@@ -434,7 +433,8 @@ public class CheckTest {
 
             webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
             webserviceProvider.setResponseContentType("text/json");
-            webserviceProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+            webserviceProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
@@ -451,11 +451,15 @@ public class CheckTest {
                 httpInput.execute(ctx);
                 Assert.fail();
             } catch (CheckExecutionException e) {
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("We are not accepting connections from"));
+                Assert.assertTrue(e.getMessage(), e.getMessage()
+                        .contains(String.format("We are only accepting requests with the '%s' header set to '%s'",
+                                REQUEST_HEADER_ADDING_FILTER.getHeader().getName(),
+                                REQUEST_HEADER_ADDING_FILTER.getHeader().getValue()))
+                );
             }
 
             HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
-                    new ValidatingDocNode(DocNode.of("proxy", "http://127.0.0.8:" + httpProxy.getPort()), new ValidationErrors()),
+                    new ValidatingDocNode(DocNode.of("proxy", "http://127.0.0.8:" + wireMockProxy.port()), new ValidationErrors()),
                     httpProxyHostRegistry,
                     STRICT
             );
@@ -481,7 +485,8 @@ public class CheckTest {
 
             webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
             webserviceProvider.setResponseContentType("text/json");
-            webserviceProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+            webserviceProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
@@ -498,10 +503,14 @@ public class CheckTest {
                 httpInput.execute(ctx);
                 Assert.fail();
             } catch (CheckExecutionException e) {
-                Assert.assertTrue(e.getMessage(), e.getMessage().contains("We are not accepting connections from"));
+                Assert.assertTrue(e.getMessage(), e.getMessage()
+                        .contains(String.format("We are only accepting requests with the '%s' header set to '%s'",
+                                REQUEST_HEADER_ADDING_FILTER.getHeader().getName(),
+                                REQUEST_HEADER_ADDING_FILTER.getHeader().getValue()))
+                );
             }
 
-            when(httpProxyHostRegistry.findHttpProxyHost(uploadedProxyId)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + httpProxy.getPort())));
+            when(httpProxyHostRegistry.findHttpProxyHost(uploadedProxyId)).thenReturn(Optional.of(HttpHost.create("http://127.0.0.8:" + wireMockProxy.port())));
 
             HttpProxyConfig httpProxyConfig = HttpProxyConfig.create(
                     new ValidatingDocNode(DocNode.of("proxy", uploadedProxyId), new ValidationErrors()),

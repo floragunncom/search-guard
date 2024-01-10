@@ -20,4 +20,12 @@
   <packaging>jar</packaging>
   <name>Search Guard FLX: Support</name>
 
+  <dependencies>
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
 </project>

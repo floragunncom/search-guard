@@ -388,6 +388,11 @@
         <artifactId>awaitility</artifactId>
         <version>4.2.0</version>
       </dependency>
+      <dependency>
+        <groupId>org.wiremock</groupId>
+        <artifactId>wiremock</artifactId>
+        <version>3.3.1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 

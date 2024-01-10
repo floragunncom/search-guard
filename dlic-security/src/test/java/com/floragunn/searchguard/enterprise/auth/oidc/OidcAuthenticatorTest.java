@@ -14,18 +14,15 @@
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.io.FileNotFoundException;
-import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.util.Map;
 
 import com.floragunn.codova.validation.VariableResolvers;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -36,12 +33,31 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.collect.ImmutableMap;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class OidcAuthenticatorTest {
     protected static MockIpdServer mockIdpServer;
     protected static MockIpdServer pkceMockIdpServer;
 
-    protected static BrowserUpProxy httpProxy;
+    private static TestCertificates testCertificates = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard", 2, "password")
+            .addClients("CN=client.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
+    private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
+
+    @ClassRule
+    public static WireMockRule wireMockProxy = new WireMockRule(WireMockConfiguration.options()
+            .bindAddress("127.0.0.8")
+            .caKeystorePath(testCertificates.getCaCertificate().getJksFile().getAbsolutePath())
+            .trustAllProxyTargets(true)
+            .enableBrowserProxying(true)
+            .dynamicPort()
+            .extensions(REQUEST_HEADER_ADDING_FILTER));
 
     private static ConfigurationRepository.Context testContext = new ConfigurationRepository.Context(VariableResolvers.ALL, null, null, null);
     private static Map<String, Object> basicAuthenticatorSettings;
@@ -62,9 +78,6 @@ public class OidcAuthenticatorTest {
     @BeforeClass
     public static void setUp() throws Exception {
         mockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL).start();
-        httpProxy = new BrowserUpProxyServer();
-        httpProxy.setMitmDisabled(true);
-        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
         basicAuthenticatorSettings = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "client_id",
                 "Der Klient", "client_secret", "Das Geheimnis", "pkce", false);
 
@@ -79,10 +92,6 @@ public class OidcAuthenticatorTest {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-
-        if (httpProxy != null) {
-            httpProxy.abort();
         }
     }
 
@@ -178,11 +187,13 @@ public class OidcAuthenticatorTest {
 
     @Test
     public void proxyTest() throws Exception {
+
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL)
-                .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9")).start()) {
+                .acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader())
+                .start()) {
 
             Map<String, Object> config = DocNode.of("idp.openid_configuration_url", proxyOnlyMockIdpServer.getDiscoverUri().toString(),
-                    "idp.proxy.host", "127.0.0.8", "idp.proxy.port", httpProxy.getPort(), "idp.proxy.scheme", "http", "client_id", "x",
+                    "idp.proxy.host", "127.0.0.8", "idp.proxy.port", wireMockProxy.port(), "idp.proxy.scheme", "http", "client_id", "x",
                     "client_secret", "x");
 
             OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
@@ -208,11 +219,13 @@ public class OidcAuthenticatorTest {
     @Test
     public void proxyWithTlsConfigTest() throws Exception {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL)
-                .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9")).useCustomTlsConfig(IDP_TLS_CONFIG).start()) {
+                .acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader())
+                .useCustomTlsConfig(IDP_TLS_CONFIG).start()) {
+
             Map<String, Object> config = DocNode.of("idp.openid_configuration_url", proxyOnlyMockIdpServer.getDiscoverUri().toString(),
-                    "idp.proxy.host", "127.0.0.8", "idp.proxy.port", httpProxy.getPort(), "idp.proxy.scheme", "http", "client_id", "x",
+                    "idp.proxy.host", "127.0.0.8", "idp.proxy.port", wireMockProxy.port(), "idp.proxy.scheme", "http", "client_id", "x",
                     "client_secret", "x", "idp.tls.trusted_cas",
-                    "#{file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}", "idp.tls.verify_hostnames", false);
+                    "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}", "idp.tls.verify_hostnames", false);
 
             OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
             ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
