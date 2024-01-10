@@ -37,7 +37,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -64,7 +67,6 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.xcontent.XContentType;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -74,8 +76,6 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.quartz.TimeOfDay;
 
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.temporal.DurationExpression;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
@@ -117,7 +117,16 @@ public class RestApiTest {
 
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
-    private static BrowserUpProxy httpProxy;
+
+    private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
+
+    @Rule
+    public WireMockRule wireMockProxy = new WireMockRule(WireMockConfiguration.options()
+            .bindAddress("127.0.0.8")
+            .enableBrowserProxying(true)
+            .proxyPassThrough(true)
+            .dynamicPort()
+            .extensions(REQUEST_HEADER_ADDING_FILTER));
 
     @Rule
     public LoggingTestWatcher loggingTestWatcher = new LoggingTestWatcher();
@@ -149,15 +158,6 @@ public class RestApiTest {
     public static void setupDependencies() throws Exception {
         scriptService = cluster.getInjectable(ScriptService.class);
         throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
-        httpProxy = new BrowserUpProxyServer();
-        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
-    }
-
-    @AfterClass
-    public static void tearDown() {
-        if (httpProxy != null) {
-            httpProxy.abort();
-        }
     }
 
     @Test
@@ -830,7 +830,8 @@ public class RestApiTest {
         try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
-                webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+
+                webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
                 Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                         .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).throttledFor("0")
@@ -843,14 +844,14 @@ public class RestApiTest {
 
                 Assert.assertEquals(0, webhookProvider.getRequestCount());
 
-                response = restClient.putJson("/_signals/settings/http.proxy", "\"http://127.0.0.8:" + httpProxy.getPort() + "\"");
+                response = restClient.putJson("/_signals/settings/http.proxy", "\"http://127.0.0.8:" + wireMockProxy.port() + "\"");
 
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
                 response = restClient.get("/_signals/settings/http.proxy");
 
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-                Assert.assertEquals(response.getBody(), "\"http://127.0.0.8:" + httpProxy.getPort() + "\"");
+                Assert.assertEquals(response.getBody(), "\"http://127.0.0.8:" + wireMockProxy.port() + "\"");
 
                 Thread.sleep(600);
 
@@ -876,7 +877,7 @@ public class RestApiTest {
         try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
-                webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+                webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
                 Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                         .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).throttledFor("0")
@@ -891,7 +892,7 @@ public class RestApiTest {
 
                 watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                         .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri())
-                        .proxy("http://127.0.0.8:" + httpProxy.getPort()).throttledFor("0").name("testhook").build();
+                        .proxy("http://127.0.0.8:" + wireMockProxy.port()).throttledFor("0").name("testhook").build();
                 response = restClient.putJson(watchPath, watch.toJson());
 
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
@@ -916,7 +917,7 @@ public class RestApiTest {
         try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
-                HttpResponse response = restClient.putJson("/_signals/settings/http.proxy", "\"http://127.0.0.8:" + httpProxy.getPort() + "\"");
+                HttpResponse response = restClient.putJson("/_signals/settings/http.proxy", "\"http://127.0.0.8:" + wireMockProxy.port() + "\"");
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
                 Thread.sleep(200);
@@ -950,9 +951,9 @@ public class RestApiTest {
 
         try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
-            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
-            HttpResponse response = restClient.putJson(proxyPath, DocNode.of("name", "proxy", "uri", "http://127.0.0.8:" + httpProxy.getPort()));
+            HttpResponse response = restClient.putJson(proxyPath, DocNode.of("name", "proxy", "uri", "http://127.0.0.8:" + wireMockProxy.port()));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -1291,9 +1292,9 @@ public class RestApiTest {
         try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources();
              MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/tls_endpoint")) {
 
-            webhookProvider.acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"));
+            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
-            HttpResponse response = restClient.putJson(proxyPath, DocNode.of("name", "stored-proxy", "uri", "http://127.0.0.8:" + httpProxy.getPort()));
+            HttpResponse response = restClient.putJson(proxyPath, DocNode.of("name", "stored-proxy", "uri", "http://127.0.0.8:" + wireMockProxy.port()));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Watch watch = new WatchBuilder("test_with_stored_proxy").cronTrigger("0 0 */1 * * ?")
