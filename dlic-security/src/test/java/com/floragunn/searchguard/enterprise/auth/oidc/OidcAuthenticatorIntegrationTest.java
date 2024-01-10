@@ -14,18 +14,14 @@
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.io.FileNotFoundException;
-import java.net.InetAddress;
 
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockClassRule;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
 
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -36,10 +32,31 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class OidcAuthenticatorIntegrationTest {
     protected static MockIpdServer mockIdpServer;
-    protected static BrowserUpProxy httpProxy;
+
+    private static final TestCertificates testCertificates = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard", 2, "password")
+            .addClients("CN=client.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
+
+    private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
+
+
+    @ClassRule
+    public static WireMockClassRule wireMockProxy = new WireMockClassRule(WireMockConfiguration.options()
+            .bindAddress("127.0.0.8")
+            .caKeystorePath(testCertificates.getCaCertificate().getJksFile().getAbsolutePath())
+            .trustAllProxyTargets(true)
+            .enableBrowserProxying(true)
+            .dynamicPort()
+            .extensions(REQUEST_HEADER_ADDING_FILTER));
 
     private static String FRONTEND_BASE_URL = "http://whereever";
     private static final TLSConfig IDP_TLS_CONFIG;
@@ -61,20 +78,17 @@ public class OidcAuthenticatorIntegrationTest {
 
     @BeforeClass
     public static void setUp() throws Exception {
-        mockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL).acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"))
-                .useCustomTlsConfig(IDP_TLS_CONFIG).start();
 
-        httpProxy = new BrowserUpProxyServer();
-        httpProxy.setMitmDisabled(true);
-        //Java 17 java.net.BindException: Can't assign requested address
-        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
+        mockIdpServer = MockIpdServer.forKeySet(TestJwk.Jwks.ALL)
+                .acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader())
+                .useCustomTlsConfig(IDP_TLS_CONFIG).start();
 
         TestSgConfig testSgConfig = new TestSgConfig().resources("oidc").frontendAuthc(new TestSgConfig.FrontendAuthc()
                 .authDomain(new TestSgConfig.FrontendAuthDomain("oidc").label("Label").config(
                         "oidc.idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "oidc.client_id", "Der Klient", "oidc.client_secret",
                         "Das Geheimnis", "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","), "oidc.idp.proxy.host",
-                        "127.0.0.8", "oidc.idp.proxy.port", httpProxy.getPort(), "oidc.idp.proxy.scheme", "http", "oidc.idp.tls.trusted_cas",
-                        "#{file:" + FileHelper.getAbsoluteFilePathFromClassPath("oidc/idp/root-ca.pem") + "}", "oidc.idp.tls.verify_hostnames", false)));
+                        "127.0.0.8", "oidc.idp.proxy.port", wireMockProxy.port(), "oidc.idp.proxy.scheme", "http", "oidc.idp.tls.trusted_cas",
+                        "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}", "oidc.idp.tls.verify_hostnames", false)));
 
         cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().singleNode().resources("oidc").sgConfig(testSgConfig).start();
     }
@@ -87,10 +101,6 @@ public class OidcAuthenticatorIntegrationTest {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-
-        if (httpProxy != null) {
-            httpProxy.abort();
         }
 
         if (cluster != null) {

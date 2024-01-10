@@ -22,12 +22,14 @@ import static com.floragunn.searchguard.enterprise.auth.oidc.TestJwts.createSign
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.settings.Settings;
@@ -38,30 +40,35 @@ import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
 import org.hamcrest.CoreMatchers;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
 
-import com.browserup.bup.BrowserUpProxy;
-import com.browserup.bup.BrowserUpProxyServer;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.util.FakeRestRequest;
 import com.google.common.collect.ImmutableMap;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 @Deprecated
 public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
 
     protected static MockIpdServer mockIdpServer;
-    protected static BrowserUpProxy httpProxy;
+
+    private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
+
+    @ClassRule
+    public static WireMockRule wireMockProxy = new WireMockRule(WireMockConfiguration.options()
+            .bindAddress("127.0.0.8")
+            .enableBrowserProxying(true)
+            .proxyPassThrough(true)
+            .dynamicPort()
+            .extensions(REQUEST_HEADER_ADDING_FILTER));
 
     @BeforeClass
     public static void setUp() throws Exception {
         mockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL);
-        httpProxy = new BrowserUpProxyServer();
-        //Java 17 java.net.BindException: Can't assign requested address
-        httpProxy.start(0, InetAddress.getByName("127.0.0.8"), InetAddress.getByName("127.0.0.9"));
     }
 
     @AfterClass
@@ -72,10 +79,6 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-
-        if (httpProxy != null) {
-            httpProxy.abort();
         }
     }
 
@@ -98,10 +101,11 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     @Test
     public void proxyTest() throws Exception {
         try (MockIpdServer proxyOnlyMockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL)
-                .acceptConnectionsOnlyFromInetAddress(InetAddress.getByName("127.0.0.9"))) {
+                .acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader())) {
             proxyOnlyMockIdpServer.setRequireValidCodes(false);
+
             Settings settings = Settings.builder().put("openid_connect_url", proxyOnlyMockIdpServer.getDiscoverUri().toString()).put("proxy.host", "127.0.0.8")
-                    .put("proxy.port", httpProxy.getPort()).put("proxy.scheme", "http").build();
+                    .put("proxy.port", wireMockProxy.port()).put("proxy.scheme", "http").build();
 
             HTTPJwtKeyByOpenIdConnectAuthenticator jwtAuth = new HTTPJwtKeyByOpenIdConnectAuthenticator(settings, null);
 
