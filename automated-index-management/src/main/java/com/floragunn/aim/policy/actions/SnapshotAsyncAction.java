@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 
 import static org.elasticsearch.rest.RestStatus.ACCEPTED;
 import static org.elasticsearch.rest.RestStatus.OK;
@@ -48,7 +49,7 @@ public final class SnapshotAsyncAction extends Action.Async<SnapshotCreatedCondi
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
         String snapshotNameExpression = "<" + (snapshotNamePrefix == null ? "" : snapshotNamePrefix + "_") + index + "_{now/d}>";
-        String snapshotName = executionContext.getIndexNameExpressionResolver().resolveDateMathExpression(snapshotNameExpression);
+        String snapshotName = IndexNameExpressionResolver.resolveDateMathExpression(snapshotNameExpression);
         state.setSnapshotName(snapshotName);
         CreateSnapshotRequest request = new CreateSnapshotRequest(repositoryName, snapshotName).indices(index).waitForCompletion(false);
         CreateSnapshotResponse createSnapshotResponse = executionContext.getClient().admin().cluster().execute(CreateSnapshotAction.INSTANCE, request)

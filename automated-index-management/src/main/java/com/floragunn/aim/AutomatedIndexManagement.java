@@ -5,7 +5,6 @@ import com.floragunn.aim.policy.actions.*;
 import com.floragunn.aim.policy.conditions.*;
 import com.floragunn.aim.policy.instance.PolicyInstanceHandler;
 import com.floragunn.aim.policy.instance.PolicyInstanceService;
-import com.floragunn.aim.policy.instance.PolicyInstanceStateLogHandler;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.cstate.ComponentState;
@@ -20,7 +19,6 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -151,8 +149,8 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
             }
             LOG.info("Initializing AIM");
             aimSettings.getDynamic().init(PrivilegedConfigClient.adapt(client));
-            policyService = new PolicyService(aimSettings, client);
-            policyInstanceService = new PolicyInstanceService(aimSettings, client);
+            policyService = new PolicyService(client);
+            policyInstanceService = new PolicyInstanceService(client);
             if (aimSettings.getDynamic().getActive() && clusterService.state().nodes().isLocalNodeElectedMaster()) {
                 initMaster();
             }
@@ -168,11 +166,15 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
     }
 
     private void initIndices(ProtectedConfigIndexService protectedConfigIndexService) {
-        AutomatedIndexManagementSettings.Static.ConfigIndices configIndices = aimSettings.getStatic().configIndices();
-        componentState.addPart(protectedConfigIndexService.createIndex(new ProtectedConfigIndexService.ConfigIndex(configIndices.getSettingsName())));
-        componentState.addPart(protectedConfigIndexService.createIndex(new ProtectedConfigIndexService.ConfigIndex(configIndices.getStatesName())));
-        componentState.addPart(protectedConfigIndexService.createIndex(new ProtectedConfigIndexService.ConfigIndex(configIndices.getPoliciesName())
-                .dependsOnIndices(configIndices.getSettingsName(), configIndices.getStatesName(), configIndices.getPoliciesName())
-                .onIndexReady(this::init)));
+        componentState.addPart(protectedConfigIndexService
+                .createIndex(new ProtectedConfigIndexService.ConfigIndex(AutomatedIndexManagementSettings.ConfigIndices.SETTINGS_NAME)));
+        componentState.addPart(protectedConfigIndexService.createIndex(
+                new ProtectedConfigIndexService.ConfigIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME)));
+        componentState.addPart(protectedConfigIndexService
+                .createIndex(new ProtectedConfigIndexService.ConfigIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME)
+                        .dependsOnIndices(AutomatedIndexManagementSettings.ConfigIndices.SETTINGS_NAME,
+                                AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME,
+                                AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME)
+                        .onIndexReady(this::init)));
     }
 }

@@ -5,8 +5,6 @@ import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.*;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -167,19 +165,17 @@ public class InternalSettingsAPI {
         }
 
         public static class Handler extends HandledTransportAction<Request, Response> {
-            private final AutomatedIndexManagement aim;
             private final Client client;
 
             @Inject
-            public Handler(AutomatedIndexManagement aim, Client client, TransportService transportService, ActionFilters actionFilters) {
+            public Handler(Client client, TransportService transportService, ActionFilters actionFilters) {
                 super(NAME, transportService, actionFilters, Request::new);
-                this.aim = aim;
                 this.client = client;
             }
 
             @Override
             protected void doExecute(Task task, Request request, ActionListener<Response> listener) {
-                BulkRequest bulkRequest = new BulkRequest(aim.getAimSettings().getStatic().configIndices().getSettingsName());
+                BulkRequest bulkRequest = new BulkRequest(AutomatedIndexManagementSettings.ConfigIndices.SETTINGS_NAME);
                 for (AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?> attribute : request.getDeleted()) {
                     bulkRequest.add(new DeleteRequest().id(attribute.getName()));
                 }
