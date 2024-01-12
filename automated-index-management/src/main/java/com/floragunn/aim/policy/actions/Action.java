@@ -1,6 +1,5 @@
 package com.floragunn.aim.policy.actions;
 
-import com.floragunn.aim.AutomatedIndexManagement;
 import com.floragunn.aim.policy.Policy;
 import com.floragunn.aim.policy.conditions.Condition;
 import com.floragunn.aim.policy.instance.PolicyInstance;
@@ -19,7 +18,6 @@ import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.settings.Settings;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

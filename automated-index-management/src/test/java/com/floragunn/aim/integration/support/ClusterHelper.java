@@ -174,24 +174,16 @@ public class ClusterHelper {
             return cluster.getPrivilegedInternalNodeClient().get(new GetRequest(index).id(doc)).actionGet();
         }
 
-        public static GetResponse getPolicy(LocalCluster cluster, String policyIndex, String policyName) {
-            return get(cluster, policyIndex, policyName);
-        }
-
         public static GetResponse getPolicy(LocalCluster cluster, String policyName) {
-            return get(cluster, AutomatedIndexManagementSettings.Static.ConfigIndices.DEFAULT_POLICIES_NAME, policyName);
-        }
-
-        public static boolean isPolicyExists(LocalCluster cluster, String policyIndex, String policyName) {
-            return get(cluster, policyIndex, policyName).isExists();
+            return get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyName);
         }
 
         public static boolean isPolicyExists(LocalCluster cluster, String policyName) {
-            return get(cluster, AutomatedIndexManagementSettings.Static.ConfigIndices.DEFAULT_POLICIES_NAME, policyName).isExists();
+            return get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyName).isExists();
         }
 
         public static void awaitPolicyExists(LocalCluster cluster, String policyName) {
-            Awaitility.await().until(() -> get(cluster, AutomatedIndexManagementSettings.Static.ConfigIndices.DEFAULT_POLICIES_NAME, policyName),
+            Awaitility.await().until(() -> get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyName),
                     GetResponse::isExists);
         }
 
@@ -217,30 +209,21 @@ public class ClusterHelper {
             return cluster.getInternalNodeClient().admin().indices().create(request).actionGet();
         }
 
-        public static GetResponse getPolicyInstanceStatus(LocalCluster cluster, String statusIndexName, String indexName) {
-            return get(cluster, statusIndexName, indexName);
-        }
-
         public static GetResponse getPolicyInstanceStatus(LocalCluster cluster, String indexName) {
-            return get(cluster, AutomatedIndexManagementSettings.Static.ConfigIndices.DEFAULT_POLICY_INSTANCE_STATES_NAME, indexName);
-        }
-
-        public static boolean isPolicyInstanceStatusExists(LocalCluster cluster, String statusIndexName, String indexName) {
-            return get(cluster, statusIndexName, indexName).isExists();
+            return get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName);
         }
 
         public static boolean isPolicyInstanceStatusExists(LocalCluster cluster, String indexName) {
-            return get(cluster, AutomatedIndexManagementSettings.Static.ConfigIndices.DEFAULT_POLICY_INSTANCE_STATES_NAME, indexName).isExists();
+            return get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName).isExists();
         }
 
         public static boolean isPolicyInstanceStatusEqual(LocalCluster cluster, String indexName, PolicyInstanceState.Status status) {
-            GetResponse response = get(cluster, AutomatedIndexManagementSettings.Static.ConfigIndices.DEFAULT_POLICY_INSTANCE_STATES_NAME, indexName);
+            GetResponse response = get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName);
             return response.isExists() && status.name().equals(response.getSource().get(PolicyInstanceState.STATUS_FIELD));
         }
 
         public static void awaitPolicyInstanceStatusExists(LocalCluster cluster, String indexName) {
-            Awaitility.await().until(
-                    () -> get(cluster, AutomatedIndexManagementSettings.Static.ConfigIndices.DEFAULT_POLICY_INSTANCE_STATES_NAME, indexName),
+            Awaitility.await().until(() -> get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName),
                     GetResponse::isExists);
         }
 

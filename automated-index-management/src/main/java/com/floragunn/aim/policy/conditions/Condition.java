@@ -1,8 +1,6 @@
 package com.floragunn.aim.policy.conditions;
 
-import com.floragunn.aim.AutomatedIndexManagement;
 import com.floragunn.aim.policy.Policy;
-import com.floragunn.aim.policy.actions.Action;
 import com.floragunn.aim.policy.instance.PolicyInstance;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;
 import com.floragunn.codova.documents.DocNode;

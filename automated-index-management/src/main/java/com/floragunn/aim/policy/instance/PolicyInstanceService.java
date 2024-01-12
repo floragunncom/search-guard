@@ -4,7 +4,6 @@ import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.aim.api.internal.InternalPolicyInstanceAPI;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,7 +11,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.*;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
@@ -28,12 +26,10 @@ import java.util.concurrent.CompletableFuture;
 public class PolicyInstanceService {
     private static final Logger LOG = LogManager.getLogger(PolicyInstanceService.class);
 
-    private final AutomatedIndexManagementSettings settings;
     private final PrivilegedConfigClient client;
     private PolicyInstanceStateLogHandler policyInstanceStateLogHandler;
 
-    public PolicyInstanceService(AutomatedIndexManagementSettings settings, Client client) {
-        this.settings = settings;
+    public PolicyInstanceService(Client client) {
         this.client = PrivilegedConfigClient.adapt(client);
     }
 
@@ -41,20 +37,9 @@ public class PolicyInstanceService {
         this.policyInstanceStateLogHandler = policyInstanceStateLogHandler;
     }
 
-    public void deleteState(String indexName) {
-        DeleteRequest request = new DeleteRequest(settings.getStatic().configIndices().getStatesName()).id(indexName);
-        try {
-            DeleteResponse response = client.delete(request).actionGet();
-            if (!RestStatus.OK.equals(response.status()) && !RestStatus.NOT_FOUND.equals(response.status())) {
-                LOG.warn("Error while deleting policy instance state for index '" + indexName + "'");
-            }
-        } catch (Exception e) {
-            LOG.warn("Error while deleting policy instance state for index '" + indexName + "'");
-        }
-    }
-
     public void updateState(String index, PolicyInstanceState state) {
-        IndexRequest request = new IndexRequest(settings.getStatic().configIndices().getStatesName()).id(index).source(state.toDocNode());
+        IndexRequest request = new IndexRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).id(index)
+                .source(state.toDocNode());
         try {
             IndexResponse response = client.index(request).actionGet();
             if (RestStatus.CREATED != response.status() && RestStatus.OK != response.status()) {
@@ -69,26 +54,9 @@ public class PolicyInstanceService {
         }
     }
 
-    public PolicyInstanceState getState(String indexName) {
-        GetRequest request = new GetRequest(settings.getStatic().configIndices().getStatesName()).id(indexName);
-        try {
-            GetResponse response = client.get(request).actionGet();
-            if (response.isExists()) {
-                return new PolicyInstanceState(DocNode.parse(Format.JSON).from(response.getSourceAsBytesRef().utf8ToString()));
-            } else {
-                LOG.trace("State not found for index '" + indexName + "'");
-            }
-        } catch (ConfigValidationException e) {
-            LOG.warn("Error while parsing policy instance state from index", e);
-        } catch (Exception e) {
-            LOG.warn("Error while retrieving policy instance state from index", e);
-        }
-        return null;
-    }
-
     public CompletableFuture<GetResponse> getStateAsync(String indexName) {
         CompletableFuture<GetResponse> result = new CompletableFuture<>();
-        client.execute(GetAction.INSTANCE, new GetRequest(settings.getStatic().configIndices().getStatesName(), indexName),
+        client.execute(GetAction.INSTANCE, new GetRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName),
                 new ActionListener<GetResponse>() {
                     @Override
                     public void onResponse(GetResponse response) {
@@ -103,25 +71,10 @@ public class PolicyInstanceService {
         return result;
     }
 
-    public void deleteStates(String... indexNames) {
-        BulkRequest request = new BulkRequest(settings.getStatic().configIndices().getStatesName());
-        for (String name : indexNames) {
-            request.add(new DeleteRequest().id(name));
-        }
-        try {
-            BulkResponse response = client.bulk(request).actionGet();
-            if (response.hasFailures()) {
-                LOG.warn("Error while deleting policy instance states: " + response.buildFailureMessage());
-            }
-        } catch (Exception e) {
-            LOG.warn("Error while executing delete operation for policy instance states");
-        }
-    }
-
     public Map<String, PolicyInstanceState> getStates(Set<String> indexNames) {
         MultiGetRequest request = new MultiGetRequest();
         for (String indexName : indexNames) {
-            request.add(settings.getStatic().configIndices().getStatesName(), indexName);
+            request.add(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName);
         }
         Map<String, PolicyInstanceState> result = new HashMap<>();
         try {
@@ -145,7 +98,7 @@ public class PolicyInstanceService {
             if (delete.isEmpty() && create.isEmpty()) {
                 return;
             }
-            BulkRequest request = new BulkRequest(settings.getStatic().configIndices().getStatesName());
+            BulkRequest request = new BulkRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME);
             for (String index : delete) {
                 request.add(new DeleteRequest().id(index));
             }

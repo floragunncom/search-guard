@@ -1,21 +1,18 @@
 package com.floragunn.aim.api.internal;
 
 import com.floragunn.aim.AutomatedIndexManagement;
+import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.aim.policy.Policy;
 import com.floragunn.aim.policy.actions.Action;
 import com.floragunn.aim.policy.conditions.Condition;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.elasticsearch.action.*;
 import org.elasticsearch.action.delete.DeleteResponse;
-import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
 import org.elasticsearch.action.support.master.TransportMasterNodeAction;
@@ -38,7 +35,6 @@ import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 public class InternalPolicyAPI {
@@ -93,7 +89,7 @@ public class InternalPolicyAPI {
                         return;
                     }
                 }
-                client.prepareDelete().setIndex(aim.getAimSettings().getStatic().configIndices().getPoliciesName()).setId(request.getPolicyName())
+                client.prepareDelete().setIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).setId(request.getPolicyName())
                         .execute(new ActionListener<DeleteResponse>() {
                             @Override
                             public void onResponse(DeleteResponse deleteResponse) {
@@ -184,7 +180,7 @@ public class InternalPolicyAPI {
                         return;
                     }
                 }
-                client.prepareIndex().setIndex(aim.getAimSettings().getStatic().configIndices().getPoliciesName()).setId(request.getPolicyName())
+                client.prepareIndex().setIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).setId(request.getPolicyName())
                         .setSource(request.getPolicy().toDocNode()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
                         .execute(new ActionListener<IndexResponse>() {
                             @Override

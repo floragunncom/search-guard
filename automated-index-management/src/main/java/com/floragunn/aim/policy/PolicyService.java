@@ -14,38 +14,37 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 public class PolicyService {
-    private final AutomatedIndexManagementSettings settings;
     private final PrivilegedConfigClient client;
 
-    public PolicyService(AutomatedIndexManagementSettings settings, Client client) {
-        this.settings = settings;
+    public PolicyService(Client client) {
         this.client = PrivilegedConfigClient.adapt(client);
     }
 
     public GetResponse getPolicy(String policyName) {
-        return client.get(new GetRequest().index(settings.getStatic().configIndices().getPoliciesName()).id(policyName)).actionGet();
+        return client.get(new GetRequest().index(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).id(policyName)).actionGet();
     }
 
     public CompletableFuture<GetResponse> getPolicyAsync(String policyName) {
         CompletableFuture<GetResponse> result = new CompletableFuture<>();
-        client.get(new GetRequest().index(settings.getStatic().configIndices().getPoliciesName()).id(policyName), new ActionListener<GetResponse>() {
-            @Override
-            public void onResponse(GetResponse response) {
-                result.complete(response);
-            }
+        client.get(new GetRequest().index(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).id(policyName),
+                new ActionListener<GetResponse>() {
+                    @Override
+                    public void onResponse(GetResponse response) {
+                        result.complete(response);
+                    }
 
-            @Override
-            public void onFailure(Exception e) {
-                result.completeExceptionally(e);
-            }
-        });
+                    @Override
+                    public void onFailure(Exception e) {
+                        result.completeExceptionally(e);
+                    }
+                });
         return result;
     }
 
     public MultiGetResponse multiGetPolicy(Collection<String> policyNames) {
         MultiGetRequest request = new MultiGetRequest();
         for (String policyName : policyNames) {
-            request.add(settings.getStatic().configIndices().getPoliciesName(), policyName);
+            request.add(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyName);
         }
         return client.multiGet(request).actionGet();
     }
@@ -77,14 +76,6 @@ public class PolicyService {
                     }
                 });
         return result;
-    }
-
-    public InternalPolicyAPI.StatusResponse deletePolicy(String policyName) {
-        return deletePolicy(policyName, false);
-    }
-
-    public InternalPolicyAPI.StatusResponse deletePolicy(String policyName, boolean force) {
-        return client.execute(InternalPolicyAPI.Delete.INSTANCE, new InternalPolicyAPI.Delete.Request(policyName, force)).actionGet();
     }
 
     public CompletableFuture<InternalPolicyAPI.StatusResponse> deletePolicyAsync(String policyName) {
