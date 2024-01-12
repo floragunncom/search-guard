@@ -49,8 +49,6 @@ public final class ForceMergeAsyncAction extends Action.Async<ForceMergeDoneCond
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        /*Settings.Builder builder = Settings.builder().put(SETTING_BLOCKS_WRITE, true);
-        setIndexSetting(executionContext, state, builder);*/
         GetSettingsRequest settingsRequest = new GetSettingsRequest().indices(index).names(SETTING_BLOCKS_WRITE);
         GetSettingsResponse settingsResponse = executionContext.getClient().admin().indices().getSettings(settingsRequest).actionGet();
         if (!"true".equals(settingsResponse.getSetting(index, SETTING_BLOCKS_WRITE))) {

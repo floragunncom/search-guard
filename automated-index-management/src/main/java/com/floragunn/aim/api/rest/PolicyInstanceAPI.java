@@ -1,8 +1,6 @@
 package com.floragunn.aim.api.rest;
 
 import com.floragunn.aim.AutomatedIndexManagement;
-import com.floragunn.aim.AutomatedIndexManagementSettings;
-import com.floragunn.aim.policy.instance.PolicyInstanceService;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;

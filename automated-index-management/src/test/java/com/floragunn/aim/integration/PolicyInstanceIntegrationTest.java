@@ -422,7 +422,7 @@ public class PolicyInstanceIntegrationTest {
             PolicyInstanceState mockState = new PolicyInstanceState(policyName);
             mockState.setSnapshotName(snapshotName);
             IndexResponse indexResponse = CLUSTER.getPrivilegedInternalNodeClient()
-                    .index(new IndexRequest(AutomatedIndexManagementSettings.Static.ConfigIndices.DEFAULT_POLICY_INSTANCE_STATES_NAME).id(indexName)
+                    .index(new IndexRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).id(indexName)
                             .source(mockState.toDocNode()))
                     .actionGet();
             assertEquals(RestStatus.CREATED, indexResponse.status(), Strings.toString(indexResponse, true, true));

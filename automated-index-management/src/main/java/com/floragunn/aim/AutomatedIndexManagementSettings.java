@@ -28,7 +28,7 @@ public final class AutomatedIndexManagementSettings {
 
     public AutomatedIndexManagementSettings(Settings settings) {
         staticSettings = new Static(settings);
-        dynamicSettings = new Dynamic(staticSettings);
+        dynamicSettings = new Dynamic();
     }
 
     public Static getStatic() {
@@ -59,19 +59,17 @@ public final class AutomatedIndexManagementSettings {
             return getAvailableSettings().stream().filter(dynamicAttribute -> dynamicAttribute.getName().equals(key)).findFirst().orElse(null);
         }
 
-        private final Static staticSettings;
         private final List<ChangeListener> changeListeners;
         private final Map<String, Object> settings;
 
-        protected Dynamic(Static staticSettings) {
-            this.staticSettings = staticSettings;
+        protected Dynamic() {
             this.changeListeners = new ArrayList<>();
             settings = new ConcurrentHashMap<>();
         }
 
         public void init(PrivilegedConfigClient client) {
             try {
-                MultiGetResponse response = client.prepareMultiGet().addIds(staticSettings.configIndices().getSettingsName(),
+                MultiGetResponse response = client.prepareMultiGet().addIds(ConfigIndices.SETTINGS_NAME,
                         getAvailableSettings().stream().map(DynamicAttribute::getName).collect(Collectors.toList())).execute().actionGet();
                 for (MultiGetItemResponse item : response.getResponses()) {
                     if (!item.isFailed()) {
@@ -320,18 +318,15 @@ public final class AutomatedIndexManagementSettings {
                 .index().dynamic().asString();
 
         public static StaticSettings.AttributeSet getAvailableSettings() {
-            return StaticSettings.AttributeSet.of(ENABLED, THREAD_POOL_SIZE, POLICY_NAME_FIELD, ROLLOVER_ALIAS_FIELD, ConfigIndices.SETTINGS,
-                    ConfigIndices.POLICIES, ConfigIndices.POLICY_INSTANCE_STATES, StateLog.ENABLED, StateLog.INDEX_TEMPLATE_NAME,
-                    StateLog.INDEX_NAME_PREFIX, StateLog.ALIAS_NAME, StateLog.POLICY_NAME);
+            return StaticSettings.AttributeSet.of(ENABLED, THREAD_POOL_SIZE, POLICY_NAME_FIELD, ROLLOVER_ALIAS_FIELD, StateLog.ENABLED,
+                    StateLog.INDEX_TEMPLATE_NAME, StateLog.INDEX_NAME_PREFIX, StateLog.ALIAS_NAME, StateLog.POLICY_NAME);
         }
 
         private final StaticSettings settings;
-        private final ConfigIndices configIndices;
         private final StateLog stateLog;
 
         protected Static(Settings settings) {
             this.settings = new StaticSettings(settings, null);
-            configIndices = new ConfigIndices(this.settings);
             stateLog = new StateLog(this.settings);
         }
 
@@ -351,43 +346,8 @@ public final class AutomatedIndexManagementSettings {
             return ROLLOVER_ALIAS_FIELD.name();
         }
 
-        public ConfigIndices configIndices() {
-            return configIndices;
-        }
-
         public StateLog stateLog() {
             return stateLog;
-        }
-
-        public static class ConfigIndices {
-            public static final String DEFAULT_SETTINGS_NAME = ".aim_settings";
-            public static final String DEFAULT_POLICIES_NAME = ".aim_policies";
-            public static final String DEFAULT_POLICY_INSTANCE_STATES_NAME = ".aim_states";
-
-            public static final StaticSettings.Attribute<String> SETTINGS = StaticSettings.Attribute.define("aim.index_names.settings")
-                    .withDefault(DEFAULT_SETTINGS_NAME).asString();
-            public static final StaticSettings.Attribute<String> POLICIES = StaticSettings.Attribute.define("aim.index_names.policies")
-                    .withDefault(DEFAULT_POLICIES_NAME).asString();
-            public static final StaticSettings.Attribute<String> POLICY_INSTANCE_STATES = StaticSettings.Attribute.define("aim.index_names.states")
-                    .withDefault(DEFAULT_POLICY_INSTANCE_STATES_NAME).asString();
-
-            private final StaticSettings settings;
-
-            protected ConfigIndices(StaticSettings settings) {
-                this.settings = settings;
-            }
-
-            public String getSettingsName() {
-                return settings.get(SETTINGS);
-            }
-
-            public String getPoliciesName() {
-                return settings.get(POLICIES);
-            }
-
-            public String getStatesName() {
-                return settings.get(POLICY_INSTANCE_STATES);
-            }
         }
 
         public static class StateLog {
@@ -434,5 +394,11 @@ public final class AutomatedIndexManagementSettings {
                 return settings.get(POLICY_NAME);
             }
         }
+    }
+
+    public static class ConfigIndices {
+        public static final String SETTINGS_NAME = ".aim_settings";
+        public static final String POLICIES_NAME = ".aim_policies";
+        public static final String POLICY_INSTANCE_STATES_NAME = ".aim_states";
     }
 }
