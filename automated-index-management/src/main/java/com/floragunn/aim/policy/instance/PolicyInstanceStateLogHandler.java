@@ -14,6 +14,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
@@ -161,7 +162,7 @@ public class PolicyInstanceStateLogHandler {
             StateLogEntry stateLogEntry = new StateLogEntry(index, state);
             LOG.trace("Creating new state log entry\n" + stateLogEntry.toPrettyJsonString());
             try {
-                IndexResponse response = client.index(new IndexRequest(writeAliasName).source(stateLogEntry.toDocNode())).actionGet();
+                DocWriteResponse response = client.index(new IndexRequest(writeAliasName).source(stateLogEntry.toDocNode())).actionGet();
                 if (!RestStatus.CREATED.equals(response.status())) {
                     LOG.debug("Failed to index state log entry. Response status was: " + response.status().getStatus());
                 }
