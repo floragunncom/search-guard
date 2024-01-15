@@ -127,7 +127,7 @@ public class InternalPolicyInstanceAPI {
             public Handler(AutomatedIndexManagement aim, TransportService transportService, ClusterService clusterService, ThreadPool threadPool,
                     ActionFilters actionFilters, IndexNameExpressionResolver indexNameExpressionResolver) {
                 super(NAME, transportService, clusterService, threadPool, actionFilters, Request::new, indexNameExpressionResolver, Response::new,
-                        ThreadPool.Names.GENERIC);
+                        threadPool.generic());
                 this.aim = aim;
             }
 

@@ -85,7 +85,7 @@ public class InternalSettingsAPI {
             public Request(StreamInput input) throws IOException {
                 super(input);
                 changed = readDynamicSettingsMap(input);
-                deleted = input.readList(InternalSettingsAPI::readDynamicAttribute);
+                deleted = input.readCollectionAsList(InternalSettingsAPI::readDynamicAttribute);
             }
 
             @Override
@@ -131,7 +131,7 @@ public class InternalSettingsAPI {
 
             public Response(StreamInput input) throws IOException {
                 super(input);
-                failedAttributes = input.readList(InternalSettingsAPI::readDynamicAttribute);
+                failedAttributes = input.readCollectionAsList(InternalSettingsAPI::readDynamicAttribute);
                 refreshFailed = input.readBoolean();
             }
 
@@ -168,8 +168,8 @@ public class InternalSettingsAPI {
             private final Client client;
 
             @Inject
-            public Handler(Client client, TransportService transportService, ActionFilters actionFilters) {
-                super(NAME, transportService, actionFilters, Request::new);
+            public Handler(Client client, TransportService transportService, ActionFilters actionFilters, ThreadPool threadPool) {
+                super(NAME, transportService, actionFilters, Request::new, threadPool.generic());
                 this.client = client;
             }
 
@@ -249,7 +249,7 @@ public class InternalSettingsAPI {
             protected Request(StreamInput input) throws IOException {
                 super(input);
                 changed = readDynamicSettingsMap(input);
-                deleted = input.readList(InternalSettingsAPI::readDynamicAttribute);
+                deleted = input.readCollectionAsList(InternalSettingsAPI::readDynamicAttribute);
             }
 
             @Override
@@ -322,12 +322,12 @@ public class InternalSettingsAPI {
 
             @Override
             protected List<Node> readNodesFrom(StreamInput input) throws IOException {
-                return input.readList(Node::new);
+                return input.readCollectionAsList(Node::new);
             }
 
             @Override
             protected void writeNodesTo(StreamOutput out, List<Node> nodes) throws IOException {
-                out.writeList(nodes);
+                out.writeCollection(nodes);
             }
 
             @Override
@@ -352,8 +352,8 @@ public class InternalSettingsAPI {
             @Inject
             public Handler(AutomatedIndexManagement aim, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                     ActionFilters actionFilters) {
-                super(NAME, threadPool, clusterService, transportService, actionFilters, Request::new, Request.Node::new, ThreadPool.Names.MANAGEMENT,
-                        Response.Node.class);
+                super(NAME, threadPool, clusterService, transportService, actionFilters, Request::new, Request.Node::new,
+                        threadPool.executor(ThreadPool.Names.MANAGEMENT));
                 this.aim = aim;
             }
 
