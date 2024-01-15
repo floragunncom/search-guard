@@ -8,6 +8,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -41,7 +42,7 @@ public class PolicyInstanceService {
         IndexRequest request = new IndexRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).id(index)
                 .source(state.toDocNode());
         try {
-            IndexResponse response = client.index(request).actionGet();
+            DocWriteResponse response = client.index(request).actionGet();
             if (RestStatus.CREATED != response.status() && RestStatus.OK != response.status()) {
                 LOG.warn("Could not update policy instance state: " + response);
             }
