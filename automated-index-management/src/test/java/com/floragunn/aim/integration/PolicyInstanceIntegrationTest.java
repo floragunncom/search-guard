@@ -19,6 +19,7 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.HttpStatus;
 import org.awaitility.Awaitility;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryRequest;
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction;
@@ -258,7 +259,7 @@ public class PolicyInstanceIntegrationTest {
 
             String indexName = indexPrefix + "-000001";
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
-            IndexResponse response = CLUSTER.getInternalNodeClient().index(new IndexRequest(writeAlias).source(ImmutableMap.of("first", "entry")))
+            DocWriteResponse response = CLUSTER.getInternalNodeClient().index(new IndexRequest(writeAlias).source(ImmutableMap.of("first", "entry")))
                     .actionGet();
             assertEquals(RestStatus.CREATED, response.status(), Strings.toString(response, true, true));
 
@@ -421,7 +422,7 @@ public class PolicyInstanceIntegrationTest {
 
             PolicyInstanceState mockState = new PolicyInstanceState(policyName);
             mockState.setSnapshotName(snapshotName);
-            IndexResponse indexResponse = CLUSTER.getPrivilegedInternalNodeClient()
+            DocWriteResponse indexResponse = CLUSTER.getPrivilegedInternalNodeClient()
                     .index(new IndexRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).id(indexName)
                             .source(mockState.toDocNode()))
                     .actionGet();

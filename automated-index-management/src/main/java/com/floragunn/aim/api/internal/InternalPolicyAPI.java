@@ -11,7 +11,6 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.elasticsearch.action.*;
 import org.elasticsearch.action.delete.DeleteResponse;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.master.MasterNodeRequest;
@@ -25,13 +24,11 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
-import org.elasticsearch.xcontent.XContentBuilder;
 
 import java.io.IOException;
 import java.util.List;
@@ -74,7 +71,7 @@ public class InternalPolicyAPI {
             public Handler(AutomatedIndexManagement aim, Client client, TransportService transportService, ClusterService clusterService,
                     ThreadPool threadPool, ActionFilters actionFilters, IndexNameExpressionResolver indexNameExpressionResolver) {
                 super(NAME, transportService, clusterService, threadPool, actionFilters, Request::new, indexNameExpressionResolver,
-                        StatusResponse::new, ThreadPool.Names.GENERIC);
+                        StatusResponse::new, threadPool.generic());
                 this.aim = aim;
                 this.client = PrivilegedConfigClient.adapt(client);
             }
@@ -165,7 +162,7 @@ public class InternalPolicyAPI {
                     ThreadPool threadPool, ActionFilters actionFilters, IndexNameExpressionResolver indexNameExpressionResolver) {
                 super(NAME, transportService, clusterService, threadPool, actionFilters,
                         in -> new Request(in, aim.getConditionFactory(), aim.getActionFactory()), indexNameExpressionResolver, StatusResponse::new,
-                        ThreadPool.Names.GENERIC);
+                        threadPool.generic());
                 this.aim = aim;
                 this.client = PrivilegedConfigClient.adapt(client);
             }
@@ -182,13 +179,13 @@ public class InternalPolicyAPI {
                 }
                 client.prepareIndex().setIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).setId(request.getPolicyName())
                         .setSource(request.getPolicy().toDocNode()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                        .execute(new ActionListener<IndexResponse>() {
+                        .execute(new ActionListener<DocWriteResponse>() {
                             @Override
-                            public void onResponse(IndexResponse indexResponse) {
-                                if (indexResponse.status() == RestStatus.CREATED || indexResponse.status() == RestStatus.OK) {
+                            public void onResponse(DocWriteResponse docWriteResponse) {
+                                if (docWriteResponse.status() == RestStatus.CREATED || docWriteResponse.status() == RestStatus.OK) {
                                     aim.getPolicyInstanceHandler().handlePoliciesCreate(ImmutableList.of(request.getPolicyName()));
                                 }
-                                listener.onResponse(new StatusResponse(indexResponse.status()));
+                                listener.onResponse(new StatusResponse(docWriteResponse.status()));
                             }
 
                             @Override
@@ -252,7 +249,7 @@ public class InternalPolicyAPI {
         }
     }
 
-    public static class StatusResponse extends ActionResponse implements StatusToXContentObject {
+    public static class StatusResponse extends ActionResponse {
         private final RestStatus restStatus;
 
         public StatusResponse(RestStatus restStatus) {
@@ -263,14 +260,8 @@ public class InternalPolicyAPI {
             restStatus = streamInput.readEnum(RestStatus.class);
         }
 
-        @Override
         public RestStatus status() {
             return restStatus;
-        }
-
-        @Override
-        public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-            return builder;
         }
 
         @Override
