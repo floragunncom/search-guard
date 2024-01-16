@@ -40,6 +40,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import com.floragunn.searchguard.test.TestSgConfig.UserPassword;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
@@ -563,12 +564,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         public Builder user(String name, String password, String... sgRoles) {
-            testSgConfig.user(name, password, sgRoles);
+            testSgConfig.user(name, UserPassword.of(password), sgRoles);
             return this;
         }
 
         public Builder user(String name, String password, Role... sgRoles) {
-            testSgConfig.user(name, password, sgRoles);
+            testSgConfig.user(name, UserPassword.of(password), sgRoles);
             return this;
         }
 
