@@ -268,7 +268,6 @@ public class LdapBackendTestNewStyleConfig2 {
                     .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
             Assert.fail("Expected Exception");
         } catch (Exception e) {
-            //Assert.assertEquals(org.ldaptive.provider.ConnectionException.class, e.getCause().getClass());
             Assert.assertTrue(ExceptionUtils.getStackTrace(e), WildcardMatcher.match("*unsupported*ciphersuite*aaa*", ExceptionUtils.getStackTrace(e).toLowerCase()));
         }
 
