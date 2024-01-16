@@ -220,11 +220,11 @@ public class WatchExecutionContextData implements ToXContentObject {
             builder.field("triggered_time",
                     triggeredTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(triggeredTime) : null);
             builder.field("scheduled_time",
-                    scheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(triggeredTime) : null);
+                    scheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(scheduledTime) : null);
             builder.field("previous_scheduled_time",
-                    previousScheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(triggeredTime) : null);
+                    previousScheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(previousScheduledTime) : null);
             builder.field("next_scheduled_time",
-                    nextScheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(triggeredTime) : null);
+                    nextScheduledTime != null ? DateTimeFormatter.ISO_ZONED_DATE_TIME.format(nextScheduledTime) : null);
             builder.endObject();
             return builder;
         }
