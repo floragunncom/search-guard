@@ -43,7 +43,7 @@ public class RoleBasedDocumentAuthorizationTest {
     static NamedXContentRegistry xContentRegistry = new NamedXContentRegistry(
             ImmutableList.of(new NamedXContentRegistry.Entry(QueryBuilder.class, new ParseField(TermQueryBuilder.NAME),
                     (CheckedFunction<XContentParser, TermQueryBuilder, IOException>) (p) -> TermQueryBuilder.fromXContent(p))));
-    static Parser.Context context = new ConfigurationRepository.Context(null, null, null, xContentRegistry);
+    static Parser.Context context = new ConfigurationRepository.Context(null, null, null, xContentRegistry, null);
 
     @Test
     public void getDlsRestriction_template() throws Exception {
