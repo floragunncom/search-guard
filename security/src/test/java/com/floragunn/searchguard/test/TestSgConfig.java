@@ -185,16 +185,17 @@ public class TestSgConfig {
         }
     }
 
-    public TestSgConfig user(String name, String password, String... sgRoles) {
+    public TestSgConfig user(String name, UserPassword password, String... sgRoles) {
         return user(name, password, null, sgRoles);
     }
 
-    public TestSgConfig user(String name, String password, Map<String, Object> attributes, String... sgRoles) {
+    public TestSgConfig user(String name, UserPassword password, Map<String, Object> attributes, String... sgRoles) {
         if (overrideUserSettings == null) {
             overrideUserSettings = new NestedValueMap();
         }
 
-        overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), hash(password.toCharArray()));
+
+        overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), password.passwordValueForConfiguration());
 
         if (sgRoles != null && sgRoles.length > 0) {
             overrideUserSettings.put(new NestedValueMap.Path(name, "search_guard_roles"), sgRoles);
@@ -209,16 +210,15 @@ public class TestSgConfig {
         return this;
     }
 
-    public TestSgConfig user(String name, String password, Role... sgRoles) {
+    public TestSgConfig user(String name, UserPassword password, Role... sgRoles) {
         return user(name, password, null, sgRoles);
     }
 
-    public TestSgConfig user(String name, String password, Map<String, Object> attributes, Role... sgRoles) {
+    public TestSgConfig user(String name, UserPassword password, Map<String, Object> attributes, Role... sgRoles) {
         if (overrideUserSettings == null) {
             overrideUserSettings = new NestedValueMap();
         }
-
-        overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), hash(password.toCharArray()));
+        overrideUserSettings.put(new NestedValueMap.Path(name, "hash"), password.passwordValueForConfiguration());
 
         if (sgRoles != null && sgRoles.length > 0) {
             String roleNamePrefix = "user_" + name + "__";
@@ -538,20 +538,59 @@ public class TestSgConfig {
         }
     }
 
+    public static class UserPassword {
+
+        private final String password;
+
+        private final boolean passwordNeedsToBeHashed;
+
+        private UserPassword(String password, boolean passwordNeedsToBeHashed) {
+            this.password = Objects.requireNonNull(password, "Password is required");
+            this.passwordNeedsToBeHashed = passwordNeedsToBeHashed;
+        }
+
+        public static UserPassword of(String password) {
+            return new UserPassword(password, true);
+        }
+
+        public static UserPassword fromExpression(String expression) {
+            return new UserPassword(expression, false);
+        }
+
+        String passwordValueForConfiguration() {
+            if(passwordNeedsToBeHashed) {
+                return hash(password.toCharArray());
+            }
+            return password;
+        }
+
+        String loginPassword() {
+            if(passwordNeedsToBeHashed) {
+                return password;
+            }
+            throw new IllegalStateException("Password expression was used, cannot retrieve password.");
+        }
+    }
+
     public static class User implements UserCredentialsHolder {
         private String name;
-        private String password;
+        private UserPassword password;
         private Role[] roles;
         private String[] roleNames;
         private Map<String, Object> attributes = new HashMap<>();
 
         public User(String name) {
             this.name = name;
-            this.password = "secret";
+            this.password = UserPassword.of("secret");
         }
 
         public User password(String password) {
-            this.password = password;
+            this.password = UserPassword.of(password);
+            return this;
+        }
+
+        public User passwordExpression(String passwordExpression) {
+            this.password = UserPassword.fromExpression(passwordExpression);
             return this;
         }
 
@@ -575,7 +614,7 @@ public class TestSgConfig {
         }
 
         public String getPassword() {
-            return password;
+            return password.loginPassword();
         }
 
         public Set<String> getRoleNames() {
