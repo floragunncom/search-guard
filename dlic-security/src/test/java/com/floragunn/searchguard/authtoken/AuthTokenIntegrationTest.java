@@ -17,6 +17,7 @@ package com.floragunn.searchguard.authtoken;
 import java.util.Collections;
 import java.util.Map;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
@@ -478,11 +479,11 @@ public class AuthTokenIntegrationTest {
 
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
 
-                    ElasticsearchStatusException statusException = (ElasticsearchStatusException) assertThatThrown(
+                    ElasticsearchException exception = (ElasticsearchException) assertThatThrown(
                             () -> client.search("pub_test_allow_because_from_token"),
-                            instanceOf(ElasticsearchStatusException.class)
+                            instanceOf(ElasticsearchException.class)
                     );
-                    assertThat(statusException.getMessage(), statusException.status(), equalTo(RestStatus.UNAUTHORIZED));
+                    assertThat(exception.getMessage(), exception.status(), equalTo(RestStatus.UNAUTHORIZED.getStatus()));
                 }
             }
         }
@@ -530,11 +531,11 @@ public class AuthTokenIntegrationTest {
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    ElasticsearchStatusException statusException = (ElasticsearchStatusException) assertThatThrown(
+                    ElasticsearchException exception = (ElasticsearchException) assertThatThrown(
                             () -> client.search("pub_test_allow_because_from_token"),
-                            instanceOf(ElasticsearchStatusException.class)
+                            instanceOf(ElasticsearchException.class)
                     );
-                    assertThat(statusException.getMessage(), statusException.status(), equalTo(RestStatus.UNAUTHORIZED));
+                    assertThat(exception.getMessage(), exception.status(), equalTo(RestStatus.UNAUTHORIZED.getStatus()));
                 }
             }
 
