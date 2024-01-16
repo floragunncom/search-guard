@@ -17,6 +17,7 @@ package com.floragunn.searchguard.enterprise.femt.request.handler;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.GetMapper;
+import com.floragunn.searchguard.transport.ContextLogger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
@@ -42,9 +43,11 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, GetRequest request, ActionListener<?> listener) {
         log.debug("Handle get request");
+        ContextLogger.logContext("Get request handler, beginning", threadContext);
         threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
+            ContextLogger.logContext("Get request handler, new stored context", threadContext);
             GetRequest scoped = getMapper.toScopedGetRequest(request, requestedTenant);
 
             nodeClient.get(scoped, new ActionListener<>() {
@@ -73,6 +76,8 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
             });
 
             return SyncAuthorizationFilter.Result.INTERCEPTED;
+        } finally {
+            ContextLogger.logContext("Get request handler, context cleaned", threadContext);
         }
     }
 }

@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -91,10 +92,13 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
         if(request instanceof ConcreteShardRequest) {
             resolvedActionClass = ((ConcreteShardRequest<?>) request).getRequest().getClass().getSimpleName();
         }
+
+        ContextLogger.logContext("Search guard request handler, beginning", getThreadContext());
                 
         String initialActionClassValue = getThreadContext().getHeader(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER);
         
         final ThreadContext.StoredContext sgContext = getThreadContext().newStoredContext();
+        ContextLogger.logContext("Search guard request handler, new context", getThreadContext());
 
         final String originHeader = getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER);
 
@@ -227,7 +231,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
 
                 
                 putInitialActionClassHeader(initialActionClassValue, resolvedActionClass);
-                             
+                ContextLogger.logContext("Search guard request handler, before super", getThreadContext());
                 super.messageReceivedDecorate(request, handler, transportChannel, task);
             }
         } finally {
@@ -238,6 +242,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
 
             if(sgContext != null) {
                 sgContext.close();
+                ContextLogger.logContext("Search guard request handler, after cleaning", getThreadContext());
             }
         }
     }

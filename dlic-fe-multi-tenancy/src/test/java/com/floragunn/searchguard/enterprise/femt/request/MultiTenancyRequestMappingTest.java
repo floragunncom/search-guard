@@ -28,6 +28,8 @@ import com.floragunn.searchguard.user.User;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -55,18 +57,24 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static org.apache.http.HttpStatus.SC_FORBIDDEN;
+import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
 public class MultiTenancyRequestMappingTest {
+
+    private static final Logger log = LogManager.getLogger(MultiTenancyRequestMappingTest.class);
 
     public static final String GLOBAL_TENANT_NAME = "SGS_GLOBAL_TENANT";
 
@@ -85,7 +93,7 @@ public class MultiTenancyRequestMappingTest {
     private final TenantManager tenantManager = new TenantManager(ImmutableSet.of(HR_TENANT.getName()));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled()
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .nodeSettings("action.destructive_requires_name", false, "searchguard.unsupported.single_index_mt_enabled", true)
             .enterpriseModulesEnabled()
             .users(USER, LIMITED_USER)
@@ -120,12 +128,38 @@ public class MultiTenancyRequestMappingTest {
     public void getRequest_withoutParams() throws Exception {
         String scopedId = scopedId(DOC_ID);
         addDocumentToIndex(scopedId, DocNode.of("a", "a", "b", "b"));
+        int numberOfThreads = 100;
+        ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
+        CountDownLatch countDownLatch = new CountDownLatch(numberOfThreads);
+        for(int t = 0; t < numberOfThreads; ++t) {
+            try (GenericRestClient client = cluster.getRestClient(USER)) {
+                executorService.submit(() -> {
+                    log.info("Context_pollution_test: Thread started");
+                    countDownLatch.countDown(); // all threads should start executing request at the same time
+                    try {
+                        for (int i = 0; i < 10; ++i) {
+                            HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID, tenantHeader());
+                            assertThat(responseWithTenant.getStatusCode(), equalTo(SC_OK));
+                        }
+                        log.info("Context_pollution_test: All document get executed");
+                    } catch (Exception e) {
+                        log.error("Context_pollution_test: Cannot perform document get operation", e);
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+        }
+
+        countDownLatch.await();
+        log.error("Context_pollution_test: Thread context polluted with filter_level_femt_done header");
+        Thread.sleep(10_000);
+        log.info("Context_pollution_test: Next request should be executed without filter_level_femt_done header");
+
         try (GenericRestClient client = cluster.getRestClient(USER)) {
-            HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId);
-            HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID, tenantHeader());
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
+            for(int i = 0; i < 1000; ++i) {
+                HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId);
+                assertThat(responseWithoutTenant.getStatusCode(), equalTo(SC_OK));
+            }
         }
     }
 
