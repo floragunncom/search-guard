@@ -781,7 +781,10 @@
           <version>3.1.2</version>
           <configuration>
             <!-- add-opens is necessary for powermock on Java 17 -->
-            <argLine>-Xmx4g -Xms4g --add-opens java.base/sun.security.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.fs=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.base=ALL-UNNAMED</argLine>
+            <argLine>
+              -Xmx4g -Xms4g --add-opens java.base/sun.security.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.fs=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.base=ALL-UNNAMED
+              --add-opens java.base/java.net=ALL-UNNAMED
+            </argLine>
             <rerunFailingTestsCount>3</rerunFailingTestsCount>
             <forkCount>3</forkCount>
             <reuseForks>true</reuseForks>
