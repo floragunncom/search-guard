@@ -46,7 +46,9 @@ public class MultiTenancyCheckerTest  {
 
     @Before
     public void before() {
-        this.checker = new MultiTenancyChecker(Settings.builder().build(), repository);
+        this.checker = new MultiTenancyChecker(Settings.builder() //
+            .put("searchguard.multi_tenancy_bootstrap_check_enabled", true) //
+            .build(), repository);
     }
 
     @Test
@@ -61,16 +63,15 @@ public class MultiTenancyCheckerTest  {
     }
 
     @Test
-    public void shouldReportErrorWhenMultiTenancyIndicesArePresentAndBootstrapChecksAreExplicitelyEnabled() {
-        Settings settings = Settings.builder().put("searchguard.multi_tenancy_bootstrap_check_enabled", true).build();
+    public void shouldNotReportErrorWhenMultiTenancyIndicesArePresentAndBootstrapChecksAreExplicitelyDisabled() {
+        Settings settings = Settings.builder().put("searchguard.multi_tenancy_bootstrap_check_enabled", false).build();
         ImmutableMap<String, IndexMetadata> indices = ImmutableMap
             .of(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersion.V_8_3_0));
         this.checker = new MultiTenancyChecker(settings, repository);
-        when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
 
-        assertThat(errorDescription.isPresent(), equalTo(true));
+        assertThat(errorDescription.isPresent(), equalTo(false));
     }
 
     @Test
