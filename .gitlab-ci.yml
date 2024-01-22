@@ -75,28 +75,7 @@ include:
   #- local: 'ci/frontend-int-tests-compat1.yml'
   #- local: 'ci/frontend-int-tests-compat2.yml'
 
-upload_mvn_third_party_deps:
-  allow_failure: false
-  stage: prepare
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: always
-  script:
-    - |
-       set +e
-       echo "Check if we need to upload 3rd party artifacts for ES $ES_VERSION"
-       curl --fail -Ss -XHEAD -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" "https://maven.search-guard.com/api/storage/third-party/org/elasticsearch/plugin/transport-netty4/$ES_VERSION/transport-netty4-$ES_VERSION.pom"
-       retVal=$?
 
-       set -e
-       if [ $retVal -ne 0 ]; then
-         echo "Upload artifacts for ES $ES_VERSION"
-         ./dev/populate_maven.sh "$ES_VERSION" remote
-       else
-         echo "Artifacts already uploaded for ES $ES_VERSION"
-       fi
-       
 build:
   allow_failure: false
   stage: build
