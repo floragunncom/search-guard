@@ -792,7 +792,7 @@ public class ActionTest {
             ActionExecutionException actionExecutionException = (ActionExecutionException) assertThatThrown(() -> webhookAction.execute(ctx), instanceOf(ActionExecutionException.class));
 
             Assert.assertTrue(actionExecutionException.getMessage().contains("Connect to 168.0.0.10:"));
-            Assert.assertTrue(actionExecutionException.getMessage().contains("[/168.0.0.10] failed: Connection refused (Connection refused)"));
+            Assert.assertTrue(actionExecutionException.getMessage().contains("[/168.0.0.10] failed: Connection refused"));
         }
     }
 
