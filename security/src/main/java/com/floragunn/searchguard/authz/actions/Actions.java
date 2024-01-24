@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import com.floragunn.searchsupport.xcontent.XContentObjectConverter;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
@@ -149,7 +150,6 @@ import org.elasticsearch.persistent.StartPersistentTaskAction;
 import org.elasticsearch.persistent.UpdatePersistentTaskStatusAction;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.root.MainAction;
-import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -701,12 +701,12 @@ public class Actions {
     }
 
     static <O> Function<O, Object> xContentAttr(String name) {
-        return (actionResponse) -> AttributeValueFromXContent.get((ToXContent) actionResponse, name);
+        return (actionResponse) -> AttributeValueFromXContent.get(XContentObjectConverter.convertOrNull(actionResponse), name);
     }
 
     static <O> Function<O, Instant> xContentInstantFromMillis(String name) {
         return (actionResponse) -> {
-            Object value = AttributeValueFromXContent.get((ToXContent) actionResponse, name);
+            Object value = AttributeValueFromXContent.get(XContentObjectConverter.convertOrNull(actionResponse), name);
 
             if (value instanceof Number) {
                 return Instant.ofEpochMilli(((Number) value).longValue());
