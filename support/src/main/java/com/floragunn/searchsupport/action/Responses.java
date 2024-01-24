@@ -18,6 +18,7 @@
 package com.floragunn.searchsupport.action;
 
 import java.io.ByteArrayInputStream;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -116,7 +117,7 @@ public class Responses {
         }
     }
 
-    public static void send(RestChannel channel, RestStatus status, Object json) {
+    public static void send(RestChannel channel, RestStatus status, Map<String, Object> json) {
         try {
             if (json instanceof ToXContent) {
                 ToXContent toxContent = (ToXContent) json;

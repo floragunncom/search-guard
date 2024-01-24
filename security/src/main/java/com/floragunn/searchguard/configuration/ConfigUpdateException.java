@@ -19,7 +19,7 @@ package com.floragunn.searchguard.configuration;
 
 import java.util.Map;
 
-import org.elasticsearch.xcontent.ToXContentObject;
+import com.floragunn.searchsupport.xcontent.XContentObjectConverter;
 
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.collect.ImmutableMap;
@@ -52,8 +52,8 @@ public class ConfigUpdateException extends Exception {
     }
 
     public Map<String, Object> getDetailsAsMap() {
-        if (details instanceof ToXContentObject) {
-            return ObjectTreeXContent.toMap((ToXContentObject) details);
+        if (XContentObjectConverter.canConvert(details)) {
+            return ObjectTreeXContent.toMap(XContentObjectConverter.convertOrNull(details));
         } else if (details != null) {
             return ImmutableMap.of("object", details.toString());
         } else {

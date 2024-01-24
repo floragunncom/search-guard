@@ -18,8 +18,8 @@
 package com.floragunn.searchguard;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,8 +33,8 @@ import co.elastic.clients.elasticsearch.async_search.GetAsyncSearchRequest;
 import co.elastic.clients.elasticsearch.async_search.GetAsyncSearchResponse;
 import co.elastic.clients.elasticsearch.async_search.SubmitRequest;
 import co.elastic.clients.elasticsearch.async_search.SubmitResponse;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.client.RestHighLevelClient;
-import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
@@ -43,7 +43,6 @@ import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -54,9 +53,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
-import org.elasticsearch.core.TimeValue;
-import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
@@ -68,6 +65,8 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.xcontent.ToXContent;
+import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -309,8 +308,7 @@ public class ResourceOwnerServiceTests {
             listener.onResponse(AcknowledgedResponse.of(true));
         }
     }
-
-    public static class MockActionResponse extends ActionResponse implements StatusToXContentObject {
+    public static class MockActionResponse extends ActionResponse implements ToXContentObject, ChunkedToXContentObject {
 
         private String id;
         private RestStatus restStatus;
@@ -370,10 +368,7 @@ public class ResourceOwnerServiceTests {
             out.writeEnum(restStatus);
         }
 
-        @Override
-        public RestStatus status() {
-            return restStatus;
-        }
+
 
         public String getId() {
             return id;
@@ -383,6 +378,16 @@ public class ResourceOwnerServiceTests {
             this.id = id;
         }
 
+        @Override
+        public Iterator<? extends ToXContent> toXContentChunked(ToXContent.Params params) {
+            ImmutableList<ToXContent> list = ImmutableList.of(this);
+            return list.iterator();
+        }
+
+        @Override
+        public boolean isFragment() {
+            return false;
+        }
     }
 
 }
