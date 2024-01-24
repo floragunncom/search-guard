@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
@@ -67,6 +68,7 @@ public class Signals extends AbstractLifecycleComponent {
     private String nodeId;
     private Map<String, Exception> tenantInitErrors = new ConcurrentHashMap<>();
     private  DiagnosticContext diagnosticContext;
+    private ThreadPool threadPool;
 
     public Signals(Settings settings, ComponentState componentState) {
         this.componentState = componentState;
@@ -95,6 +97,7 @@ public class Signals extends AbstractLifecycleComponent {
             this.scriptService = scriptService;
             this.internalAuthTokenProvider = internalAuthTokenProvider;
             this.diagnosticContext = diagnosticContext;
+            this.threadPool = threadPool;
 
             createIndexes(protectedConfigIndexService);
 
@@ -385,12 +388,9 @@ public class Signals extends AbstractLifecycleComponent {
         }
     };
 
-    private final DCFListener dcfListener = new DCFListener() {
-        @Override
-        public void onChanged(ConfigModel cm, DynamicConfigModel dcm, InternalUsersModel ium) {
-            log.debug("Tenant config model changed");
-            updateTenants(cm.getAllConfiguredTenantNames());
-        }
+    private final DCFListener dcfListener = (cm, dcm, ium) -> {
+        log.debug("Tenant config model changed");
+        threadPool.generic().submit(() -> updateTenants(cm.getAllConfiguredTenantNames()));
     };
 
     public enum InitializationState {
