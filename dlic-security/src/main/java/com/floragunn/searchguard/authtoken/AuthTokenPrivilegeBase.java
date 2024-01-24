@@ -105,7 +105,8 @@ public class AuthTokenPrivilegeBase implements ToXContentObject, Writeable, Seri
                 builder.array("c", new long[] { configVersions.get(CType.ROLES).getVersion(), configVersions.get(CType.ROLESMAPPING).getVersion(),
                         configVersions.get(CType.ACTIONGROUPS).getVersion(), configVersions.get(CType.TENANTS).getVersion() });
             } else {
-                builder.field("config", (ToXContent) configVersions);
+                ToXContent toXContent = configVersions;
+                builder.field("config", toXContent);
             }
         }
 
