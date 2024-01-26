@@ -32,7 +32,6 @@
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>lang-mustache</artifactId>
-      <scope>provided</scope>
     </dependency>
 
     <dependency>
