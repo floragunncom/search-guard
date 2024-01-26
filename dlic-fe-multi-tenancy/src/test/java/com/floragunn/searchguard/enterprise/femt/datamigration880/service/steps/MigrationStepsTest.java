@@ -191,7 +191,7 @@ public class MigrationStepsTest {
     }
 
     @Test
-    public void shouldFindGlobalTenantIndex() {
+    public void shouldFindGlobalTenantIndexForVersion8_7_0() {
         DoubleAliasIndex
             taskManagerIndex = new DoubleAliasIndex(".kibana_task_manager_8.7.0_001", ".kibana_task_manager_8.7.0", "kibana_task_manager");
         DoubleAliasIndex
@@ -207,6 +207,91 @@ public class MigrationStepsTest {
         ImmutableList<TenantIndex> tenants = context.getTenantIndices();
         assertThat(tenants, hasSize(1));
         assertThat(tenants.get(0).belongsToGlobalTenant(), equalTo(true));
+    }
+
+    @Test
+    public void shouldFindGlobalTenantIndexForVersion8_7_1() {
+        DoubleAliasIndex
+            taskManagerIndex = new DoubleAliasIndex(".kibana_task_manager_8.7.0_001", ".kibana_task_manager_8.7.0", "kibana_task_manager");
+        DoubleAliasIndex
+            eventLogIndex = new DoubleAliasIndex(".kibana-event-log-8.7.0-000001", ".kibana-event-log-8.7.0", ".kibana-event-log");
+        DoubleAliasIndex
+            dataIndex = new DoubleAliasIndex("iot-2020-09", "iot-2020", "iot");
+        DoubleAliasIndex globalTenantIndex = new DoubleAliasIndex(".kibana_8.7.1_001", ".kibana_8.7.1",
+            MULTITENANCY_INDEX_PREFIX);
+        environmentHelper.createIndex(globalTenantIndex, taskManagerIndex, eventLogIndex);
+        environmentHelper.createIndex("iot", 0, null, dataIndex);
+        PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
+
+        populateTenantsStep.execute(context);
+
+        ImmutableList<TenantIndex> tenants = context.getTenantIndices();
+        assertThat(tenants, hasSize(1));
+        assertThat(tenants.get(0).belongsToGlobalTenant(), equalTo(true));
+    }
+
+    @Test
+    public void shouldFindGlobalTenantIndexForVersion8_7_3() {
+        DoubleAliasIndex
+            taskManagerIndex = new DoubleAliasIndex(".kibana_task_manager_8.7.0_001", ".kibana_task_manager_8.7.0", "kibana_task_manager");
+        DoubleAliasIndex
+            eventLogIndex = new DoubleAliasIndex(".kibana-event-log-8.7.0-000001", ".kibana-event-log-8.7.0", ".kibana-event-log");
+        DoubleAliasIndex
+            dataIndex = new DoubleAliasIndex("iot-2020-09", "iot-2020", "iot");
+        DoubleAliasIndex globalTenantIndex = new DoubleAliasIndex(".kibana_8.7.3_004", ".kibana_8.7.3",
+            MULTITENANCY_INDEX_PREFIX);
+        environmentHelper.createIndex(globalTenantIndex, taskManagerIndex, eventLogIndex);
+        environmentHelper.createIndex("iot", 0, null, dataIndex);
+        PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
+
+        populateTenantsStep.execute(context);
+
+        ImmutableList<TenantIndex> tenants = context.getTenantIndices();
+        assertThat(tenants, hasSize(1));
+        assertThat(tenants.get(0).belongsToGlobalTenant(), equalTo(true));
+    }
+
+    @Test
+    public void shouldFindGlobalTenantIndexForVersion8_7_11() {
+        DoubleAliasIndex
+            taskManagerIndex = new DoubleAliasIndex(".kibana_task_manager_8.7.0_001", ".kibana_task_manager_8.7.0", "kibana_task_manager");
+        DoubleAliasIndex
+            eventLogIndex = new DoubleAliasIndex(".kibana-event-log-8.7.0-000001", ".kibana-event-log-8.7.0", ".kibana-event-log");
+        DoubleAliasIndex
+            dataIndex = new DoubleAliasIndex("iot-2020-09", "iot-2020", "iot");
+        DoubleAliasIndex globalTenantIndex = new DoubleAliasIndex(".kibana_8.7.11_004", ".kibana_8.7.11",
+            MULTITENANCY_INDEX_PREFIX);
+        environmentHelper.createIndex(globalTenantIndex, taskManagerIndex, eventLogIndex);
+        environmentHelper.createIndex("iot", 0, null, dataIndex);
+        PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
+
+        populateTenantsStep.execute(context);
+
+        ImmutableList<TenantIndex> tenants = context.getTenantIndices();
+        assertThat(tenants, hasSize(1));
+        assertThat(tenants.get(0).belongsToGlobalTenant(), equalTo(true));
+    }
+
+    @Test
+    public void shouldReportErrorWhenManyGlobalIndicesExist() {
+        DoubleAliasIndex
+            taskManagerIndex = new DoubleAliasIndex(".kibana_task_manager_8.7.0_001", ".kibana_task_manager_8.7.0", "kibana_task_manager");
+        DoubleAliasIndex
+            eventLogIndex = new DoubleAliasIndex(".kibana-event-log-8.7.0-000001", ".kibana-event-log-8.7.0", ".kibana-event-log");
+        DoubleAliasIndex
+            dataIndex = new DoubleAliasIndex("iot-2020-09", "iot-2020", "iot");
+        DoubleAliasIndex globalTenantIndex1 = new DoubleAliasIndex(".kibana_8.7.11_004", ".kibana_8.7.11",
+            MULTITENANCY_INDEX_PREFIX);
+        DoubleAliasIndex globalTenantIndex2 = new DoubleAliasIndex(".kibana_8.7.10_001", ".kibana_8.7.10",
+            MULTITENANCY_INDEX_PREFIX);
+        environmentHelper.createIndex(globalTenantIndex1, globalTenantIndex2, taskManagerIndex, eventLogIndex);
+        environmentHelper.createIndex("iot", 0, null, dataIndex);
+        PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
+
+        StepResult result = populateTenantsStep.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(false));
+        assertThat(result.status(), equalTo(GLOBAL_TENANT_NOT_FOUND_ERROR));
     }
 
     @Test
