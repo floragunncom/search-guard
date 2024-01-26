@@ -21,6 +21,7 @@ import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import org.apache.logging.log4j.LogManager;
@@ -30,6 +31,7 @@ import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -79,16 +81,16 @@ class PopulateTenantsStep implements MigrationStep {
             .sorted() //
             .map(name -> new TenantAlias(toInternalIndexName(config, name), name))
             .collect(Collectors.toList());
+        GetIndexResponse allExistingIndices = repository.findAllIndicesIncludingHidden();
         log.debug("Tenants found in configuration '{}'.", configuredTenantAliases);
-        String globalTenantIndexName = config.getIndex() + "_8.7.0";
-        TenantAlias globalTenant = new TenantAlias(globalTenantIndexName, Tenant.GLOBAL_TENANT_ID);
-        List<TenantIndex> tenants = Stream.concat(Stream.of(globalTenant), configuredTenantAliases.stream()) //
+        List<TenantAlias> globalTenantIndexName = extractGlobalTenantIndexName(config.getIndex(), allExistingIndices, config);
+        List<TenantIndex> tenants = Stream.concat(globalTenantIndexName.stream(), configuredTenantAliases.stream()) //
             .map(this::resolveIndexAlias) //
             .flatMap(Optional::stream) //
             .collect(Collectors.toList());
         log.debug("Tenants read from configuration with index names resolved: '{}'", tenants);
         Set<String> tenantIndices = tenants.stream().map(TenantIndex::indexName).collect(Collectors.toSet());
-        ImmutableList<TenantIndex> privateTenants = findPrivateTenants(config.getIndex(), tenantIndices);
+        ImmutableList<TenantIndex> privateTenants = findPrivateTenants(allExistingIndices, config.getIndex(), tenantIndices);
         tenants.addAll(privateTenants);
         if(tenants.isEmpty()) {
             return new StepResult(INDICES_NOT_FOUND_ERROR, "Indices related to front-end multi tenancy not found.");
@@ -107,6 +109,18 @@ class PopulateTenantsStep implements MigrationStep {
         String details = "Tenants found for migration: " + stringTenantList;
         String message = "Populates " +  tenants.size() + " tenants' data for migration";
         return new StepResult(OK, message, details);
+    }
+
+    private static List<TenantAlias> extractGlobalTenantIndexName(String configuredFrontendIndexName, GetIndexResponse allExistingIndices, FeMultiTenancyConfig config) {
+        var globalTenantIndexNamePattern = Pattern.compile(Pattern.quote(configuredFrontendIndexName) + "_8\\.7\\.\\d+_\\d{3}\\b");
+        return allExistingIndices.aliases()//
+                .entrySet()//
+                .stream() //
+                .filter(entry -> globalTenantIndexNamePattern.matcher(entry.getKey()).matches()) //
+                .filter(entry -> entry.getValue().stream().map(alias -> alias.getAlias()).collect(Collectors.toSet()).contains(configuredFrontendIndexName)) //
+                .map(entry -> entry.getKey()) //
+                .map(indexName -> new TenantAlias(indexName, Tenant.GLOBAL_TENANT_ID)) //
+                .toList();
     }
 
     private Optional<TenantIndex> resolveIndexAlias(TenantAlias tenantAlias) {
@@ -151,10 +165,9 @@ class PopulateTenantsStep implements MigrationStep {
         });
     }
 
-    private ImmutableList<TenantIndex> findPrivateTenants(String validIndexPrefix, Set<String> alreadyFoundIndices) {
+    private ImmutableList<TenantIndex> findPrivateTenants(GetIndexResponse allExistingIndices, String validIndexPrefix, Set<String> alreadyFoundIndices) {
         Pattern pattern = Pattern.compile(Pattern.quote(validIndexPrefix) + "_-?\\d+_[a-z0-9]+\\b");
-        GetIndexResponse indices = repository.findAllIndicesIncludingHidden();
-        List<TenantIndex> privateTenants = indices.aliases()
+        List<TenantIndex> privateTenants = allExistingIndices.aliases()
             .entrySet()
             .stream()
             .filter(entry -> ! alreadyFoundIndices.contains(entry.getKey()))
