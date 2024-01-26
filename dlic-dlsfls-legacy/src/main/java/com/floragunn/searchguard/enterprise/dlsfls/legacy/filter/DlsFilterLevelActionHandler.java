@@ -56,7 +56,6 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermsQueryBuilder;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.script.mustache.MustachePlugin;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -88,7 +87,7 @@ public class DlsFilterLevelActionHandler {
             return SyncAuthorizationFilter.Result.OK;
         }
 
-        if (action.equals(MustachePlugin.MULTI_SEARCH_TEMPLATE_ACTION.name()) || action.equals(MustachePlugin.MULTI_SEARCH_TEMPLATE_ACTION.name())) {
+        if (action.equals("indices:data/read/search/template") || action.equals("indices:data/read/msearch/template")) {
             // Let it pass; DLS will be handled on a lower level
             return SyncAuthorizationFilter.Result.OK;
         }
