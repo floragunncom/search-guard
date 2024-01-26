@@ -47,8 +47,7 @@ public class PluginAwareNode extends Node {
     }
 
     private static Environment createEnvironment(Settings preparedSettings) {
-        Settings settings = Settings.builder().put(preparedSettings).put("client.type", "node").build();
-        return configureESLogging(InternalSettingsPreparer.prepareEnvironment(settings,
+        return configureESLogging(InternalSettingsPreparer.prepareEnvironment(preparedSettings,
             Collections.emptyMap(),
             null,
             () -> System.getenv("HOSTNAME")));

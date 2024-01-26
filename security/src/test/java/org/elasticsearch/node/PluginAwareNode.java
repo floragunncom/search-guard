@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2017 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,12 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package org.elasticsearch.node;
 
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
@@ -32,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PluginAwareNode extends Node {
 
     private static final AtomicBoolean loggingInitialized = new AtomicBoolean();
-    
+
     private final boolean masterEligible;
 
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings) {
@@ -48,8 +47,7 @@ public class PluginAwareNode extends Node {
     }
 
     private static Environment createEnvironment(Settings preparedSettings) {
-        Settings settings = Settings.builder().put(preparedSettings).put(Client.CLIENT_TYPE_SETTING_S.getKey(), "node").build();
-        return configureESLogging(InternalSettingsPreparer.prepareEnvironment(settings,
+        return configureESLogging(InternalSettingsPreparer.prepareEnvironment(preparedSettings,
             Collections.emptyMap(),
             null,
             () -> System.getenv("HOSTNAME")));

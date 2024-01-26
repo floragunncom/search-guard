@@ -240,7 +240,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     private final SslExceptionHandler evaluateSslExceptionHandler() {
-        if (client || disabled || sslOnly) {
+        if (disabled || sslOnly) {
             return new SslExceptionHandler() {
             };
         }
@@ -334,37 +334,34 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             throw new IllegalStateException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED + " must be set to 'true'");
         }
 
-     
-        if (!client) {
-            final List<Path> filesWithWrongPermissions = AccessController.doPrivileged(new PrivilegedAction<List<Path>>() {
-                @Override
-                public List<Path> run() {
-                    final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
-                    if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
-                        try (Stream<Path> s = Files.walk(confPath)) {
-                            return s.distinct().filter(p -> checkFilePermissions(p)).collect(Collectors.toList());
-                        } catch (Exception e) {
-                            log.error(e);
-                            return null;
-                        }
-                    }
 
-                    return Collections.emptyList();
+        final List<Path> filesWithWrongPermissions = AccessController.doPrivileged(new PrivilegedAction<List<Path>>() {
+            @Override
+            public List<Path> run() {
+                final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
+                if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
+                    try (Stream<Path> s = Files.walk(confPath)) {
+                        return s.distinct().filter(p -> checkFilePermissions(p)).collect(Collectors.toList());
+                    } catch (Exception e) {
+                        log.error(e);
+                        return null;
+                    }
                 }
-            });
+                return Collections.emptyList();
+            }
+        });
 
-            if (filesWithWrongPermissions != null && filesWithWrongPermissions.size() > 0) {
-                for (final Path p : filesWithWrongPermissions) {
-                    if (Files.isDirectory(p, LinkOption.NOFOLLOW_LINKS)) {
-                        log.warn("Directory " + p + " has insecure file permissions (should be 0700)");
-                    } else {
-                        log.warn("File " + p + " has insecure file permissions (should be 0600)");
-                    }
+        if (filesWithWrongPermissions != null && filesWithWrongPermissions.size() > 0) {
+            for (final Path p : filesWithWrongPermissions) {
+                if (Files.isDirectory(p, LinkOption.NOFOLLOW_LINKS)) {
+                    log.warn("Directory " + p + " has insecure file permissions (should be 0700)");
+                } else {
+                    log.warn("File " + p + " has insecure file permissions (should be 0600)");
                 }
             }
         }
 
-        if (!client && !settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
+        if (!settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
             //check for demo certificates
             final List<String> files = AccessController.doPrivileged(new PrivilegedAction<List<String>>() {
                 @Override
@@ -480,7 +477,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>();
 
-        if (!client && !disabled) {
+        if (!disabled) {
 
             handlers.addAll(super.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
                     indexNameExpressionResolver, nodesInCluster));
@@ -580,7 +577,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public void onIndexModule(IndexModule indexModule) {
         // called for every index!
         
-        if (!disabled && !client && !sslOnly) {            
+        if (!disabled && !sslOnly) {
             if (adminDns == null) {
                 throw new IllegalStateException("adminDns is not yet initialized");
             }
@@ -681,7 +678,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public List<ActionFilter> getActionFilters() {
         List<ActionFilter> filters = new ArrayList<>(1);
-        if (!client && !disabled && !sslOnly) {
+        if (!disabled && !sslOnly) {
             ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedConfigIndexService,
                     evaluator, settings);
             ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
@@ -706,7 +703,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public List<TransportInterceptor> getTransportInterceptors(NamedWriteableRegistry namedWriteableRegistry, ThreadContext threadContext) {
         List<TransportInterceptor> interceptors = new ArrayList<TransportInterceptor>(1);
 
-        if (!client && !disabled && !sslOnly) {
+        if (!disabled && !sslOnly) {
             interceptors.add(new TransportInterceptor() {
 
                 @Override
@@ -766,7 +763,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
 
         if (!disabled) {
-            if (!client && httpSSLEnabled) {
+            if (httpSSLEnabled) {
 
                 final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
                         configPath, evaluateSslExceptionHandler());
@@ -775,7 +772,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory, tracer, perRequestThreadContext);
 
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
-            } else if (!client) {
+            } else {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
                         () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, threadPool, xContentRegistry, searchGuardRestFilter.wrap(dispatcher),
                                 perRequestThreadContext, clusterSettings, sharedGroupFactory, tracer));
@@ -798,7 +795,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         final List<Object> components = new ArrayList<Object>();
 
-        if (client || disabled) {
+        if (disabled) {
             return components;
         }
 
@@ -1222,7 +1219,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public void onNodeStarted() {
         log.info("Node started");
-        if (!sslOnly && !client && !disabled) {
+        if (!sslOnly && !disabled) {
             cr.initOnNodeStart();
             moduleRegistry.onNodeStarted();
             protectedConfigIndexService.onNodeStart();

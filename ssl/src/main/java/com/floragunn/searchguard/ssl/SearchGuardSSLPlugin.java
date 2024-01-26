@@ -83,8 +83,6 @@ import io.netty.util.internal.PlatformDependent;
 public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, NetworkPlugin {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
-    protected static final String CLIENT_TYPE = "client.type";
-    protected final boolean client;
     protected final boolean httpSSLEnabled;
     protected final boolean transportSSLEnabled;
     protected final Settings settings;
@@ -104,7 +102,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         if (disabled) {
             this.settings = null;
             this.staticSettings = null;
-            this.client = false;
             this.httpSSLEnabled = false;
             this.transportSSLEnabled = false;
             this.sgks = null;
@@ -194,7 +191,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         this.settings = settings;
         this.staticSettings = new StaticSettings(settings, configPath);
-        client = !"node".equals(this.settings.get(SearchGuardSSLPlugin.CLIENT_TYPE));
 
         httpSSLEnabled = settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED,
                 SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_DEFAULT);
@@ -222,7 +218,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             NetworkService networkService, Dispatcher dispatcher, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, ClusterSettings clusterSettings, Tracer tracer) {
 
         final Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
-        if (!client && httpSSLEnabled) {
+        if (httpSSLEnabled) {
 
             final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
                     configPath, NOOP_SSL_EXCEPTION_HANDLER);
@@ -243,9 +239,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>(1);
 
-        if (!client) {
-            handlers.add(new SearchGuardSSLInfoAction(settings, configPath, restController, sgks, Objects.requireNonNull(principalExtractor)));
-        }
+        handlers.add(new SearchGuardSSLInfoAction(settings, configPath, restController, sgks, Objects.requireNonNull(principalExtractor)));
 
         return handlers;
     }
@@ -254,7 +248,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     public List<TransportInterceptor> getTransportInterceptors(NamedWriteableRegistry namedWriteableRegistry, ThreadContext threadContext) {
         List<TransportInterceptor> interceptors = new ArrayList<TransportInterceptor>(1);
 
-        if (transportSSLEnabled && !client) {
+        if (transportSSLEnabled) {
             interceptors.add(new SearchGuardSSLTransportInterceptor(settings, null, null, NOOP_SSL_EXCEPTION_HANDLER));
         }
 
@@ -279,10 +273,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     @Override
     public Collection<?> createComponents(PluginServices services) {
         final List<Object> components = new ArrayList<>(1);
-
-        if (client) {
-            return components;
-        }
 
         final String principalExtractorClass = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, null);
 
@@ -372,7 +362,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     public Settings additionalSettings() {
         final Settings.Builder builder = Settings.builder();
 
-        if (!client && httpSSLEnabled) {
+        if (httpSSLEnabled) {
 
             if (settings.get("http.compression") == null) {
                 builder.put("http.compression", false);
