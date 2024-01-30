@@ -34,16 +34,15 @@ class SearchGuardIndexInitializer {
     static void initSearchGuardIndex(Supplier<Client> getAdminCertClient, TestSgConfig testSgConfig) {
         log.info("Initializing Search Guard index");
 
-        try (Client client = getAdminCertClient.get()) {
-            testSgConfig.initIndex(client);
+        Client client = getAdminCertClient.get();
+        testSgConfig.initIndex(client);
 
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
-            Assert.assertFalse(client.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
-            Assert.assertTrue(client.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-        }
+        Assert.assertTrue(client.get(new GetRequest("searchguard", "config")).actionGet().isExists());
+        Assert.assertTrue(client.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
+        Assert.assertTrue(client.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
+        Assert.assertTrue(client.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
+        Assert.assertTrue(client.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
+        Assert.assertFalse(client.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
+        Assert.assertTrue(client.get(new GetRequest("searchguard", "config")).actionGet().isExists());
     }
 }

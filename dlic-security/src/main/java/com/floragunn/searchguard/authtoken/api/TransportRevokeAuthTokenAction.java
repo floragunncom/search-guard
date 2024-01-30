@@ -40,7 +40,7 @@ public class TransportRevokeAuthTokenAction extends AbstractTransportAuthTokenAc
     @Inject
     public TransportRevokeAuthTokenAction(TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             AuthTokenService authTokenService, AuthInfoService authInfoService, PrivilegesEvaluator privilegesEvaluator) {
-        super(RevokeAuthTokenAction.NAME, transportService, actionFilters, RevokeAuthTokenRequest::new, privilegesEvaluator);
+        super(RevokeAuthTokenAction.NAME, transportService, actionFilters, RevokeAuthTokenRequest::new, privilegesEvaluator, threadPool);
 
         this.authTokenService = authTokenService;
         this.authInfoService = authInfoService;

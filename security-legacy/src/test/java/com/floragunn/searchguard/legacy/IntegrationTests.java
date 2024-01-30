@@ -61,11 +61,10 @@ public class IntegrationTests extends SingleClusterTest {
     setup(settings);
     final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getPrivilegedInternalNodeClient()) {                    
-            for(int i=0; i<3; i++)
-            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();                
-        }
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        for(int i=0; i<3; i++)
+        tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
         
         //System.out.println("########search");
         HttpResponse res;
@@ -159,11 +158,10 @@ public class IntegrationTests extends SingleClusterTest {
     
         setup();
     
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.index(new IndexRequest("mindex1").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("mindex2").id("2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
-        }
-    
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("mindex1").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("mindex2").id("2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
+
         //sg_multiget -> picard
         
         
@@ -223,14 +221,13 @@ public class IntegrationTests extends SingleClusterTest {
     
         setup();
     
-        try (Client tc = getPrivilegedInternalNodeClient()) {          
-            tc.index(new IndexRequest("shakespeare").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-                      
-            ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
-            Assert.assertFalse(cur.hasFailures());
-            Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
-        }
-    
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("shakespeare").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+
+        ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
+        Assert.assertFalse(cur.hasFailures());
+        Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
+
         RestHelper rh = nonSslRestHelper();
         //sg_shakespeare -> picard
     
@@ -272,14 +269,13 @@ public class IntegrationTests extends SingleClusterTest {
         
         setup(Settings.EMPTY, new DynamicSgConfig(), Settings.EMPTY);
 
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.index(new IndexRequest("indexa").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"indexa\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("indexb").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"indexb\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("isallowed").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"isallowed\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("special").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"special\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("alsonotallowed").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"alsonotallowed\":1}", XContentType.JSON)).actionGet();
-        }
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("indexa").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"indexa\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("indexb").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"indexb\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("isallowed").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"isallowed\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("special").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"special\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("alsonotallowed").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"alsonotallowed\":1}", XContentType.JSON)).actionGet();
+
         RestHelper rh = nonSslRestHelper();
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("index*/_search",encodeBasicHeader("rexclude", "nagilum")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("indexa/_search",encodeBasicHeader("rexclude", "nagilum")).getStatusCode());
@@ -294,13 +290,12 @@ public class IntegrationTests extends SingleClusterTest {
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfig("sg_config_multirolespan.yml"), Settings.EMPTY);
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getPrivilegedInternalNodeClient()) {                                       
-            tc.index(new IndexRequest("mindex_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("mindex_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("mindex_3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("mindex_4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
-        }
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("mindex_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("mindex_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("mindex_3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("mindex_4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":2}", XContentType.JSON)).actionGet();
+
         HttpResponse res = rh.executeGetRequest("/mindex_1,mindex_2/_search", encodeBasicHeader("mindex12", "nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
         
@@ -337,11 +332,10 @@ public class IntegrationTests extends SingleClusterTest {
         setup(settings);
         final RestHelper rh = nonSslRestHelper();
 
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.index(new IndexRequest("indexc").id("0")
-                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source("{\"content\":1}", XContentType.JSON)).actionGet();
-        }
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("indexc").id("0")
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .source("{\"content\":1}", XContentType.JSON)).actionGet();
 
         HttpResponse res = rh.executePostRequest("indexc/_update/0?pretty=true&refresh=true", "{\"doc\" : {\"content\":2}}",
                 encodeBasicHeader("user_c", "user_c"));
@@ -354,9 +348,8 @@ public class IntegrationTests extends SingleClusterTest {
         setup();
         final RestHelper rh = nonSslRestHelper();
         
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.index(new IndexRequest("indexa").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":\"indexa\"}", XContentType.JSON)).actionGet();
-        }
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("indexa").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":\"indexa\"}", XContentType.JSON)).actionGet();
 
 
         HttpResponse res = rh.executePutRequest("searchguard,inde*/_mapping?pretty", "{\"properties\": {\"name\":{\"type\":\"text\"}}}",
@@ -427,9 +420,8 @@ public class IntegrationTests extends SingleClusterTest {
         
         final RestHelper rh = nonSslRestHelper();
         
-        try (Client tc = getPrivilegedInternalNodeClient()) {
-            tc.index(new IndexRequest("indexa").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":\"indexa\"}", XContentType.JSON)).actionGet();
-        }
+        Client tc = getPrivilegedInternalNodeClient();
+        tc.index(new IndexRequest("indexa").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":\"indexa\"}", XContentType.JSON)).actionGet();
 
         HttpResponse res = rh.executePutRequest("searchguard*,inde*/_mapping?pretty", "{\"properties\": {\"name\":{\"type\":\"text\"}}}",
                 encodeBasicHeader("nagilum", "nagilum"));

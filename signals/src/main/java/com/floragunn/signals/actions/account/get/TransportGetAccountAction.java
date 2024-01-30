@@ -28,7 +28,7 @@ public class TransportGetAccountAction extends HandledTransportAction<GetAccount
     @Inject
     public TransportGetAccountAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(GetAccountAction.NAME, transportService, actionFilters, GetAccountRequest::new);
+        super(GetAccountAction.NAME, transportService, actionFilters, GetAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;

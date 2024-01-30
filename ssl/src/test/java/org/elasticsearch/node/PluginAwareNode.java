@@ -21,7 +21,6 @@ import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.plugins.SgAwarePluginsService;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -38,13 +37,21 @@ public class PluginAwareNode extends Node {
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings) {
         this(masterEligible, preparedSettings, Collections.emptyList());
     }
+
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings, List<Class<? extends Plugin>> additionalPlugins) {
-        super(configureESLogging(InternalSettingsPreparer.prepareEnvironment(preparedSettings, Collections.emptyMap(),
-                        null, () -> System.getenv("HOSTNAME"))),
-                settings -> new SgAwarePluginsService(settings, additionalPlugins), true);
+        super(NodeConstruction.prepareConstruction(
+            createEnvironment(preparedSettings),
+            new SgNodeServiceProvider(additionalPlugins),
+            true));
         this.masterEligible = masterEligible;
     }
 
+    private static Environment createEnvironment(Settings preparedSettings) {
+        return configureESLogging(InternalSettingsPreparer.prepareEnvironment(preparedSettings,
+            Collections.emptyMap(),
+            null,
+            () -> System.getenv("HOSTNAME")));
+    }
     private static Environment configureESLogging(Environment environment) {
         if (!loggingInitialized.get()) {
             try {

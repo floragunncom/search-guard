@@ -33,7 +33,7 @@ public class TransportGetWatchAction extends HandledTransportAction<GetWatchRequ
     @Inject
     public TransportGetWatchAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(GetWatchAction.NAME, transportService, actionFilters, GetWatchRequest::new);
+        super(GetWatchAction.NAME, transportService, actionFilters, GetWatchRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;

@@ -39,15 +39,15 @@ import org.elasticsearch.action.admin.cluster.allocation.ClusterAllocationExplai
 import org.elasticsearch.action.admin.cluster.configuration.AddVotingConfigExclusionsAction;
 import org.elasticsearch.action.admin.cluster.configuration.ClearVotingConfigExclusionsAction;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthAction;
-import org.elasticsearch.action.admin.cluster.node.hotthreads.NodesHotThreadsAction;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoAction;
+import org.elasticsearch.action.admin.cluster.node.hotthreads.TransportNodesHotThreadsAction;
+import org.elasticsearch.action.admin.cluster.node.info.TransportNodesInfoAction;
 import org.elasticsearch.action.admin.cluster.node.reload.NodesReloadSecureSettingsAction;
-import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsAction;
+import org.elasticsearch.action.admin.cluster.node.stats.TransportNodesStatsAction;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksAction;
 import org.elasticsearch.action.admin.cluster.node.tasks.get.GetTaskAction;
-import org.elasticsearch.action.admin.cluster.node.tasks.list.ListTasksAction;
-import org.elasticsearch.action.admin.cluster.node.usage.NodesUsageAction;
-import org.elasticsearch.action.admin.cluster.remote.RemoteInfoAction;
+import org.elasticsearch.action.admin.cluster.node.tasks.list.TransportListTasksAction;
+import org.elasticsearch.action.admin.cluster.node.usage.TransportNodesUsageAction;
+import org.elasticsearch.action.admin.cluster.remote.TransportRemoteInfoAction;
 import org.elasticsearch.action.admin.cluster.repositories.cleanup.CleanupRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction;
@@ -123,7 +123,7 @@ import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.bulk.TransportShardBulkAction;
 import org.elasticsearch.action.delete.DeleteAction;
-import org.elasticsearch.action.explain.ExplainAction;
+import org.elasticsearch.action.explain.TransportExplainAction;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.action.get.GetAction;
 import org.elasticsearch.action.get.MultiGetAction;
@@ -132,11 +132,11 @@ import org.elasticsearch.action.ingest.DeletePipelineAction;
 import org.elasticsearch.action.ingest.GetPipelineAction;
 import org.elasticsearch.action.ingest.PutPipelineAction;
 import org.elasticsearch.action.ingest.SimulatePipelineAction;
-import org.elasticsearch.action.search.ClearScrollAction;
-import org.elasticsearch.action.search.MultiSearchAction;
-import org.elasticsearch.action.search.SearchAction;
-import org.elasticsearch.action.search.SearchScrollAction;
-import org.elasticsearch.action.search.SearchShardsAction;
+import org.elasticsearch.action.search.TransportClearScrollAction;
+import org.elasticsearch.action.search.TransportMultiSearchAction;
+import org.elasticsearch.action.search.TransportSearchAction;
+import org.elasticsearch.action.search.TransportSearchScrollAction;
+import org.elasticsearch.action.search.TransportSearchShardsAction;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.action.termvectors.TermVectorsAction;
 import org.elasticsearch.action.update.UpdateAction;
@@ -149,7 +149,9 @@ import org.elasticsearch.persistent.RemovePersistentTaskAction;
 import org.elasticsearch.persistent.StartPersistentTaskAction;
 import org.elasticsearch.persistent.UpdatePersistentTaskStatusAction;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
-import org.elasticsearch.rest.root.MainAction;
+import org.elasticsearch.rest.root.MainRestPlugin;
+import org.elasticsearch.rest.root.RestMainAction;
+import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -193,8 +195,8 @@ public class Actions {
         index(TermVectorsAction.INSTANCE);
         index(DeleteAction.INSTANCE);
         index(UpdateAction.INSTANCE);
-        index(SearchAction.INSTANCE);
-        index(ExplainAction.INSTANCE);
+        index(TransportSearchAction.TYPE);
+        index(TransportExplainAction.TYPE);
         index(ResolveIndexAction.INSTANCE);
         
         index(UpdateByQueryAction.INSTANCE);
@@ -210,13 +212,13 @@ public class Actions {
 
         index(ClusterSearchShardsAction.INSTANCE) //
                 .requiresAdditionalPrivileges(always(), "indices:data/read/search");
-        index(SearchShardsAction.INSTANCE) //
+        index(TransportSearchShardsAction.TYPE) //
                 .requiresAdditionalPrivileges(always(), "indices:data/read/search");
 
         cluster(MultiGetAction.INSTANCE);
         cluster(BulkAction.INSTANCE);
-        cluster(SearchScrollAction.INSTANCE);
-        cluster(MultiSearchAction.INSTANCE);
+        cluster(TransportSearchScrollAction.TYPE);
+        cluster(TransportMultiSearchAction.TYPE);
         cluster(MultiTermVectorsAction.INSTANCE);
 
         cluster("indices:data/read/search/template");
@@ -250,7 +252,7 @@ public class Actions {
         index(AnalyzeAction.INSTANCE);
         index(AutoCreateAction.INSTANCE);
 
-        cluster(ClearScrollAction.INSTANCE);
+        cluster(TransportClearScrollAction.TYPE);
         cluster(RecoveryAction.INSTANCE);
         cluster(NodesReloadSecureSettingsAction.INSTANCE);
 
@@ -269,13 +271,13 @@ public class Actions {
         cluster("indices:data/read/sql/translate");
         cluster("indices:data/read/sql/close_cursor");
 
-        cluster(MainAction.INSTANCE);
-        cluster(NodesInfoAction.INSTANCE);
-        cluster(RemoteInfoAction.INSTANCE);
-        cluster(NodesStatsAction.INSTANCE);
-        cluster(NodesUsageAction.INSTANCE);
-        cluster(NodesHotThreadsAction.INSTANCE);
-        cluster(ListTasksAction.INSTANCE);
+        cluster(MainRestPlugin.MAIN_ACTION);
+        cluster(TransportNodesInfoAction.TYPE);
+        cluster(TransportRemoteInfoAction.TYPE);
+        cluster(TransportNodesStatsAction.TYPE);
+        cluster(TransportNodesUsageAction.TYPE);
+        cluster(TransportNodesHotThreadsAction.TYPE);
+        cluster(TransportListTasksAction.TYPE);
         cluster(GetTaskAction.INSTANCE);
         cluster(CancelTasksAction.INSTANCE);
 

@@ -38,27 +38,26 @@ public class DlsFilterLevelModeTest {
 
     @BeforeClass
     public static void setupTestData() {
-        try (Client client = cluster.getInternalNodeClient()) {
+        Client client = cluster.getInternalNodeClient();
 
-            client.index(new IndexRequest("deals_1").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source("{\"amount\": 10, \"acodes\": [6,7], \"keywords\": [\"test\", \"foo\", \"bar\"]}", XContentType.JSON)).actionGet();
-            client.index(new IndexRequest("deals_1").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source("{\"amount\": 1500, \"acodes\": [1], \"keywords\": [\"test\", \"foo\", \"bar\"]}", XContentType.JSON)).actionGet();
-            client.index(new IndexRequest("deals_1").id("2").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source("{\"amount\": 2500, \"acodes\": [1], \"keywords\": [\"foo\"]}", XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("deals_1").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .source("{\"amount\": 10, \"acodes\": [6,7], \"keywords\": [\"test\", \"foo\", \"bar\"]}", XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("deals_1").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .source("{\"amount\": 1500, \"acodes\": [1], \"keywords\": [\"test\", \"foo\", \"bar\"]}", XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("deals_1").id("2").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .source("{\"amount\": 2500, \"acodes\": [1], \"keywords\": [\"foo\"]}", XContentType.JSON)).actionGet();
 
-            client.index(new IndexRequest("deals_2").id("200").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source("{\"amount\": 20, \"acodes\": [1], \"keywords\": [\"test\", \"foo\", \"bar\"]}", XContentType.JSON)).actionGet();
-            client.index(new IndexRequest("deals_2").id("201").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source("{\"amount\": 2500, \"acodes\": [3], \"keywords\": [\"test\", \"foo\", \"bar\"]}", XContentType.JSON)).actionGet();
-            client.index(new IndexRequest("deals_2").id("202").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source("{\"amount\": 3500, \"acodes\": [3], \"keywords\": [\"foo\"]}", XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("deals_2").id("200").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .source("{\"amount\": 20, \"acodes\": [1], \"keywords\": [\"test\", \"foo\", \"bar\"]}", XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("deals_2").id("201").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .source("{\"amount\": 2500, \"acodes\": [3], \"keywords\": [\"test\", \"foo\", \"bar\"]}", XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("deals_2").id("202").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .source("{\"amount\": 3500, \"acodes\": [3], \"keywords\": [\"foo\"]}", XContentType.JSON)).actionGet();
 
-            client.index(new IndexRequest("users").id("sg_dls_lookup_user1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"acode\": [1,2,4]}",
-                    XContentType.JSON)).actionGet();
-            client.index(new IndexRequest("users").id("sg_dls_lookup_user2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"acode\": [2,3]}",
-                    XContentType.JSON)).actionGet();
-        }
+        client.index(new IndexRequest("users").id("sg_dls_lookup_user1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"acode\": [1,2,4]}",
+                XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("users").id("sg_dls_lookup_user2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"acode\": [2,3]}",
+                XContentType.JSON)).actionGet();
     }
 
     @Test

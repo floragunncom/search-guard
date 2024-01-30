@@ -170,7 +170,7 @@ public class ConfigurationLoader {
                                 .map(r -> r.getId() + ": failure: " + r.getFailure() + "; exists: " + r.getResponse().isExists() + "; sourceEmpty: "
                                         + r.getResponse().isSourceEmpty() + "; version: " + r.getResponse().getVersion() + "; seqno: "
                                         + r.getResponse().getSeqNo() + "; pt: " + r.getResponse().getPrimaryTerm() + "; size: "
-                                        + (r.getResponse().getSourceAsBytes() != null ? r.getResponse().getSourceAsBytes().length : "null"))
+                                        + (r.getResponse().getSourceAsString() != null ? r.getResponse().getSourceAsString().getBytes().length : "null"))
                                 .collect(Collectors.toList()));
                     }
 

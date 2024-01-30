@@ -85,13 +85,12 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
 
     @After
     public void clearData() {
-        try(Client client = cluster.getPrivilegedInternalNodeClient()) {
-            SearchResponse searchResponse = client.search(new SearchRequest(IndexNames.TRUSTSTORES)).actionGet();
-            for(SearchHit hit : searchResponse.getHits().getHits()) {
-                String id = hit.getId();
-                client.delete(new DeleteRequest(IndexNames.TRUSTSTORES).id(id).setRefreshPolicy(IMMEDIATE)).actionGet();
-                log.info("Document with id '{}' deleted from index '{}'.", id, IndexNames.TRUSTSTORES);
-            }
+        Client client = cluster.getPrivilegedInternalNodeClient();
+        SearchResponse searchResponse = client.search(new SearchRequest(IndexNames.TRUSTSTORES)).actionGet();
+        for(SearchHit hit : searchResponse.getHits().getHits()) {
+            String id = hit.getId();
+            client.delete(new DeleteRequest(IndexNames.TRUSTSTORES).id(id).setRefreshPolicy(IMMEDIATE)).actionGet();
+            log.info("Document with id '{}' deleted from index '{}'.", id, IndexNames.TRUSTSTORES);
         }
     }
 
