@@ -41,9 +41,8 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, BulkRequest request, ActionListener<?> listener) {
         log.debug("Handle bulk request");
-        threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
-
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
+            threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             BulkRequest scoped = bulkMapper.toScopedBulkRequest(request, requestedTenant);
 
             nodeClient.bulk(scoped, new ActionListener<>() {
@@ -67,6 +66,7 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
                 @Override
                 public void onFailure(Exception e) {
                     log.error("An error occurred while sending bulk request", e);
+                    storedContext.restore();
                     listener.onFailure(e);
                 }
             });
