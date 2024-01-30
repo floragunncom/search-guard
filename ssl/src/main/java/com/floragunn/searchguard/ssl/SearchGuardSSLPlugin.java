@@ -38,11 +38,8 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.TransportVersion;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.cluster.routing.allocation.AllocationService;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.network.NetworkService;
@@ -55,27 +52,20 @@ import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.env.Environment;
-import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
-import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.script.ScriptService;
-import org.elasticsearch.telemetry.TelemetryProvider;
 import org.elasticsearch.telemetry.tracing.Tracer;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportInterceptor;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
-import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
@@ -93,8 +83,6 @@ import io.netty.util.internal.PlatformDependent;
 public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, NetworkPlugin {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
-    protected static final String CLIENT_TYPE = "client.type";
-    protected final boolean client;
     protected final boolean httpSSLEnabled;
     protected final boolean transportSSLEnabled;
     protected final Settings settings;
@@ -114,7 +102,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         if (disabled) {
             this.settings = null;
             this.staticSettings = null;
-            this.client = false;
             this.httpSSLEnabled = false;
             this.transportSSLEnabled = false;
             this.sgks = null;
@@ -204,7 +191,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         this.settings = settings;
         this.staticSettings = new StaticSettings(settings, configPath);
-        client = !"node".equals(this.settings.get(SearchGuardSSLPlugin.CLIENT_TYPE));
 
         httpSSLEnabled = settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED,
                 SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_DEFAULT);
@@ -232,7 +218,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             NetworkService networkService, Dispatcher dispatcher, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, ClusterSettings clusterSettings, Tracer tracer) {
 
         final Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
-        if (!client && httpSSLEnabled) {
+        if (httpSSLEnabled) {
 
             final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
                     configPath, NOOP_SSL_EXCEPTION_HANDLER);
@@ -253,9 +239,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>(1);
 
-        if (!client) {
-            handlers.add(new SearchGuardSSLInfoAction(settings, configPath, restController, sgks, Objects.requireNonNull(principalExtractor)));
-        }
+        handlers.add(new SearchGuardSSLInfoAction(settings, configPath, restController, sgks, Objects.requireNonNull(principalExtractor)));
 
         return handlers;
     }
@@ -264,7 +248,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     public List<TransportInterceptor> getTransportInterceptors(NamedWriteableRegistry namedWriteableRegistry, ThreadContext threadContext) {
         List<TransportInterceptor> interceptors = new ArrayList<TransportInterceptor>(1);
 
-        if (transportSSLEnabled && !client) {
+        if (transportSSLEnabled) {
             interceptors.add(new SearchGuardSSLTransportInterceptor(settings, null, null, NOOP_SSL_EXCEPTION_HANDLER));
         }
 
@@ -287,17 +271,8 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     }
 
     @Override
-    public Collection<Object> createComponents(Client localClient, ClusterService clusterService, ThreadPool threadPool,
-                                               ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
-                                               Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
-                                               IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier,
-                                               TelemetryProvider telemetryProvider, AllocationService allocationService, IndicesService indicesService) {
-
+    public Collection<?> createComponents(PluginServices services) {
         final List<Object> components = new ArrayList<>(1);
-
-        if (client) {
-            return components;
-        }
 
         final String principalExtractorClass = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, null);
 
@@ -387,7 +362,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     public Settings additionalSettings() {
         final Settings.Builder builder = Settings.builder();
 
-        if (!client && httpSSLEnabled) {
+        if (httpSSLEnabled) {
 
             if (settings.get("http.compression") == null) {
                 builder.put("http.compression", false);

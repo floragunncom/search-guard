@@ -1,9 +1,9 @@
 package com.floragunn.signals.actions.account.search;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.internal.Client;
@@ -33,7 +33,7 @@ public class TransportSearchAccountAction extends HandledTransportAction<SearchA
     @Inject
     public TransportSearchAccountAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(SearchAccountAction.NAME, transportService, actionFilters, SearchAccountRequest::new);
+        super(SearchAccountAction.NAME, transportService, actionFilters, SearchAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;
@@ -95,7 +95,7 @@ public class TransportSearchAccountAction extends HandledTransportAction<SearchA
 
                 searchRequest.source(searchSourceBuilder);
 
-                client.execute(SearchAction.INSTANCE, searchRequest, new ActionListener<SearchResponse>() {
+                client.execute(TransportSearchAction.TYPE, searchRequest, new ActionListener<SearchResponse>() {
 
                     @Override
                     public void onResponse(SearchResponse response) {

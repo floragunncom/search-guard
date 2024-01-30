@@ -94,14 +94,13 @@ public class InitializationIntegrationTests extends SingleClusterTest {
             Assert.assertTrue(res.getBody().contains("vulcan"));
         }
         
-        try (Client tc = getPrivilegedInternalNodeClient()) {   
-            Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
-            tc.index(new IndexRequest("searchguard").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("internalusers").source("internalusers", FileHelper.readYamlContent("sg_internal_users_spock_add_roles.yml"))).actionGet();
-            ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
-            Assert.assertFalse(cur.hasFailures());
-            Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());   
-        } 
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
+        tc.index(new IndexRequest("searchguard").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("internalusers").source("internalusers", FileHelper.readYamlContent("sg_internal_users_spock_add_roles.yml"))).actionGet();
+        ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
+        Assert.assertFalse(cur.hasFailures());
+        Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
+
         for (Iterator<TransportAddress> iterator = clusterInfo.httpAdresses.iterator(); iterator.hasNext();) {
             TransportAddress TransportAddress = (TransportAddress) iterator.next();
             log.debug("http://"+TransportAddress.getAddress()+":"+TransportAddress.getPort());
@@ -112,14 +111,13 @@ public class InitializationIntegrationTests extends SingleClusterTest {
             Assert.assertFalse(res.getBody().contains("starfleet"));
         }
         
-        try (Client tc = getPrivilegedInternalNodeClient()) {    
-            Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
-            tc.index(new IndexRequest("searchguard").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("config").source("config", FileHelper.readYamlContent("sg_config_anon.yml"))).actionGet();
-            ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config"})).actionGet();
-            Assert.assertFalse(cur.hasFailures());
-            Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());   
-        }
-        
+        tc = getPrivilegedInternalNodeClient();
+        Assert.assertEquals(clusterInfo.numNodes, tc.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
+        tc.index(new IndexRequest("searchguard").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("config").source("config", FileHelper.readYamlContent("sg_config_anon.yml"))).actionGet();
+        cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config"})).actionGet();
+        Assert.assertFalse(cur.hasFailures());
+        Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
+
         for (Iterator<TransportAddress> iterator = clusterInfo.httpAdresses.iterator(); iterator.hasNext();) {
             TransportAddress TransportAddress = (TransportAddress) iterator.next();
             HttpResponse res = rh.executeRequest(new HttpGet("http://"+TransportAddress.getAddress()+":"+TransportAddress.getPort() + "/" + "_searchguard/authinfo?pretty=true"));

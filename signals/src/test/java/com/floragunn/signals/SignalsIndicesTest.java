@@ -59,12 +59,11 @@ public class SignalsIndicesTest {
         ProtectedConfigIndexService protectedConfigIndexService = new ProtectedConfigIndexService(cluster.getInternalNodeClient(),
                 cluster.getInjectable(ClusterService.class), cluster.getInjectable(ThreadPool.class), new ProtectedIndices());
 
-        try (Client client = cluster.getInternalNodeClient()) {
-            CreateIndexResponse response = client.admin().indices().create(new CreateIndexRequest(".signals_watches")
-                    .mapping(getOldWatchIndexMapping()).settings(Settings.builder().put("index.hidden", true))).actionGet();
+        Client client = cluster.getInternalNodeClient();
+        CreateIndexResponse response = client.admin().indices().create(new CreateIndexRequest(".signals_watches")
+                .mapping(getOldWatchIndexMapping()).settings(Settings.builder().put("index.hidden", true))).actionGet();
 
-            Assert.assertTrue(response.toString(), response.isAcknowledged());
-        }
+        Assert.assertTrue(response.toString(), response.isAcknowledged());
 
         Settings.Builder settings = Settings.builder().put("searchguard.enterprise_modules_enabled", false);
 

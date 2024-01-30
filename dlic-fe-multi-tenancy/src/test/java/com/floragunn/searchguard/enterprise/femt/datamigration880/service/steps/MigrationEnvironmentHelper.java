@@ -125,17 +125,10 @@ public class MigrationEnvironmentHelper extends ExternalResource {
             deleteIndex(context::getTempIndexName);
         }
         deleteIndexTemplateIfExists();
-        closeClient();
     }
 
     static String tenantNameToIndexName(String indexNamePrefix, String tenantName) {
         return indexNamePrefix + "_" + tenantName.hashCode() + "_" + tenantName.toLowerCase().replaceAll("[^a-z0-9]+", "");
-    }
-
-    public void closeClient() {
-        if(this.privilegedConfigClient != null) {
-            this.privilegedConfigClient.close();
-        }
     }
 
     public void addCreatedIndex(DeletableIndex indexName) {
@@ -143,21 +136,19 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     }
 
     private void deleteIndexTemplateIfExists() {
-        try(Client client = cluster.getInternalNodeClient()) {
-            GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(INDEX_TEMPLATE_NAME).execute().actionGet();
-            if(!response.getIndexTemplates().isEmpty()) {
-                var acknowledgedResponse = client.admin().indices().prepareDeleteTemplate(INDEX_TEMPLATE_NAME).execute().actionGet();
-                assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
-            }
+        Client client = cluster.getInternalNodeClient();
+        GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(INDEX_TEMPLATE_NAME).execute().actionGet();
+        if(!response.getIndexTemplates().isEmpty()) {
+            var acknowledgedResponse = client.admin().indices().prepareDeleteTemplate(INDEX_TEMPLATE_NAME).execute().actionGet();
+            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
         }
     }
 
     public boolean isIndexCreated(String...indexOrAlias) {
         try {
-            try (Client client = cluster.getInternalNodeClient()) {
-                for(String index : indexOrAlias) {
-                    client.admin().indices().getIndex(new GetIndexRequest().indices(index)).actionGet();
-                }
+            Client client = cluster.getInternalNodeClient();
+            for(String index : indexOrAlias) {
+                client.admin().indices().getIndex(new GetIndexRequest().indices(index)).actionGet();
             }
             return true;
         } catch (Exception e) {
@@ -171,10 +162,9 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         }
         String[] indicesForDeletion = Arrays.stream(deletableIndices).map(DeletableIndex::indexForDeletion).toArray(String[]::new);
         DeleteIndexRequest request = new DeleteIndexRequest(indicesForDeletion);
-        try(Client client = cluster.getInternalNodeClient()) {
-            AcknowledgedResponse acknowledgedResponse = client.admin().indices().delete(request).actionGet();
-            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
-        }
+        Client client = cluster.getInternalNodeClient();
+        AcknowledgedResponse acknowledgedResponse = client.admin().indices().delete(request).actionGet();
+        assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
     }
 
     public List<DoubleAliasIndex> getIndicesForConfiguredTenantsWithoutGlobal() {
@@ -187,7 +177,8 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     }
 
     public boolean isDocumentInsertionPossible(String indexName) {
-        try(Client client = cluster.getInternalNodeClient()) {
+        try {
+            Client client = cluster.getInternalNodeClient();
             IndexRequest request = new IndexRequest(indexName) //
                 .source(ImmutableMap.of("new", "document")) //
                 .setRefreshPolicy(IMMEDIATE);
@@ -199,29 +190,26 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     }
 
     public Settings getIndexSettings(String index) {
-        try(Client client = cluster.getInternalNodeClient()) {
-            GetSettingsRequest request = new GetSettingsRequest().indices(index);
-            return client.admin().indices().getSettings(request).actionGet().getIndexToSettings().get(index);
-        }
+        Client client = cluster.getInternalNodeClient();
+        GetSettingsRequest request = new GetSettingsRequest().indices(index);
+        return client.admin().indices().getSettings(request).actionGet().getIndexToSettings().get(index);
     }
 
     public long countDocumentInIndex(String indexName) {
-        try(Client client = cluster.getInternalNodeClient()) {
-            SearchRequest request = new SearchRequest(indexName);
-            request.source(SearchSourceBuilder.searchSource().size(0).trackTotalHits(true).query(QueryBuilders.matchAllQuery()));
-            SearchResponse response = client.search(request).actionGet();
-            assertThat(response.getFailedShards(), equalTo(0));
-            return response.getHits().getTotalHits().value;
-        }
+        Client client = cluster.getInternalNodeClient();
+        SearchRequest request = new SearchRequest(indexName);
+        request.source(SearchSourceBuilder.searchSource().size(0).trackTotalHits(true).query(QueryBuilders.matchAllQuery()));
+        SearchResponse response = client.search(request).actionGet();
+        assertThat(response.getFailedShards(), equalTo(0));
+        return response.getHits().getTotalHits().value;
     }
 
     public Optional<String> getDocumentSource(String indexName, String documentId) {
-        try(Client client = cluster.getInternalNodeClient()) {
-            GetResponse response = client.get(new GetRequest(indexName, documentId)).actionGet();
-            return Optional.ofNullable(response) //
-                .filter(GetResponse::isExists) //
-                .map(GetResponse::getSourceAsString);
-        }
+        Client client = cluster.getInternalNodeClient();
+        GetResponse response = client.get(new GetRequest(indexName, documentId)).actionGet();
+        return Optional.ofNullable(response) //
+            .filter(GetResponse::isExists) //
+            .map(GetResponse::getSourceAsString);
     }
 
     public void createIndex(List<DoubleAliasIndex> indices) {
@@ -244,31 +232,30 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
             .patterns(Collections.singletonList(configuredIndexNamePrefix + "*")) //
             .settings(Settings.builder().put("index.hidden", true));
-        try(Client client = cluster.getInternalNodeClient()) {
-            client.admin() //
-                .indices() //
-                .putTemplate(templateRequest) //
-                .actionGet();
-            for (LegacyIndex index : indices) {
-                String currentIndexName = index.indexName();
-                if (!currentIndexName.startsWith(configuredIndexNamePrefix)) {
-                    throw new IllegalStateException("All legacy indices names should start with " + configuredIndexNamePrefix);
-                }
-                bulkRequest.add(new IndexRequest(currentIndexName).source(DocNode.EMPTY));
-                createdIndices.add(index);
-                indicesAliasesRequest.addAliasAction(IndicesAliasesRequest.AliasActions.add().index(index.indexName()).aliases(index.longAlias()));
+        Client client = cluster.getInternalNodeClient();
+        client.admin() //
+            .indices() //
+            .putTemplate(templateRequest) //
+            .actionGet();
+        for (LegacyIndex index : indices) {
+            String currentIndexName = index.indexName();
+            if (!currentIndexName.startsWith(configuredIndexNamePrefix)) {
+                throw new IllegalStateException("All legacy indices names should start with " + configuredIndexNamePrefix);
             }
-            BulkResponse response = client.bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
-            if(response.hasFailures()) {
-                log.error("Cannot create legacy indices due to '{}'", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
-            AcknowledgedResponse acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
-            if(!acknowledgedResponse.isAcknowledged()) {
-                log.error("Cannot create aliases for legacy indices.");
-            }
-            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+            bulkRequest.add(new IndexRequest(currentIndexName).source(DocNode.EMPTY));
+            createdIndices.add(index);
+            indicesAliasesRequest.addAliasAction(IndicesAliasesRequest.AliasActions.add().index(index.indexName()).aliases(index.longAlias()));
         }
+        BulkResponse response = client.bulk(bulkRequest.setRefreshPolicy(IMMEDIATE)).actionGet();
+        if(response.hasFailures()) {
+            log.error("Cannot create legacy indices due to '{}'", response.buildFailureMessage());
+        }
+        assertThat(response.hasFailures(), equalTo(false));
+        AcknowledgedResponse acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
+        if(!acknowledgedResponse.isAcknowledged()) {
+            log.error("Cannot create aliases for legacy indices.");
+        }
+        assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
     }
 
     public void createIndex(String indexNamesPrefix, int numberOfReplicas, Settings additionalSettings, DoubleAliasIndex...indices) {
@@ -284,37 +271,36 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
             .patterns(Collections.singletonList(indexNamesPrefix + "*"))
             .settings(settings);
-        try(Client client = cluster.getInternalNodeClient()) {
-            AcknowledgedResponse createTemplateResponse = client.admin() //
-                .indices() //
-                .putTemplate(templateRequest) //
-                .actionGet();
-            assertThat(createTemplateResponse.isAcknowledged(), equalTo(true));
-            for (DoubleAliasIndex index : indices) {
-                String currentIndex = index.indexName();
-                if (!currentIndex.startsWith(indexNamesPrefix)) {
-                    String message = String.join("", "Incorrect name of index ",
-                        currentIndex, ". All created indices must have a common prefix '" + indexNamesPrefix, "'.");
-                    throw new IllegalStateException(message);
-                }
-                bulkRequestCreateIndices.add(new IndexRequest(currentIndex).id(CREATE_INDEX_ID).source(DocNode.EMPTY));
-                createdIndices.add(index);
-                indicesAliasesRequest.addAliasAction(IndicesAliasesRequest.AliasActions.add().index(index.indexName()).aliases(index.longAlias(), index.shortAlias()));
-                bulkRequestClearIndices.add(new DeleteRequest(currentIndex, CREATE_INDEX_ID));
+        Client client = cluster.getInternalNodeClient();
+        AcknowledgedResponse createTemplateResponse = client.admin() //
+            .indices() //
+            .putTemplate(templateRequest) //
+            .actionGet();
+        assertThat(createTemplateResponse.isAcknowledged(), equalTo(true));
+        for (DoubleAliasIndex index : indices) {
+            String currentIndex = index.indexName();
+            if (!currentIndex.startsWith(indexNamesPrefix)) {
+                String message = String.join("", "Incorrect name of index ",
+                    currentIndex, ". All created indices must have a common prefix '" + indexNamesPrefix, "'.");
+                throw new IllegalStateException(message);
             }
-            BulkResponse response = client.bulk(bulkRequestCreateIndices.setRefreshPolicy(IMMEDIATE)).actionGet();
-            if (response.hasFailures()) {
-                log.error("Create index failure response {}", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
-            var acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
-            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
-            response = client.bulk(bulkRequestClearIndices).actionGet();
-            if (response.hasFailures()) {
-                log.error("Cannot clear newly created indices {}", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
+            bulkRequestCreateIndices.add(new IndexRequest(currentIndex).id(CREATE_INDEX_ID).source(DocNode.EMPTY));
+            createdIndices.add(index);
+            indicesAliasesRequest.addAliasAction(IndicesAliasesRequest.AliasActions.add().index(index.indexName()).aliases(index.longAlias(), index.shortAlias()));
+            bulkRequestClearIndices.add(new DeleteRequest(currentIndex, CREATE_INDEX_ID));
         }
+        BulkResponse response = client.bulk(bulkRequestCreateIndices.setRefreshPolicy(IMMEDIATE)).actionGet();
+        if (response.hasFailures()) {
+            log.error("Create index failure response {}", response.buildFailureMessage());
+        }
+        assertThat(response.hasFailures(), equalTo(false));
+        var acknowledgedResponse = client.admin().indices().aliases(indicesAliasesRequest).actionGet();
+        assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+        response = client.bulk(bulkRequestClearIndices).actionGet();
+        if (response.hasFailures()) {
+            log.error("Cannot clear newly created indices {}", response.buildFailureMessage());
+        }
+        assertThat(response.hasFailures(), equalTo(false));
     }
 
     public String getConfiguredIndexPrefix() {
@@ -323,15 +309,14 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     }
 
     public void createIndexInYellowState(String index) {
-        try(Client client = cluster.getInternalNodeClient()) {
-            CreateIndexRequest request = new CreateIndexRequest(index);
-            Settings.Builder settings = Settings.builder() //
-                .put("index.number_of_replicas", 100); // force index yellow state
-            request.settings(settings);
-            CreateIndexResponse createIndexResponse = client.admin().indices().create(request).actionGet();
-            assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
-            this.createdIndices.add(() -> index);
-        }
+        Client client = cluster.getInternalNodeClient();
+        CreateIndexRequest request = new CreateIndexRequest(index);
+        Settings.Builder settings = Settings.builder() //
+            .put("index.number_of_replicas", 100); // force index yellow state
+        request.settings(settings);
+        CreateIndexResponse createIndexResponse = client.admin().indices().create(request).actionGet();
+        assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
+        this.createdIndices.add(() -> index);
     }
 
     public void createBackupIndex(BackupIndex...indices) {
@@ -343,30 +328,28 @@ public class MigrationEnvironmentHelper extends ExternalResource {
             bulkRequestDelete.add(new DeleteRequest(index.indexName(), CREATE_INDEX_ID));
         }
 
-        try(Client client = cluster.getInternalNodeClient()) {
-            BulkResponse response = client.bulk(bulkRequestIndex.setRefreshPolicy(IMMEDIATE)).actionGet();
-            if (response.hasFailures()) {
-                log.error("Create backup index failure response {}", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
-            response = client.bulk(bulkRequestDelete.setRefreshPolicy(IMMEDIATE)).actionGet();
-            if (response.hasFailures()) {
-                log.error("Create backup index failure, cannot clean index, response {}", response.buildFailureMessage());
-            }
-            assertThat(response.hasFailures(), equalTo(false));
+        Client client = cluster.getInternalNodeClient();
+        BulkResponse response = client.bulk(bulkRequestIndex.setRefreshPolicy(IMMEDIATE)).actionGet();
+        if (response.hasFailures()) {
+            log.error("Create backup index failure response {}", response.buildFailureMessage());
         }
+        assertThat(response.hasFailures(), equalTo(false));
+        response = client.bulk(bulkRequestDelete.setRefreshPolicy(IMMEDIATE)).actionGet();
+        if (response.hasFailures()) {
+            log.error("Create backup index failure, cannot clean index, response {}", response.buildFailureMessage());
+        }
+        assertThat(response.hasFailures(), equalTo(false));
     }
 
     public DocNode getIndexMappingsAsDocNode(String indexName) {
-        try (Client client = cluster.getInternalNodeClient()) {
-            GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest().indices(indexName)).actionGet();
-            Map<String, Object> source = Optional.of(response) //
-                .map(GetMappingsResponse::getMappings) //
-                .map(map -> map.get(indexName)) //
-                .map(MappingMetadata::getSourceAsMap) //
-                .orElseGet(Collections::emptyMap);
-            return DocNode.wrap(source);
-        }
+        Client client = cluster.getInternalNodeClient();
+        GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest().indices(indexName)).actionGet();
+        Map<String, Object> source = Optional.of(response) //
+            .map(GetMappingsResponse::getMappings) //
+            .map(map -> map.get(indexName)) //
+            .map(MappingMetadata::getSourceAsMap) //
+            .orElseGet(Collections::emptyMap);
+        return DocNode.wrap(source);
     }
 
     public void addDataMigrationMarkerToTheIndex(String indexName) {
@@ -411,12 +394,11 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     }
 
     public void assertThatDocumentExists(String index, String documentId) {
-        try(Client client = cluster.getInternalNodeClient()) {
-            GetRequest request = new GetRequest(index, documentId);
-            GetResponse response = client.get(request).actionGet();
-            String reason = "Document with id '" + documentId + "' does not exist in index '" + index + "'.";
-            assertThat(reason, response.isExists(), equalTo(true));
-        }
+        Client client = cluster.getInternalNodeClient();
+        GetRequest request = new GetRequest(index, documentId);
+        GetResponse response = client.get(request).actionGet();
+        String reason = "Document with id '" + documentId + "' does not exist in index '" + index + "'.";
+        assertThat(reason, response.isExists(), equalTo(true));
     }
 
     public List<DoubleAliasIndex> findIndicesForTenantsDefinedInConfigurationWithoutGlobal() {

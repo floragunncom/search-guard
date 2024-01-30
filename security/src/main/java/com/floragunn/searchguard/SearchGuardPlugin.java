@@ -57,14 +57,13 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.action.search.SearchScrollAction;
+import org.elasticsearch.action.search.TransportSearchScrollAction;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.bootstrap.BootstrapCheck;
 import org.elasticsearch.bootstrap.BootstrapContext;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.ReferenceDocs;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
@@ -91,12 +90,10 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.cache.query.QueryCache;
 import org.elasticsearch.index.shard.IndexingOperationListener;
 import org.elasticsearch.index.shard.SearchOperationListener;
-import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ClusterPlugin;
 import org.elasticsearch.plugins.MapperPlugin;
 import org.elasticsearch.plugins.ScriptPlugin;
-import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestStatus;
@@ -104,7 +101,6 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.ReaderContext;
 import org.elasticsearch.search.internal.ScrollContext;
-import org.elasticsearch.telemetry.TelemetryProvider;
 import org.elasticsearch.telemetry.tracing.Tracer;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport;
@@ -244,7 +240,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     private final SslExceptionHandler evaluateSslExceptionHandler() {
-        if (client || disabled || sslOnly) {
+        if (disabled || sslOnly) {
             return new SslExceptionHandler() {
             };
         }
@@ -338,37 +334,34 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             throw new IllegalStateException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED + " must be set to 'true'");
         }
 
-     
-        if (!client) {
-            final List<Path> filesWithWrongPermissions = AccessController.doPrivileged(new PrivilegedAction<List<Path>>() {
-                @Override
-                public List<Path> run() {
-                    final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
-                    if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
-                        try (Stream<Path> s = Files.walk(confPath)) {
-                            return s.distinct().filter(p -> checkFilePermissions(p)).collect(Collectors.toList());
-                        } catch (Exception e) {
-                            log.error(e);
-                            return null;
-                        }
-                    }
 
-                    return Collections.emptyList();
+        final List<Path> filesWithWrongPermissions = AccessController.doPrivileged(new PrivilegedAction<List<Path>>() {
+            @Override
+            public List<Path> run() {
+                final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
+                if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
+                    try (Stream<Path> s = Files.walk(confPath)) {
+                        return s.distinct().filter(p -> checkFilePermissions(p)).collect(Collectors.toList());
+                    } catch (Exception e) {
+                        log.error(e);
+                        return null;
+                    }
                 }
-            });
+                return Collections.emptyList();
+            }
+        });
 
-            if (filesWithWrongPermissions != null && filesWithWrongPermissions.size() > 0) {
-                for (final Path p : filesWithWrongPermissions) {
-                    if (Files.isDirectory(p, LinkOption.NOFOLLOW_LINKS)) {
-                        log.warn("Directory " + p + " has insecure file permissions (should be 0700)");
-                    } else {
-                        log.warn("File " + p + " has insecure file permissions (should be 0600)");
-                    }
+        if (filesWithWrongPermissions != null && filesWithWrongPermissions.size() > 0) {
+            for (final Path p : filesWithWrongPermissions) {
+                if (Files.isDirectory(p, LinkOption.NOFOLLOW_LINKS)) {
+                    log.warn("Directory " + p + " has insecure file permissions (should be 0700)");
+                } else {
+                    log.warn("File " + p + " has insecure file permissions (should be 0600)");
                 }
             }
         }
 
-        if (!client && !settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
+        if (!settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
             //check for demo certificates
             final List<String> files = AccessController.doPrivileged(new PrivilegedAction<List<String>>() {
                 @Override
@@ -485,7 +478,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>();
 
-        if (!client && !disabled) {
+        if (!disabled) {
 
             handlers.addAll(super.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
                     indexNameExpressionResolver, nodesInCluster));
@@ -585,7 +578,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public void onIndexModule(IndexModule indexModule) {
         // called for every index!
         
-        if (!disabled && !client && !sslOnly) {            
+        if (!disabled && !sslOnly) {
             if (adminDns == null) {
                 throw new IllegalStateException("adminDns is not yet initialized");
             }
@@ -661,12 +654,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                             final User scrollUser = (User) _user;
                             final User currentUser = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
                             if (!scrollUser.equals(currentUser)) {
-                                auditLog.logMissingPrivileges(SearchScrollAction.NAME, transportRequest, null);
+                                auditLog.logMissingPrivileges(TransportSearchScrollAction.TYPE.name(), transportRequest, null);
                                 log.error("Wrong user {} in scroll context, expected {}", scrollUser, currentUser);
                                 throw new ElasticsearchSecurityException("Wrong user in scroll context", RestStatus.FORBIDDEN);
                             }
                         } else if (_isLocal != Boolean.TRUE) {
-                            auditLog.logMissingPrivileges(SearchScrollAction.NAME, transportRequest, null);
+                            auditLog.logMissingPrivileges(TransportSearchScrollAction.TYPE.name(), transportRequest, null);
                             throw new ElasticsearchSecurityException("No user in scroll context", RestStatus.FORBIDDEN);
                         }
                     }
@@ -686,7 +679,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public List<ActionFilter> getActionFilters() {
         List<ActionFilter> filters = new ArrayList<>(1);
-        if (!client && !disabled && !sslOnly) {
+        if (!disabled && !sslOnly) {
             ResourceOwnerService resourceOwnerService = new ResourceOwnerService(localClient, clusterService, threadPool, protectedConfigIndexService,
                     evaluator, settings);
             ExtendedActionHandlingService extendedActionHandlingService = new ExtendedActionHandlingService(resourceOwnerService, settings);
@@ -711,7 +704,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     public List<TransportInterceptor> getTransportInterceptors(NamedWriteableRegistry namedWriteableRegistry, ThreadContext threadContext) {
         List<TransportInterceptor> interceptors = new ArrayList<TransportInterceptor>(1);
 
-        if (!client && !disabled && !sslOnly) {
+        if (!disabled && !sslOnly) {
             interceptors.add(new TransportInterceptor() {
 
                 @Override
@@ -771,7 +764,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
 
         if (!disabled) {
-            if (!client && httpSSLEnabled) {
+            if (httpSSLEnabled) {
 
                 final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
                         configPath, evaluateSslExceptionHandler());
@@ -780,7 +773,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory, tracer, perRequestThreadContext);
 
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
-            } else if (!client) {
+            } else {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
                         () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, threadPool, xContentRegistry, searchGuardRestFilter.wrap(dispatcher),
                                 perRequestThreadContext, clusterSettings, sharedGroupFactory, tracer));
@@ -790,26 +783,20 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public Collection<Object> createComponents(Client localClient, ClusterService clusterService, ThreadPool threadPool,
-                                               ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
-                                               Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
-                                               IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier
-            , TelemetryProvider telemetryProvider, AllocationService allocationService, IndicesService indicesService) {
-
+    public Collection<?> createComponents(PluginServices services) {
         if (sslOnly) {
-            return super.createComponents(localClient, clusterService, threadPool, resourceWatcherService, scriptService, xContentRegistry,
-                    environment, nodeEnvironment, namedWriteableRegistry, indexNameExpressionResolver, repositoriesServiceSupplier, telemetryProvider, allocationService, indicesService);
+            return  super.createComponents(services);
         }
 
-        this.threadPool = threadPool;
-        this.xContentRegistry = xContentRegistry;
-        this.clusterService = clusterService;
-        this.localClient = localClient;
-        this.scriptService = scriptService;
+        this.threadPool = services.threadPool();
+        this.xContentRegistry = services.xContentRegistry();
+        this.clusterService = services.clusterService();
+        this.localClient = services.client();
+        this.scriptService = services.scriptService();
 
         final List<Object> components = new ArrayList<Object>();
 
-        if (client || disabled) {
+        if (disabled) {
             return components;
         }
 
@@ -819,8 +806,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         final ClusterInfoHolder cih = new ClusterInfoHolder();
         this.clusterService.addListener(cih);
 
-        actionRequestIntrospector = new ActionRequestIntrospector(indexNameExpressionResolver, clusterService, cih, guiceDependencies);
-    
+        actionRequestIntrospector = new ActionRequestIntrospector(
+            services.indexNameExpressionResolver(),
+            services.clusterService(), cih, guiceDependencies);
+
         final String DEFAULT_INTERCLUSTER_REQUEST_EVALUATOR_CLASS = DefaultInterClusterRequestEvaluator.class.getName();
         InterClusterRequestEvaluator interClusterRequestEvaluator = new DefaultInterClusterRequestEvaluator(settings);
 
@@ -832,38 +821,44 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         adminDns = new AdminDNs(settings);
 
-        protectedConfigIndexService = new ProtectedConfigIndexService(localClient, clusterService, threadPool, protectedIndices);
+        protectedConfigIndexService = new ProtectedConfigIndexService(services.client(),
+            services.clusterService(), services.threadPool(), protectedIndices);
         moduleRegistry.addComponentStateProvider(protectedConfigIndexService);
-        configVarService = new ConfigVarService(localClient, clusterService, threadPool, protectedConfigIndexService, new EncryptionKeys(settings));
+        configVarService = new ConfigVarService(services.client(), services.clusterService(),
+            services.threadPool(), protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(configVarService);
-        
-        cr = new ConfigurationRepository(staticSettings, threadPool, localClient, clusterService, configVarService, moduleRegistry, staticSgConfig, xContentRegistry, environment, indexNameExpressionResolver);
+
+        cr = new ConfigurationRepository(staticSettings,
+            services.threadPool(), services.client(), services.clusterService(), configVarService, moduleRegistry, staticSgConfig,
+            services.xContentRegistry(), services.environment(), services.indexNameExpressionResolver());
         moduleRegistry.addComponentStateProvider(cr);
-        
-        licenseRepository = new LicenseRepository(settings, localClient, clusterService, cr);
-       
+
+        licenseRepository = new LicenseRepository(settings, services.client(), services.clusterService(), cr);
+
         sslExceptionHandler = new AuditLogSslExceptionHandler(auditLog);
 
-        complianceConfig = new ComplianceConfig(environment, actionRequestIntrospector, cr);
+        complianceConfig = new ComplianceConfig(services.environment(), actionRequestIntrospector, cr);
 
         licenseRepository.subscribeOnLicenseChange(complianceConfig);
         moduleRegistry.addComponentStateProvider(licenseRepository);
-        
+
         Actions actions = new Actions(moduleRegistry);
-        
-        this.authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
+
+        this.authInfoService = new AuthInfoService(services.threadPool(), specialPrivilegesEvaluationContextProviderRegistry);
         this.authorizationService = new AuthorizationService(cr, staticSettings, authInfoService);
-        evaluator = new PrivilegesEvaluator(clusterService, threadPool, cr, authorizationService, indexNameExpressionResolver, auditLog, staticSettings, cih,
-                actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
+        evaluator = new PrivilegesEvaluator(
+            services.clusterService(),
+            services.threadPool(), cr, authorizationService, services.indexNameExpressionResolver(), auditLog, staticSettings, cih,
+            actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies,
+            services.xContentRegistry(),
                 enterpriseModulesEnabled);
         moduleRegistry.addComponentStateProvider(evaluator);
-        
+
         InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(authorizationService, evaluator, actions, cr);
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
 
-        diagnosticContext = new DiagnosticContext(settings, threadPool.getThreadContext());
-     
-        
+        diagnosticContext = new DiagnosticContext(settings, services.threadPool().getThreadContext());
+
         InternalUsersDatabase internalUsersDatabase = new InternalUsersDatabase(cr);
         moduleRegistry.addComponentStateProvider(internalUsersDatabase);
         moduleRegistry.getTypedComponentRegistry().register(new InternalUsersAuthenticationBackend.Info(internalUsersDatabase));
@@ -879,14 +874,24 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         BlockedIpRegistry blockedIpRegistry = new BlockedIpRegistry(cr);
         BlockedUserRegistry blockedUserRegistry = new BlockedUserRegistry(cr);
-        
-        BaseDependencies baseDependencies = new BaseDependencies(settings, staticSettings, localClient, clusterService, threadPool, resourceWatcherService,
-                scriptService, xContentRegistry, environment, nodeEnvironment, indexNameExpressionResolver, staticSgConfig, cr,
+
+        BaseDependencies baseDependencies = new BaseDependencies(settings, staticSettings,
+            services.client(),
+            services.clusterService(),
+            services.threadPool(),
+            services.resourceWatcherService(),
+            services.scriptService(),
+            services.xContentRegistry(),
+            services.environment(),
+            services.nodeEnvironment(),
+            services.indexNameExpressionResolver(), staticSgConfig, cr,
                 licenseRepository, protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
                 diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
-                internalUsersDatabase, actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector);
+                internalUsersDatabase,
+            actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector);
 
-        sgi = new SearchGuardInterceptor(settings, threadPool, auditLog, principalExtractor, interClusterRequestEvaluator, clusterService,
+        sgi = new SearchGuardInterceptor(settings, services.threadPool(), auditLog, principalExtractor, interClusterRequestEvaluator,
+            services.clusterService(),
                 Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext, adminDns);
         components.add(principalExtractor);
         components.add(adminDns);
@@ -906,12 +911,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(baseDependencies);
 
         Collection<Object> moduleComponents = moduleRegistry.createComponents(baseDependencies);
-        
+
         components.addAll(moduleComponents);
-            
-        capabilities = new SearchGuardCapabilities(moduleRegistry.getModules(), clusterService, localClient);
+
+        capabilities = new SearchGuardCapabilities(moduleRegistry.getModules(), services.clusterService(), services.client());
         components.add(capabilities);
-        
+
         {
             AuditLog auditLog = moduleRegistry.getAuditLog();
 
@@ -919,21 +924,22 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 this.auditLog.setAuditLog(auditLog);
             }
         }
-        
-        searchGuardRestFilter = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool,
+
+        searchGuardRestFilter = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog,
+            services.threadPool(),
                 principalExtractor, evaluator, settings, configPath, diagnosticContext);
         components.add(searchGuardRestFilter);
 
         evaluator.setMultiTenancyConfigurationProvider(moduleRegistry.getMultiTenancyConfigurationProvider());
 
         moduleRegistry.addComponentStateProvider(searchGuardRestFilter);
-        
+
         this.actions = actions;
 
         return components;
 
     }
-    
+
     @Override
     public Settings additionalSettings() {
 
@@ -1214,7 +1220,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public void onNodeStarted() {
         log.info("Node started");
-        if (!sslOnly && !client && !disabled) {
+        if (!sslOnly && !disabled) {
             cr.initOnNodeStart();
             moduleRegistry.onNodeStarted();
             protectedConfigIndexService.onNodeStart();

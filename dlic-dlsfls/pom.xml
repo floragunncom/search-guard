@@ -30,12 +30,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.elasticsearch.plugin</groupId>
-      <artifactId>lang-mustache</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-ssl</artifactId>
       <scope>test</scope>

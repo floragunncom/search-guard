@@ -40,18 +40,17 @@ public class DlsTermsLookupTestTlqDisabled {
 
     @BeforeClass
     public static void setupTestData() {
-        try (Client client = cluster.getInternalNodeClient()) {
+        Client client = cluster.getInternalNodeClient();
 
-            client.index(new IndexRequest("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 10, \"acodes\": [6,7]}",
-                    XContentType.JSON)).actionGet();
-            client.index(new IndexRequest("deals").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 1500, \"acodes\": [1]}",
-                    XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 10, \"acodes\": [6,7]}",
+                XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("deals").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 1500, \"acodes\": [1]}",
+                XContentType.JSON)).actionGet();
 
-            client.index(new IndexRequest("users").id("sg_dls_lookup_user1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source("{\"acode\": [1,2,4]}", XContentType.JSON)).actionGet();
-            client.index(new IndexRequest("users").id("sg_dls_lookup_user2").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source("{\"acode\": [2,3]}", XContentType.JSON)).actionGet();
-        }
+        client.index(new IndexRequest("users").id("sg_dls_lookup_user1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .source("{\"acode\": [1,2,4]}", XContentType.JSON)).actionGet();
+        client.index(new IndexRequest("users").id("sg_dls_lookup_user2").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                .source("{\"acode\": [2,3]}", XContentType.JSON)).actionGet();
     }
 
     @Test
