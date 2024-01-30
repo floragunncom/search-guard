@@ -29,6 +29,8 @@ import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -62,6 +64,7 @@ import java.util.stream.Stream;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.apache.http.HttpStatus.SC_FORBIDDEN;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -71,6 +74,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
 public class MultiTenancyRequestMappingTest {
+
+    private static final Logger log = LogManager.getLogger(MultiTenancyRequestMappingTest.class);
 
     public static final String GLOBAL_TENANT_NAME = "SGS_GLOBAL_TENANT";
 
@@ -124,6 +129,43 @@ public class MultiTenancyRequestMappingTest {
     @After
     public void deleteTestIndex() {
         deleteIndex(KIBANA_INDEX + "*");
+    }
+
+    @Test
+    public void shouldCleanThreadContext() throws Exception {
+        String internalTenantName = tenantManager.toInternalTenantName(User.forUser(USER.getName()).requestedTenant(IT_TENANT.getName()).build());
+        addDocumentToIndex(createInternalScopedId("space_for_it_1", IT_TENANT.getName()), DocNode.of("name", "IT tenant space 1", "sg_tenant", internalTenantName));
+        addDocumentToIndex(createInternalScopedId("space_for_it_2", IT_TENANT.getName()), DocNode.of("name", "IT tenant space 2", "sg_tenant", internalTenantName));
+        addDocumentToIndex(createInternalScopedId("space_for_it_3", IT_TENANT.getName()), DocNode.of("name", "IT tenant space 3", "sg_tenant", internalTenantName));
+        internalTenantName = tenantManager.toInternalTenantName(User.forUser(USER.getName()).requestedTenant(HR_TENANT.getName()).build());
+        addDocumentToIndex(createInternalScopedId("space_for_human resources_1", HR_TENANT.getName()), DocNode.of("name", "human resources tenant space 1", "sg_tenant", internalTenantName));
+        addDocumentToIndex(createInternalScopedId("space_for_human resources_2", HR_TENANT.getName()), DocNode.of("name", "human resources tenant space 2", "sg_tenant", internalTenantName));
+
+
+        DocNode matchSpace = DocNode.of("query", DocNode.of("match", DocNode.of("name", "space")));
+        DocNode matchTenant = DocNode.of("query", DocNode.of("match", DocNode.of("name", "tenant")));
+        DocNode msearchHeader = DocNode.of("index", KIBANA_INDEX);
+
+        String query = Stream.of(msearchHeader, matchTenant, msearchHeader, matchSpace) //
+            .map(DocNode::toJsonString) //
+            .collect(Collectors.joining("\n")) + "\n";
+        log.info("Msearch query : {}", query);
+
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            BasicHeader sgTenantHeader = new BasicHeader("sg_tenant", HR_TENANT.getName());
+            HttpResponse response = client.postJson( "/_msearch?max_concurrent_searches=1", query, sgTenantHeader);
+            log.info("Search without tenant response status '{}' body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.responses[0].hits.total.value", 2));
+            assertThat(body, containsValue("$.responses[1].hits.total.value", 2));
+        }
+
+    }
+
+    private String createInternalScopedId(String documentId, String tenantId) {
+        String internalTenantName = tenantManager.toInternalTenantName(User.forUser(USER.getName()).requestedTenant(tenantId).build());
+        return RequestResponseTenantData.scopedId(documentId, internalTenantName);
     }
 
     @Test
