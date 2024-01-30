@@ -98,7 +98,7 @@ public class LdapStressTest {
 
     @BeforeClass
     public static void initTestData() {
-        try (Client tc = cluster.getInternalNodeClient()) {
+        Client tc = cluster.getInternalNodeClient();
 
             tc.index(new IndexRequest("attr_test_a").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"a\", \"amount\": 1010}",
                     XContentType.JSON)).actionGet();
@@ -110,7 +110,6 @@ public class LdapStressTest {
                     XContentType.JSON)).actionGet();
             tc.index(new IndexRequest("attr_test_e").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"filter_attr\": \"e\", \"amount\": 5050}",
                     XContentType.JSON)).actionGet();
-        }
     }
 
     @Test
