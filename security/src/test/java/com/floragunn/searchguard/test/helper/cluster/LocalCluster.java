@@ -226,7 +226,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     public void updateSgConfig(CType<?> configType, String key, Map<String, Object> value) {
 
-        try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
+        try  {
+            Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient());
             log.info("Updating config {}.{}:{}", configType, key, value);
             String searchGuardIndex = getConfigIndexName();
 
@@ -318,14 +319,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
      * @param callable action to be executed after configuration backup is created and before the backup is restored.
      */
     public <T> T callAndRestoreConfig(CType<?> configTypeToRestore, Callable<T> callable) throws Exception {
-        try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
-            String searchGuardIndex = getConfigIndexName();
-            String configurationBackup = loadConfig(configTypeToRestore, client, searchGuardIndex);
-            try {
-                return callable.call();
-            } finally {
-                writeConfigToIndexAndReload(client, configTypeToRestore, searchGuardIndex, configurationBackup);
-            }
+        Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient());
+        String searchGuardIndex = getConfigIndexName();
+        String configurationBackup = loadConfig(configTypeToRestore, client, searchGuardIndex);
+        try {
+            return callable.call();
+        } finally {
+            writeConfigToIndexAndReload(client, configTypeToRestore, searchGuardIndex, configurationBackup);
         }
     }
 
@@ -343,13 +343,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                     minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride), plugins, testCertificates);
             localEsCluster.start();
 
-            try (Client client = getInternalNodeClient()) {
-                for (TestIndex index : this.testIndices) {
-                    index.create(client);
-                }
-                for (TestAlias alias : this.testAliases) {
-                    alias.create(client);
-                }
+            Client client = getInternalNodeClient();
+            for (TestIndex index : this.testIndices) {
+                index.create(client);
+            }
+            for (TestAlias alias : this.testAliases) {
+                alias.create(client);
             }
             waitForSignalsInitialization();
         } catch (Exception e) {
@@ -399,9 +398,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     private void initSearchGuardIndex(TestSgConfig testSgConfig) {
         log.info("Initializing Search Guard index");
 
-        try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
-            testSgConfig.initIndex(client);
-        }
+        Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient());
+        testSgConfig.initIndex(client);
     }
 
     private void waitForSignalsInitialization() {

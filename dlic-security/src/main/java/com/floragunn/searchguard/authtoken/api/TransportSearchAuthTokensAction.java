@@ -15,9 +15,9 @@
 package com.floragunn.searchguard.authtoken.api;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.inject.Inject;
@@ -47,7 +47,7 @@ public class TransportSearchAuthTokensAction extends AbstractTransportAuthTokenA
     @Inject
     public TransportSearchAuthTokensAction(AuthTokenService authTokenService, AuthInfoService authInfoService, TransportService transportService,
             ActionFilters actionFilters, Client client, PrivilegesEvaluator privilegesEvaluator, ThreadPool threadPool) {
-        super(SearchAuthTokensAction.NAME, transportService, actionFilters, SearchAuthTokensRequest::new, privilegesEvaluator);
+        super(SearchAuthTokensAction.NAME, transportService, actionFilters, SearchAuthTokensRequest::new, privilegesEvaluator, threadPool);
 
         this.authTokenService = authTokenService;
         this.authInfoService = authInfoService;
@@ -98,7 +98,7 @@ public class TransportSearchAuthTokensAction extends AbstractTransportAuthTokenA
 
         searchRequest.source(searchSourceBuilder);
 
-        privilegedConfigClient.execute(SearchAction.INSTANCE, searchRequest, new ActionListener<SearchResponse>() {
+        privilegedConfigClient.execute(TransportSearchAction.TYPE, searchRequest, new ActionListener<SearchResponse>() {
 
             @Override
             public void onResponse(SearchResponse response) {

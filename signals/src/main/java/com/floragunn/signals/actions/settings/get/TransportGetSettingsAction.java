@@ -35,7 +35,7 @@ public class TransportGetSettingsAction extends HandledTransportAction<GetSettin
     @Inject
     public TransportGetSettingsAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(GetSettingsAction.NAME, transportService, actionFilters, GetSettingsRequest::new);
+        super(GetSettingsAction.NAME, transportService, actionFilters, GetSettingsRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
     }

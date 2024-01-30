@@ -27,6 +27,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.repositories.RepositoryData;
@@ -62,7 +63,7 @@ public class SnapshotRestoreHelper {
             setCurrentThreadName(GENERC_THREAD_NAME);
 
             final RepositoryDataListener repositoryDataListener = new RepositoryDataListener(restoreRequest, repository);
-            repository.getRepositoryData(repositoryDataListener);
+            repository.getRepositoryData(EsExecutors.DIRECT_EXECUTOR_SERVICE, repositoryDataListener);
             repositoryDataListener.waitForCompletion();
             snapshotInfo = repositoryDataListener.getSnapshotInfo();
 

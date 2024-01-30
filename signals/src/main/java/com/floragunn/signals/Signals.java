@@ -329,13 +329,11 @@ public class Signals extends AbstractLifecycleComponent {
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
 
         PutComposableIndexTemplateAction.Request putRequest = new PutComposableIndexTemplateAction.Request("signals_log_template");
-        putRequest.indexTemplate(new ComposableIndexTemplate(
-            ImmutableList.of(signalsLogIndex),
-            new Template(Settings.builder().put("index.hidden", true).build(), null, null),
-            null,
-            null,
-            null,
-            null));
+        ComposableIndexTemplate composableIndexTemplate = ComposableIndexTemplate.builder() //
+            .indexPatterns(ImmutableList.of(signalsLogIndex)) //
+            .template(new Template(Settings.builder().put("index.hidden", true).build(), null, null)) //
+            .build();
+        putRequest.indexTemplate(composableIndexTemplate);
 
         client.execute(PutComposableIndexTemplateAction.INSTANCE, putRequest, new ActionListener<AcknowledgedResponse>() {
 

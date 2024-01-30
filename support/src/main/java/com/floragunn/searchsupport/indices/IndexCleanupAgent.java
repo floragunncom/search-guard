@@ -113,7 +113,7 @@ public class IndexCleanupAgent implements ComponentStateProvider {
         try {
             Meter meter = Meter.basic(MetricsLevel.BASIC, deleteActionMetrics);
 
-            new DeleteByQueryRequestBuilder(client, DeleteByQueryAction.INSTANCE).filter(cleanupQuery.get()).source(index)
+            new DeleteByQueryRequestBuilder(client).filter(cleanupQuery.get()).source(index)
                     .execute(new ActionListener<BulkByScrollResponse>() {
                         @Override
                         public void onResponse(BulkByScrollResponse response) {
