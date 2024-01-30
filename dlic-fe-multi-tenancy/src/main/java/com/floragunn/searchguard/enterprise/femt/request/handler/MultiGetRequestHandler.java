@@ -42,9 +42,9 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, MultiGetRequest request, ActionListener<?> listener) {
         log.debug("Handle multi get request");
-        threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
+            threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             MultiGetRequest scopedRequest = multiGetMapper.toScopedMultiGetRequest(request, requestedTenant);
 
             nodeClient.multiGet(scopedRequest, new ActionListener<>() {
@@ -66,6 +66,7 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
                 @Override
                 public void onFailure(Exception e) {
                     log.error("An error occurred while sending multi get request", e);
+                    storedContext.restore();
                     listener.onFailure(e);
                 }
             });
