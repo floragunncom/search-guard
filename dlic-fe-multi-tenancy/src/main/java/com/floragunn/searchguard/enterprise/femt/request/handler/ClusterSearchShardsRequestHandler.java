@@ -35,10 +35,8 @@ public class ClusterSearchShardsRequestHandler extends RequestHandler<ClusterSea
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, ClusterSearchShardsRequest request, ActionListener<?> listener) {
         log.debug("Handle cluster search shards request");
-        threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
-
         listener.onFailure(new ElasticsearchSecurityException(
-                "Filter-level MT via cross cluster search is not available for scrolling and minimize_roundtrips=true"));
+            "Filter-level MT via cross cluster search is not available for scrolling and minimize_roundtrips=true"));
         return SyncAuthorizationFilter.Result.INTERCEPTED;
     }
 
