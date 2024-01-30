@@ -70,11 +70,10 @@ public class FieldMaskingAggregationTest {
 
     @BeforeClass
     public static void setupTestData() {
-        try (Client client = cluster.getInternalNodeClient()) {
-            TestData testData = TestData.documentCount(DOC_COUNT).get();
-            testData.createIndex(client, "ip", Settings.builder().put("index.number_of_shards", 5).build());
-            referenceAggregationTable.add(testData.getRetainedDocuments().values());
-        }
+        Client client = cluster.getInternalNodeClient();
+        TestData testData = TestData.documentCount(DOC_COUNT).get();
+        testData.createIndex(client, "ip", Settings.builder().put("index.number_of_shards", 5).build());
+        referenceAggregationTable.add(testData.getRetainedDocuments().values());
     }
 
     @Test

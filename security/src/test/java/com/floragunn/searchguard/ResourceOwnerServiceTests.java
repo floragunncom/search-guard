@@ -215,7 +215,7 @@ public class ResourceOwnerServiceTests {
         public MockSubmitTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
                 final TransportService transportService, final AdminDNs adminDNs, final ActionFilters actionFilters) {
 
-            super(TYPE.name(), transportService, actionFilters, MockSubmitActionRequest::new);
+            super(TYPE.name(), transportService, actionFilters, MockSubmitActionRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
         }
 
         @Override
@@ -258,7 +258,7 @@ public class ResourceOwnerServiceTests {
         public MockGetTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
                 final TransportService transportService, final AdminDNs adminDNs, final ActionFilters actionFilters) {
 
-            super(TYPE.name(), transportService, actionFilters, MockGetActionRequest::new);
+            super(TYPE.name(), transportService, actionFilters, MockGetActionRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
         }
 
         @Override
@@ -302,7 +302,7 @@ public class ResourceOwnerServiceTests {
         public MockDeleteTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
                 final TransportService transportService, final AdminDNs adminDNs, final ActionFilters actionFilters) {
 
-            super(TYPE.name(), transportService, actionFilters, MockGetActionRequest::new);
+            super(TYPE.name(), transportService, actionFilters, MockGetActionRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
         }
 
         @Override

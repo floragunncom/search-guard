@@ -109,16 +109,15 @@ public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
 
         setup(Settings.EMPTY, new DynamicSgConfig().setSgConfig(configPath), settings, true);
 
-        try (Client tc = getPrivilegedInternalNodeClient()) {
+        Client tc = getPrivilegedInternalNodeClient();
 
-            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
-                    XContentType.JSON)).actionGet();
+        tc.index(new IndexRequest("vulcangov").setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).source("{\"content\":1}",
+                XContentType.JSON)).actionGet();
 
-            ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE,
-                    new ConfigUpdateRequest(new String[] { "config", "roles", "rolesmapping", "internalusers", "actiongroups" })).actionGet();
-            Assert.assertFalse(cur.hasFailures());
-            Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
-        }
+        ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE,
+                new ConfigUpdateRequest(new String[] { "config", "roles", "rolesmapping", "internalusers", "actiongroups" })).actionGet();
+        Assert.assertFalse(cur.hasFailures());
+        Assert.assertEquals(clusterInfo.numNodes, cur.getNodes().size());
     }
 
     public void testCert(String configPath) throws Exception {

@@ -146,7 +146,7 @@ public class JobDistributor implements AutoCloseable {
 
             if (log.isTraceEnabled()) {
                 log.trace("ClusterChangedEvent:\nblocksChanged: " + event.blocksChanged() + "\nmetadata: " + event.changedCustomMetadataSet()
-                        + "\nindices created: " + event.indicesCreated() + "\nindices deleted: " + event.indicesDeleted() + "\nnew cluster: "
+                        + "\nindices deleted: " + event.indicesDeleted() + "\nnew cluster: "
                         + event.isNewCluster() + "\nlocalNodeMaster: " + event.localNodeMaster() + "\nmetadataChanged: " + event.metadataChanged()
                         + "\nnodesAdded: " + event.nodesAdded() + "\nnodesChanged: " + event.nodesChanged() + "\nnodesRemoved: "
                         + event.nodesRemoved() + "\nroutingTableChanged: " + event.routingTableChanged() + "\nsource: " + event.source()

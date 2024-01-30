@@ -46,10 +46,9 @@ public abstract class AbstractDlsFlsTest extends SingleClusterTest {
         Settings settings = Settings.builder().put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").put(override).build();
         setup(Settings.EMPTY, dynamicSgConfig, settings, true);
         
-        try(Client tc = getPrivilegedInternalNodeClient()) {
-            populateData(tc);
-        }
-        
+        Client tc = getPrivilegedInternalNodeClient();
+        populateData(tc);
+
         rh = nonSslRestHelper();
     }
     

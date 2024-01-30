@@ -24,7 +24,7 @@ public class TransportStartStopAction extends HandledTransportAction<StartStopRe
     @Inject
     public TransportStartStopAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(StartStopAction.NAME, transportService, actionFilters, StartStopRequest::new);
+        super(StartStopAction.NAME, transportService, actionFilters, StartStopRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;

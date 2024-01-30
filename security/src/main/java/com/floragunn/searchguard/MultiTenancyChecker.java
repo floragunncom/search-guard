@@ -18,10 +18,11 @@ package com.floragunn.searchguard;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.Version;
 import org.elasticsearch.bootstrap.BootstrapContext;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.IndexVersion;
+import org.elasticsearch.index.IndexVersions;
 
 import java.util.List;
 import java.util.Map;
@@ -58,7 +59,7 @@ class MultiTenancyChecker {
             List<String> indices = indexRepository.findIndicesMetadata() //
                 .entrySet() //
                 .stream() //
-                .filter(entry -> entry.getValue().getCreationVersion().before(IndexVersion.V_8_8_0)) //
+                .filter(entry -> entry.getValue().getCreationVersion().before(IndexVersions.V_8_8_0)) //
                 .map(Map.Entry::getKey) //
                 .filter(currentIndex -> FRONTEND_MT_INDEX_PATTERN.matcher(currentIndex).matches()) //
                 .toList();

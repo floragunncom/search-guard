@@ -90,38 +90,36 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcs() throws Exception {
         setupCcs("sg_roles_983.yml");
         
-        try (Client tc = cl1.nodeClient()) {
-            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
-        
-        try (Client tc = cl2.nodeClient()) {
-            tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
-                              "\"Designation\": \"CEO\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
-                              "\"LastName\": \"lastname0\","+
-                              "\"Salary\": \"salary0\","+
-                              "\"SecretFiled\": \"secret0\","+
-                              "\"AnotherSecredField\": \"anothersecret0\","+
-                              "\"XXX\": \"xxx0\""
-                            + "}", XContentType.JSON)).actionGet();
+        Client tc1 = cl1.nodeClient();
+        tc1.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
+        Client tc2 = cl2.nodeClient();
+        tc2.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc2.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                          "\"Designation\": \"CEO\","+
+                          "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                          "\"LastName\": \"lastname0\","+
+                          "\"Salary\": \"salary0\","+
+                          "\"SecretFiled\": \"secret0\","+
+                          "\"AnotherSecredField\": \"anothersecret0\","+
+                          "\"XXX\": \"xxx0\""
+                        + "}", XContentType.JSON)).actionGet();
+
+        tc2.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                          "\"Designation\": \"someoneelse\","+
+                          "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                          "\"LastName\": \"lastname1\","+
+                          "\"Salary\": \"salary1\","+
+                          "\"SecretFiled\": \"secret1\","+
+                          "\"AnotherSecredField\": \"anothersecret1\","+
+                          "\"XXX\": \"xxx1\""
+                        + "}", XContentType.JSON)).actionGet();
             
-            tc.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
-                              "\"Designation\": \"someoneelse\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
-                              "\"LastName\": \"lastname1\","+
-                              "\"Salary\": \"salary1\","+
-                              "\"SecretFiled\": \"secret1\","+
-                              "\"AnotherSecredField\": \"anothersecret1\","+
-                              "\"XXX\": \"xxx1\""
-                            + "}", XContentType.JSON)).actionGet();
-            
-        }
-        
+
         HttpResponse ccs = null;
         
         //System.out.println("###################### query 1");
@@ -147,38 +145,36 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcsDifferentConfig() throws Exception {
         setupCcs("sg_roles_ccs2.yml");
         
-        try (Client tc = cl1.nodeClient()) {
-            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
-        }
-        
-        try (Client tc = cl2.nodeClient()) {
-            tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
-                              "\"Designation\": \"CEO\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
-                              "\"LastName\": \"lastname0\","+
-                              "\"Salary\": \"salary0\","+
-                              "\"SecretFiled\": \"secret0\","+
-                              "\"AnotherSecredField\": \"anothersecret0\","+
-                              "\"XXX\": \"xxx0\""
-                            + "}", XContentType.JSON)).actionGet();
+        Client tc1 = cl1.nodeClient();
+        tc1.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
+        Client tc2 = cl2.nodeClient();
+        tc2.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc2.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                          "\"Designation\": \"CEO\","+
+                          "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                          "\"LastName\": \"lastname0\","+
+                          "\"Salary\": \"salary0\","+
+                          "\"SecretFiled\": \"secret0\","+
+                          "\"AnotherSecredField\": \"anothersecret0\","+
+                          "\"XXX\": \"xxx0\""
+                        + "}", XContentType.JSON)).actionGet();
+
+        tc2.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                          "\"Designation\": \"someoneelse\","+
+                          "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                          "\"LastName\": \"lastname1\","+
+                          "\"Salary\": \"salary1\","+
+                          "\"SecretFiled\": \"secret1\","+
+                          "\"AnotherSecredField\": \"anothersecret1\","+
+                          "\"XXX\": \"xxx1\""
+                        + "}", XContentType.JSON)).actionGet();
             
-            tc.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
-                              "\"Designation\": \"someoneelse\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
-                              "\"LastName\": \"lastname1\","+
-                              "\"Salary\": \"salary1\","+
-                              "\"SecretFiled\": \"secret1\","+
-                              "\"AnotherSecredField\": \"anothersecret1\","+
-                              "\"XXX\": \"xxx1\""
-                            + "}", XContentType.JSON)).actionGet();
-            
-        }
-        
+
         HttpResponse ccs = null;
         
         //System.out.println("###################### query 1");
@@ -204,60 +200,58 @@ public class DlsFlsCrossClusterSearchTest extends AbstractSGUnitTest{
     public void testCcsDifferentConfigBoth() throws Exception {
         setupCcs("sg_roles_ccs2.yml");
         
-        try (Client tc = cl1.nodeClient()) {
-            tc.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        Client tc1 = cl1.nodeClient();
+        tc1.index(new IndexRequest("twitter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\"}", XContentType.JSON)).actionGet();
+
+        tc1.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\","+
+                          "\"Designation\": \"CEO\","+
+                          "\"FirstName\": \"__fn__"+cl1Info.clustername+"\","+
+                          "\"LastName\": \"lastname0\","+
+                          "\"Salary\": \"salary0\","+
+                          "\"SecretFiled\": \"secret3\","+
+                          "\"AnotherSecredField\": \"anothersecret3\","+
+                          "\"XXX\": \"xxx0\""
+                        + "}", XContentType.JSON)).actionGet();
+
+        tc1.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
+                .source("{\"cluster\": \""+cl1Info.clustername+"\","+
+                          "\"Designation\": \"someoneelse\","+
+                          "\"FirstName\": \"__fn__"+cl1Info.clustername+"\","+
+                          "\"LastName\": \"lastname1\","+
+                          "\"Salary\": \"salary1\","+
+                          "\"SecretFiled\": \"secret4\","+
+                          "\"AnotherSecredField\": \"anothersecret4\","+
+                          "\"XXX\": \"xxx1\""
+                        + "}", XContentType.JSON)).actionGet();
+
+        Client tc2 = cl2.nodeClient();
+        tc2.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
+        tc2.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                          "\"Designation\": \"CEO\","+
+                          "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                          "\"LastName\": \"lastname0\","+
+                          "\"Salary\": \"salary0\","+
+                          "\"SecretFiled\": \"secret0\","+
+                          "\"AnotherSecredField\": \"anothersecret0\","+
+                          "\"XXX\": \"xxx0\""
+                        + "}", XContentType.JSON)).actionGet();
+
+        tc2.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
+                .source("{\"cluster\": \""+cl2Info.clustername+"\","+
+                          "\"Designation\": \"someoneelse\","+
+                          "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
+                          "\"LastName\": \"lastname1\","+
+                          "\"Salary\": \"salary1\","+
+                          "\"SecretFiled\": \"secret1\","+
+                          "\"AnotherSecredField\": \"anothersecret1\","+
+                          "\"XXX\": \"xxx1\""
+                        + "}", XContentType.JSON)).actionGet();
             
-            tc.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\","+
-                              "\"Designation\": \"CEO\","+
-                              "\"FirstName\": \"__fn__"+cl1Info.clustername+"\","+
-                              "\"LastName\": \"lastname0\","+
-                              "\"Salary\": \"salary0\","+
-                              "\"SecretFiled\": \"secret3\","+
-                              "\"AnotherSecredField\": \"anothersecret3\","+
-                              "\"XXX\": \"xxx0\""
-                            + "}", XContentType.JSON)).actionGet();
-            
-            tc.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
-                    .source("{\"cluster\": \""+cl1Info.clustername+"\","+
-                              "\"Designation\": \"someoneelse\","+
-                              "\"FirstName\": \"__fn__"+cl1Info.clustername+"\","+
-                              "\"LastName\": \"lastname1\","+
-                              "\"Salary\": \"salary1\","+
-                              "\"SecretFiled\": \"secret4\","+
-                              "\"AnotherSecredField\": \"anothersecret4\","+
-                              "\"XXX\": \"xxx1\""
-                            + "}", XContentType.JSON)).actionGet();
-        }
-        
-        try (Client tc = cl2.nodeClient()) {
-            tc.index(new IndexRequest("twutter").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("0")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
-                              "\"Designation\": \"CEO\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
-                              "\"LastName\": \"lastname0\","+
-                              "\"Salary\": \"salary0\","+
-                              "\"SecretFiled\": \"secret0\","+
-                              "\"AnotherSecredField\": \"anothersecret0\","+
-                              "\"XXX\": \"xxx0\""
-                            + "}", XContentType.JSON)).actionGet();
-            
-            tc.index(new IndexRequest("humanresources").setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1")
-                    .source("{\"cluster\": \""+cl2Info.clustername+"\","+
-                              "\"Designation\": \"someoneelse\","+
-                              "\"FirstName\": \"__fn__"+cl2Info.clustername+"\","+
-                              "\"LastName\": \"lastname1\","+
-                              "\"Salary\": \"salary1\","+
-                              "\"SecretFiled\": \"secret1\","+
-                              "\"AnotherSecredField\": \"anothersecret1\","+
-                              "\"XXX\": \"xxx1\""
-                            + "}", XContentType.JSON)).actionGet();
-            
-        }
-        
+
         HttpResponse ccs = null;
         
         //System.out.println("###################### query 1");

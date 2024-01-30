@@ -64,9 +64,8 @@ public class DlsTest {
 
     @BeforeClass
     public static void setupTestData() {
-        try (Client client = cluster.getInternalNodeClient()) {
-            TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
-        }
+        Client client = cluster.getInternalNodeClient();
+        TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
     }
 
     @Test
