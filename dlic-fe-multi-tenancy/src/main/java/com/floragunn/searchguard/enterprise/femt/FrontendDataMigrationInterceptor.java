@@ -47,7 +47,8 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.SG_FILTER_LEVEL_FEMT_DONE;
-import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.TEMP_MIGRATION_INDEX_NAME_POSTFIX;
+import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.TEMP_MIGRATION_INDEX_NAME_POSTFIX_1;
+import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.TEMP_MIGRATION_INDEX_NAME_POSTFIX_2;
 
 class FrontendDataMigrationInterceptor {
 
@@ -207,7 +208,7 @@ class FrontendDataMigrationInterceptor {
     }
 
     private boolean isTempMigrationIndex(String index) {
-        return index.endsWith(TEMP_MIGRATION_INDEX_NAME_POSTFIX);
+        return index.endsWith(TEMP_MIGRATION_INDEX_NAME_POSTFIX_1) || index.endsWith(TEMP_MIGRATION_INDEX_NAME_POSTFIX_2);
     }
 
     private Optional<DocNode> extendMappingsWithMultitenancy(String sourceMappings) throws DocumentParseException {
