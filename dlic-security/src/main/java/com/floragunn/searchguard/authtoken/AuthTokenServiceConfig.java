@@ -14,10 +14,12 @@
 
 package com.floragunn.searchguard.authtoken;
 
+import java.time.Duration;
 import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.List;
 
+import com.floragunn.codova.config.net.CacheConfig;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidatingFunction;
@@ -47,6 +49,8 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
             AuthTokenServiceConfig.class, AuthTokenServiceConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
     public static final String DEFAULT_AUDIENCE = "searchguard_tokenauth";
+
+    static final CacheConfig DEFAULT_TOKEN_CACHE_CONFIG = new CacheConfig(true, Duration.ofMinutes(60), null, null);
     static final String SIGNING_KEY_SECRET = "auth_tokens_signing_key_hs512";
 
     private boolean enabled;
@@ -58,6 +62,7 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
     private List<RequestedPrivileges.ExcludedIndexPermissions> excludeIndexPermissions;
     private int maxTokensPerUser = 100;
     private FreezePrivileges freezePrivileges = FreezePrivileges.USER_CHOOSES;
+    private CacheConfig cacheConfig;
     private DocNode source;
 
     public boolean isEnabled() {
@@ -153,6 +158,10 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
             } else if (vJsonNode.hasNonNull("jwt_encryption_key_a256kw")) {
                 result.jwtEncryptionKey = vJsonNode.get("jwt_encryption_key_a256kw").by(JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW);
             }
+
+            result.cacheConfig = vJsonNode.get("token_cache")
+                    .withDefault(DEFAULT_TOKEN_CACHE_CONFIG)
+                    .by(CacheConfig::new);
 
             result.jwtAud = vJsonNode.get("jwt_aud_claim").withDefault(DEFAULT_AUDIENCE).asString();
             result.maxValidity = vJsonNode.get("max_validity").asTemporalAmount();
@@ -296,6 +305,14 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
 
     public void setFreezePrivileges(FreezePrivileges freezePrivileges) {
         this.freezePrivileges = freezePrivileges;
+    }
+
+    public CacheConfig getCacheConfig() {
+        return cacheConfig;
+    }
+
+    public void setCacheConfig(CacheConfig cacheConfig) {
+        this.cacheConfig = cacheConfig;
     }
 
     @Override
