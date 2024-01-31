@@ -18,26 +18,14 @@ import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.Interce
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
 
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.ActionAuthorization;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
-import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
-import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.authz.config.Tenant;
-import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
-import com.floragunn.searchguard.user.User;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -66,6 +54,18 @@ import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.rest.RestStatus;
+
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.Tenant;
+import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
+import com.floragunn.searchguard.user.User;
 
 public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
@@ -394,7 +394,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
             return ImmutableSet.of(putMappingRequest.getConcreteIndex() != null ? putMappingRequest.getConcreteIndex().getName() : null,
                     putMappingRequest.indices());
         } else if (request instanceof IndicesRequest) {
-            if (((IndicesRequest) request).indices() != null && Arrays.stream(((IndicesRequest) request).indices()).noneMatch(Objects::isNull)) {
+            if (((IndicesRequest) request).indices() != null) {
                 return ImmutableSet.of(Arrays.asList(((IndicesRequest) request).indices()));
             } else {
                 return Collections.emptySet();

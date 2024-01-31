@@ -71,6 +71,9 @@ public class IgnoreUnauthorizedIntTest {
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user").roles(//
             new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("*"));
 
+    static TestSgConfig.User LIMITED_USER_A_WITHOUT_ANALYZE = new TestSgConfig.User("limited_user_A_without_analyze").roles(//
+            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("indices:data/read*").on("a*"));
+
     static TestIndex index_a1 = TestIndex.name("a1").documentCount(100).seed(1).attr("prefix", "a").build();
     static TestIndex index_a2 = TestIndex.name("a2").documentCount(110).seed(2).attr("prefix", "a").build();
     static TestIndex index_a3 = TestIndex.name("a3").documentCount(120).seed(3).attr("prefix", "a").build();
@@ -83,7 +86,7 @@ public class IgnoreUnauthorizedIntTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
-            .users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_C, LIMITED_USER_D, LIMITED_USER_A_B1, UNLIMITED_USER)//
+            .users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_C, LIMITED_USER_D, LIMITED_USER_A_B1, UNLIMITED_USER, LIMITED_USER_A_WITHOUT_ANALYZE)//
             .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1)//
             .aliases(xalias_ab1)//
             .build();
@@ -400,5 +403,41 @@ public class IgnoreUnauthorizedIntTest {
             Assert.assertThat(httpResponse, json(distinctNodesAt("aggregations.indices.buckets[*].key", containsInAnyOrder("a1", "a2", "a3"))));
         }
 
+    }
+
+    @Test
+    public void analyze_specificIndex() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
+            HttpResponse httpResponse = restClient.postJson("/a1/_analyze", DocNode.of("text", "foo"));
+
+            Assert.assertThat(httpResponse, isOk());
+        }
+    }
+
+    @Test
+    public void analyze_specificIndex_forbidden() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
+            HttpResponse httpResponse = restClient.postJson("/b1/_analyze", DocNode.of("text", "foo"));
+
+            Assert.assertThat(httpResponse, isForbidden());
+        }
+    }
+
+    @Test
+    public void analyze_noIndex() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
+            HttpResponse httpResponse = restClient.postJson("/_analyze", DocNode.of("text", "foo"));
+
+            Assert.assertThat(httpResponse, isOk());
+        }
+    }
+    
+    @Test
+    public void analyze_noIndex_forbidden() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A_WITHOUT_ANALYZE)) {
+            HttpResponse httpResponse = restClient.postJson("/_analyze", DocNode.of("text", "foo"));
+
+            Assert.assertThat(httpResponse, isForbidden());
+        }
     }
 }
