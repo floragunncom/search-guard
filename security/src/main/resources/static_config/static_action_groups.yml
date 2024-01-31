@@ -81,6 +81,7 @@ SGS_READ:
   - "indices:data/read*"
   - "indices:admin/mappings/fields/get*"
   - "indices:admin/resolve/index"
+  - "indices:admin/analyze"
   type: "index"
   description: "Allow all read operations"
 SGS_INDICES_ALL:
