@@ -39,6 +39,7 @@ import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.IndicesRequest.Replaceable;
 import org.elasticsearch.action.OriginalIndices;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -108,7 +109,22 @@ public class ActionRequestIntrospector {
             return CLUSTER_REQUEST;
         }
 
-        if (request instanceof IndicesRequest) {
+        if (request instanceof SingleShardRequest) {
+            // SingleShardRequest can reference exactly one index or no indices at all (which might be a bit surprising)
+            SingleShardRequest<?> singleShardRequest = (SingleShardRequest<?>) request;
+            
+            if (singleShardRequest.index() != null) {
+                return new ActionRequestInfo(singleShardRequest.index(), SingleShardRequest.INDICES_OPTIONS);
+            } else {
+                // Actions which can have a null index:
+                // - AnalyzeAction.Request
+                // - PainlessExecuteAction ("cluster:admin/scripts/painless/execute"): This is a cluster action, so index information does not matter here
+                // Here, we assume that the request references all indices. However, this is not really true for the AnalyzeAction.Request, which indeed references no index at all in this case.
+                // We have in reduceIndices() a special case for AnalyzeAction.Request which takes care that the user just needs to have the privilege for any index.
+
+                return new ActionRequestInfo("*", IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN);
+            }            
+        } else if (request instanceof IndicesRequest) {
             if (request instanceof PutMappingRequest) {
                 PutMappingRequest putMappingRequest = (PutMappingRequest) request;
 
@@ -195,7 +211,18 @@ public class ActionRequestIntrospector {
     public PrivilegesEvaluationResult reduceIndices(String action, Object request, Set<String> keepIndices,
             ActionRequestInfo actionRequestInfo) throws PrivilegesEvaluationException {
 
-        if (request instanceof IndicesRequest.Replaceable) {
+        if (request instanceof AnalyzeAction.Request) {
+            AnalyzeAction.Request analyzeRequest = (AnalyzeAction.Request) request;
+            
+             if (analyzeRequest.index() == null) {
+                 // This actually does not refer to any index. Let the request pass, as have at least some privileges for the action
+                 return PrivilegesEvaluationResult.OK;
+             } else if (keepIndices.contains(analyzeRequest.index())) {
+                 return PrivilegesEvaluationResult.OK;
+             } else {
+                 return PrivilegesEvaluationResult.INSUFFICIENT;
+             }
+        } else if (request instanceof IndicesRequest.Replaceable) {
             IndicesRequest.Replaceable replaceableIndicesRequest = (IndicesRequest.Replaceable) request;
 
             ResolvedIndices resolvedIndices = getResolvedIndices(replaceableIndicesRequest, actionRequestInfo);
@@ -766,13 +793,7 @@ public class ActionRequestIntrospector {
             Map<String, IndexAbstraction> indicesLookup = state.metadata().getIndicesLookup();
 
             for (String index : localIndices) {
-                String resolved;
-                if (index == null && localIndices.size() == 1) {
-                    return ImmutableSet.empty();
-                } else {
-                    resolved = resolver.resolveDateMathExpression(index);
-                }
-
+                String resolved = resolver.resolveDateMathExpression(index);                
                 IndexAbstraction indexAbstraction = indicesLookup.get(resolved);
 
                 if (indexAbstraction == null) {
