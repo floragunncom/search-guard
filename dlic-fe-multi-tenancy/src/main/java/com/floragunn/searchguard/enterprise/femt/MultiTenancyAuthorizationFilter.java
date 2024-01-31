@@ -384,7 +384,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
             return ImmutableSet.of(putMappingRequest.getConcreteIndex() != null ? putMappingRequest.getConcreteIndex().getName() : null,
                     putMappingRequest.indices());
         } else if (request instanceof IndicesRequest) {
-            if (((IndicesRequest) request).indices() != null && Arrays.stream(((IndicesRequest) request).indices()).noneMatch(Objects::isNull)) {
+            if (((IndicesRequest) request).indices() != null) {
                 return ImmutableSet.of(Arrays.asList(((IndicesRequest) request).indices()));
             } else {
                 return Collections.emptySet();

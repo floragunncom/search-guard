@@ -109,12 +109,14 @@ public class HttpIntegrationTests extends SingleClusterTest {
         Assert.assertEquals(HttpStatus.SC_OK, rh.executePutRequest("/theindex","{}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_CREATED, rh.executePutRequest("/theindex/_doc/1?refresh=true","{\"a\":0}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, rh.executePostRequest("/theindex/_analyze","{\"text\": \"sample text\"}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executePostRequest("_analyze","{\"text\": \"sample text\"}",encodeBasicHeader("worf", "worf")).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_OK, rh.executePostRequest("_analyze","{\"text\": \"sample text\"}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("_analyze","{\"text\": \"sample text\"}",encodeBasicHeader("worf", "worf")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeDeleteRequest("/theindex",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("/klingonempire",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_search", encodeBasicHeader("worf", "worf")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("searchguard/", encodeBasicHeader("worf", "worf")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("/searchguard/_close", null,encodeBasicHeader("worf", "worf")).getStatusCode());
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("/searchguard/_upgrade", null,encodeBasicHeader("worf", "worf")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("/searchguard/_mapping","{}",encodeBasicHeader("worf", "worf")).getStatusCode());
 
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("searchguard/", encodeBasicHeader("worf", "worf")).getStatusCode());
@@ -394,87 +396,90 @@ public class HttpIntegrationTests extends SingleClusterTest {
     }
 
     @Test
-    public void testHTTPBasic2() throws Exception {
+        public void testHTTPBasic2() throws Exception {
 
-        setup(Settings.EMPTY, new DynamicSgConfig(), Settings.EMPTY);
+            setup(Settings.EMPTY, new DynamicSgConfig(), Settings.EMPTY);
 
-        Client tc = getPrivilegedInternalNodeClient();
+            Client tc = getPrivilegedInternalNodeClient();
 
-        tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
+            tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
 
-        tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.index(new IndexRequest("starfleet_academy").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("starfleet_academy").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.index(new IndexRequest("starfleet_library").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("starfleet_library").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.index(new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.index(new IndexRequest("spock").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("kirk").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("spock").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("kirk").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
 
-        RestHelper rh = nonSslRestHelper();
 
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("").getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("worf", "worf")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest(".nonexistentindex*", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("searchguard/_doc/2", "{}",encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("searchguard/_doc/0", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_NOT_FOUND, rh.executeGetRequest("xxxxyyyy/_doc/0", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("abc", "abc:abc")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", encodeBasicHeader("userwithnopassword", "")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", encodeBasicHeader("userwithblankpassword", "")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", encodeBasicHeader("worf", "wrongpasswd")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", new BasicHeader("Authorization", "Basic "+"wrongheader")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", new BasicHeader("Authorization", "Basic ")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", new BasicHeader("Authorization", "Basic")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", new BasicHeader("Authorization", "")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("picard", "picard")).getStatusCode());
+            RestHelper rh = nonSslRestHelper();
 
-        for(int i=0; i< 10; i++) {
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("").getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeDeleteRequest("nonexistentindex*", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest(".nonexistentindex*", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("searchguard/_doc/2", "{}",encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("searchguard/_doc/0", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_NOT_FOUND, rh.executeGetRequest("xxxxyyyy/_doc/0", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("abc", "abc:abc")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", encodeBasicHeader("userwithnopassword", "")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", encodeBasicHeader("userwithblankpassword", "")).getStatusCode());
             Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", encodeBasicHeader("worf", "wrongpasswd")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", new BasicHeader("Authorization", "Basic "+"wrongheader")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", new BasicHeader("Authorization", "Basic ")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", new BasicHeader("Authorization", "Basic")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", new BasicHeader("Authorization", "")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("", encodeBasicHeader("picard", "picard")).getStatusCode());
+
+            for(int i=0; i< 10; i++) {
+                Assert.assertEquals(HttpStatus.SC_UNAUTHORIZED, rh.executeGetRequest("", encodeBasicHeader("worf", "wrongpasswd")).getStatusCode());
+            }
+
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executePutRequest("/theindex","{}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_CREATED, rh.executePutRequest("/theindex/_doc/1?refresh=true","{\"a\":0}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executePostRequest("/theindex/_analyze","{\"text\": \"sample text\"}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executePostRequest("_analyze","{\"text\": \"sample text\"}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("_analyze","{\"text\": \"sample text\"}",encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeDeleteRequest("/theindex",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("/klingonempire",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_search", encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("searchguard/", encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("/searchguard/_close", null,encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("/searchguard/_upgrade", null,encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("/searchguard/_mapping","{}",encodeBasicHeader("worf", "worf")).getStatusCode());
+
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("searchguard/", encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("searchguard/_doc/2", "{}",encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("searchguard/_doc/0",encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("searchguard/_doc/0",encodeBasicHeader("worf", "worf")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("searchguard/_doc/0","{}",encodeBasicHeader("worf", "worf")).getStatusCode());
+
+            HttpResponse resc = rh.executeGetRequest("_cat/indices/public",encodeBasicHeader("bug108", "nagilum"));
+            System.out.println(resc.getBody());
+            //Assert.assertTrue(resc.getBody().contains("green"));
+            Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
+
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("role01_role02/_search?pretty",encodeBasicHeader("user_role01_role02_role03", "user_role01_role02_role03")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("role01_role02/_search?pretty",encodeBasicHeader("user_role01", "user_role01")).getStatusCode());
+
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("spock/_search?pretty",encodeBasicHeader("spock", "spock")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("spock/_search?pretty",encodeBasicHeader("kirk", "kirk")).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("kirk/_search?pretty",encodeBasicHeader("kirk", "kirk")).getStatusCode());
         }
-
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executePutRequest("/theindex","{}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_CREATED, rh.executePutRequest("/theindex/_doc/1?refresh=true","{\"a\":0}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executePostRequest("/theindex/_analyze","{\"text\": \"sample text\"}",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executePostRequest("_analyze","{\"text\": \"sample text\"}",encodeBasicHeader("worf", "worf")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeDeleteRequest("/theindex",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("/klingonempire",encodeBasicHeader("theindexadmin", "theindexadmin")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_search", encodeBasicHeader("worf", "worf")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("searchguard/", encodeBasicHeader("worf", "worf")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePostRequest("/searchguard/_close", null,encodeBasicHeader("worf", "worf")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("/searchguard/_mapping","{}",encodeBasicHeader("worf", "worf")).getStatusCode());
-
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("searchguard/", encodeBasicHeader("worf", "worf")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("searchguard/_doc/2", "{}",encodeBasicHeader("worf", "worf")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("searchguard/_doc/0",encodeBasicHeader("worf", "worf")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeDeleteRequest("searchguard/_doc/0",encodeBasicHeader("worf", "worf")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executePutRequest("searchguard/_doc/0","{}",encodeBasicHeader("worf", "worf")).getStatusCode());
-
-        HttpResponse resc = rh.executeGetRequest("_cat/indices/public",encodeBasicHeader("bug108", "nagilum"));
-        //System.out.println(resc.getBody());
-        //Assert.assertTrue(resc.getBody().contains("green"));
-        Assert.assertEquals(HttpStatus.SC_OK, resc.getStatusCode());
-
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("role01_role02/_search?pretty",encodeBasicHeader("user_role01_role02_role03", "user_role01_role02_role03")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("role01_role02/_search?pretty",encodeBasicHeader("user_role01", "user_role01")).getStatusCode());
-
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("spock/_search?pretty",encodeBasicHeader("spock", "spock")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, rh.executeGetRequest("spock/_search?pretty",encodeBasicHeader("kirk", "kirk")).getStatusCode());
-        Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("kirk/_search?pretty",encodeBasicHeader("kirk", "kirk")).getStatusCode());
-
-    }
     
     @Test
     public void testBulk() throws Exception {
@@ -533,7 +538,7 @@ public class HttpIntegrationTests extends SingleClusterTest {
         res = rh.executeGetRequest("/_search");
         Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
     }
-    
+
     @Test
     @Ignore("fails after rebase")
     public void testAll() throws Exception {
