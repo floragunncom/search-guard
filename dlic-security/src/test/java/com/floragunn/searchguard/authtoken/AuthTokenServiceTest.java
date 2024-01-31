@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 
+import com.floragunn.codova.config.net.CacheConfig;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -102,6 +103,7 @@ public class AuthTokenServiceTest {
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
         config.setMaxTokensPerUser(100);
+        config.setCacheConfig(CacheConfig.DEFAULT);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
@@ -146,6 +148,7 @@ public class AuthTokenServiceTest {
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
         config.setMaxTokensPerUser(100);
+        config.setCacheConfig(CacheConfig.DEFAULT);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
@@ -191,6 +194,7 @@ public class AuthTokenServiceTest {
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
         config.setMaxTokensPerUser(100);
+        config.setCacheConfig(CacheConfig.DEFAULT);
 
         ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                 protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);
@@ -250,6 +254,7 @@ public class AuthTokenServiceTest {
         config.setJwtSigningKey(TestJwk.OCT_1);
         config.setJwtAud("_test_aud");
         config.setMaxTokensPerUser(100);
+        config.setCacheConfig(CacheConfig.DEFAULT);
 
         Settings authTokenServiceSettings = Settings.builder().put(AuthTokenService.CLEANUP_INTERVAL.name(), TimeValue.timeValueSeconds(1)).build();
 
@@ -314,6 +319,7 @@ public class AuthTokenServiceTest {
             config.setJwtAud("_test_aud");
             config.setMaxTokensPerUser(100);
             config.setExcludeClusterPermissions(Collections.emptyList());
+            config.setCacheConfig(CacheConfig.DEFAULT);
 
             ConfigHistoryService configHistoryService = new ConfigHistoryService(configurationRepository, staticSgConfig, privilegedConfigClient,
                     protectedConfigIndexService, actions, StaticSettings.EMPTY, privilegesEvaluator);

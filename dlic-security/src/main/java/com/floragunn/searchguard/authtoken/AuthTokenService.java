@@ -21,11 +21,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -103,7 +103,6 @@ import com.floragunn.searchsupport.cstate.ComponentState.ExceptionRecord;
 import com.floragunn.searchsupport.indices.IndexCleanupAgent;
 import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
 
@@ -127,7 +126,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private final PrivilegesEvaluator privilegesEvaluator;
     private final Actions actions;
 
-    private final Cache<String, AuthToken> idToAuthTokenMap = CacheBuilder.newBuilder().expireAfterWrite(60, TimeUnit.MINUTES).build();
+    private Cache<String, AuthToken> idToAuthTokenMap;
     private JoseJwtProducer jwtProducer;
     private String jwtAudience;
     private JsonWebKey encryptionKey;
@@ -152,6 +151,8 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         this.privilegesEvaluator = privilegesEvaluator;
         this.actions = actions;
 
+        this.idToAuthTokenMap = AuthTokenServiceConfig.DEFAULT_TOKEN_CACHE_CONFIG.build();
+
         this.setConfig(config);
 
         ConfigIndex configIndex = new ConfigIndex(indexName).mapping(AuthToken.INDEX_MAPPING).onIndexReady(this::init);
@@ -174,10 +175,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     }
 
     public AuthToken getById(String id) throws NoSuchAuthTokenException {
-        AuthToken result = idToAuthTokenMap.getIfPresent(id);
+        Optional<AuthToken> result = getTokenFromCache(id);
 
-        if (result != null) {
-            return result;
+        if (result.isPresent()) {
+            return result.get();
         } else {
             return getByIdFromIndex(id);
         }
@@ -186,10 +187,10 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     public void getById(String id, Consumer<AuthToken> onResult, Consumer<NoSuchAuthTokenException> onNoSuchAuthToken,
             Consumer<Exception> onFailure) {
 
-        AuthToken result = idToAuthTokenMap.getIfPresent(id);
+        Optional<AuthToken> result = getTokenFromCache(id);
 
-        if (result != null) {
-            onResult.accept(result);
+        if (result.isPresent()) {
+            onResult.accept(result.get());
         } else {
             getByIdFromIndex(id, onResult, onNoSuchAuthToken, onFailure);
         }
@@ -226,7 +227,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                     try {
                         AuthToken authToken = AuthToken.parse(id, DocNode.parse(Format.JSON).from(getResponse.getSourceAsString()));
 
-                        idToAuthTokenMap.put(id, authToken);
+                        addTokenToCache(id, authToken);
 
                         onResult.accept(authToken);
                     } catch (ConfigValidationException e) {
@@ -542,6 +543,9 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             return;
         }
 
+        this.idToAuthTokenMap = Optional.ofNullable(config.getCacheConfig())
+                .orElse(AuthTokenServiceConfig.DEFAULT_TOKEN_CACHE_CONFIG)
+                .build();
         this.config = config;
         this.jwtAudience = config.getJwtAud();
         this.maxTokensPerUser = config.getMaxTokensPerUser();
@@ -605,12 +609,12 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         }
 
         AuthToken updatedAuthToken = request.getUpdatedToken();
-        AuthToken existingAuthToken = this.idToAuthTokenMap.getIfPresent(updatedAuthToken.getId());
+        Optional<AuthToken> existingAuthToken = getTokenFromCache(updatedAuthToken.getId());
 
-        if (existingAuthToken == null) {
+        if (! existingAuthToken.isPresent()) {
             return "Auth token is not cached";
         } else {
-            this.idToAuthTokenMap.put(updatedAuthToken.getId(), updatedAuthToken);
+            addTokenToCache(updatedAuthToken.getId(), updatedAuthToken);
             return "Auth token updated";
         }
     }
@@ -641,9 +645,9 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
         } catch (Exception e) {
             if (oldToken != null) {
-                this.idToAuthTokenMap.put(oldToken.getId(), oldToken);
+                addTokenToCache(oldToken.getId(), oldToken);
             } else {
-                this.idToAuthTokenMap.invalidate(authToken.getId());
+                removeTokenFromCache(authToken.getId());
             }
             log.warn("Error while storing token " + authToken, e);
             throw new TokenUpdateException(e);
@@ -975,5 +979,20 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public boolean isEnabled() {
         return config != null && config.isEnabled();
+    }
+
+    private Optional<AuthToken> getTokenFromCache(String id) {
+        return Optional.ofNullable(idToAuthTokenMap)
+                .map(cache -> cache.getIfPresent(id));
+    }
+
+    private void addTokenToCache(String id, AuthToken token) {
+        Optional.ofNullable(idToAuthTokenMap)
+                .ifPresent(cache -> cache.put(id, token));
+    }
+
+    private void removeTokenFromCache(String id) {
+        Optional.ofNullable(idToAuthTokenMap)
+                .ifPresent(cache -> cache.invalidate(id));
     }
 }
