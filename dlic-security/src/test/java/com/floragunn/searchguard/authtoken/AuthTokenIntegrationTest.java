@@ -78,6 +78,9 @@ public class AuthTokenIntegrationTest {
                     "      jwt_aud: \"searchguard_tokenauth\"\n" + //
                     "      max_validity: \"1y\"\n" + //
                     "      max_tokens_per_user: 10\n" + //
+                    "      token_cache:\n" + //
+                    "        expire_after_write: 70m\n" + //
+                    "        max_size: 100\n" + //
                     "    authc:\n" + //
                     "      authentication_domain_basic_internal:\n" + //
                     "        http_enabled: true\n" + //
