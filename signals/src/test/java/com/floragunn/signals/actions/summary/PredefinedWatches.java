@@ -222,19 +222,19 @@ class PredefinedWatches {
     }
 
     public long getCountOfDocuments(String index) throws InterruptedException, ExecutionException {
-        try(Client client = localCluster.getPrivilegedInternalNodeClient()) {
-            SearchRequest request = new SearchRequest(index);
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            searchSourceBuilder.query(QueryBuilders.matchAllQuery());
-            request.source(searchSourceBuilder);
+        Client client = localCluster.getPrivilegedInternalNodeClient();
+        SearchRequest request = new SearchRequest(index);
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+        request.source(searchSourceBuilder);
 
-            SearchResponse response = client.search(request).get();
+        SearchResponse response = client.search(request).get();
 
-            return response.getHits().getTotalHits().value;
-        }
+        return response.getHits().getTotalHits().value;
     }
     public long countWatchStatusWithAvailableStatusCode(String watchStateIndexName) {
-        try(Client client = localCluster.getPrivilegedInternalNodeClient()) {
+        try {
+            Client client = localCluster.getPrivilegedInternalNodeClient();
             SearchRequest request = new SearchRequest(watchStateIndexName);
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
             searchSourceBuilder.query(QueryBuilders.existsQuery("last_status.code"));

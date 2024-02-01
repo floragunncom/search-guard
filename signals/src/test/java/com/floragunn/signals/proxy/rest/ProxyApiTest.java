@@ -109,14 +109,13 @@ public class ProxyApiTest {
 
     @After
     public void removeProxies()  {
-        try (Client client = cluster.getPrivilegedInternalNodeClient()){
-            BulkByScrollResponse deleteResponse = client.execute(DeleteByQueryAction.INSTANCE, new DeleteByQueryRequest(SIGNALS_PROXIES_INDEX_NAME)
-                    .setRefresh(true)
-                    .setQuery(QueryBuilders.matchAllQuery())
-            ).actionGet();
-            assertThat(deleteResponse.getBulkFailures(), hasSize(0));
-            nodesHttpProxyHostRegistries.forEach(HttpProxyHostRegistry::reloadAll);
-        }
+        Client client = cluster.getPrivilegedInternalNodeClient();
+        BulkByScrollResponse deleteResponse = client.execute(DeleteByQueryAction.INSTANCE, new DeleteByQueryRequest(SIGNALS_PROXIES_INDEX_NAME)
+                .setRefresh(true)
+                .setQuery(QueryBuilders.matchAllQuery())
+        ).actionGet();
+        assertThat(deleteResponse.getBulkFailures(), hasSize(0));
+        nodesHttpProxyHostRegistries.forEach(HttpProxyHostRegistry::reloadAll);
     }
 
     @Test
@@ -528,22 +527,20 @@ public class ProxyApiTest {
             bulkRequest.add(new IndexRequest(SIGNALS_PROXIES_INDEX_NAME).id(id).source(proxy));
             proxies.add(proxy.with("id", id).without("store_time"));
         });
-        try (Client client = cluster.getInternalNodeClient()) {
-            BulkResponse bulkResponse = client.bulk(bulkRequest).actionGet();
-            assertThat(bulkResponse.hasFailures(), equalTo(false));
-        }
+        Client client = cluster.getInternalNodeClient();
+        BulkResponse bulkResponse = client.bulk(bulkRequest).actionGet();
+        assertThat(bulkResponse.hasFailures(), equalTo(false));
         return proxies;
     }
 
     private void saveProxy(String id, DocNode proxy) {
-        try (Client client = cluster.getInternalNodeClient()) {
-            IndexRequest indexRequest = new IndexRequest(SIGNALS_PROXIES_INDEX_NAME)
-                    .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).id(id).source(proxy);
-            DocWriteResponse response = client.index(indexRequest).actionGet();
-            assertThat(response.getResult(), anyOf(
-                    equalTo(DocWriteResponse.Result.CREATED),
-                    equalTo(DocWriteResponse.Result.UPDATED)
-            ));
-        }
+        Client client = cluster.getInternalNodeClient();
+        IndexRequest indexRequest = new IndexRequest(SIGNALS_PROXIES_INDEX_NAME)
+                .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).id(id).source(proxy);
+        DocWriteResponse response = client.index(indexRequest).actionGet();
+        assertThat(response.getResult(), anyOf(
+                equalTo(DocWriteResponse.Result.CREATED),
+                equalTo(DocWriteResponse.Result.UPDATED)
+        ));
     }
 }

@@ -334,7 +334,9 @@ public class ActionTest {
 	@Test
 	public void testJiraActionWithStoredProxyConfig() throws Exception {
 
-		try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+
+			Client client = cluster.getInternalNodeClient();
 
 			webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 

@@ -718,8 +718,9 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedProxy() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); //
-             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            Client client = cluster.getInternalNodeClient();
 
             webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
@@ -754,8 +755,9 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedProxy_shouldDetectProxyChange() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); //
-             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            Client client = cluster.getInternalNodeClient();
 
             webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
@@ -799,8 +801,9 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedProxy_shouldDetectProxyRemoval() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient(); //
-             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+
+            Client client = cluster.getInternalNodeClient();
 
             webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
