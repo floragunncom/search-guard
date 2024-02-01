@@ -80,53 +80,51 @@ public class LoadOperatorSummaryActionTest {
 
     @BeforeClass
     public static void createTestData() {
-        try (Client client = cluster.getInternalNodeClient()) {
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_1).setRefreshPolicy(IMMEDIATE)
-                    .source(XContentType.JSON, "source_id", 1, "temperature", .0, " humidity", .0)).actionGet();
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_1).setRefreshPolicy(IMMEDIATE)
-                    .source(XContentType.JSON, "source_id", 1, "temperature", .1, " humidity", .1)).actionGet();
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_1).setRefreshPolicy(IMMEDIATE)
-                    .source(XContentType.JSON, "source_id", 1, "temperature", 4.3, " humidity", .0)).actionGet();
+        Client client = cluster.getInternalNodeClient();
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_1).setRefreshPolicy(IMMEDIATE)
+                .source(XContentType.JSON, "source_id", 1, "temperature", .0, " humidity", .0)).actionGet();
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_1).setRefreshPolicy(IMMEDIATE)
+                .source(XContentType.JSON, "source_id", 1, "temperature", .1, " humidity", .1)).actionGet();
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_1).setRefreshPolicy(IMMEDIATE)
+                .source(XContentType.JSON, "source_id", 1, "temperature", 4.3, " humidity", .0)).actionGet();
 
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_2).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_2).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 2, "temperature", .0, " humidity", .0)).actionGet();
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_2).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_2).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 2, "temperature", .1, " humidity", .1)).actionGet();
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_2).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_2).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 2, "temperature", .1, " humidity", .0)).actionGet();
 
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_3).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_3).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 3, "temperature", .0, " humidity", .0)).actionGet();
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_3).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_3).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 3, "temperature", .1, " humidity", .1)).actionGet();
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_3).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_3).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 3, "temperature", 13.3, " humidity", .0)).actionGet();
 
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_4).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_4).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 4, "temperature", 36.5, " humidity", .0)).actionGet();
 
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_5).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_5).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 5, "temperature", 7.25, " humidity", .0)).actionGet();
 
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_6).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_6).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 6, "temperature", 7.35, " humidity", .0)).actionGet();
 
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_7).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_7).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 7, "temperature", 7.45, " humidity", .0)).actionGet();
 
-            client.index(new IndexRequest(INDEX_NAME_WATCHED_8).setRefreshPolicy(IMMEDIATE)
+        client.index(new IndexRequest(INDEX_NAME_WATCHED_8).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 8, "temperature", 7.55, " humidity", .0)).actionGet();
 
-            client.admin().indices().create(new CreateIndexRequest(INDEX_ALARMS)).actionGet();
-        }
+        client.admin().indices().create(new CreateIndexRequest(INDEX_ALARMS)).actionGet();
     }
 
     @After
     public void deleteWatchStateAndAlarms() {
-        try (Client client = cluster.getPrivilegedInternalNodeClient()) {
-            deleteDocumentsFromIndex(client, INDEX_SIGNALS_WATCHES_STATE);
-            deleteDocumentsFromIndex(client, INDEX_ALARMS);
-        }
+        Client client = cluster.getPrivilegedInternalNodeClient();
+        deleteDocumentsFromIndex(client, INDEX_SIGNALS_WATCHES_STATE);
+        deleteDocumentsFromIndex(client, INDEX_ALARMS);
     }
 
     private static void deleteDocumentsFromIndex(Client client, String indexName) {
