@@ -262,6 +262,7 @@ SGS_KIBANA_SERVER:
     - ".fleet-agents"
     - "logs-cloud_security_posture*"
     - ".internal.alerts-observability.*"
+    - ".internal.alerts-security.alerts*"
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
@@ -274,10 +275,6 @@ SGS_KIBANA_SERVER:
     - "indices:monitor/settings/get"
     - "indices:monitor/stats"
     - "indices:data/read/field_caps*"
-  - index_patterns:
-      - ".internal.alerts-security.alerts-default-*"
-    allowed_actions:
-      - "indices:admin/create"
 
 SGS_LOGSTASH:
   reserved: true
