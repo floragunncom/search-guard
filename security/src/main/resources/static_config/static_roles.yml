@@ -27,8 +27,20 @@ SGS_KIBANA_USER:
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
     - "SGS_PERSONAL_SESSIONS"
-    - "cluster:admin:searchguard:femt:user/available_tenants/get"
   index_permissions:
+    - index_patterns:
+        - ".kibana"
+        - ".kibana-6"
+        - ".kibana_"
+        - '/\.kibana_[0-9]+/'
+        - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+        - ".kibana_task_manager"
+        - '/\.kibana_task_manager_[0-9]+/'
+      allowed_actions:
+        - "SGS_READ"
+        - "SGS_DELETE"
+        - "SGS_MANAGE"
+        - "SGS_INDEX"
     - index_patterns:
         - ".tasks"
         - ".management-beats"
@@ -49,7 +61,6 @@ SGS_KIBANA_USER_NO_GLOBAL_TENANT:
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
     - "SGS_PERSONAL_SESSIONS"
-    - "cluster:admin:searchguard:femt:user/available_tenants/get"
   index_permissions:
     - index_patterns:
         - ".tasks"
@@ -201,7 +212,6 @@ SGS_KIBANA_SERVER:
         - "*:.kibana-event-log-*"
         - ".fleet-agents"
         - "logs-cloud_security_posture*"
-        - ".internal.alerts-observability.*"
       allowed_actions:
         - "SGS_INDICES_ALL"
     - index_patterns:

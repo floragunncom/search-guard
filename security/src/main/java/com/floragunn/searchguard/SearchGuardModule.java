@@ -124,10 +124,6 @@ public interface SearchGuardModule {
     default ImmutableList<SyncAuthorizationFilter> getSyncAuthorizationFilters() {
         return ImmutableList.empty();
     }
-    
-    default ImmutableList<SyncAuthorizationFilter> getPrePrivilegeEvaluationSyncAuthorizationFilters() {
-        return ImmutableList.empty();
-    }
 
     default ImmutableList<Function<String, Predicate<String>>> getFieldFilters() {
         return ImmutableList.empty();

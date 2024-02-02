@@ -24,26 +24,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.floragunn.searchguard.authz.config.ActionGroup;
-import com.floragunn.searchguard.authz.config.AuthorizationConfig;
-import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
-import com.floragunn.searchguard.authz.config.Role;
-import com.floragunn.searchguard.authz.config.RoleMapping;
-import com.floragunn.searchguard.authz.config.Tenant;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
+import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.action.support.ActionFilterChain;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -54,6 +56,7 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -64,12 +67,18 @@ import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.AuthorizationConfig;
+import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.authz.config.RoleMapping;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -96,7 +105,9 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             StaticSettings.AttributeSet.of(ADMIN_ONLY_ACTIONS, ADMIN_ONLY_INDICES, CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
                     UNSUPPORTED_RESTORE_SGINDEX_ENABLED);
 
+    private static final String USER_TENANT = "__user__";
     private static final Logger log = LogManager.getLogger(PrivilegesEvaluator.class);
+    protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final ClusterService clusterService;
     private final AuthorizationService authorizationService;
     private final IndexNameExpressionResolver resolver;
@@ -104,7 +115,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final AuditLog auditLog;
     private ThreadContext threadContext;
 
-    private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
+    private PrivilegesInterceptor privilegesInterceptor;
 
     private final boolean checkSnapshotRestoreWritePrivileges;
 
@@ -112,6 +123,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final ActionRequestIntrospector actionRequestIntrospector;
     private final SnapshotRestoreEvaluator snapshotRestoreEvaluator;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
+    private final Client localClient;
     private final Pattern adminOnlyActions;
     private final Pattern adminOnlyIndices;
     private final Actions actions;
@@ -119,9 +131,13 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     private volatile AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
     private volatile RoleBasedActionAuthorization actionAuthorization = null;
-    private volatile TenantManager tenantManager = null;
 
-    public PrivilegesEvaluator(ClusterService clusterService, ThreadPool threadPool,
+    // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
+    private String kibanaServerUsername;
+    private String kibanaIndexName;
+    private volatile boolean kibanaIndexTemplateFixApplied = false;
+
+    public PrivilegesEvaluator(Client localClient, ClusterService clusterService, ThreadPool threadPool,
             ConfigurationRepository configurationRepository, AuthorizationService authorizationService, IndexNameExpressionResolver resolver,
             AuditLog auditLog, StaticSettings settings, ClusterInfoHolder clusterInfoHolder, Actions actions,
             ActionRequestIntrospector actionRequestIntrospector,
@@ -131,6 +147,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.clusterService = clusterService;
         this.resolver = resolver;
         this.auditLog = auditLog;
+        this.localClient = localClient;
         this.authorizationService = authorizationService;
 
         this.threadContext = threadPool.getThreadContext();
@@ -183,7 +200,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
                         : ActionGroup.FlattenedIndex.EMPTY;
 
-                tenantManager = new TenantManager(tenants.getCEntries().keySet());
                 actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions,
                         clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet(), adminOnlyIndices,
                         authzConfig.getMetricsLevel());
@@ -308,6 +324,22 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                             authzConfig, actionAuthorization, specialPrivilegesEvaluationContext, context);
                 }
 
+                if (privilegesInterceptor != null) {
+                    PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(context, request, action,
+                            actionAuthorization);
+
+                    if (log.isDebugEnabled()) {
+                        log.debug("Result from privileges interceptor for cluster perm: {}", replaceResult);
+                    }
+
+                    if (replaceResult == PrivilegesInterceptor.InterceptionResult.DENY) {
+                        auditLog.logMissingPrivileges(action0, request, task);
+                        return PrivilegesEvaluationResult.INSUFFICIENT.reason("Denied due to multi-tenancy settings");
+                    } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
+                        return PrivilegesEvaluationResult.OK;
+                    }
+                }
+
                 ImmutableSet<Action> additionalPrivileges = action.getAdditionalPrivileges(request);
 
                 if (additionalPrivileges.isEmpty()) {
@@ -368,6 +400,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
+        ActionFilter additionalActionFilter = null;
+
         if (actionRequestInfo.getResolvedIndices().containsOnlyRemoteIndices()) {
             log.debug(
                     "Request contains only remote indices. We can skip all further checks and let requests be handled by remote cluster: " + action0);
@@ -376,6 +410,65 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         if (log.isDebugEnabled()) {
             log.debug("requested resolved indextypes: {}", actionRequestInfo);
+        }
+
+        // Hack for Kibana multitenancy index template issue: https://git.floragunn.com/search-guard/search-guard-kibana-plugin/-/issues/381
+        if (!kibanaIndexTemplateFixApplied && user.getName().equals(kibanaServerUsername)) {
+            if ((request instanceof ResizeRequest && ((ResizeRequest) request).getSourceIndex().startsWith(kibanaIndexName)
+                    && ((ResizeRequest) request).getSourceIndex().endsWith("_reindex_temp"))
+                    || (request instanceof CreateIndexRequest && ((CreateIndexRequest) request).index().startsWith(kibanaIndexName))) {
+
+                kibanaIndexTemplateFixApplied = true;
+
+                IndexTemplateMetadata template = clusterService.state().getMetadata().getTemplates().get("tenant_template");
+
+                if (template != null && template.patterns().size() > 0 && template.patterns().get(0).startsWith(kibanaIndexName)) {
+                    additionalActionFilter = new ActionFilter() {
+
+                        @Override
+                        public int order() {
+                            return 0;
+                        }
+
+                        @Override
+                        public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action, Request request,
+                                ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
+                            localClient.admin().indices().deleteTemplate(new DeleteIndexTemplateRequest("tenant_template"),
+                                    new ActionListener<AcknowledgedResponse>() {
+
+                                        @Override
+                                        public void onResponse(AcknowledgedResponse response) {
+                                            log.info("Deleted obsolete tenant_template");
+                                            chain.proceed(task, action, request, listener);
+                                        }
+
+                                        @Override
+                                        public void onFailure(Exception e) {
+                                            log.error("Error while deleting tenant_template. Ignoring.", e);
+                                            chain.proceed(task, action, request, listener);
+                                        }
+                                    });
+                        }
+                    };
+                }
+            }
+        }
+
+        if (privilegesInterceptor != null) {
+
+            PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(context, request, actions.get(action0),
+                    actionAuthorization);
+
+            if (log.isDebugEnabled()) {
+                log.debug("Result from privileges interceptor: {}", replaceResult);
+            }
+
+            if (replaceResult == PrivilegesInterceptor.InterceptionResult.DENY) {
+                auditLog.logMissingPrivileges(action0, request, task);
+                return PrivilegesEvaluationResult.INSUFFICIENT.reason("Denied due to multi-tenancy settings");
+            } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
+                return PrivilegesEvaluationResult.OK.with(additionalActionFilter);
+            }
         }
 
         boolean dnfofPossible = authzConfig.isIgnoreUnauthorizedIndices() && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action0)
@@ -528,7 +621,25 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     public Set<String> getAllConfiguredTenantNames() {
-        return tenantManager.getConfiguredTenantNames();
+        return actionAuthorization.getTenants();
+    }
+
+    public boolean multitenancyEnabled() {
+        return privilegesInterceptor != null && privilegesInterceptor.isEnabled();
+    }
+
+    /**
+     * @deprecated Even though this does not really belong to privileges evaluation, this is necessary to support KibanaInfoAction. This should be somehow moved to the MT module.
+     */
+    public String getKibanaServerUser() {
+        return privilegesInterceptor != null ? privilegesInterceptor.getKibanaServerUser() : "kibanaserver";
+    }
+
+    /**
+     * @deprecated Even though this does not really belong to privileges evaluation, this is necessary to support KibanaInfoAction. This should be somehow moved to the MT module.
+     */
+    public String getKibanaIndex() {
+        return privilegesInterceptor != null ? privilegesInterceptor.getKibanaIndex() : null;
     }
 
     public boolean notFailOnForbiddenEnabled() {
@@ -537,6 +648,14 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     public static boolean isTenantPerm(String action0) {
         return action0.startsWith("cluster:admin:searchguard:tenant:");
+    }
+
+    /**
+     * Only used for authinfo REST API
+     */
+    public Map<String, Boolean> mapTenants(User user, Set<String> roles) {
+        return privilegesInterceptor != null ? privilegesInterceptor.mapTenants(user, ImmutableSet.of(roles), actionAuthorization)
+                : ImmutableMap.empty();
     }
 
     public Map<String, Boolean> evaluateClusterAndTenantPrivileges(User user, TransportAddress caller, Collection<String> privilegesAskedFor) {
@@ -554,7 +673,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         Map<String, Boolean> result = new HashMap<>();
 
-        boolean tenantValid = tenantManager.isTenantHeaderValid(requestedTenant);
+        boolean tenantValid = isTenantValid(requestedTenant);
 
         if (!tenantValid) {
             log.info("Invalid tenant: " + requestedTenant + "; user: " + user);
@@ -587,11 +706,20 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         return result;
     }
 
+    private boolean isTenantValid(String requestedTenant) {
+
+        if (Tenant.GLOBAL_TENANT_ID.equals(requestedTenant) || USER_TENANT.equals(requestedTenant)) {
+            return true;
+        }
+
+        return getAllConfiguredTenantNames().contains(requestedTenant);
+    }
+
     private PrivilegesEvaluationResult hasTenantPermission(User user, ImmutableSet<String> mappedRoles, Action action,
             ActionAuthorization actionAuthorization, PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
         String requestedTenant = !Strings.isNullOrEmpty(user.getRequestedTenant()) ? user.getRequestedTenant() : Tenant.GLOBAL_TENANT_ID;
 
-        if (!multiTenancyConfigurationProvider.isMultiTenancyEnabled() && !tenantManager.isGlobalTenantHeader(requestedTenant)) {
+        if (!multitenancyEnabled() && !Tenant.GLOBAL_TENANT_ID.equals(requestedTenant)) {
             log.warn("Denying request to non-default tenant because MT is disabled: " + requestedTenant);
             return PrivilegesEvaluationResult.INSUFFICIENT.reason("Multi-tenancy is disabled");
         }
@@ -603,7 +731,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         String requestedTenant = user.getRequestedTenant();
 
-        if (tenantManager.isTenantHeaderEmpty(requestedTenant) || !multiTenancyConfigurationProvider.isMultiTenancyEnabled()) {
+        if (Strings.isNullOrEmpty(requestedTenant) || !multitenancyEnabled()) {
             return Tenant.GLOBAL_TENANT_ID;
         } else {
             return requestedTenant;
@@ -723,8 +851,12 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         }
     }
 
-    public void setMultiTenancyConfigurationProvider(MultiTenancyConfigurationProvider multiTenancyConfigurationProvider) {
-        this.multiTenancyConfigurationProvider = multiTenancyConfigurationProvider;
+    public PrivilegesInterceptor getPrivilegesInterceptor() {
+        return privilegesInterceptor;
+    }
+
+    public void setPrivilegesInterceptor(PrivilegesInterceptor privilegesInterceptor) {
+        this.privilegesInterceptor = privilegesInterceptor;
     }
 
     public RoleBasedActionAuthorization getActionAuthorization() {

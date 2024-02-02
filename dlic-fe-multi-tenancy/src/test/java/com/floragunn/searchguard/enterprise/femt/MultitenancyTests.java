@@ -22,25 +22,37 @@ import co.elastic.clients.elasticsearch.core.GetResponse;
 import co.elastic.clients.elasticsearch.core.IndexResponse;
 import co.elastic.clients.elasticsearch.core.MgetRequest;
 import co.elastic.clients.elasticsearch.core.MgetResponse;
+import co.elastic.clients.elasticsearch.core.MsearchRequest;
 import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
+import co.elastic.clients.elasticsearch.core.msearch.RequestItem;
 import co.elastic.clients.elasticsearch.indices.UpdateAliasesResponse;
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.MultiGetItemResponse;
+import org.elasticsearch.action.get.MultiGetRequest;
+import org.elasticsearch.action.get.MultiGetRequest.Item;
+import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -58,8 +70,7 @@ public class MultitenancyTests {
     @Test
     public void testMt() throws Exception {
 
-        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee");
-            GenericRestClient adminClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee")) {
             String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
 
             GenericRestClient.HttpResponse response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "blafasel"));
@@ -68,66 +79,21 @@ public class MultitenancyTests {
             response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "business_intelligence"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
 
-            String tenantName = "human_resources";
-            String internalTenantName = tenantName.hashCode() + "_" + "humanresources";
-            response = client.putJson(".kibana/_doc/5.6.0?pretty&refresh", body, new BasicHeader("sgtenant", tenantName));
+            response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "human_resources"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), ".kibana", response.getBodyAsDocNode().get("_index"));
-            Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().get("_id"));
+            Assert.assertTrue(response.getBody(), Pattern.create("*.kibana_*_humanresources*").matches(response.getBody()));
 
-            response = adminClient.get(".kibana/_doc/5.6.0__sg_ten__" + internalTenantName);
+            response = client.get(".kibana/_doc/5.6.0?pretty", new BasicHeader("sgtenant", "human_resources"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            
-            response = client.get(".kibana/_doc/5.6.0?pretty", new BasicHeader("sgtenant", tenantName));
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), ".kibana", response.getBodyAsDocNode().get("_index"));
-            Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().get("_id"));
-            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().hasNonNull("_primary_term"));
-            
-            
-            
+            Assert.assertTrue(response.getBody(), Pattern.create("*human_resources*").matches(response.getBody()));
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
-                tc.admin().indices().delete(new DeleteIndexRequest(".kibana")).actionGet();
-            } catch (Exception ignored) {
-            }
-        }
-    }
-    
-
-    @Test
-    public void testMt_search() throws Exception {
-
-        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee"); GenericRestClient adminClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
-            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
-
-            GenericRestClient.HttpResponse response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "blafasel"));
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
-
-            response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "business_intelligence"));
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_FORBIDDEN, response.getStatusCode());
-
-            response = client.putJson(".kibana/_doc/5.6.0?pretty&refresh", body, new BasicHeader("sgtenant", "human_resources"));
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), ".kibana", response.getBodyAsDocNode().get("_index"));
-            Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().get("_id"));
-
-            
-            response = client.get(".kibana/_search", new BasicHeader("sgtenant", "human_resources"));
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), 1, response.getBodyAsDocNode().getAsNode("hits", "hits").toList().size());
-            Assert.assertEquals(response.getBody(), "5.6.0", response.getBodyAsDocNode().getAsNode("hits", "hits").toListOfNodes().get(0).get("_id"));
-            
-            
-        } finally {
-            try (Client tc = cluster.getInternalNodeClient()) {
-                tc.admin().indices().delete(new DeleteIndexRequest(".kibana")).actionGet();
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_1592542611_humanresources")).actionGet();
             } catch (Exception ignored) {
             }
         }
     }
 
-    @Ignore
     @Test
     public void testMtMulti() throws Exception {
 
@@ -136,10 +102,10 @@ public class MultitenancyTests {
                     + "\"title\" : \"humanresources\"" + "}}";
 
             tc.admin().indices().create(
-                    new CreateIndexRequest(".kibana").settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
+                    new CreateIndexRequest(".kibana_92668751_admin").settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
                     .actionGet();
 
-            tc.index(new IndexRequest(".kibana").id("index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b__sg_ten__human_resources")
+            tc.index(new IndexRequest(".kibana_92668751_admin").id("index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b")
                     .setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON)).actionGet();
         }
 
@@ -217,29 +183,27 @@ public class MultitenancyTests {
     @Test
     public void testKibanaAlias() throws Exception {
         try {
-            String tenantName = "human_resources";
-            String internalTenantName = tenantName.hashCode() + "_" + "humanresources";
             try (Client tc = cluster.getInternalNodeClient()) {
-                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
+                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
 
-                tc.admin().indices().create(new CreateIndexRequest(".kibana_8.8.0_001").alias(new Alias(".kibana"))
+                tc.admin().indices().create(new CreateIndexRequest(".kibana-6").alias(new Alias(".kibana"))
                         .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0))).actionGet();
 
-                tc.index(new IndexRequest(".kibana_8.8.0_001").id("6.2.2__sg_ten__" + internalTenantName).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
+                tc.index(new IndexRequest(".kibana-6").id("6.2.2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
                         .actionGet();
             }
 
-            try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee")) {
+            try (GenericRestClient client = cluster.getRestClient("kibanaro", "kibanaro")) {
                 GenericRestClient.HttpResponse res;
-              //  Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana_8.8.0_001/_doc/6.2.2?pretty", new BasicHeader("sgtenant", "human_resources"))).getStatusCode());
-                Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", tenantName))).getStatusCode());
+                Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana-6/_doc/6.2.2?pretty")).getStatusCode());
+                Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana/_doc/6.2.2?pretty")).getStatusCode());
+
+                //System.out.println(res.getBody());
             }
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
-                tc.admin().indices().prepareAliases().removeAlias(".kibana_8.8.0_001", ".kibana").get();
-                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_8.8.0_001")).actionGet();
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana-6")).actionGet();
             } catch (Exception ignored) {
-                Assert.fail("Unexpected exception " + ignored);
             }
         }
     }
@@ -255,8 +219,11 @@ public class MultitenancyTests {
                 indexSettings.put("number_of_replicas", 0);
                 tc.admin().indices().create(new CreateIndexRequest(".kibana_1").alias(new Alias(".kibana")).settings(indexSettings)).actionGet();
 
-                tc.index(new IndexRequest(".kibana_1").id("6.2.2__sg_ten__-900636979_kibanaro").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
+                tc.index(new IndexRequest(".kibana_1").id("6.2.2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
                         .actionGet();
+                tc.index(new IndexRequest(".kibana_-900636979_kibanaro").id("6.2.2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body,
+                        XContentType.JSON)).actionGet();
+
             }
 
             try (GenericRestClient client = cluster.getRestClient("kibanaro", "kibanaro")) {
@@ -264,8 +231,8 @@ public class MultitenancyTests {
                 GenericRestClient.HttpResponse res;
                 Assert.assertEquals(HttpStatus.SC_OK,
                         (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-                Assert.assertTrue(res.getBody().contains(".kibana_1"));
-                Assert.assertTrue(res.getBody().contains("15460"));
+                //System.out.println(res.getBody());
+                Assert.assertTrue(res.getBody().contains(".kibana_-900636979_kibanaro"));
             }
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
@@ -279,32 +246,66 @@ public class MultitenancyTests {
     public void testKibanaAliasKibana_7_12() throws Exception {
         try {
 
-            String tenant = "kibana_7_12_alias_test";
-            String internalTenantName = tenant.hashCode() + "_" + "kibana712aliastest";
             try (Client tc = cluster.getInternalNodeClient()) {
-                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"kibana_7_12_alias_test\"}";
+                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
 
                 tc.admin().indices()
-                        .create(new CreateIndexRequest(".kibana_7.12.0_001")
-                                .alias(new Alias(".kibana_7.12.0"))
+                        .create(new CreateIndexRequest(".kibana_-815674808_kibana712aliastest_7.12.0_001")
+                                .alias(new Alias(".kibana_-815674808_kibana712aliastest_7.12.0"))
                                 .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
                         .actionGet();
 
-                tc.index(new IndexRequest(".kibana_7.12.0").id("test__sg_ten__" + internalTenantName).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                tc.index(new IndexRequest(".kibana_-815674808_kibana712aliastest_7.12.0").id("test").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                         .source(body, XContentType.JSON)).actionGet();
             }
 
-            try (GenericRestClient client = cluster.getRestClient("admin", "admin", tenant)) {
+            try (GenericRestClient client = cluster.getRestClient("admin", "admin", "kibana_7_12_alias_test")) {
 
                 GenericRestClient.HttpResponse response = client.get(".kibana_7.12.0/_doc/test");
 
                 Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-                Assert.assertEquals(response.getBody(), ".kibana_7.12.0_001",
+                Assert.assertEquals(response.getBody(), ".kibana_-815674808_kibana712aliastest_7.12.0_001",
                         response.getBodyAsDocNode().getAsString("_index"));
             }
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
-                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_7.12.0_001")).actionGet();
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_-815674808_kibana712aliastest_7.12.0_001")).actionGet();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    @Test
+    public void testAliasCreationKibana_7_12() throws Exception {
+        try {
+            try (RestHighLevelClient tenantClient = cluster.getRestHighLevelClient("admin", "admin", "kibana_7_12_alias_creation_test");
+                 Client client = cluster.getInternalNodeClient()) {
+                IndexResponse indexResponse = tenantClient.index(".kibana_7.12.0_001","test", Map.of("buildNum", 15460));
+                Assert.assertEquals(indexResponse.toString(), indexResponse.result(), Result.Created);
+                Assert.assertEquals(indexResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", indexResponse.index());
+
+                UpdateAliasesResponse ackResponse = tenantClient.getJavaClient().indices().updateAliases(b->b.actions(
+                        a->a.add(ac->ac.index(".kibana_7.12.0_001").alias(".kibana_7.12.0")))
+                );
+
+                Assert.assertTrue(ackResponse.toString(), ackResponse.acknowledged());
+
+                GetResponse<Map> getResponse = tenantClient.get(".kibana_7.12.0", "test");
+
+                Assert.assertEquals(getResponse.toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0_001", getResponse.index());
+
+                GetAliasesResponse getAliasesResponse = client.admin().indices()
+                        .getAliases(new GetAliasesRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0")).actionGet();
+
+                Assert.assertNotNull(getAliasesResponse.getAliases().toString(),
+                        getAliasesResponse.getAliases().get(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001"));
+                Assert.assertEquals(getAliasesResponse.getAliases().toString(), ".kibana_1482524924_kibana712aliascreationtest_7.12.0",
+                        getAliasesResponse.getAliases().get(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001").get(0).alias());
+
+            }
+        } finally {
+            try (Client tc = cluster.getInternalNodeClient()) {
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_1482524924_kibana712aliascreationtest_7.12.0_001")).actionGet();
             } catch (Exception ignored) {
             }
         }
@@ -312,8 +313,8 @@ public class MultitenancyTests {
 
     @Test
     public void testMgetWithKibanaAlias() throws Exception {
-        String indexName = ".kibana";
-        String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
+        String indexName = ".kibana_1592542611_humanresources";
+        String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
 
         try (Client client = cluster.getInternalNodeClient();
                 RestHighLevelClient restClient = cluster.getRestHighLevelClient("hr_employee", "hr_employee", "human_resources")) {
@@ -326,15 +327,12 @@ public class MultitenancyTests {
             multiGetRequest.index(".kibana");
 
             for (int i = 0; i < 100; i++) {
-                String id = "d" + i;
-                String idInTenantScope = id + "__sg_ten__human_resources";
-                client.index(new IndexRequest(indexName).id(idInTenantScope).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(testDoc, XContentType.JSON))
+                client.index(new IndexRequest(indexName).id("d" + i).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(testDoc, XContentType.JSON))
                         .actionGet();
-                multiGetRequest.ids(id);
+                multiGetRequest.ids("d" + i);
             }
 
             MgetResponse<Map> response = restClient.getJavaClient().mget(multiGetRequest.build(), Map.class);
-            Assert.assertFalse(response.docs().isEmpty());
 
             for (MultiGetResponseItem<Map> item : response.docs()) {
                 if (item.result() == null || item.isFailure()) {
@@ -389,7 +387,7 @@ public class MultitenancyTests {
             }
         } finally {
             try (Client tc = cluster.getInternalNodeClient()) {
-                tc.admin().indices().delete(new DeleteIndexRequest(".kibana")).actionGet();
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_1592542611_humanresources")).actionGet();
             } catch (Exception ignored) {
             }
         }
