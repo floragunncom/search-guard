@@ -23,32 +23,12 @@ SGS_ALL_ACCESS:
 SGS_KIBANA_USER:
   reserved: true
   hidden: false
-  description: "Provide the minimum permissions for a kibana user who does not use front-end multi-tenancy"
+  description: "Provide the minimum permissions for a kibana user which is supposed to access the global tenant"
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
     - "SGS_PERSONAL_SESSIONS"
+    - "cluster:admin:searchguard:femt:user/available_tenants/get"
   index_permissions:
-    - index_patterns:
-        - ".kibana"
-        - ".kibana-6"
-        - ".kibana_"
-        - '/\.kibana_[0-9]+/'
-        - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
-        - ".kibana_task_manager"
-        - '/\.kibana_task_manager_[0-9]+/'
-        - ".kibana_analytics"
-        - '/\.kibana_analytics_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
-        - ".kibana_ingest"
-        - '/\.kibana_ingest_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
-        - ".kibana_security_solution"
-        - '/\.kibana_security_solution_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
-        - ".kibana_alerting_cases"
-        - '/\.kibana_alerting_cases_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
-      allowed_actions:
-        - "SGS_READ"
-        - "SGS_DELETE"
-        - "SGS_MANAGE"
-        - "SGS_INDEX"
     - index_patterns:
         - ".tasks"
         - ".management-beats"
@@ -56,14 +36,20 @@ SGS_KIBANA_USER:
         - "*:.management-beats"
       allowed_actions:
         - "SGS_INDICES_ALL"
-   
+  tenant_permissions:
+    - tenant_patterns:
+        - "SGS_GLOBAL_TENANT"
+      allowed_actions:
+        - "kibana:saved_objects/_/write"
+
 SGS_KIBANA_USER_NO_GLOBAL_TENANT:
   reserved: true
   hidden: false
-  description: "Deprecated. Use SGS_KIBANA_USER or SGS_KIBANA_MT_USER instead"
+  description: "Provide the minimum permissions for a kibana user which is not supposed to access the global tenant"
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
     - "SGS_PERSONAL_SESSIONS"
+    - "cluster:admin:searchguard:femt:user/available_tenants/get"
   index_permissions:
     - index_patterns:
         - ".tasks"
@@ -90,209 +76,191 @@ SGS_KIBANA_USER_NO_DEFAULT_TENANT:
       allowed_actions:
         - "SGS_INDICES_ALL"
 
-SGS_KIBANA_MT_USER:
-  reserved: true
-  hidden: false
-  static: true
-  description: "Provide the minimum permissions for a kibana user in environment with enabled multi-tenancy"
-  cluster_permissions:
-    - "SGS_CLUSTER_COMPOSITE_OPS"
-    - "SGS_PERSONAL_SESSIONS"
-    - "cluster:admin:searchguard:femt:user/available_tenants/get"
-  index_permissions:
-    - index_patterns:
-        - ".tasks"
-        - ".management-beats"
-        - "*:.tasks"
-        - "*:.management-beats"
-      allowed_actions:
-        - "SGS_INDICES_ALL"
-
 SGS_OWN_INDEX:
   reserved: true
   hidden: false
   description: "Allow all for indices named like the current user"
   cluster_permissions:
-  - "SGS_CLUSTER_COMPOSITE_OPS"
+    - "SGS_CLUSTER_COMPOSITE_OPS"
   index_permissions:
-  - index_patterns:
-    - "${user_name}"
-    allowed_actions:
-    - "SGS_INDICES_ALL"
-    
+    - index_patterns:
+        - "${user_name}"
+      allowed_actions:
+        - "SGS_INDICES_ALL"
+
 SGS_XP_MONITORING:
   reserved: true
   hidden: false
   description: "Provide the minimum permissions for x-pack monitoring"
   cluster_permissions:
-  - "SGS_CLUSTER_MONITOR"
-  - "cluster:monitor/xpack/info"
-  - "cluster:monitor/main"
-  - "cluster:admin/xpack/monitoring/bulk"
+    - "SGS_CLUSTER_MONITOR"
+    - "cluster:monitor/xpack/info"
+    - "cluster:monitor/main"
+    - "cluster:admin/xpack/monitoring/bulk"
   index_permissions:
-  - index_patterns:
-    - ".monitor*"
-    - "*:.monitor*"
-    allowed_actions:
-    - "SGS_INDICES_ALL"
+    - index_patterns:
+        - ".monitor*"
+        - "*:.monitor*"
+      allowed_actions:
+        - "SGS_INDICES_ALL"
 
-  
+
 SGS_MANAGE_SNAPSHOTS:
   reserved: true
   hidden: false
   description: "Provide the minimum permissions for managing snapshots"
   cluster_permissions:
-  - "SGS_MANAGE_SNAPSHOTS"
+    - "SGS_MANAGE_SNAPSHOTS"
   index_permissions:
-  - index_patterns:
-    - "*"
-    allowed_actions:
-    - "indices:data/write/index"
-    - "indices:admin/create"
-  
+    - index_patterns:
+        - "*"
+      allowed_actions:
+        - "indices:data/write/index"
+        - "indices:admin/create"
+
 SGS_XP_ALERTING:
   reserved: true
   hidden: false
   description: "Provide the minimum permissions for x-pack alerting"
   cluster_permissions:
-  - "SGS_CLUSTER_MONITOR"
-  - "indices:data/read/scroll"
-  - "cluster:admin/xpack/watcher*"
-  - "cluster:monitor/xpack/watcher*"
+    - "SGS_CLUSTER_MONITOR"
+    - "indices:data/read/scroll"
+    - "cluster:admin/xpack/watcher*"
+    - "cluster:monitor/xpack/watcher*"
   index_permissions:
-  - index_patterns:
-    - ".watches*"
-    - ".watcher-history-*"
-    - ".triggered_watches"
-    - "*:.watches*"
-    - "*:.watcher-history-*"
-    - "*:.triggered_watches"
-    allowed_actions:
-    - "SGS_INDICES_ALL"
-  - index_patterns:
-    - "*"
-    allowed_actions:
-    - "SGS_READ"
-    - "indices:admin/aliases/get"
-  
+    - index_patterns:
+        - ".watches*"
+        - ".watcher-history-*"
+        - ".triggered_watches"
+        - "*:.watches*"
+        - "*:.watcher-history-*"
+        - "*:.triggered_watches"
+      allowed_actions:
+        - "SGS_INDICES_ALL"
+    - index_patterns:
+        - "*"
+      allowed_actions:
+        - "SGS_READ"
+        - "indices:admin/aliases/get"
+
 SGS_XP_MACHINE_LEARNING:
   reserved: true
   hidden: false
   description: "Provide the minimum permissions for x-pack machine learning"
   cluster_permissions:
-  - "SGS_CLUSTER_MONITOR"
-  - "cluster:admin/persistent*"
-  - "cluster:internal/xpack/ml*"
-  - "indices:data/read/scroll*"
-  - "cluster:admin/xpack/ml*"
-  - "cluster:monitor/xpack/ml*"
+    - "SGS_CLUSTER_MONITOR"
+    - "cluster:admin/persistent*"
+    - "cluster:internal/xpack/ml*"
+    - "indices:data/read/scroll*"
+    - "cluster:admin/xpack/ml*"
+    - "cluster:monitor/xpack/ml*"
   index_permissions:
-  - index_patterns:
-    - "*"
-    allowed_actions:
-    - "SGS_READ"
-    - "indices:admin/get*"
-  - index_patterns:
-    - ".ml-*"
-    - "*:.ml-*"
-    allowed_actions:
-    - "*"
-  
+    - index_patterns:
+        - "*"
+      allowed_actions:
+        - "SGS_READ"
+        - "indices:admin/get*"
+    - index_patterns:
+        - ".ml-*"
+        - "*:.ml-*"
+      allowed_actions:
+        - "*"
+
 SGS_KIBANA_SERVER:
   reserved: true
   hidden: false
   description: "Provide the minimum permissions for the Kibana server"
   cluster_permissions:
-  - "SGS_CLUSTER_MONITOR"
-  - "SGS_CLUSTER_COMPOSITE_OPS"
-  - "cluster:admin/xpack/monitoring*"
-  - "indices:admin/template*"
-  - "cluster:admin/component_template*"
-  - "indices:admin/index_template*"
-  - "indices:data/read/scroll*"
-  - "SGS_CLUSTER_MANAGE_ILM"
-  - "cluster:admin:searchguard:authtoken/info"
-  - "cluster:admin:searchguard:auth/frontend/config/get"
-  - "indices:searchguard:async_search/_all_owners"
+    - "SGS_CLUSTER_MONITOR"
+    - "SGS_CLUSTER_COMPOSITE_OPS"
+    - "cluster:admin/xpack/monitoring*"
+    - "indices:admin/template*"
+    - "cluster:admin/component_template*"
+    - "indices:admin/index_template*"
+    - "indices:data/read/scroll*"
+    - "SGS_CLUSTER_MANAGE_ILM"
+    - "cluster:admin:searchguard:authtoken/info"
+    - "cluster:admin:searchguard:auth/frontend/config/get"
+    - "indices:searchguard:async_search/_all_owners"
   index_permissions:
-  - index_patterns:
-    - ".kibana"
-    - ".kibana-6"
-    - ".kibana_*"
-    - ".reporting*"
-    - "*:.reporting*"
-    - ".monitoring*"
-    - "*:.monitoring*"
-    - ".tasks"
-    - ".management-beats*"
-    - "*:.tasks"
-    - "*:.management-beats*"
-    - ".apm-*"
-    - "*:.apm-*"
-    - ".kibana-event-log-*"
-    - "*:.kibana-event-log-*"
-    - ".fleet-agents"
-    - "logs-cloud_security_posture*"
-    - ".internal.alerts-observability.*"
-    allowed_actions:
-    - "SGS_INDICES_ALL"
-  - index_patterns:
-    - "*"
-    allowed_actions:
-    - "indices:admin/aliases*"
-    - "indices:data/read/close_point_in_time"
-    - "indices:data/read/open_point_in_time"
-    - "indices:admin/mappings/get"
-    - "indices:monitor/settings/get"
-    - "indices:monitor/stats"
-    - "indices:data/read/field_caps*"    
+    - index_patterns:
+        - ".kibana"
+        - ".kibana-6"
+        - ".kibana_*"
+        - ".reporting*"
+        - "*:.reporting*"
+        - ".monitoring*"
+        - "*:.monitoring*"
+        - ".tasks"
+        - ".management-beats*"
+        - "*:.tasks"
+        - "*:.management-beats*"
+        - ".apm-*"
+        - "*:.apm-*"
+        - ".kibana-event-log-*"
+        - "*:.kibana-event-log-*"
+        - ".fleet-agents"
+        - "logs-cloud_security_posture*"
+        - ".internal.alerts-observability.*"
+      allowed_actions:
+        - "SGS_INDICES_ALL"
+    - index_patterns:
+        - "*"
+      allowed_actions:
+        - "indices:admin/aliases*"
+        - "indices:data/read/close_point_in_time"
+        - "indices:data/read/open_point_in_time"
+        - "indices:admin/mappings/get"
+        - "indices:monitor/settings/get"
+        - "indices:monitor/stats"
+        - "indices:data/read/field_caps*"
 
 SGS_LOGSTASH:
   reserved: true
   hidden: false
   description: "Provide the minimum permissions for logstash and beats"
   cluster_permissions:
-  - "SGS_CLUSTER_MONITOR"
-  - "SGS_CLUSTER_COMPOSITE_OPS"
-  - "SGS_CLUSTER_MANAGE_INDEX_TEMPLATES"
-  - "SGS_CLUSTER_MANAGE_ILM"
-  - "SGS_CLUSTER_MANAGE_PIPELINES"
-  - "cluster:admin/xpack/monitoring*"
+    - "SGS_CLUSTER_MONITOR"
+    - "SGS_CLUSTER_COMPOSITE_OPS"
+    - "SGS_CLUSTER_MANAGE_INDEX_TEMPLATES"
+    - "SGS_CLUSTER_MANAGE_ILM"
+    - "SGS_CLUSTER_MANAGE_PIPELINES"
+    - "cluster:admin/xpack/monitoring*"
   index_permissions:
-  - index_patterns:
-    - "logstash-*"
-    - "*beat*"
-    allowed_actions:
-    - "SGS_CRUD"
-    - "SGS_CREATE_INDEX"
-    - "SGS_MANAGE"
-  - index_patterns:
-    - "*"
-    allowed_actions:
-    - "indices:admin/aliases/get"
-  
+    - index_patterns:
+        - "logstash-*"
+        - "*beat*"
+      allowed_actions:
+        - "SGS_CRUD"
+        - "SGS_CREATE_INDEX"
+        - "SGS_MANAGE"
+    - index_patterns:
+        - "*"
+      allowed_actions:
+        - "indices:admin/aliases/get"
+
 SGS_READALL_AND_MONITOR:
   reserved: true
   hidden: false
   description: "Provide the minimum permissions for to readall indices and monitor the cluster"
   cluster_permissions:
-  - "SGS_CLUSTER_MONITOR"
-  - "SGS_CLUSTER_COMPOSITE_OPS_RO"
+    - "SGS_CLUSTER_MONITOR"
+    - "SGS_CLUSTER_COMPOSITE_OPS_RO"
   index_permissions:
-  - index_patterns:
-    - "*"
-    allowed_actions:
-    - "SGS_READ"
-  
+    - index_patterns:
+        - "*"
+      allowed_actions:
+        - "SGS_READ"
+
 SGS_READALL:
   reserved: true
   hidden: false
   description: "Provide the minimum permissions for to readall indices"
   cluster_permissions:
-  - "SGS_CLUSTER_COMPOSITE_OPS_RO"
+    - "SGS_CLUSTER_COMPOSITE_OPS_RO"
   index_permissions:
-  - index_patterns:
-    - "*"
-    allowed_actions:
-    - "SGS_READ"
+    - index_patterns:
+        - "*"
+      allowed_actions:
+        - "SGS_READ"
   

@@ -4,7 +4,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authz.TenantManager;
-import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -13,7 +12,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
 import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -32,7 +30,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
 import static org.apache.http.HttpStatus.SC_FORBIDDEN;
@@ -42,7 +39,6 @@ import static org.elasticsearch.rest.RestStatus.CREATED;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
 
 public class GetAvailableTenantsActionTest {
 
@@ -74,13 +70,13 @@ public class GetAvailableTenantsActionTest {
     private static final User USER_EACH_TENANT_READ = new User("user_each_tenant_read") //
         .roles(new Role("each_tenant_read_access") //
             .tenantPermission("SGS_KIBANA_ALL_READ") //
-            .on(ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName).with(Tenant.GLOBAL_TENANT_ID).toArray(String[]::new)) //
+            .on(ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName).toArray(String[]::new)) //
             .indexPermissions("*") //
             .on(FRONTEND_INDEX +"*"));
     private static final User USER_EACH_TENANT_WRITE = new User("user_each_tenant_write") //
         .roles(new Role("each_tenant_write_access") //
             .tenantPermission("SGS_KIBANA_ALL_WRITE") //
-            .on(ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName).with(Tenant.GLOBAL_TENANT_ID).toArray(String[]::new)) //
+            .on(ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName).toArray(String[]::new)) //
             .indexPermissions("*") //
             .on(FRONTEND_INDEX +"*"));
 
@@ -97,8 +93,9 @@ public class GetAvailableTenantsActionTest {
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled() //
         .nodeSettings("action.destructive_requires_name", false) //
         .enterpriseModulesEnabled() //
-        .roleMapping(new RoleMapping("SGS_KIBANA_MT_USER").users(USER_SINGLE_TENANT.getName(), USER_EACH_TENANT_READ.getName(),
-            USER_EACH_TENANT_WRITE.getName(), USER_SOME_TENANT_ACCESS.getName()),//
+        .roleMapping(new RoleMapping("SGS_KIBANA_USER").users(USER_SINGLE_TENANT.getName(), USER_EACH_TENANT_READ.getName(),
+            USER_EACH_TENANT_WRITE.getName()),
+            new RoleMapping("SGS_KIBANA_USER_NO_GLOBAL_TENANT").users(USER_SOME_TENANT_ACCESS.getName()),
             new RoleMapping("SGS_KIBANA_SERVER").users(FRONTEND_SERVER_USER.getName())) //
         .users(FRONTEND_SERVER_USER, USER_SINGLE_TENANT, USER_EACH_TENANT_READ, USER_EACH_TENANT_WRITE, USER_SOME_TENANT_ACCESS) //
         .frontendMultiTenancy(new FrontendMultiTenancy(true).index(FRONTEND_INDEX).serverUser(FRONTEND_SERVER_USER.getName())) //
@@ -149,10 +146,11 @@ public class GetAvailableTenantsActionTest {
             assertThat(body, containsValue("$.data.tenants.user_single_tenant.read_access", true));
             assertThat(body, containsValue("$.data.tenants.user_single_tenant.write_access", true));
             assertThat(body, containsValue("$.data.tenants.user_single_tenant.exists", false));
-            assertThat(body, not(containsFieldPointedByJsonPath("$.data.tenants", "SGS_GLOBAL_TENANT")));
-
-            // only accessible tenants should be present in the response: hr_tenant,  private user tenant
-            assertThat(body, docNodeSizeEqualTo("$.data.tenants", 2));
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.read_access", true));
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", true));
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.exists", false));
+            // only accessible tenants should be present in the response including global and private user tenant
+            assertThat(body, docNodeSizeEqualTo("$.data.tenants", 3));
         }
     }
 
@@ -178,12 +176,12 @@ public class GetAvailableTenantsActionTest {
                 assertThat(body, containsValue(writeAccessPath, false));
                 assertThat(body, containsValue(existPath, true));
             }
-            //user should always have access to its private tenant
+            //user should have always access to its private tenant
             assertThat(body, containsValue("$.data.tenants.user_each_tenant_read.write_access", true));
             assertThat(body, containsValue("$.data.tenants.user_each_tenant_read.exists", true));
             // user with role SGS_KIBANA_USER has write access to global tenant
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.read_access", true));
-            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", false));
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", true));
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.exists", false));
         }
     }
