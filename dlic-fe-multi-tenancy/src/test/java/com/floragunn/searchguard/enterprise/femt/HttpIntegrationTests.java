@@ -43,9 +43,7 @@ public class HttpIntegrationTests extends SingleClusterTest {
     @Test
     public void testHTTPBasic() throws Exception {
         final Settings settings = Settings.builder()
-                .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS + ".worf", "knuddel", "nonexists")
-                .put("searchguard.unsupported.single_index_mt_enabled", true)
-                .build();
+                .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS + ".worf", "knuddel", "nonexists").build();
         setup(settings);
         RestHelper rh = nonSslRestHelper();
 

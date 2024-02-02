@@ -52,11 +52,7 @@ public class MultitenancyTests {
     private final static TestSgConfig.User USER_DEPT_02 = new TestSgConfig.User("user_dept_02").attr("dept_no", "02").roles("sg_tenant_user_attrs");
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder()
-            .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
-            .sslEnabled()
-            .resources("multitenancy")
-            .enterpriseModulesEnabled()
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").enterpriseModulesEnabled()
             .users(USER_DEPT_01, USER_DEPT_02).build();
 
     @Test

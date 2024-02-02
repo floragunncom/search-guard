@@ -44,7 +44,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.floragunn.fluent.collections.ImmutableSet;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -394,15 +393,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
         if (enterpriseModulesEnabled) {
-            ImmutableSet<String> enterpriseModules = ImmutableSet.of("com.floragunn.searchguard.enterprise.auth.EnterpriseAuthFeaturesModule",
+            moduleRegistry.add("com.floragunn.searchguard.enterprise.auth.EnterpriseAuthFeaturesModule",
                     "com.floragunn.searchguard.authtoken.AuthTokenModule", "com.floragunn.dlic.auth.LegacyEnterpriseSecurityModule",
                     "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule", "com.floragunn.searchguard.enterprise.dlsfls.DlsFlsModule",
                     "com.floragunn.searchguard.enterprise.dlsfls.legacy.LegacyDlsFlsModule",
                     "com.floragunn.searchguard.enterprise.auditlog.AuditLogModule");
-            if (! settings.getAsBoolean("searchguard.unsupported.single_index_mt_enabled", false)) {
-                enterpriseModules = enterpriseModules.without("com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule");
-            }
-            moduleRegistry.add(enterpriseModules.toArray(new String[] {}));
         }
 
         moduleRegistry.add(SessionModule.class.getName());
