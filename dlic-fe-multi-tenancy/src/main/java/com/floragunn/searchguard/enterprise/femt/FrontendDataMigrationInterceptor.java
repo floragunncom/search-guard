@@ -82,8 +82,8 @@ class FrontendDataMigrationInterceptor {
 
     @SuppressWarnings("unchecked")
     private Optional<ActionProcessor> getActionProcessor(Set<String> kibanaIndices, PrivilegesEvaluationContext context, ActionListener<?> listener) {
-        if(isTempMigrationIndex(kibanaIndices) && (context.getRequest() instanceof BulkRequest bulkRequest)) {
-            log.debug("Temporary index '{}' used during migration detected.", kibanaIndices);
+        if((context.getUser()!= null) && (Strings.isNullOrEmpty(context.getUser().getRequestedTenant())) && (kibanaServerUsername.equals(context.getUser().getName())) && (context.getRequest() instanceof BulkRequest bulkRequest)) {
+            log.debug("Index '{}' used during migration detected.", kibanaIndices);
             return Optional.of(() -> handleDataMigration(kibanaIndices, context, bulkRequest, (ActionListener<BulkResponse>) listener));
         } else if (PutMappingAction.NAME.equals(context.getAction().name())) {
             log.debug("Migration of mappings for index '{}' detected ", kibanaIndices);
@@ -102,7 +102,7 @@ class FrontendDataMigrationInterceptor {
         for (DocWriteRequest<?> item : bulkRequest.requests()) {
             if(item instanceof IndexRequest indexRequest) {
                 boolean isKibanaIndex = kibanaIndices.contains(indexRequest.index());
-                if(isKibanaIndex && isTempMigrationIndex(indexRequest.index())) {
+                if(isKibanaIndex) {
                     Map<String, Object> source = XContentHelper.convertToMap(indexRequest.source(), true, indexRequest.getContentType()).v2();
                     if(RequestResponseTenantData.isScopedId(indexRequest.id())) {
                         if (!RequestResponseTenantData.containsSgTenantField(source)) {
@@ -201,14 +201,6 @@ class FrontendDataMigrationInterceptor {
             return SyncAuthorizationFilter.Result.INTERCEPTED;
         }
         return SyncAuthorizationFilter.Result.OK;
-    }
-
-    private boolean isTempMigrationIndex(Set<String> indices) {
-        return indices.stream().anyMatch(this::isTempMigrationIndex);
-    }
-
-    private boolean isTempMigrationIndex(String index) {
-        return index.endsWith(TEMP_MIGRATION_INDEX_NAME_POSTFIX_1) || index.endsWith(TEMP_MIGRATION_INDEX_NAME_POSTFIX_2);
     }
 
     private Optional<DocNode> extendMappingsWithMultitenancy(String sourceMappings) throws DocumentParseException {
