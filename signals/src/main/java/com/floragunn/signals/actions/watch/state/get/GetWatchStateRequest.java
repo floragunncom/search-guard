@@ -24,7 +24,7 @@ public class GetWatchStateRequest extends ActionRequest {
 
     public GetWatchStateRequest(StreamInput in) throws IOException {
         super(in);
-        this.watchIds = in.readStringCollectionAsList();
+        this.watchIds = in.readStringList();
 
     }
 

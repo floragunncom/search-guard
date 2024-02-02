@@ -25,12 +25,12 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.client.SearchScroller;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.action.search.SearchResponse;
@@ -58,7 +58,7 @@ public class TruststoreRepository {
         this.client = Objects.requireNonNull(client, "Node client is required");
     }
 
-    public DocWriteResponse createOrReplace(String truststoreId, TruststoreData truststoreData) {
+    public IndexResponse createOrReplace(String truststoreId, TruststoreData truststoreData) {
         Objects.requireNonNull(truststoreId, "Truststore id is required");
         Objects.requireNonNull(truststoreData, "Truststore data are required");
         String json = truststoreData.toJsonString();

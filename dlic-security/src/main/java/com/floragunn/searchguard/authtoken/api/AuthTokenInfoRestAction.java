@@ -23,10 +23,10 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.action.RestStatusToXContentListener;
 
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableList;
-import org.elasticsearch.rest.action.RestToXContentListener;
 
 public class AuthTokenInfoRestAction extends BaseRestHandler {
 
@@ -55,7 +55,7 @@ public class AuthTokenInfoRestAction extends BaseRestHandler {
 
             try {
                 client.execute(AuthTokenInfoAction.INSTANCE, new AuthTokenInfoRequest(),
-                        new RestToXContentListener<>(channel, AuthTokenInfoResponse::status));
+                        new RestStatusToXContentListener<AuthTokenInfoResponse>(channel));
             } catch (Exception e) {
                 channel.sendResponse(new StandardResponse(e).toRestResponse());
             }

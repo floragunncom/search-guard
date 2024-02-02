@@ -28,10 +28,10 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.action.RestStatusToXContentListener;
 
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableList;
-import org.elasticsearch.rest.action.RestToXContentListener;
 
 public class ComponentStateRestAction extends BaseRestHandler {
     private static final Logger log = LogManager.getLogger(ComponentStateRestAction.class);
@@ -60,7 +60,7 @@ public class ComponentStateRestAction extends BaseRestHandler {
 
             try {
                 client.execute(GetComponentStateAction.INSTANCE, new GetComponentStateAction.Request(id, verbose),
-                        new RestToXContentListener<GetComponentStateAction.Response>(channel, GetComponentStateAction.Response::status));
+                        new RestStatusToXContentListener<GetComponentStateAction.Response>(channel));
             } catch (Exception e) {
                 log.error(e);
                 channel.sendResponse(new StandardResponse(e).toRestResponse());

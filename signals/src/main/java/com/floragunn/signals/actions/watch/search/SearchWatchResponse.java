@@ -7,13 +7,13 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
+import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.signals.watch.Watch;
 
-public class SearchWatchResponse extends ActionResponse implements ToXContentObject {
+public class SearchWatchResponse extends ActionResponse implements StatusToXContentObject {
 
     private SearchResponse searchResponse;
 
@@ -45,6 +45,7 @@ public class SearchWatchResponse extends ActionResponse implements ToXContentObj
         return searchResponse;
     }
 
+    @Override
     public RestStatus status() {
         return searchResponse.status();
     }

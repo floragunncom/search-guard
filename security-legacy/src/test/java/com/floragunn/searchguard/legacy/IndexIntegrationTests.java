@@ -23,7 +23,6 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 import org.apache.http.HttpStatus;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -172,7 +171,7 @@ public class IndexIntegrationTests extends SingleClusterTest {
             sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
             
             String date = sdf.format(new Date());
-            DocWriteResponse indexResponse = tc.index(new IndexRequest("logstash-"+date).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            IndexResponse indexResponse = tc.index(new IndexRequest("logstash-"+date).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
             
             //System.out.println("## " + new Date() + " " + date + " " + Strings.toString(indexResponse));
         }

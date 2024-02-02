@@ -108,7 +108,7 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
         majorVersion = in.readOptionalVInt();
         clusterName = in.readString();
         allowedNodeCount = in.readInt();
-        msgs.addAll(in.readCollectionAsImmutableList(StreamInput::readString));
+        msgs.addAll(in.readList(StreamInput::readString));
         expiresInDays = in.readLong();
         isExpired = in.readBoolean();
         valid = in.readBoolean();

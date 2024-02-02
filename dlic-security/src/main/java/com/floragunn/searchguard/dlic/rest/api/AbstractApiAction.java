@@ -35,8 +35,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -177,10 +177,10 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         existingConfiguration = existingConfiguration.without(name);
 		
 		if (existed) {
-			saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<DocWriteResponse>(channel) {
+			saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<IndexResponse>(channel) {
                 
                 @Override
-                public void onResponse(DocWriteResponse response) {
+                public void onResponse(IndexResponse response) {
                     successResponse(channel, "'" + name + "' deleted.");
                 }
             });
@@ -232,10 +232,10 @@ public abstract class AbstractApiAction extends BaseRestHandler {
             return;
         }		
 		
-		saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<DocWriteResponse>(channel) {
+		saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<IndexResponse>(channel) {
 
             @Override
-            public void onResponse(DocWriteResponse response) {
+            public void onResponse(IndexResponse response) {
                 if (existed) {
                     successResponse(channel, "'" + name + "' updated.");
                 } else {
@@ -345,7 +345,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	}
 
 	protected void saveAnUpdateConfigs(final Client client, final RestRequest request, final CType<?> cType,
-	        SgDynamicConfiguration<?> configuration, OnSucessActionListener<DocWriteResponse> actionListener) {
+	        SgDynamicConfiguration<?> configuration, OnSucessActionListener<IndexResponse> actionListener) {
 	    String searchGuardIndex = cl.getEffectiveSearchGuardIndex();
 	    
 	    if (searchGuardIndex == null) {
@@ -365,7 +365,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
                     .setIfSeqNo(configuration.getSeqNo())
                     .setIfPrimaryTerm(configuration.getPrimaryTerm())
                     .source(id, XContentHelper.toXContent(configuration, XContentType.JSON, false)),
-                    new ConfigUpdatingActionListener<DocWriteResponse>(client, actionListener));
+                    new ConfigUpdatingActionListener<IndexResponse>(client, actionListener));
         } catch (IOException e) {
             throw ExceptionsHelper.convertToElastic(e);
         }
