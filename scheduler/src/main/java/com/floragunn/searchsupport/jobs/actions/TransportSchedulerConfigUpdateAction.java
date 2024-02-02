@@ -48,7 +48,8 @@ public class TransportSchedulerConfigUpdateAction extends
     public TransportSchedulerConfigUpdateAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
             final TransportService transportService, final ActionFilters actionFilters) {
         super(SchedulerConfigUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters, SchedulerConfigUpdateRequest::new,
-                TransportSchedulerConfigUpdateAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT);
+                TransportSchedulerConfigUpdateAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT,
+                TransportSchedulerConfigUpdateAction.NodeResponse.class);
 
     }
 

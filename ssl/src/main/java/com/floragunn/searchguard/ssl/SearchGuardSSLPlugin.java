@@ -60,7 +60,6 @@ import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
-import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.NetworkPlugin;
@@ -290,7 +289,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
                                                ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
                                                Environment environment, NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
                                                IndexNameExpressionResolver indexNameExpressionResolver, Supplier<RepositoriesService> repositoriesServiceSupplier,
-                                               Tracer tracer, AllocationService allocationService, IndicesService indicesService) {
+                                               Tracer tracer, AllocationService allocationService) {
 
         final List<Object> components = new ArrayList<>(1);
 

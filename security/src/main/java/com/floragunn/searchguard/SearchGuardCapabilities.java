@@ -26,8 +26,10 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.cert.ocsp.Req;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
@@ -455,7 +457,7 @@ public class SearchGuardCapabilities {
             public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                     ActionFilters actionFilters, SearchGuardCapabilities capabilities) {
                 super(GetCapabilitiesAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new,
-                        ThreadPool.Names.MANAGEMENT);
+                        ThreadPool.Names.MANAGEMENT, NodeResponse.class);
 
                 this.capabilities = capabilities;
             }

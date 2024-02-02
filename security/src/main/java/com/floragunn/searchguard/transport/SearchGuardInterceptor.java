@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -292,12 +291,7 @@ public class SearchGuardInterceptor {
             return innerHandler.read(in);
         }
 
-         @Override
-         public Executor executor(ThreadPool threadPool) {
-             return innerHandler.executor(threadPool);
-         }
-
-         @Override
+        @Override
         public void handleResponse(T response) {
             ThreadContext threadContext = getThreadContext();
             Map<String, List<String>> responseHeaders = threadContext.getResponseHeaders();
@@ -331,6 +325,10 @@ public class SearchGuardInterceptor {
             innerHandler.handleException(e);
         }
 
+        @Override
+        public String executor() {
+            return innerHandler.executor();
+        }
     }
 
 }

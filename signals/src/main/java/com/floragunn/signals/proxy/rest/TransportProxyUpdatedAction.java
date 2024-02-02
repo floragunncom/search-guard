@@ -18,6 +18,7 @@ package com.floragunn.signals.proxy.rest;
 
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
+import com.floragunn.signals.truststore.rest.TransportTruststoreUpdatedAction;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionFuture;
@@ -55,7 +56,7 @@ public class TransportProxyUpdatedAction extends
     public TransportProxyUpdatedAction(ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                                        ActionFilters actionFilters, Signals signals) {
         super(ProxyUpdatedActionType.NAME,threadPool, clusterService, transportService, actionFilters, ProxyUpdatedRequest::new, NodeRequest::new,
-                threadPool.executor(ThreadPool.Names.MANAGEMENT));
+                ThreadPool.Names.MANAGEMENT, NodeResponse.class);
         this.httpProxyHostRegistry = Objects.requireNonNull(signals.getHttpProxyHostRegistry(), "Http proxy host registry is required");
     }
 
@@ -219,7 +220,7 @@ public class TransportProxyUpdatedAction extends
 
         @Override
         protected List<NodeResponse> readNodesFrom(StreamInput in) throws IOException {
-            return in.readCollectionAsList(NodeResponse::new);
+            return in.readList(NodeResponse::new);
         }
 
         @Override
