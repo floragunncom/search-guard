@@ -41,9 +41,9 @@ public class UpdateRequestHandler extends RequestHandler<UpdateRequest> {
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, UpdateRequest request, ActionListener<?> listener) {
         log.debug("Handle update request");
+        threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             UpdateRequest scoped = updateMapper.toScopedUpdateRequest(request, requestedTenant);
 
             nodeClient.update(scoped, new ActionListener<>() {
@@ -66,7 +66,6 @@ public class UpdateRequestHandler extends RequestHandler<UpdateRequest> {
                 @Override
                 public void onFailure(Exception e) {
                     log.error("An error occurred while sending update request", e);
-                    storedContext.restore();
                     listener.onFailure(e);
                 }
             });
