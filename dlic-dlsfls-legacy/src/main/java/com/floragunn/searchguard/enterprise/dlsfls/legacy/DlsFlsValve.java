@@ -44,17 +44,16 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.RealtimeRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchShardsRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.sampler.DiversifiedAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.SignificantTermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
-import org.elasticsearch.search.aggregations.metrics.CardinalityAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
@@ -78,7 +77,6 @@ import static org.elasticsearch.rest.RestStatus.INTERNAL_SERVER_ERROR;
 
 public class DlsFlsValve implements SyncAuthorizationFilter {
     private static final String MAP_EXECUTION_HINT = "map";
-    private static final String DIRECT_EXECUTION_HINT = "direct";
     private static final Logger log = LogManager.getLogger(DlsFlsValve.class);
 
     private final Client nodeClient;
@@ -205,14 +203,13 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
                 }
             }
 
+            //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
+            //need to switch off global ordinals because field masking can break ordering
+            //https://www.elastic.co/guide/en/elasticsearch/reference/master/eager-global-ordinals.html#_avoiding_global_ordinal_loading
             if (evaluatedDlsFlsConfig.hasFieldMasking()) {
 
                 if (searchRequest.source() != null && searchRequest.source().aggregations() != null) {
                     for (AggregationBuilder aggregationBuilder : searchRequest.source().aggregations().getAggregatorFactories()) {
-                        //When we encounter a terms or sampler aggregation with masked fields activated we forcibly
-                        //need to switch off global ordinals because field masking can break ordering
-                        //https://www.elastic.co/guide/en/elasticsearch/reference/master/eager-global-ordinals.html#_avoiding_global_ordinal_loading
-
                         if (aggregationBuilder instanceof TermsAggregationBuilder) {
                             ((TermsAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
                         }
@@ -223,11 +220,6 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
 
                         if (aggregationBuilder instanceof DiversifiedAggregationBuilder) {
                             ((DiversifiedAggregationBuilder) aggregationBuilder).executionHint(MAP_EXECUTION_HINT);
-                        }
-
-                        //force direct execution mode in case of cardinality aggregation
-                        if (aggregationBuilder instanceof CardinalityAggregationBuilder) {
-                            ((CardinalityAggregationBuilder) aggregationBuilder).executionHint(DIRECT_EXECUTION_HINT);
                         }
                     }
                 }
@@ -291,7 +283,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
         if (!dlsFls.getDlsQueriesByIndex().isEmpty()) {
             Map<String, Set<String>> dlsQueries = dlsFls.getDlsQueriesByIndex();
 
-            if ((request instanceof ClusterSearchShardsRequest || request instanceof SearchShardsRequest) && HeaderHelper.isTrustedClusterRequest(threadContext)) {
+            if (request instanceof ClusterSearchShardsRequest && HeaderHelper.isTrustedClusterRequest(threadContext)) {
                 threadContext.addResponseHeader(ConfigConstants.SG_DLS_QUERY_HEADER, Base64Helper.serializeObject((Serializable) dlsQueries));
                 if (log.isDebugEnabled()) {
                     log.debug("added response header for DLS info: {}", dlsQueries);
@@ -338,7 +330,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
         if (!dlsFls.getFieldMaskingByIndex().isEmpty()) {
             Map<String, Set<String>> maskedFieldsMap = dlsFls.getFieldMaskingByIndex();
 
-            if ((request instanceof ClusterSearchShardsRequest || request instanceof SearchShardsRequest) && HeaderHelper.isTrustedClusterRequest(threadContext)) {
+            if (request instanceof ClusterSearchShardsRequest && HeaderHelper.isTrustedClusterRequest(threadContext)) {
                 threadContext.addResponseHeader(ConfigConstants.SG_MASKED_FIELD_HEADER, Base64Helper.serializeObject((Serializable) maskedFieldsMap));
                 if (log.isDebugEnabled()) {
                     log.debug("added response header for masked fields info: {}", maskedFieldsMap);
@@ -365,7 +357,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
         if (!dlsFls.getFlsByIndex().isEmpty()) {
             Map<String, Set<String>> flsFields = dlsFls.getFlsByIndex();
 
-            if ((request instanceof ClusterSearchShardsRequest || request instanceof SearchShardsRequest) && HeaderHelper.isTrustedClusterRequest(threadContext)) {
+            if (request instanceof ClusterSearchShardsRequest && HeaderHelper.isTrustedClusterRequest(threadContext)) {
                 threadContext.addResponseHeader(ConfigConstants.SG_FLS_FIELDS_HEADER, Base64Helper.serializeObject((Serializable) flsFields));
                 if (log.isDebugEnabled()) {
                     log.debug("added response header for FLS info: {}", flsFields);
