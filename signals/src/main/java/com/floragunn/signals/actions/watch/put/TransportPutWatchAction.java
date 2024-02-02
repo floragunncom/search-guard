@@ -37,7 +37,7 @@ public class TransportPutWatchAction extends HandledTransportAction<PutWatchRequ
     @Inject
     public TransportPutWatchAction(Signals signals, TransportService transportService, ScriptService scriptService, ThreadPool threadPool,
             ActionFilters actionFilters) {
-        super(PutWatchAction.NAME, transportService, actionFilters, PutWatchRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        super(PutWatchAction.NAME, transportService, actionFilters, PutWatchRequest::new);
 
         this.signals = signals;
         this.threadPool = threadPool;

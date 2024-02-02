@@ -46,9 +46,10 @@ public class LocalClusterTest {
 
     @BeforeClass
     public static void setupData() {
-        Client client = CLUSTER.getPrivilegedInternalNodeClient();
-        client.index(new IndexRequest(INDEX_NAME).id("contradiction").source("yes", "no")//
-            .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)).actionGet();
+        try (Client client = CLUSTER.getPrivilegedInternalNodeClient()) {
+            client.index(new IndexRequest(INDEX_NAME).id("contradiction").source("yes", "no")//
+                .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)).actionGet();
+        }
     }
 
     @Test
@@ -110,9 +111,10 @@ public class LocalClusterTest {
         log.info("Search response after config update '{}'", response.getBody());
         assertThat(response.getStatusCode(), equalTo(200));
 
-        GenericRestClient client = CLUSTER.getRestClient(USER_WITHOUT_ROLE);
-        response = client.get("/some-index/_search");
-        log.info("Search response after config restore '{}'", response.getBody());
-        assertThat(response.getStatusCode(), equalTo(403));
+        try (GenericRestClient client = CLUSTER.getRestClient(USER_WITHOUT_ROLE)) {
+            response = client.get("/some-index/_search");
+            log.info("Search response after config restore '{}'", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(403));
+        }
     }
 }

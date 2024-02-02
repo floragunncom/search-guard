@@ -205,13 +205,14 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         
         setup(additionalSettings);
         
-        Client tc = getPrivilegedInternalNodeClient();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
 
-        for(IndexRequest ir: new DynamicSgConfig().setSgRoles("sg_roles_2.yml").getDynamicConfig(getResourceFolder())) {
-            tc.index(ir).actionGet();
-        }
+            for(IndexRequest ir: new DynamicSgConfig().setSgRoles("sg_roles_2.yml").getDynamicConfig(getResourceFolder())) {
+                tc.index(ir).actionGet();
+            }
             
-
+        }
+        
         HttpResponse response = rh.executeGetRequest("_search?pretty", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         //System.out.println(response.getBody());
@@ -242,14 +243,15 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         setup(additionalSettings);
         
         
-        Client tc = getPrivilegedInternalNodeClient();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
 
-        tc.prepareIndex("humanresources").setId("100")
-        .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-        .setSource("Age", 456)
-        .execute()
-        .actionGet();
-
+            tc.prepareIndex("humanresources").setId("100")
+            .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+            .setSource("Age", 456)
+            .execute()
+            .actionGet();
+        }
+        
         TestAuditlogImpl.clear();
         
         String body = "{\"doc\": {\"Age\":123}}";
@@ -311,13 +313,14 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         setup(additionalSettings);
         
         
-        Client tc = getPrivilegedInternalNodeClient();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.prepareIndex("humanresources").setId("100")
             .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
             .setSource("Age", 456)
             .execute()
             .actionGet();
-
+        }
+        
         TestAuditlogImpl.clear();
         
         String body = "{\"doc\": {\"Age\":123}}";
@@ -353,12 +356,13 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         setup(additionalSettings);
 
 
-        Client tc = getPrivilegedInternalNodeClient();
-        tc.prepareIndex("humanresources").setId("100")
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                .setSource("Age", 456)
-                .execute()
-                .actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.prepareIndex("humanresources").setId("100")
+                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .setSource("Age", 456)
+                    .execute()
+                    .actionGet();
+        }
 
         TestAuditlogImpl.clear();
 
@@ -396,15 +400,16 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         setup(additionalSettings);
 
 
-        Client tc = getPrivilegedInternalNodeClient();
-        tc.prepareIndex("humanresources").setId("100")
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                .setSource("Designation", "CEO", "Plz", "10977", "FirstName",
-                        "Alex", "LastName", "Doe",
-                        "Address", "Suitland-Silver Hill, MD",
-                        "Status", "active")
-                .execute()
-                .actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.prepareIndex("humanresources").setId("100")
+                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .setSource("Designation", "CEO", "Plz", "10977", "FirstName",
+                            "Alex", "LastName", "Doe",
+                            "Address", "Suitland-Silver Hill, MD",
+                            "Status", "active")
+                    .execute()
+                    .actionGet();
+        }
 
 
         HttpResponse response = rh.executeGetRequest("humanresources/_search?pretty", encodeBasicHeader("fls_audit", "admin"));
@@ -559,11 +564,12 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
-        Client tc = getPrivilegedInternalNodeClient();
-        tc.admin().indices().create(new CreateIndexRequest("myindex1")
-        .mapping(FileHelper.loadFile("mapping1.json"))).actionGet();
-        tc.admin().indices().create(new CreateIndexRequest("myindex2")
-        .mapping(FileHelper.loadFile("mapping1.json"))).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.admin().indices().create(new CreateIndexRequest("myindex1")
+            .mapping(FileHelper.loadFile("mapping1.json"))).actionGet();
+            tc.admin().indices().create(new CreateIndexRequest("myindex2")
+            .mapping(FileHelper.loadFile("mapping1.json"))).actionGet();
+        }
 
         RestHelper rh = nonSslRestHelper();
         //System.out.println("############ immutable 1");

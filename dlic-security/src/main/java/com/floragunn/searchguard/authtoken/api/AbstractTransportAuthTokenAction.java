@@ -22,7 +22,6 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.io.stream.Writeable.Reader;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
@@ -37,8 +36,8 @@ abstract class AbstractTransportAuthTokenAction<Request extends ActionRequest, R
     private final String allActionName;
 
     public AbstractTransportAuthTokenAction(String actionName, TransportService transportService, ActionFilters actionFilters,
-            Reader<Request> requestReader, PrivilegesEvaluator privilegesEvaluator, ThreadPool threadPool) {
-        super(actionName, transportService, actionFilters, requestReader, threadPool.executor(ThreadPool.Names.GENERIC));
+            Reader<Request> requestReader, PrivilegesEvaluator privilegesEvaluator) {
+        super(actionName, transportService, actionFilters, requestReader);
         this.privilegesEvaluator = privilegesEvaluator;
         this.allActionName = getAllActionName(actionName);
     }

@@ -58,18 +58,19 @@ public class DashboardAccessByReadOnlyUserTest {
 
     @BeforeClass
     public static void createIndex() {
-        Client client = cluster.getInternalNodeClient();
-        DocNode indexMappings = DocNode.of("_doc", DocNode.of("properties", DocNode.of("sg_tenant", DocNode.of("type", "keyword"))));
-        CreateIndexRequest request = new CreateIndexRequest(FRONTEND_INDEX + "_8.9.0_001") //
-            .settings(Settings.builder().put("index.hidden", true)) //
-            .alias(new Alias(FRONTEND_INDEX + "_8.9.0"))
-            .alias(new Alias(FRONTEND_INDEX))
-            .mapping(indexMappings);
-        CreateIndexResponse response = client.admin().indices().create(request).actionGet();
-        assertThat(response.isAcknowledged(), equalTo(true));
-        ImmutableMap<String, ?> source = ImmutableMap.of("sg_tenant", TenantManager.toInternalTenantName(HR_TENANT.getName()));
-        DocWriteResponse createTenantResponse = client.index(new IndexRequest(FRONTEND_INDEX).source(source).setRefreshPolicy(IMMEDIATE)).actionGet();
-        assertThat(createTenantResponse.status(), equalTo(CREATED));
+        try(Client client = cluster.getInternalNodeClient()) {
+            DocNode indexMappings = DocNode.of("_doc", DocNode.of("properties", DocNode.of("sg_tenant", DocNode.of("type", "keyword"))));
+            CreateIndexRequest request = new CreateIndexRequest(FRONTEND_INDEX + "_8.9.0_001") //
+                .settings(Settings.builder().put("index.hidden", true)) //
+                .alias(new Alias(FRONTEND_INDEX + "_8.9.0"))
+                .alias(new Alias(FRONTEND_INDEX))
+                .mapping(indexMappings);
+            CreateIndexResponse response = client.admin().indices().create(request).actionGet();
+            assertThat(response.isAcknowledged(), equalTo(true));
+            ImmutableMap<String, ?> source = ImmutableMap.of("sg_tenant", TenantManager.toInternalTenantName(HR_TENANT.getName()));
+            DocWriteResponse createTenantResponse = client.index(new IndexRequest(FRONTEND_INDEX).source(source).setRefreshPolicy(IMMEDIATE)).actionGet();
+            assertThat(createTenantResponse.status(), equalTo(CREATED));
+        }
     }
 
     @Test
