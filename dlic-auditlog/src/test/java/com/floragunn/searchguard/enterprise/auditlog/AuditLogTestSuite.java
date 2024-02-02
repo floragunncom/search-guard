@@ -14,7 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.auditlog;
 
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditTestToXContentObjectImplTest;
+import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessageTest;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditlogTest;
 import com.floragunn.searchguard.enterprise.auditlog.impl.DelegateTest;
 import com.floragunn.searchguard.enterprise.auditlog.impl.DisabledCategoriesTest;
@@ -54,7 +54,7 @@ import com.floragunn.searchguard.enterprise.auditlog.sink.WebhookAuditLogTest;
 	SinkProviderTest.class,
 	SinkProviderTLSTest.class,
 	WebhookAuditLogTest.class,
-	AuditTestToXContentObjectImplTest.class
+	AuditMessageTest.class
 })
 public class AuditLogTestSuite {
 

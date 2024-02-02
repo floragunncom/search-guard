@@ -1,6 +1,5 @@
 package com.floragunn.signals.execution;
 
-import com.floragunn.searchsupport.xcontent.XContentConverter;
 import org.elasticsearch.script.ScriptException;
 import org.elasticsearch.xcontent.ToXContent;
 
@@ -25,17 +24,16 @@ public class WatchOperationExecutionException extends Exception {
     public ErrorInfo toErrorInfo() {
         Throwable cause = getCause();
 
-        if (cause instanceof ScriptException scriptException) {
+        if (cause instanceof ScriptException) {
             if ("runtime error".equalsIgnoreCase(cause.getMessage()) && cause.getCause() != null) {
-                return new ErrorInfo(null, constructMessage(cause.getCause()), scriptException);
+                return new ErrorInfo(null, constructMessage(cause.getCause()), (ToXContent) cause);
             } else {
-                return new ErrorInfo(null, constructMessage(this), scriptException);
+                return new ErrorInfo(null, constructMessage(this), (ToXContent) cause);
             }
         } else {
             return new ErrorInfo(null, constructMessage(this), findToXContentCause(cause));
         }
     }
-
 
     private static String constructMessage(Throwable throwable) {
         StringBuilder result = new StringBuilder();
@@ -71,8 +69,9 @@ public class WatchOperationExecutionException extends Exception {
         }
 
         for (int i = 0; i < 10; i++) {
-            if (XContentConverter.canConvert(throwable)) {
-                return XContentConverter.convertOrNull(throwable);
+
+            if (throwable instanceof ToXContent) {
+                return (ToXContent) throwable;
             }
 
             if (throwable.getCause() == throwable || throwable.getCause() == null) {
