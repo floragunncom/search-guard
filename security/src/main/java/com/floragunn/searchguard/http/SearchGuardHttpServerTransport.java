@@ -20,7 +20,6 @@ package com.floragunn.searchguard.http;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,9 +27,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpChannel;
-import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.ChunkedRestResponseBody;
@@ -55,8 +52,8 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
     public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService,
                                           final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
                                           final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher, ClusterSettings clusterSettings,
-                                          SharedGroupFactory sharedGroupFactory, Tracer tracer, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
-        super(settings, networkService, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler, tracer, perRequestThreadContext);
+                                          SharedGroupFactory sharedGroupFactory, Tracer tracer) {
+        super(settings, networkService, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler, tracer);
     }
 
     @Override

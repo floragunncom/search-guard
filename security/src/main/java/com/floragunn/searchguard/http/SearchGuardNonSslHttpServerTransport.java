@@ -20,13 +20,10 @@ package com.floragunn.searchguard.http;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpHandlingSettings;
-import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.tracing.Tracer;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
@@ -36,22 +33,12 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 
-import java.util.function.BiConsumer;
-
 public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransport {
 
-    private final BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext;
-
     public SearchGuardNonSslHttpServerTransport(final Settings settings, final NetworkService networkService,
-                                                final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
-                                                BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, final ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory, Tracer tracer) {
-        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, tracer, TLSConfig.noTLS(), null, null);
-        this.perRequestThreadContext = perRequestThreadContext;
-    }
-
-    @Override
-    protected void populatePerRequestThreadContext(RestRequest restRequest, ThreadContext threadContext) {
-        perRequestThreadContext.accept(restRequest.getHttpRequest(), threadContext);
+            final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
+            final ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory, Tracer tracer) {
+        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, tracer, TLSConfig.noTLS(), null);
     }
 
     @Override
@@ -67,7 +54,7 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
     protected class NonSslHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
         
         protected NonSslHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings) {
-            super(transport, handlingSettings, TLSConfig.noTLS(), null, null, null);
+            super(transport, handlingSettings, TLSConfig.noTLS(), null);
         }
 
         @Override
