@@ -242,6 +242,9 @@ SGS_KIBANA_SERVER:
   - "cluster:admin:searchguard:authtoken/info"
   - "cluster:admin:searchguard:auth/frontend/config/get"
   - "indices:searchguard:async_search/_all_owners"
+  - "cluster:admin/ingest/pipeline/put"
+  - "cluster:admin/transform/put"
+  - "cluster:admin/transform/start"
   index_permissions:
   - index_patterns:
     - ".kibana"
@@ -258,11 +261,18 @@ SGS_KIBANA_SERVER:
     - ".apm-*"
     - "*:.apm-*"
     - ".kibana-event-log-*"
+    - ".ds-.kibana-event-log-*"
     - "*:.kibana-event-log-*"
     - ".fleet-agents"
     - "logs-cloud_security_posture*"
     - ".internal.alerts-observability.*"
+    - ".kibana-observability-ai-assistant-conversations*"
+    - ".kibana-observability-ai-assistant-kb*"
     - ".internal.alerts-security.alerts*"
+    - ".internal.alerts-stack.alerts*"
+    - ".slo-observability.sli-v*"
+    - ".slo-observability.summary-v*"
+    - "logs-cloud_defend.*"
     allowed_actions:
     - "SGS_INDICES_ALL"
     - "indices:admin/data_stream/get"
