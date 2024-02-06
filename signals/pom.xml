@@ -122,7 +122,7 @@
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm-commons</artifactId>
-      <version>7.2</version>
+      <version>9.6</version>
       <scope>test</scope>
     </dependency>
 
