@@ -129,7 +129,7 @@
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm-tree</artifactId>
-      <version>7.2</version>
+      <version>9.6</version>
       <scope>test</scope>
     </dependency>
 
