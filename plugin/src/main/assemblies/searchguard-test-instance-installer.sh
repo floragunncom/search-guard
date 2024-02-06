@@ -25,7 +25,7 @@ SGSF_VERSION="${2:-$SG_VERSION_PRE}"
 SG_REPOSITORY="${3:-search-guard-flx-release}"
 SG_PLUGIN_NAME="search-guard-flx"
 SGCTL_VERSION="1.3.0"
-TLS_TOOL_VERSION="1.9.1"
+TLS_TOOL_VERSION="1.9.3"
 
 ARCH_DETECTED="$(arch)"
 ARCH="x86_64"
