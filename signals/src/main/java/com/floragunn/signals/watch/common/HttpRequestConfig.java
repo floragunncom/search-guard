@@ -17,12 +17,8 @@ import com.jayway.jsonpath.JsonPath;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.logging.log4j.LogManager;
@@ -61,7 +57,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
     private Map<String, TemplateScript.Factory> headerTemplateScriptFactories;
 
     public HttpRequestConfig(Method method, URI uri, String path, String queryParams, String body, JsonPath jsonBodyFrom, Map<String, String> headers, Auth auth,
-            String accept) {
+                             String accept) {
         super();
         if (body != null && jsonBodyFrom != null) {
             throw new IllegalStateException("body and jsonBodyFrom fields are mutually exclusive");
@@ -72,7 +68,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         this.queryParams = queryParams;
         this.body = body;
         this.jsonBodyFrom = jsonBodyFrom;
-        this.headers = headers == null? new HashMap<>() : headers;
+        this.headers = headers == null ? new HashMap<>() : headers;
         this.auth = auth;
         this.accept = accept;
     }
@@ -120,7 +116,7 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
     }
 
     public void setHeaders(Map<String, String> headers) {
-        this.headers = headers == null? new HashMap<>() : headers;
+        this.headers = headers == null ? new HashMap<>() : headers;
     }
 
     public void compileScripts(WatchInitializationService watchInitializationService) throws ConfigValidationException {
@@ -144,32 +140,28 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
 
         checkWhitelist(ctx, uri);
 
-        HttpUriRequest result = createHttpRequest(uri, method);
-
+        RequestBuilder httpRequestBuilder = createHttpRequestBuilder(uri, method);
         Map<String, String> renderedHeaders = getRenderedHeaders(ctx);
+
         for (Map.Entry<String, String> header : renderedHeaders.entrySet()) {
-            result.setHeader(header.getKey(), header.getValue());
+            httpRequestBuilder.setHeader(header.getKey(), header.getValue());
         }
 
         if (auth instanceof BasicAuth) {
             BasicAuth basicAuth = (BasicAuth) auth;
             String encodedAuth = Base64.getEncoder().encodeToString((basicAuth.getUsername() + ":" + basicAuth.getPassword()).getBytes());
 
-            result.setHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+            httpRequestBuilder.setHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
         }
 
-        String body = null;
-
-        if (result instanceof HttpEntityEnclosingRequestBase) {
-            body = prepareBody(ctx);
-            ((HttpEntityEnclosingRequestBase) result).setEntity(new StringEntity(body));
-        }
+        String body = prepareBody(ctx);
+        httpRequestBuilder.setEntity(new StringEntity(body));
 
         if (log.isDebugEnabled()) {
-            log.debug("Rendered HTTP request:\n" + result + "\n" + body);
+            log.debug("Rendered HTTP request:\n" + httpRequestBuilder + "\n" + body);
         }
 
-        return result;
+        return httpRequestBuilder.build();
     }
 
     // TODO maybe move this to a dedicated http client
@@ -213,21 +205,14 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
         }
     }
 
-    private HttpUriRequest createHttpRequest(URI url, Method method) throws UnsupportedEncodingException, WatchExecutionException {
-
-        switch (method) {
-        case POST:
-            return new HttpPost(url);
-        case PUT:
-            return new HttpPut(url);
-        case DELETE:
-            return new HttpDelete(url);
-        case GET:
-            return new HttpGet(url);
-        default:
-            throw new WatchExecutionException("Unsupported request method " + method, null);
-
-        }
+    private RequestBuilder createHttpRequestBuilder(URI url, Method method) throws WatchExecutionException {
+        return switch (method) {
+            case POST -> RequestBuilder.post(url);
+            case PUT -> RequestBuilder.put(url);
+            case DELETE -> RequestBuilder.delete(url);
+            case GET -> RequestBuilder.get(url);
+            default -> throw new WatchExecutionException("Unsupported request method " + method, null);
+        };
     }
 
     private URI getRenderedUri(WatchExecutionContext ctx) throws WatchExecutionException {
@@ -404,6 +389,6 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
     }
 
     public enum Method {
-        POST, PUT, DELETE, GET;
+        POST, PUT, DELETE, GET
     }
 }
