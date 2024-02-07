@@ -119,7 +119,7 @@
       <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>fluent-collections</artifactId>
-        <version>b-check-table-SNAPSHOT</version>
+        <version>b-generics-covariance-SNAPSHOT</version>
       </dependency>
 
       <dependency>
