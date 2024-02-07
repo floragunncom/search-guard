@@ -93,8 +93,10 @@ public interface Meta {
 
     }
     
-    interface NonExistent extends IndexLikeObject {
-        
+    interface NonExistent extends IndexLikeObject {        
+        static NonExistent of(String name) {
+            return new MetaImpl.NonExistentImpl(name);
+        }        
     }
 
 
