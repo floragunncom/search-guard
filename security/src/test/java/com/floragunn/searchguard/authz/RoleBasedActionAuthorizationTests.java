@@ -34,6 +34,7 @@ import org.junit.runners.Suite;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.actions.Action;
@@ -167,7 +168,7 @@ public class RoleBasedActionAuthorizationTests {
 
             if (this.indexSpec.wildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenPrivs.contains("index_a1*") && !this.indexSpec.givenPrivs.contains("-index_a12")) {
+            } else if (this.indexSpec.givenIndexPrivs.contains("index_a1*") && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
             } else {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
@@ -183,7 +184,7 @@ public class RoleBasedActionAuthorizationTests {
 
             if (this.indexSpec.wildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenPrivs.contains("index_a1*") && !this.indexSpec.givenPrivs.contains("-index_a12")) {
+            } else if (this.indexSpec.givenIndexPrivs.contains("index_a1*") && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));
             } else {
@@ -199,7 +200,7 @@ public class RoleBasedActionAuthorizationTests {
 
             if (this.indexSpec.wildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenPrivs.contains("index_a1*") && !this.indexSpec.givenPrivs.contains("-index_a12")) {
+            } else if (this.indexSpec.givenIndexPrivs.contains("index_a1*") && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
             } else {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
@@ -241,17 +242,17 @@ public class RoleBasedActionAuthorizationTests {
                 .alias("alias_a2").of("index_a21", "index_a22")//
                 .alias("alias_b").of("index_b1", "index_b2");
 
-        @Parameters(name = "indices: {0};  actions: {1};  {2}")
+        @Parameters(name = "{0};  actions: {1};  {2}")
         public static Collection<Object[]> params() {
             List<Object[]> result = new ArrayList<>();
 
             for (IndexSpec indexSpec : Arrays.asList(//
-                    new IndexSpec().givenPrivs("*"), //
-                    new IndexSpec().givenPrivs("index_a11"), //
-                    new IndexSpec().givenPrivs("index_a1*"), // 
-                    new IndexSpec().givenPrivs("index_${user.attrs.dept_no}"), //
-                    new IndexSpec().givenPrivs("index_a1*", "-index_a12"), //
-                    new IndexSpec().givenPrivs("index_${user.attrs.dept_no}", "-index_a12"))
+                    new IndexSpec().givenIndexPrivs("*"), //
+                    new IndexSpec().givenIndexPrivs("index_a11"), //
+                    new IndexSpec().givenIndexPrivs("index_a1*"), // 
+                    new IndexSpec().givenIndexPrivs("index_${user.attrs.dept_no}"), //
+                    new IndexSpec().givenIndexPrivs("index_a1*", "-index_a12"), //
+                    new IndexSpec().givenIndexPrivs("index_${user.attrs.dept_no}", "-index_a12"))
 
             ) {
                 for (ActionSpec actionSpec : Arrays.asList(//
@@ -280,14 +281,7 @@ public class RoleBasedActionAuthorizationTests {
         public IndexPermissions(IndexSpec indexSpec, ActionSpec actionSpec, Statefulness statefulness) throws Exception {
             this.indexSpec = indexSpec;
             this.actionSpec = actionSpec;
-            this.roles = SgDynamicConfiguration
-                    .fromMap(
-                            DocNode.of("test_role",
-                                    DocNode.of("index_permissions",
-                                            DocNode.array(
-                                                    DocNode.of("index_patterns", indexSpec.givenPrivs, "allowed_actions", actionSpec.givenPrivs)))),
-                            CType.ROLES, null)
-                    .get();
+            this.roles = indexSpec.toRolesConfig(actionSpec);
 
             this.requiredActions = actionSpec.requiredPrivs;
             this.otherActions = actionSpec.wellKnownActions ? ImmutableSet.of(actions.get("indices:data/read/get"))
@@ -430,14 +424,14 @@ public class RoleBasedActionAuthorizationTests {
         public void positive_alias_partial() throws Exception {
             PrivilegesEvaluationResult result//
                     = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions,
-                            ResolvedIndices.of(BASIC, "alias_a1", "alias_a2", "alias_b1"));
+                            ResolvedIndices.of(BASIC, "alias_a1", "alias_a2", "alias_b"));
 
-            if (this.indexSpec.wildcardPrivs) {
+            if (this.indexSpec.wildcardPrivs || this.indexSpec.aliasWildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenPrivs.contains("alias_a*") && this.indexSpec.givenPrivs.contains("-alias_a2")) {
+            } else if (this.indexSpec.givenIndexPrivs.contains("alias_a*") && this.indexSpec.givenIndexPrivs.contains("-alias_a2")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
-            } else if (this.indexSpec.givenPrivs.contains("alias_a*") && !this.indexSpec.givenPrivs.contains("-index_a12")) {
+            } else if (this.indexSpec.givenIndexPrivs.contains("alias_a*") && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1", "alias_a2")));
             } else {
@@ -452,12 +446,12 @@ public class RoleBasedActionAuthorizationTests {
                     = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions,
                             ResolvedIndices.of(BASIC, "index_a11", "index_a12", "index_a21", "index_b1"));
 
-            if (this.indexSpec.wildcardPrivs) {
+            if (this.indexSpec.wildcardPrivs || this.indexSpec.aliasWildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenPrivs.contains("alias_a*") && !this.indexSpec.givenPrivs.contains("-alias_a")) {
+            } else if (this.indexSpec.givenIndexPrivs.contains("alias_a*") && !this.indexSpec.givenIndexPrivs.contains("-alias_a")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12", "index_a21")));
-            } else if (this.indexSpec.givenPrivs.contains("alias_a1") && this.indexSpec.givenPrivs.contains("-index_a12")) {
+            } else if (this.indexSpec.givenIndexPrivs.contains("alias_a1") && this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));
             } else {
@@ -500,17 +494,18 @@ public class RoleBasedActionAuthorizationTests {
                 .alias("alias_a2").of("index_a21", "index_a22")//
                 .alias("alias_b").of("index_b1", "index_b2");
 
-        @Parameters(name = "indices: {0};  actions: {1};  {2}")
+        @Parameters(name = "{0};  actions: {1};  {2}")
         public static Collection<Object[]> params() {
             List<Object[]> result = new ArrayList<>();
 
             for (IndexSpec indexSpec : Arrays.asList(//
-                    new IndexSpec().givenPrivs("*"), //
-                    new IndexSpec().givenPrivs("alias_a1"), //
-                    new IndexSpec().givenPrivs("alias_a*"), // 
-                    new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}"), //
+                    new IndexSpec().givenIndexPrivs("*"), //
+                    new IndexSpec().givenAliasPrivs("*"), //
+                    new IndexSpec().givenAliasPrivs("alias_a1"), //
+                    new IndexSpec().givenAliasPrivs("alias_a*"), // 
+                    new IndexSpec().givenAliasPrivs("alias_${user.attrs.dept_no}"), //
                     // TODO new IndexSpec().givenPrivs("alias_a1", "-index_a12"), //
-                    new IndexSpec().givenPrivs("alias_a*", "-alias_a2", "-alias_a")) //
+                    new IndexSpec().givenAliasPrivs("alias_a*", "-alias_a2", "-alias_a")) //
             // TODO  new IndexSpec().givenPrivs("alias_${user.attrs.dept_no}", "-index_a12"))
 
             ) {
@@ -540,14 +535,7 @@ public class RoleBasedActionAuthorizationTests {
         public AliasPermissions(IndexSpec indexSpec, ActionSpec actionSpec, Statefulness statefulness) throws Exception {
             this.indexSpec = indexSpec;
             this.actionSpec = actionSpec;
-            this.roles = SgDynamicConfiguration
-                    .fromMap(
-                            DocNode.of("test_role",
-                                    DocNode.of("index_permissions",
-                                            DocNode.array(
-                                                    DocNode.of("index_patterns", indexSpec.givenPrivs, "allowed_actions", actionSpec.givenPrivs)))),
-                            CType.ROLES, null)
-                    .get();
+            this.roles = indexSpec.toRolesConfig(actionSpec);
 
             this.requiredActions = actionSpec.requiredPrivs;
             this.otherActions = actionSpec.wellKnownActions ? ImmutableSet.of(actions.get("indices:data/read/get"))
@@ -667,23 +655,75 @@ public class RoleBasedActionAuthorizationTests {
 
     static class IndexSpec {
 
-        ImmutableList<String> givenPrivs;
-        List<String> requiredPrivs;
+        ImmutableList<String> givenIndexPrivs = ImmutableList.empty();
+        ImmutableList<String> givenAliasPrivs = ImmutableList.empty();
+        ImmutableList<String> givenDataStreamPrivs = ImmutableList.empty();
+
         boolean wildcardPrivs;
+        boolean aliasWildcardPrivs;
+        boolean dataStreamWildcardPrivs;
 
         IndexSpec() {
 
         }
 
-        IndexSpec givenPrivs(String... indexPatterns) {
-            this.givenPrivs = ImmutableList.ofArray(indexPatterns);
-            this.wildcardPrivs = this.givenPrivs.contains("*");
+        IndexSpec givenIndexPrivs(String... indexPatterns) {
+            this.givenIndexPrivs = ImmutableList.ofArray(indexPatterns);
+            this.wildcardPrivs = this.givenIndexPrivs.contains("*");
+            return this;
+        }
+
+        IndexSpec givenAliasPrivs(String... aliasPatterns) {
+            this.givenAliasPrivs = ImmutableList.ofArray(aliasPatterns);
+            this.aliasWildcardPrivs = this.givenAliasPrivs.contains("*");
+            return this;
+        }
+
+        IndexSpec givenDataStreamPrivs(String... dataStreamPatterns) {
+            this.givenDataStreamPrivs = ImmutableList.ofArray(dataStreamPatterns);
+            this.dataStreamWildcardPrivs = this.givenDataStreamPrivs.contains("*");
             return this;
         }
 
         @Override
         public String toString() {
-            return this.givenPrivs.stream().collect(Collectors.joining(","));
+            StringBuilder result = new StringBuilder();
+            
+            if (!this.givenIndexPrivs.isEmpty()) {
+                result.append("indices: ").append(this.givenIndexPrivs.stream().collect(Collectors.joining(",")));
+            }
+            
+            if (!this.givenAliasPrivs.isEmpty()) {
+                if (result.length() != 0) {
+                    result.append("; ");;
+                }
+                result.append("aliases: ").append(this.givenAliasPrivs.stream().collect(Collectors.joining(",")));
+            }
+
+            if (!this.givenDataStreamPrivs.isEmpty()) {
+                if (result.length() != 0) {
+                    result.append("; ");;
+                }
+                result.append("data_streams: ").append(this.givenDataStreamPrivs.stream().collect(Collectors.joining(",")));
+            }
+
+            return result.toString();
+        }
+
+        public SgDynamicConfiguration<Role> toRolesConfig(ActionSpec actionSpec) {
+            try {
+                return SgDynamicConfiguration.fromMap(DocNode.of("test_role", //
+                        DocNode.of(//
+                                "index_permissions", DocNode.array(//
+                                        DocNode.of("index_patterns", this.givenIndexPrivs, "allowed_actions", actionSpec.givenPrivs)),
+                                "alias_permissions", DocNode.array(//
+                                        DocNode.of("index_patterns", this.givenAliasPrivs, "allowed_actions", actionSpec.givenPrivs)),
+                                "data_stream_permissions", DocNode.array(//
+                                        DocNode.of("index_patterns", this.givenDataStreamPrivs, "allowed_actions", actionSpec.givenPrivs))//
+                        )), CType.ROLES, null).get();
+            } catch (ConfigValidationException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
