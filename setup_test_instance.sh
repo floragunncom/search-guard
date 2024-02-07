@@ -8,7 +8,7 @@ INSTALL_DIR="$MAIN_DIR/es"
 REPO_DIR=$(pwd)
 
 if [ -d $REPO_DIR/plugin/target/releases/ ]; then
-  rm $REPO_DIR/plugin/target/releases/*
+  rm -f $REPO_DIR/plugin/target/releases/*
 fi
 
 mvn install -Dmaven.test.skip.exec=true -Pquick
