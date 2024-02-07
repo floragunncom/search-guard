@@ -15,32 +15,32 @@ import com.floragunn.searchsupport.meta.MetaImpl.DefaultMetaImpl;
 public interface Meta {
     ImmutableMap<String, IndexLikeObject> indexLikeObjects();
 
-    ImmutableMap<String, Index> indices();
+    ImmutableSet<Index> indices();
 
-    ImmutableMap<String, Alias> aliases();
+    ImmutableSet<Alias> aliases();
 
-    ImmutableMap<String, DataStream> dataStreams();
+    ImmutableSet<DataStream> dataStreams();
 
     /**
      * Returns both aliases and dataStreams
      */
-    ImmutableMap<String, IndexCollection> indexCollections();
+    ImmutableSet<IndexCollection> indexCollections();
 
     /**
      * Returns indices that are not contained in an alias or data stream
      */
-    ImmutableMap<String, Index> indicesWithoutParents();
-    
+    ImmutableSet<Index> indicesWithoutParents();
+
     /**
      * Returns indices that are not hidden 
      */
-    ImmutableMap<String, Index> nonHiddenIndices();
+    ImmutableSet<Index> nonHiddenIndices();
 
     /**
      * Returns indices that are not hidden and which are not contained in an alias or data stream
      */
-    ImmutableMap<String, Index> nonHiddenIndicesWithoutParents();
-    
+    ImmutableSet<Index> nonHiddenIndicesWithoutParents();
+
     Iterable<String> namesOfIndices();
 
     Iterable<String> namesOfIndexCollections();
@@ -56,19 +56,23 @@ public interface Meta {
     Mock.DataStreamBuilder dataStream(String dataStreamName);
 
     org.elasticsearch.cluster.metadata.Metadata esMetadata();
-    
+
     long version();
-    
+
     interface IndexLikeObject {
         String name();
 
-        ImmutableSet<Index> resolveDeep();
+        ImmutableSet<IndexOrNonExistent> resolveDeep();
 
         ImmutableSet<String> resolveDeepToNames();
 
-        Collection<String> parentAliasNames();
+        ImmutableSet<Alias> parentAliases();
+
+        DataStream parentDataStream();
 
         String parentDataStreamName();
+
+        Collection<String> parentAliasNames();
 
         boolean equals(Object other);
 
@@ -77,12 +81,30 @@ public interface Meta {
         boolean isHidden();
     }
 
-    interface Index extends IndexLikeObject {
+    interface Index extends IndexOrNonExistent {
         boolean isOpen();
     }
 
     interface IndexCollection extends IndexLikeObject {
         UnmodifiableCollection<IndexLikeObject> members();
+        
+        static ImmutableSet<IndexOrNonExistent> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams) {
+            if (aliasesAndDataStreams.size() == 0) {
+                return ImmutableSet.empty();
+            }
+
+            if (aliasesAndDataStreams.size() == 1) {
+                return aliasesAndDataStreams.only().resolveDeep();
+            }
+
+            ImmutableSet.Builder<IndexOrNonExistent> result = new ImmutableSet.Builder<>(aliasesAndDataStreams.size() * 20);
+
+            for (Meta.IndexCollection object : aliasesAndDataStreams) {
+                result.addAll(object.resolveDeep());
+            }
+
+            return result.build();
+        }
     }
 
     interface Alias extends IndexCollection {
@@ -92,13 +114,16 @@ public interface Meta {
     interface DataStream extends IndexCollection {
 
     }
-    
-    interface NonExistent extends IndexLikeObject {        
+
+    interface NonExistent extends IndexOrNonExistent {
         static NonExistent of(String name) {
             return new MetaImpl.NonExistentImpl(name);
-        }        
+        }
     }
-
+    
+    interface IndexOrNonExistent extends IndexLikeObject {
+        
+    }
 
     static Meta from(org.elasticsearch.cluster.metadata.Metadata esMetadata) {
         return new DefaultMetaImpl(esMetadata);

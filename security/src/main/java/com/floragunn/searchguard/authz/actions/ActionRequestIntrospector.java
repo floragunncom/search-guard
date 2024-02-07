@@ -109,7 +109,7 @@ public class ActionRequestIntrospector {
         if (request instanceof SingleShardRequest) {
             // SingleShardRequest can reference exactly one index or no indices at all (which might be a bit surprising)
             SingleShardRequest<?> singleShardRequest = (SingleShardRequest<?>) request;
-            
+
             if (singleShardRequest.index() != null) {
                 return new ActionRequestInfo(singleShardRequest.index(), SingleShardRequest.INDICES_OPTIONS);
             } else {
@@ -120,7 +120,7 @@ public class ActionRequestIntrospector {
                 // We have in reduceIndices() a special case for AnalyzeAction.Request which takes care that the user just needs to have the privilege for any index.
 
                 return new ActionRequestInfo("*", IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN);
-            }            
+            }
         } else if (request instanceof IndicesRequest) {
             if (request instanceof PutMappingRequest) {
                 PutMappingRequest putMappingRequest = (PutMappingRequest) request;
@@ -210,20 +210,20 @@ public class ActionRequestIntrospector {
 
         if (request instanceof AnalyzeAction.Request) {
             AnalyzeAction.Request analyzeRequest = (AnalyzeAction.Request) request;
-            
-             if (analyzeRequest.index() == null) {
-                 // This actually does not refer to any index. Let the request pass, as have at least some privileges for the action
-                 return PrivilegesEvaluationResult.OK;
-             } else if (keepIndices.contains(analyzeRequest.index())) {
-                 return PrivilegesEvaluationResult.OK;
-             } else {
-                 return PrivilegesEvaluationResult.INSUFFICIENT;
-             }
+
+            if (analyzeRequest.index() == null) {
+                // This actually does not refer to any index. Let the request pass, as have at least some privileges for the action
+                return PrivilegesEvaluationResult.OK;
+            } else if (keepIndices.contains(analyzeRequest.index())) {
+                return PrivilegesEvaluationResult.OK;
+            } else {
+                return PrivilegesEvaluationResult.INSUFFICIENT;
+            }
         } else if (request instanceof IndicesRequest.Replaceable) {
             IndicesRequest.Replaceable replaceableIndicesRequest = (IndicesRequest.Replaceable) request;
 
             ResolvedIndices resolvedIndices = getResolvedIndices(replaceableIndicesRequest, actionRequestInfo);
-            ImmutableSet<String> actualIndices = resolvedIndices.getLocal().getUnion().keySet();
+            ImmutableSet<String> actualIndices = resolvedIndices.getLocal().getUnion().map(Meta.IndexLikeObject::name);
 
             if (keepIndices.containsAll(actualIndices)) {
                 return PrivilegesEvaluationResult.OK;
@@ -255,7 +255,8 @@ public class ActionRequestIntrospector {
     private void validateIndexReduction(String action, Object request, Set<String> keepIndices) throws PrivilegesEvaluationException {
         ActionRequestInfo newInfo = getActionRequestInfo(action, request);
 
-        if (!keepIndices.containsAll(newInfo.getResolvedIndices().getLocal().getUnion().keySet())) {
+        // TODO optimize and check
+        if (!keepIndices.containsAll(newInfo.getResolvedIndices().getLocal().getUnion().map(Meta.IndexLikeObject::name))) {
             throw new PrivilegesEvaluationException(
                     "Indices were not properly reduced: " + request + "/" + newInfo.getResolvedIndices() + "; keep: " + keepIndices);
         }
@@ -867,11 +868,11 @@ public class ActionRequestIntrospector {
         }
 
         public ImmutableSet<String> getLocalAndRemoteIndices() {
-            return getLocal().getUnion().keySet().with(getRemoteIndices());
+            return getLocal().getUnion().map(Meta.IndexLikeObject::name).with(getRemoteIndices());
         }
 
         public ImmutableSet<String> getLocalSubset(Set<String> superSet) {
-            return getLocal().getUnion().keySet().intersection(superSet).with(remoteIndices);
+            return getLocal().getUnion().map(Meta.IndexLikeObject::name).intersection(superSet).with(remoteIndices);
         }
 
         public String[] getLocalSubsetAsArray(Set<String> superSet) {
@@ -930,41 +931,41 @@ public class ActionRequestIntrospector {
         }
 
         public static class Local {
-            private final ImmutableMap<String, Meta.Index> pureIndices;
-            private final ImmutableMap<String, Meta.Alias> aliases;
-            private final ImmutableMap<String, Meta.DataStream> dataStreams;
-            private final ImmutableSet<String> nonExistingIndices;
+            private final ImmutableSet<Meta.Index> pureIndices;
+            private final ImmutableSet<Meta.Alias> aliases;
+            private final ImmutableSet<Meta.DataStream> dataStreams;
+            private final ImmutableSet<Meta.NonExistent> nonExistingIndices;
             private final ImmutableSet<String> unionOfAliasesAndDataStreams;
-            private final ImmutableMap<String, Meta.IndexLikeObject> union;
+            private final ImmutableSet<Meta.IndexLikeObject> union;
             private String asString;
             private ImmutableSet<String> deepUnion;
             private Boolean pureIndicesContainsAliasOrDataStreamMembers;
 
-            Local(ImmutableMap<String, Meta.Index> pureIndices, ImmutableMap<String, Meta.Alias> aliases,
-                    ImmutableMap<String, Meta.DataStream> dataStreams, ImmutableSet<String> nonExistingIndices) {
+            Local(ImmutableSet<Meta.Index> pureIndices, ImmutableSet<Meta.Alias> aliases, ImmutableSet<Meta.DataStream> dataStreams,
+                    ImmutableSet<Meta.NonExistent> nonExistingIndices) {
                 this.pureIndices = pureIndices;
                 this.aliases = aliases;
                 this.dataStreams = dataStreams;
                 this.nonExistingIndices = nonExistingIndices;
-                this.unionOfAliasesAndDataStreams = aliases.keySet().with(dataStreams.keySet());
-                this.union = ImmutableMap.<String, Meta.IndexLikeObject>of(pureIndices).with(aliases).with(dataStreams).with(nonExistingIndices.toMap((n) -> Meta.NonExistent.of(n)));
+                this.unionOfAliasesAndDataStreams = aliases.map(Meta.Alias::name).with(dataStreams.map(Meta.DataStream::name));
+                this.union = ImmutableSet.<Meta.IndexLikeObject>of(pureIndices).with(aliases).with(dataStreams).with(this.nonExistingIndices);
             }
 
             /**
              * Only for testing! TODO remove
              */
             Local(ImmutableSet<String> localIndices) {
-                this.pureIndices = ImmutableMap.empty();
-                this.aliases = ImmutableMap.empty();
-                this.dataStreams = ImmutableMap.empty();
-                this.nonExistingIndices = localIndices;
+                this.pureIndices = ImmutableSet.empty();
+                this.aliases = ImmutableSet.empty();
+                this.dataStreams = ImmutableSet.empty();
+                this.nonExistingIndices = localIndices.map(Meta.NonExistent::of);
                 this.unionOfAliasesAndDataStreams = ImmutableSet.empty();
-                this.union = localIndices.toMap((n) -> Meta.NonExistent.of(n));
+                this.union = ImmutableSet.<Meta.IndexLikeObject>of(this.nonExistingIndices);
             }
 
-            private Local(ImmutableMap<String, Meta.Index> pureIndices, ImmutableMap<String, Meta.Alias> aliases,
-                    ImmutableMap<String, Meta.DataStream> dataStreams, ImmutableSet<String> nonExistingIndices,
-                    ImmutableSet<String> unionOfAliasesAndDataStreams, ImmutableMap<String, Meta.IndexLikeObject> union) {
+            private Local(ImmutableSet<Meta.Index> pureIndices, ImmutableSet<Meta.Alias> aliases, ImmutableSet<Meta.DataStream> dataStreams,
+                    ImmutableSet<Meta.NonExistent> nonExistingIndices, ImmutableSet<String> unionOfAliasesAndDataStreams,
+                    ImmutableSet<Meta.IndexLikeObject> union) {
                 this.pureIndices = pureIndices;
                 this.aliases = aliases;
                 this.dataStreams = dataStreams;
@@ -989,31 +990,31 @@ public class ActionRequestIntrospector {
                     // Remove entries from pureIndices which are contained in the other object's aliases or data streams (and vice versa)
                     // This ensures the contract that pureIndices only contains indices which are not already indirectly contained in aliases or dataStreams
 
-                    ImmutableMap.Builder<String, Meta.Index> mergedPureIndices = new ImmutableMap.Builder<>(
+                    ImmutableSet.Builder<Meta.Index> mergedPureIndices = new ImmutableSet.Builder<>(
                             this.pureIndices.size() + other.pureIndices.size());
 
-                    for (Meta.Index index : this.pureIndices.values()) {
-                        if (index.parentDataStreamName() != null && other.dataStreams.containsKey(index.parentDataStreamName())) {
+                    for (Meta.Index index : this.pureIndices) {
+                        if (index.parentDataStreamName() != null && other.dataStreams.contains(index.parentDataStream())) {
                             continue;
                         }
 
-                        if (index.parentAliasNames() != null && other.unionOfAliasesAndDataStreams.containsAny(index.parentAliasNames())) {
+                        if (other.aliases.containsAny(index.parentAliases())) {
                             continue;
                         }
 
-                        mergedPureIndices.put(index.name(), index);
+                        mergedPureIndices.add(index);
                     }
 
-                    for (Meta.Index index : other.pureIndices.values()) {
-                        if (index.parentDataStreamName() != null && this.dataStreams.containsKey(index.parentDataStreamName())) {
+                    for (Meta.Index index : other.pureIndices) {
+                        if (index.parentDataStreamName() != null && this.dataStreams.contains(index.parentDataStream())) {
                             continue;
                         }
 
-                        if (index.parentAliasNames() != null && this.unionOfAliasesAndDataStreams.containsAny(index.parentAliasNames())) {
+                        if (this.aliases.containsAny(index.parentAliases())) {
                             continue;
                         }
 
-                        mergedPureIndices.put(index.name(), index);
+                        mergedPureIndices.add(index);
                     }
 
                     return new Local(mergedPureIndices.build(), this.aliases.with(other.aliases), this.dataStreams.with(other.dataStreams),
@@ -1025,23 +1026,27 @@ public class ActionRequestIntrospector {
                 return this.union.size();
             }
 
-            public ImmutableMap<String, Meta.Index> getPureIndices() {
+            public ImmutableSet<Meta.Index> getPureIndices() {
                 return pureIndices;
             }
 
-            public ImmutableMap<String, Meta.Alias> getAliases() {
+            public ImmutableSet<Meta.Alias> getAliases() {
                 return aliases;
             }
 
-            public ImmutableMap<String, Meta.DataStream> getDataStreams() {
+            public ImmutableSet<Meta.DataStream> getDataStreams() {
                 return dataStreams;
             }
 
-            public ImmutableSet<String> getNonExistingIndices() {
+            public ImmutableSet<Meta.IndexCollection> getAliasesAndDataStreams() {
+                return ImmutableSet.<Meta.IndexCollection>of(aliases).with(dataStreams);
+            }
+            
+            public ImmutableSet<Meta.NonExistent> getNonExistingIndices() {
                 return nonExistingIndices;
             }
 
-            public ImmutableMap<String, Meta.IndexLikeObject> getUnion() {
+            public ImmutableSet<Meta.IndexLikeObject> getUnion() {
                 return union;
             }
 
@@ -1049,7 +1054,7 @@ public class ActionRequestIntrospector {
                 ImmutableSet<String> result = this.deepUnion;
 
                 if (result == null) {
-                    result = this.resolveDeep(unionOfAliasesAndDataStreams).with(this.union.keySet());
+                    result = this.resolveDeep(aliases).with(resolveDeep(dataStreams)).with(this.union.map(Meta.IndexLikeObject::name));
                     this.deepUnion = result;
                 }
 
@@ -1059,39 +1064,35 @@ public class ActionRequestIntrospector {
             /**
              * Resolves the named alias or dataStream to its contained concrete indices. If the named alias or dataStream does not exist, or if it is an index, an empty set is returned.
              */
-            public ImmutableSet<String> resolveDeep(String aliasOrDataStream) {
+            /*
+            public ImmutableSet<String> resolveDeep(Meta.IndexCollection aliasOrDataStream) {
                 Meta.Alias alias = this.aliases.get(aliasOrDataStream);
                 if (alias != null) {
                     return alias.resolveDeepToNames();
                 }
-
+            
                 Meta.DataStream dataStream = this.dataStreams.get(aliasOrDataStream);
                 if (dataStream != null) {
                     return dataStream.resolveDeepToNames();
                 }
-
+            
                 return ImmutableSet.empty();
-            }
+            }*/
 
-            public ImmutableSet<String> resolveDeep(ImmutableSet<String> aliasesAndDataStreams) {
+            public ImmutableSet<String> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams) {
+                // TODO think about moving to meta
+                if (aliasesAndDataStreams.size() == 0) {
+                    return ImmutableSet.empty();
+                }
+
                 if (aliasesAndDataStreams.size() == 1) {
-                    return resolveDeep(aliasesAndDataStreams.only());
+                    return aliasesAndDataStreams.only().resolveDeepToNames();
                 }
 
                 ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>(aliasesAndDataStreams.size() * 20);
 
-                for (String name : aliasesAndDataStreams) {
-
-                    Meta.Alias alias = this.aliases.get(name);
-                    if (alias != null) {
-                        result.addAll(alias.resolveDeepToNames());
-                        continue;
-                    }
-
-                    Meta.DataStream dataStream = this.dataStreams.get(name);
-                    if (dataStream != null) {
-                        result.addAll(dataStream.resolveDeepToNames());
-                    }
+                for (Meta.IndexCollection object : aliasesAndDataStreams) {
+                    result.addAll(object.resolveDeepToNames());
                 }
 
                 return result.build();
@@ -1101,7 +1102,7 @@ public class ActionRequestIntrospector {
                 Boolean result = this.pureIndicesContainsAliasOrDataStreamMembers;
 
                 if (result == null) {
-                    for (Meta.Index pureIndex : this.pureIndices.values()) {
+                    for (Meta.Index pureIndex : this.pureIndices) {
                         if (!pureIndex.parentAliasNames().isEmpty() || pureIndex.parentDataStreamName() != null) {
                             result = true;
                             break;
@@ -1133,7 +1134,7 @@ public class ActionRequestIntrospector {
                 StringBuilder resultBuilder = new StringBuilder("{");
 
                 if (!this.pureIndices.isEmpty()) {
-                    resultBuilder.append("indices: ").append(this.pureIndices.keySet());
+                    resultBuilder.append("indices: ").append(this.pureIndices);
                 }
 
                 if (!this.aliases.isEmpty()) {
@@ -1141,7 +1142,7 @@ public class ActionRequestIntrospector {
                         resultBuilder.append("; ");
                     }
 
-                    resultBuilder.append("aliases: ").append(this.aliases.keySet());
+                    resultBuilder.append("aliases: ").append(this.aliases);
                 }
 
                 if (!this.dataStreams.isEmpty()) {
@@ -1149,7 +1150,7 @@ public class ActionRequestIntrospector {
                         resultBuilder.append("; ");
                     }
 
-                    resultBuilder.append("dataStreams: ").append(this.dataStreams.keySet());
+                    resultBuilder.append("dataStreams: ").append(this.dataStreams);
                 }
 
                 if (!this.nonExistingIndices.isEmpty()) {
@@ -1177,7 +1178,8 @@ public class ActionRequestIntrospector {
                         //} else if (request.writeRequest) { TODO
                         //    return request.resolveWriteIndex();
                     } else if (request.createIndexRequest) {
-                        return new Local(ImmutableMap.empty(), ImmutableMap.empty(), ImmutableMap.empty(), request.resolveDateMathExpressions());
+                        return new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(),
+                                request.resolveDateMathExpressions().map(Meta.NonExistent::of));
                     } else {
                         // No wildcards, no write request, no create index request
                         return resolveWithoutPatterns(request, indexMetadata);
@@ -1199,10 +1201,10 @@ public class ActionRequestIntrospector {
                 Metadata metadata = indexMetadata.esMetadata();
                 SortedMap<String, IndexAbstraction> indicesLookup = metadata.getIndicesLookup();
 
-                ImmutableMap.Builder<String, Meta.Index> indices = new ImmutableMap.Builder<>();
-                ImmutableSet.Builder<String> nonExistingIndices = new ImmutableSet.Builder<>();
-                ImmutableMap.Builder<String, Meta.Alias> aliases = new ImmutableMap.Builder<>();
-                ImmutableMap.Builder<String, Meta.DataStream> dataStreams = new ImmutableMap.Builder<>();
+                ImmutableSet.Builder<Meta.Index> indices = new ImmutableSet.Builder<>();
+                ImmutableSet.Builder<Meta.NonExistent> nonExistingIndices = new ImmutableSet.Builder<>();
+                ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
+                ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
                 Set<String> excludeNames = new HashSet<>();
 
                 for (int i = request.localIndices.size() - 1; i >= 0; i--) {
@@ -1236,11 +1238,11 @@ public class ActionRequestIntrospector {
                                 IndexAbstraction indexAbstraction = entry.getValue();
 
                                 if (indexAbstraction instanceof Alias) {
-                                    aliases.put(entry.getKey(), indexMetadata.aliases().get(entry.getKey()));
+                                    aliases.add((Meta.Alias) indexMetadata.getIndexOrLike(entry.getKey()));
                                 } else if (indexAbstraction instanceof DataStream) {
-                                    dataStreams.put(entry.getKey(), indexMetadata.dataStreams().get(entry.getKey()));
+                                    dataStreams.add((Meta.DataStream) indexMetadata.getIndexOrLike(entry.getKey()));
                                 } else {
-                                    indices.put(entry.getKey(), indexMetadata.indices().get(entry.getKey()));
+                                    indices.add((Meta.Index) indexMetadata.getIndexOrLike(entry.getKey()));
                                 }
                             }
                         } else {
@@ -1251,31 +1253,31 @@ public class ActionRequestIntrospector {
                             Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(index);
 
                             if (indexLikeObject == null) {
-                                nonExistingIndices.add(index);
+                                nonExistingIndices.add(Meta.NonExistent.of(index));
                             } else if (indexLikeObject instanceof Meta.Alias) {
                                 if (!request.indicesOptions.ignoreAliases()) {
-                                    aliases.put(index, (Meta.Alias) indexLikeObject);
+                                    aliases.add((Meta.Alias) indexLikeObject);
                                 }
                             } else if (indexLikeObject instanceof DataStream) {
                                 if (request.includeDataStreams) {
-                                    dataStreams.put(index, (Meta.DataStream) indexLikeObject);
+                                    dataStreams.add((Meta.DataStream) indexLikeObject);
                                 }
                             } else {
-                                indices.put(index, (Meta.Index) indexLikeObject);
+                                indices.add((Meta.Index) indexLikeObject);
                             }
                         }
                     }
                 }
 
-                ImmutableMap<String, Meta.Index> pureIndices = indices.build();
+                ImmutableSet<Meta.Index> pureIndices = indices.build();
 
                 if (aliases.size() != 0 || dataStreams.size() != 0) {
                     // If there are aliases or dataStreams, remove the indices that are part of these aliases or dataStreams
 
-                    pureIndices = pureIndices.matching((k, index) -> {
-                        if (index.parentDataStreamName() != null && dataStreams.contains(index.parentDataStreamName())) {
+                    pureIndices = pureIndices.matching((index) -> {
+                        if (index.parentDataStreamName() != null && dataStreams.contains(index.parentDataStream())) {
                             return false;
-                        } else if (index.parentAliasNames() != null && aliases.containsAnyKey(index.parentAliasNames())) {
+                        } else if (aliases.containsAny(index.parentAliases())) {
                             return false;
                         } else {
                             return true;
@@ -1289,38 +1291,38 @@ public class ActionRequestIntrospector {
             static Local resolveIsAll(IndicesRequestInfo request, Meta indexMetadata) {
                 boolean includeHidden = request.indicesOptions.expandWildcardsHidden();
 
-                ImmutableMap<String, Meta.Index> pureIndices;
-                ImmutableMap<String, Meta.Alias> aliases;
-                ImmutableMap<String, Meta.DataStream> dataStreams;
-                ImmutableSet<String> nonExistingIndices = ImmutableSet.empty();
+                ImmutableSet<Meta.Index> pureIndices;
+                ImmutableSet<Meta.Alias> aliases;
+                ImmutableSet<Meta.DataStream> dataStreams;
+                ImmutableSet<Meta.NonExistent> nonExistingIndices = ImmutableSet.empty();
 
                 if (request.includeDataStreams) {
                     pureIndices = includeHidden ? indexMetadata.indicesWithoutParents() : indexMetadata.nonHiddenIndicesWithoutParents();
-                    aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching((k, v) -> !v.isHidden());
+                    aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching(e -> !e.isHidden());
                     dataStreams = indexMetadata.dataStreams();
                 } else {
                     pureIndices = includeHidden ? indexMetadata.indices() : indexMetadata.nonHiddenIndices();
-                    aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching((k, v) -> !v.isHidden());
-                    dataStreams = ImmutableMap.empty();
+                    aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching(e -> !e.isHidden());
+                    dataStreams = ImmutableSet.empty();
 
                     if (!aliases.isEmpty()) {
-                        pureIndices = pureIndices.matching((k, v) -> v.parentAliasNames().isEmpty());
+                        pureIndices = pureIndices.matching(e -> e.parentAliasNames().isEmpty());
                     }
                 }
 
                 Predicate<Boolean> excludeStatePredicate = WildcardExpressionResolver.excludeStatePredicate(request.indicesOptions);
                 if (excludeStatePredicate != null) {
-                    pureIndices = pureIndices.matching((k, v) -> excludeStatePredicate.test(v.isOpen()));
+                    pureIndices = pureIndices.matching(e -> excludeStatePredicate.test(e.isOpen()));
                 }
 
                 return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
             }
 
             static Local resolveWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
-                ImmutableMap.Builder<String, Meta.Index> indices = new ImmutableMap.Builder<>();
-                ImmutableSet.Builder<String> nonExistingIndices = new ImmutableSet.Builder<>();
-                ImmutableMap.Builder<String, Meta.Alias> aliases = new ImmutableMap.Builder<>();
-                ImmutableMap.Builder<String, Meta.DataStream> dataStreams = new ImmutableMap.Builder<>();
+                ImmutableSet.Builder<Meta.Index> indices = new ImmutableSet.Builder<>();
+                ImmutableSet.Builder<Meta.NonExistent> nonExistingIndices = new ImmutableSet.Builder<>();
+                ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
+                ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
 
                 for (String index : request.localIndices) {
                     String resolved = DateMathExpressionResolver.resolveExpression(index);
@@ -1328,29 +1330,29 @@ public class ActionRequestIntrospector {
                     Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved);
 
                     if (indexLike == null) {
-                        nonExistingIndices.add(resolved);
+                        nonExistingIndices.add(Meta.NonExistent.of(resolved));
                     } else if (indexLike instanceof Meta.Alias) {
                         if (!request.indicesOptions.ignoreAliases()) {
-                            aliases.put(indexLike.name(), (Meta.Alias) indexLike);
+                            aliases.add((Meta.Alias) indexLike);
                         }
                     } else if (indexLike instanceof DataStream) {
                         if (request.includeDataStreams) {
-                            dataStreams.put(indexLike.name(), (Meta.DataStream) indexLike);
+                            dataStreams.add((Meta.DataStream) indexLike);
                         }
                     } else {
-                        indices.put(indexLike.name(), (Meta.Index) indexLike);
+                        indices.add((Meta.Index) indexLike);
                     }
                 }
 
-                ImmutableMap<String, Meta.Index> pureIndices = indices.build();
+                ImmutableSet<Meta.Index> pureIndices = indices.build();
 
                 if (aliases.size() != 0 || dataStreams.size() != 0) {
                     // If there are aliases or dataStreams, remove the indices that are part of these aliases or dataStreams
 
-                    pureIndices = pureIndices.matching((k, index) -> {
-                        if (index.parentDataStreamName() != null && dataStreams.contains(index.parentDataStreamName())) {
+                    pureIndices = pureIndices.matching(index -> {
+                        if (index.parentDataStreamName() != null && dataStreams.contains(index.parentDataStream())) {
                             return false;
-                        } else if (index.parentAliasNames() != null && aliases.containsAnyKey(index.parentAliasNames())) {
+                        } else if (aliases.containsAny(index.parentAliases())) {
                             return false;
                         } else {
                             return true;
@@ -1361,7 +1363,7 @@ public class ActionRequestIntrospector {
                 return new Local(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
             }
 
-            static final Local EMPTY = new Local(ImmutableMap.empty(), ImmutableMap.empty(), ImmutableMap.empty(), ImmutableSet.empty());
+            static final Local EMPTY = new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
 
             public ImmutableSet<String> getUnionOfAliasesAndDataStreams() {
                 return unionOfAliasesAndDataStreams;

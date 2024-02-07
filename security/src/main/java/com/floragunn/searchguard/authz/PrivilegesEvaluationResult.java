@@ -40,7 +40,7 @@ public class PrivilegesEvaluationResult {
     public static final PrivilegesEvaluationResult PENDING = new PrivilegesEvaluationResult(Status.PENDING);
 
     private final Status status;
-    private final CheckTable<String, Action> indexToActionPrivilegeTable;
+    private final CheckTable<?, Action> indexToActionPrivilegeTable;
     private final ImmutableList<Error> errors;
     private final ImmutableSet<String> availableIndices;
     private final String reason;
@@ -56,7 +56,7 @@ public class PrivilegesEvaluationResult {
     }
 
     PrivilegesEvaluationResult(Status status, String reason, ImmutableSet<String> availableIndices,
-            CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors,
+            CheckTable<?, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors,
             ImmutableList<ActionFilter> additionalActionFilters) {
         this.status = status;
         this.indexToActionPrivilegeTable = indexToActionPrivilegeTable;
@@ -81,17 +81,17 @@ public class PrivilegesEvaluationResult {
                 this.additionalActionFilters);
     }
 
-    public PrivilegesEvaluationResult with(CheckTable<String, Action> indexToActionPrivilegeTable) {
+    public PrivilegesEvaluationResult with(CheckTable<?, Action> indexToActionPrivilegeTable) {
         return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, indexToActionPrivilegeTable, this.errors,
                 this.additionalActionFilters);
     }
 
-    public PrivilegesEvaluationResult with(CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
+    public PrivilegesEvaluationResult with(CheckTable<?, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
         return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices, indexToActionPrivilegeTable, errors,
                 this.additionalActionFilters);
     }
 
-    public PrivilegesEvaluationResult with(String reason, CheckTable<String, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
+    public PrivilegesEvaluationResult with(String reason, CheckTable<?, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
         return new PrivilegesEvaluationResult(this.status, reason, this.availableIndices, indexToActionPrivilegeTable, errors,
                 this.additionalActionFilters);
     }
@@ -114,14 +114,14 @@ public class PrivilegesEvaluationResult {
         }
     }
 
-    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices, CheckTable<String, Action> indexToActionPrivilegeTable,
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices, CheckTable<?, Action> indexToActionPrivilegeTable,
             ImmutableList<Error> errors) {
         return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, indexToActionPrivilegeTable, errors,
                 this.additionalActionFilters);
     }
 
     public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices,
-            CheckTable<String, Action> indexToActionPrivilegeTable) {
+            CheckTable<Object, Action> indexToActionPrivilegeTable) {
         return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, indexToActionPrivilegeTable, errors,
                 this.additionalActionFilters);
     }
@@ -136,7 +136,7 @@ public class PrivilegesEvaluationResult {
                 this.additionalActionFilters);
     }
 
-    public CheckTable<String, Action> getIndexToActionPrivilegeTable() {
+    public CheckTable<?, Action> getIndexToActionPrivilegeTable() {
         return indexToActionPrivilegeTable;
     }
 
@@ -343,9 +343,10 @@ public class PrivilegesEvaluationResult {
     private List<String> getFlattenedIndexToActionPrivilegeTable() {
         List<String> result = new ArrayList<>();
 
-        for (String index : this.indexToActionPrivilegeTable.getRows()) {
+        for (Object index : this.indexToActionPrivilegeTable.getRows()) {
             for (Action action : this.indexToActionPrivilegeTable.getColumns()) {
-                if (!this.indexToActionPrivilegeTable.isChecked(index, action)) {
+                // TODO
+                if (!((CheckTable) this.indexToActionPrivilegeTable).isChecked(index, action)) {
                     result.add(index + ": " + action);
                 }
             }
