@@ -45,6 +45,16 @@ public abstract class MetaImpl implements Meta {
             return open;
         }
 
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            } else if (other instanceof Meta.Index) {
+                return ((Meta.Index) other).name().equals(this.name());
+            } else {
+                return false;
+            }
+        }
     }
 
     public static class AliasImpl extends AbstractIndexCollection implements Meta.Alias {
@@ -56,6 +66,17 @@ public abstract class MetaImpl implements Meta {
         protected AbstractIndexLike withAlias(String alias) {
             throw new RuntimeException("Aliases cannot point to aliases");
         }
+        
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            } else if (other instanceof Meta.Alias) {
+                return ((Meta.Alias) other).name().equals(this.name());
+            } else {
+                return false;
+            }
+        }
     }
 
     public static class DataStreamImpl extends AbstractIndexCollection implements Meta.DataStream {
@@ -66,6 +87,72 @@ public abstract class MetaImpl implements Meta {
         @Override
         protected AbstractIndexLike withAlias(String alias) {
             return new DataStreamImpl(name(), ImmutableSet.of(this.parentAliasNames()).with(alias), members(), isHidden());
+        }
+        
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            } else if (other instanceof Meta.DataStream) {
+                return ((Meta.DataStream) other).name().equals(this.name());
+            } else {
+                return false;
+            }
+        }
+    }
+
+    public static class NonExistentImpl implements Meta.NonExistent {
+        private final String name;
+
+        public NonExistentImpl(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String name() {
+            return name;
+        }
+
+        @Override
+        public ImmutableSet<Index> resolveDeep() {
+            // TODO whats correct here?
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> resolveDeepToNames() {
+            return ImmutableSet.of(name);
+        }
+
+        @Override
+        public Collection<String> parentAliasNames() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public String parentDataStreamName() {
+            return null;
+        }
+
+        @Override
+        public boolean isHidden() {
+            return false;
+        }
+        
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            } else if (other instanceof Meta.NonExistent) {
+                return ((Meta.NonExistent) other).name().equals(this.name());
+            } else {
+                return false;
+            }
+        }
+        
+        @Override 
+        public String toString() {
+            return name;
         }
     }
 
@@ -134,17 +221,7 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (!(obj instanceof Meta.IndexLikeObject)) {
-                return false;
-            }
-            Meta.IndexLikeObject other = (Meta.IndexLikeObject) obj;
-
-            return other.name().equals(this.name);
-        }
+        public abstract boolean equals(Object obj);
 
         @Override
         public String toString() {

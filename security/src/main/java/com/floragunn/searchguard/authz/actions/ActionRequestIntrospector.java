@@ -223,7 +223,7 @@ public class ActionRequestIntrospector {
             IndicesRequest.Replaceable replaceableIndicesRequest = (IndicesRequest.Replaceable) request;
 
             ResolvedIndices resolvedIndices = getResolvedIndices(replaceableIndicesRequest, actionRequestInfo);
-            ImmutableSet<String> actualIndices = resolvedIndices.getLocal().getUnion();
+            ImmutableSet<String> actualIndices = resolvedIndices.getLocal().getUnion().keySet();
 
             if (keepIndices.containsAll(actualIndices)) {
                 return PrivilegesEvaluationResult.OK;
@@ -255,7 +255,7 @@ public class ActionRequestIntrospector {
     private void validateIndexReduction(String action, Object request, Set<String> keepIndices) throws PrivilegesEvaluationException {
         ActionRequestInfo newInfo = getActionRequestInfo(action, request);
 
-        if (!keepIndices.containsAll(newInfo.getResolvedIndices().getLocal().getUnion())) {
+        if (!keepIndices.containsAll(newInfo.getResolvedIndices().getLocal().getUnion().keySet())) {
             throw new PrivilegesEvaluationException(
                     "Indices were not properly reduced: " + request + "/" + newInfo.getResolvedIndices() + "; keep: " + keepIndices);
         }
@@ -867,11 +867,11 @@ public class ActionRequestIntrospector {
         }
 
         public ImmutableSet<String> getLocalAndRemoteIndices() {
-            return getLocal().getUnion().with(getRemoteIndices());
+            return getLocal().getUnion().keySet().with(getRemoteIndices());
         }
 
         public ImmutableSet<String> getLocalSubset(Set<String> superSet) {
-            return getLocal().getUnion().intersection(superSet).with(remoteIndices);
+            return getLocal().getUnion().keySet().intersection(superSet).with(remoteIndices);
         }
 
         public String[] getLocalSubsetAsArray(Set<String> superSet) {
@@ -935,7 +935,7 @@ public class ActionRequestIntrospector {
             private final ImmutableMap<String, Meta.DataStream> dataStreams;
             private final ImmutableSet<String> nonExistingIndices;
             private final ImmutableSet<String> unionOfAliasesAndDataStreams;
-            private final ImmutableSet<String> union;
+            private final ImmutableMap<String, Meta.IndexLikeObject> union;
             private String asString;
             private ImmutableSet<String> deepUnion;
             private Boolean pureIndicesContainsAliasOrDataStreamMembers;
@@ -947,7 +947,7 @@ public class ActionRequestIntrospector {
                 this.dataStreams = dataStreams;
                 this.nonExistingIndices = nonExistingIndices;
                 this.unionOfAliasesAndDataStreams = aliases.keySet().with(dataStreams.keySet());
-                this.union = pureIndices.keySet().with(nonExistingIndices).with(this.unionOfAliasesAndDataStreams);
+                this.union = ImmutableMap.<String, Meta.IndexLikeObject>of(pureIndices).with(aliases).with(dataStreams).with(nonExistingIndices.toMap((n) -> Meta.NonExistent.of(n)));
             }
 
             /**
@@ -959,12 +959,12 @@ public class ActionRequestIntrospector {
                 this.dataStreams = ImmutableMap.empty();
                 this.nonExistingIndices = localIndices;
                 this.unionOfAliasesAndDataStreams = ImmutableSet.empty();
-                this.union = localIndices;
+                this.union = localIndices.toMap((n) -> Meta.NonExistent.of(n));
             }
 
             private Local(ImmutableMap<String, Meta.Index> pureIndices, ImmutableMap<String, Meta.Alias> aliases,
                     ImmutableMap<String, Meta.DataStream> dataStreams, ImmutableSet<String> nonExistingIndices,
-                    ImmutableSet<String> unionOfAliasesAndDataStreams, ImmutableSet<String> union) {
+                    ImmutableSet<String> unionOfAliasesAndDataStreams, ImmutableMap<String, Meta.IndexLikeObject> union) {
                 this.pureIndices = pureIndices;
                 this.aliases = aliases;
                 this.dataStreams = dataStreams;
@@ -1041,7 +1041,7 @@ public class ActionRequestIntrospector {
                 return nonExistingIndices;
             }
 
-            public ImmutableSet<String> getUnion() {
+            public ImmutableMap<String, Meta.IndexLikeObject> getUnion() {
                 return union;
             }
 
@@ -1049,7 +1049,7 @@ public class ActionRequestIntrospector {
                 ImmutableSet<String> result = this.deepUnion;
 
                 if (result == null) {
-                    result = this.resolveDeep(unionOfAliasesAndDataStreams).with(this.union);
+                    result = this.resolveDeep(unionOfAliasesAndDataStreams).with(this.union.keySet());
                     this.deepUnion = result;
                 }
 
