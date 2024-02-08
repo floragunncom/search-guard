@@ -434,11 +434,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     log.trace("Permissions after exclusions:\n{}", deepCheckTable);
                 }
 
-                if (deepCheckTable.isComplete()) {
-                    indexActionCheckResults_ok.increment();
-                    return PrivilegesEvaluationResult.OK;
-                }
-
+                // When using deepCheckTable, we never issue the result PrivilegesEvaluationResult.OK, even if the table is complete.
+                // This is because async operations could modify an alias to point to other indices while the privilege evaluation is active. 
+                // If we would return PrivilegesEvaluationResult.OK in this case, the index resolve operation executed by the particular
+                // action will resolve to different indices than we checked here. Thus, we would give privileges even though they are not present.
+                // By returning PrivilegesEvaluationResult.PARTIALLY_OK we always force a replacement of the requested indices/aliases by these
+                // for which the user actually has privileges for.
                 ImmutableSet<String> availableIndices = deepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name);
 
                 if (!availableIndices.isEmpty()) {
