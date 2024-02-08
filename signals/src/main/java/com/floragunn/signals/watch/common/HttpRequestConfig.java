@@ -206,13 +206,18 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
     }
 
     private RequestBuilder createHttpRequestBuilder(URI url, Method method) throws WatchExecutionException {
-        return switch (method) {
-            case POST -> RequestBuilder.post(url);
-            case PUT -> RequestBuilder.put(url);
-            case DELETE -> RequestBuilder.delete(url);
-            case GET -> RequestBuilder.get(url);
-            default -> throw new WatchExecutionException("Unsupported request method " + method, null);
-        };
+        switch (method) {
+            case POST:
+                return RequestBuilder.post(url);
+            case PUT:
+                return RequestBuilder.put(url);
+            case DELETE:
+                return RequestBuilder.delete(url);
+            case GET:
+                return RequestBuilder.get(url);
+            default:
+                throw new WatchExecutionException("Unsupported request method " + method, null);
+        }
     }
 
     private URI getRenderedUri(WatchExecutionContext ctx) throws WatchExecutionException {
