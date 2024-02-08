@@ -18,6 +18,7 @@
 
   <properties>
     <jjwt.version>0.10.5</jjwt.version>
+    <ldaptive.version>2.3.0</ldaptive.version>
     <unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
   </properties>
 
