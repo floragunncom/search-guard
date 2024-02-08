@@ -428,12 +428,9 @@ public class RoleBasedActionAuthorizationTests {
 
             if (this.indexSpec.wildcardPrivs || this.indexSpec.aliasWildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenIndexPrivs.contains("alias_a*") && this.indexSpec.givenIndexPrivs.contains("-alias_a2")) {
+            } else if (this.indexSpec.givenAliasPrivs.contains("alias_a*") && this.indexSpec.givenIndexPrivs.contains("-alias_a2")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
-            } else if (this.indexSpec.givenIndexPrivs.contains("alias_a*") && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
-                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1", "alias_a2")));
             } else {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
@@ -448,12 +445,9 @@ public class RoleBasedActionAuthorizationTests {
 
             if (this.indexSpec.wildcardPrivs || this.indexSpec.aliasWildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenIndexPrivs.contains("alias_a*") && !this.indexSpec.givenIndexPrivs.contains("-alias_a")) {
+            } else if (this.indexSpec.givenAliasPrivs.contains("alias_a*") && !this.indexSpec.givenAliasPrivs.contains("-alias_a")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12", "index_a21")));
-            } else if (this.indexSpec.givenIndexPrivs.contains("alias_a1") && this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
-                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));
             } else {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));
