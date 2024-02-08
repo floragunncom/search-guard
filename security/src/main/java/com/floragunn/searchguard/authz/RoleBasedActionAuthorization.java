@@ -662,32 +662,88 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         try (Meter subMeter = meter.basic("non_well_known_actions_index_pattern")) {
             top: for (String role : mappedRoles) {
                 ImmutableMap<Pattern, IndexPattern> actionPatternToIndexPattern = this.index.rolesToActionPatternToIndexPattern.get(role);
-                ImmutableMap<Pattern, IndexPattern> actionToAliasPattern = this.alias.rolesToActionPatternToIndexPattern.get(role);
-                ImmutableMap<Pattern, IndexPattern> actionToDataStreamPattern = this.dataStream.rolesToActionPatternToIndexPattern.get(role);
+                ImmutableMap<Pattern, IndexPattern> actionPatternToAliasPattern = resolved.getLocal().getAliases().isEmpty() ? null
+                        : this.alias.rolesToActionPatternToIndexPattern.get(role);
+                ImmutableMap<Pattern, IndexPattern> actionPatternToDataStreamPattern = resolved.getLocal().getDataStreams().isEmpty() ? null
+                        : this.dataStream.rolesToActionPatternToIndexPattern.get(role);
 
-                if (actionPatternToIndexPattern != null || actionToAliasPattern != null || actionToDataStreamPattern != null) {
-                    // TODO
+                if (actionPatternToIndexPattern != null || actionPatternToAliasPattern != null || actionPatternToDataStreamPattern != null) {
 
                     for (Action action : checkTable.getColumns()) {
                         if (action instanceof WellKnownAction) {
                             continue;
                         }
 
-                        for (Map.Entry<Pattern, IndexPattern> entry : actionPatternToIndexPattern.entrySet()) {
-                            Pattern actionPattern = entry.getKey();
-                            IndexPattern indexPattern = entry.getValue();
+                        if (actionPatternToIndexPattern != null) {
+                            for (Map.Entry<Pattern, IndexPattern> entry : actionPatternToIndexPattern.entrySet()) {
+                                Pattern actionPattern = entry.getKey();
+                                IndexPattern indexPattern = entry.getValue();
 
-                            if (actionPattern.matches(action.name())) {
-                                for (Meta.IndexLikeObject index : checkTable.iterateUncheckedRows(action)) {
-                                    try {
-                                        if (indexPattern.matches(index.name(), user, context, subMeter) && checkTable.check(index, action)) {
-                                            break top;
+                                if (actionPattern.matches(action.name())) {
+                                    for (Meta.IndexLikeObject index : checkTable.iterateUncheckedRows(action)) {
+                                        if (index instanceof Meta.IndexOrNonExistent) {
+                                            try {
+                                                if (indexPattern.matches(index.name(), user, context, subMeter) && checkTable.check(index, action)) {
+                                                    break top;
+                                                }
+                                            } catch (PrivilegesEvaluationException e) {
+                                                // We can ignore these errors, as this max leads to fewer privileges than available
+                                                log.error("Error while evaluating index pattern. Ignoring entry", e);
+                                                this.componentState.addLastException("has_index_permission", e);
+                                                localContext
+                                                        .add(new PrivilegesEvaluationResult.Error("Error while evaluating index pattern", e, role));
+                                            }
                                         }
-                                    } catch (PrivilegesEvaluationException e) {
-                                        // We can ignore these errors, as this max leads to fewer privileges than available
-                                        log.error("Error while evaluating index pattern. Ignoring entry", e);
-                                        this.componentState.addLastException("has_index_permission", e);
-                                        localContext.add(new PrivilegesEvaluationResult.Error("Error while evaluating index pattern", e, role));
+                                    }
+                                }
+                            }
+                        }
+
+                        if (actionPatternToAliasPattern != null) {
+                            for (Map.Entry<Pattern, IndexPattern> entry : actionPatternToAliasPattern.entrySet()) {
+                                Pattern actionPattern = entry.getKey();
+                                IndexPattern indexPattern = entry.getValue();
+
+                                if (actionPattern.matches(action.name())) {
+                                    for (Meta.IndexLikeObject index : checkTable.iterateUncheckedRows(action)) {
+                                        if (index instanceof Meta.Alias) {
+                                            try {
+                                                if (indexPattern.matches(index.name(), user, context, subMeter) && checkTable.check(index, action)) {
+                                                    break top;
+                                                }
+                                            } catch (PrivilegesEvaluationException e) {
+                                                // We can ignore these errors, as this max leads to fewer privileges than available
+                                                log.error("Error while evaluating index pattern. Ignoring entry", e);
+                                                this.componentState.addLastException("has_index_permission", e);
+                                                localContext
+                                                        .add(new PrivilegesEvaluationResult.Error("Error while evaluating index pattern", e, role));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (actionPatternToDataStreamPattern != null) {
+                            for (Map.Entry<Pattern, IndexPattern> entry : actionPatternToDataStreamPattern.entrySet()) {
+                                Pattern actionPattern = entry.getKey();
+                                IndexPattern indexPattern = entry.getValue();
+
+                                if (actionPattern.matches(action.name())) {
+                                    for (Meta.IndexLikeObject index : checkTable.iterateUncheckedRows(action)) {
+                                        if (index instanceof Meta.DataStream) {
+                                            try {
+                                                if (indexPattern.matches(index.name(), user, context, subMeter) && checkTable.check(index, action)) {
+                                                    break top;
+                                                }
+                                            } catch (PrivilegesEvaluationException e) {
+                                                // We can ignore these errors, as this max leads to fewer privileges than available
+                                                log.error("Error while evaluating index pattern. Ignoring entry", e);
+                                                this.componentState.addLastException("has_index_permission", e);
+                                                localContext
+                                                        .add(new PrivilegesEvaluationResult.Error("Error while evaluating index pattern", e, role));
+                                            }
+                                        }
                                     }
                                 }
                             }
