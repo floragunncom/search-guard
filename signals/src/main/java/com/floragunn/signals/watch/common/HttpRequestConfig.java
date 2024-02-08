@@ -156,12 +156,13 @@ public class HttpRequestConfig extends WatchElement implements ToXContentObject 
 
         String body = prepareBody(ctx);
         httpRequestBuilder.setEntity(new StringEntity(body));
+        HttpUriRequest request = httpRequestBuilder.build();
 
         if (log.isDebugEnabled()) {
-            log.debug("Rendered HTTP request:\n" + httpRequestBuilder + "\n" + body);
+            log.debug("Rendered HTTP request:\n" + request + "\n" + body);
         }
 
-        return httpRequestBuilder.build();
+        return request;
     }
 
     // TODO maybe move this to a dedicated http client
