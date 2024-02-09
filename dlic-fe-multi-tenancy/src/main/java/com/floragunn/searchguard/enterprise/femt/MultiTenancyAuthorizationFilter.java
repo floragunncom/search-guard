@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandler;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
+import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -146,7 +147,8 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
                     + user.getRequestedTenant());
         }
 
-        List<IndexInfo> kibanaIndicesInfo = checkForExclusivelyUsedKibanaIndexOrAlias((ActionRequest) context.getRequest(), requestedResolved);
+        List<IndexInfo> kibanaIndicesInfo = checkForExclusivelyUsedKibanaIndexOrAlias((ActionRequest) context.getRequest(),
+            requestedResolved, user.getRequestedTenant());
 
         if (kibanaIndicesInfo.isEmpty()) {
             // This is not about the .kibana index: Nothing to do here, get out early!
@@ -332,7 +334,8 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         return true;
     }
 
-    private List<IndexInfo> checkForExclusivelyUsedKibanaIndexOrAlias(ActionRequest request, ResolvedIndices requestedResolved) {
+    private List<IndexInfo> checkForExclusivelyUsedKibanaIndexOrAlias(ActionRequest request, ResolvedIndices requestedResolved,
+        String requestedTenant) {
         if (requestedResolved.isLocalAll()) {
             return Collections.emptyList();
         }
@@ -342,9 +345,13 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
             .map(this::checkForExclusivelyUsedKibanaIndexOrAlias) //
             .filter(Objects::nonNull) //
             .collect(Collectors.toList());
-        if((!multiTenancyRelatedIndices.isEmpty()) && (allQueryIndices.size() != multiTenancyRelatedIndices.size())) {
+        if ((!Strings.isNullOrEmpty(requestedTenant)) && (!multiTenancyRelatedIndices.isEmpty()) && (allQueryIndices.size() != multiTenancyRelatedIndices.size())) {
             String indicesNames = String.join(", ", allQueryIndices);
-            log.error("Request '{}' is related to multi-tenancy indices and some other indices '{}'", request.getClass(), indicesNames);
+            log.error(
+                "Request '{}' is related to multi-tenancy indices and some other indices '{}', requested tenant '{}'",
+                request.getClass(),
+                indicesNames,
+                requestedTenant);
         }
         return multiTenancyRelatedIndices;
     }
