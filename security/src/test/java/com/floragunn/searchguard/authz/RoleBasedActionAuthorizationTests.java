@@ -411,8 +411,11 @@ public class RoleBasedActionAuthorizationTests {
             PrivilegesEvaluationResult result//
                     = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions, ResolvedIndices.of(BASIC, "alias_a1"));
             
-            if (!this.indexSpec.givenAliasPrivs.isEmpty() || this.indexSpec.wildcardPrivs) {
+            if (!this.indexSpec.givenAliasPrivs.isEmpty()) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            } else if (this.indexSpec.wildcardPrivs) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));                
             } else {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));
@@ -432,8 +435,11 @@ public class RoleBasedActionAuthorizationTests {
                     = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions,
                             ResolvedIndices.of(BASIC, "alias_a1", "alias_a2", "alias_b"));
 
-            if (this.indexSpec.wildcardPrivs || this.indexSpec.aliasWildcardPrivs) {
+            if (this.indexSpec.aliasWildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            } else if (this.indexSpec.wildcardPrivs) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_b1", "index_b2", "index_a12", "index_a11", "index_a22", "index_a21")));          
             } else if (this.indexSpec.givenAliasPrivs.contains("alias_a*") && this.indexSpec.givenAliasPrivs.contains("-alias_a2")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
