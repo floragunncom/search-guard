@@ -884,10 +884,9 @@ public class MultiTenancyMigrationTest {
     // - add sg_tenant field based on document id
 
     private void createInternalIndex(String indexName) {
-        try(Client client = cluster.getInternalNodeClient()) {
-            CreateIndexResponse response = client.admin().indices().create(new CreateIndexRequest(indexName)).actionGet();
-            assertThat(response.isAcknowledged(), equalTo(true));
-        }
+        Client client = cluster.getInternalNodeClient();
+        CreateIndexResponse response = client.admin().indices().create(new CreateIndexRequest(indexName)).actionGet();
+        assertThat(response.isAcknowledged(), equalTo(true));
     }
 
     @Test
@@ -898,8 +897,8 @@ public class MultiTenancyMigrationTest {
         DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
         DocNode source = DocNode.of("type", "dashboard", "name", "migrated dashboard");
 
-        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver");
-            Client client = cluster.getInternalNodeClient()) {
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
             String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
 
             HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
@@ -920,8 +919,8 @@ public class MultiTenancyMigrationTest {
         DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
         DocNode source = DocNode.of("type", "cases-telemetry", "name", "migrated case");
 
-        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver");
-            Client client = cluster.getInternalNodeClient()) {
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
             String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
 
             HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
@@ -942,8 +941,8 @@ public class MultiTenancyMigrationTest {
         DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
         DocNode source = DocNode.of("type", "space", "name", "migrated space default");
 
-        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver");
-            Client client = cluster.getInternalNodeClient()) {
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
             String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
 
             HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
@@ -964,8 +963,8 @@ public class MultiTenancyMigrationTest {
         DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
         DocNode source = DocNode.of("type", "endpoint", "name", "Endpoint name");
 
-        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver");
-            Client client = cluster.getInternalNodeClient()) {
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
             String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
 
             HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
@@ -986,8 +985,8 @@ public class MultiTenancyMigrationTest {
         DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
         DocNode source = DocNode.of("type", "ingest", "name", "ingest");
 
-        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver");
-            Client client = cluster.getInternalNodeClient()) {
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
             String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
 
             HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
@@ -1019,8 +1018,8 @@ public class MultiTenancyMigrationTest {
             .map(DocNode::toJsonString) //
             .collect(Collectors.joining("\n")) + "\n";
 
-        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver");
-            Client client = cluster.getInternalNodeClient()) {
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
 
             HttpResponse bulkResponse = restClient.postJson("/" + indexName + "/_bulk", bulkBody);
 
@@ -1141,8 +1140,8 @@ public class MultiTenancyMigrationTest {
             .map(DocNode::toJsonString) //
             .collect(Collectors.joining("\n")) + "\n";
 
-        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver");
-            Client client = cluster.getInternalNodeClient()) {
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
             HttpResponse bulkResponse = restClient.postJson("/" + indexName + "/_bulk", bulkBody);
             assertThat(bulkResponse.getStatusCode(), equalTo(SC_OK));
 
