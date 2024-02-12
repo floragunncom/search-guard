@@ -1,7 +1,11 @@
 package com.floragunn.signals;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -11,12 +15,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
+import com.floragunn.signals.execution.WatchExecutionException;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
+import com.floragunn.signals.watch.common.HttpEndpointWhitelist;
+import com.floragunn.signals.watch.common.auth.BasicAuth;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
@@ -25,6 +34,8 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockClassRule;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
@@ -118,7 +129,7 @@ public class CheckTest {
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).remote("my_remote", anotherCluster)
             .enableModule(SignalsModule.class).build();
-    
+
     private TrustManagerRegistry trustManagerRegistry;
     private HttpProxyHostRegistry httpProxyHostRegistry;
     private X509ExtendedTrustManager trustManager;
@@ -337,6 +348,102 @@ public class CheckTest {
             Assert.assertEquals("bar", inputResult.get("foo"));
             Assert.assertEquals(55, inputResult.get("x"));
         }
+    }
+
+    @Test
+    public void httpInputTestGET() throws Exception {
+            //body in generated request
+            HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.GET, new URI("/someUri"), null,
+                    null, "{\"request\": \"bar\"}", null, Collections.singletonMap("Content-Type", "application/json"), new BasicAuth("username", "password"), null);
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+            WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(new NestedValueMap()), trustManagerRegistry);
+
+            HttpUriRequest httpRequest = httpRequestConfig.createHttpRequest(ctx);
+
+            Assert.assertEquals("Basic dXNlcm5hbWU6cGFzc3dvcmQ=", httpRequest.getFirstHeader("Authorization").getValue());
+            Assert.assertEquals(HttpRequestConfig.Method.GET.toString(), httpRequest.getMethod());
+            Assert.assertEquals("application/json", httpRequest.getHeaders("Content-Type")[0].getValue());
+            Assert.assertEquals("/someUri", httpRequest.getURI().toString());
+            String body = new BufferedReader(
+                    new InputStreamReader(((HttpEntityEnclosingRequestBase)httpRequest).getEntity().getContent()))
+                    .lines()
+                    .collect(Collectors.joining("\n"));
+
+            Assert.assertEquals("{\"request\": \"bar\"}", body);
+
+            //check empty body
+            httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.GET, new URI("/someUri"), null,
+                    null, null, null, null, new BasicAuth("username", "password"), null);
+            httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                    trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+
+            httpRequest = httpRequestConfig.createHttpRequest(ctx);
+
+            Assert.assertEquals("Basic dXNlcm5hbWU6cGFzc3dvcmQ=", httpRequest.getFirstHeader("Authorization").getValue());
+            Assert.assertEquals(HttpRequestConfig.Method.GET.toString(), httpRequest.getMethod());
+            Assert.assertNull(httpRequest.getFirstHeader("Content-Type"));
+            Assert.assertEquals("/someUri", httpRequest.getURI().toString());
+            body = new BufferedReader(
+                    new InputStreamReader(((HttpEntityEnclosingRequestBase)httpRequest).getEntity().getContent()))
+                    .lines()
+                    .collect(Collectors.joining("\n"));
+
+        Assert.assertEquals("", body);
+    }
+
+    @Test
+    public void httpInputTestPOSTBodyCreation() throws Exception {
+        //body in generated request
+        HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI("/someUri"), null,
+                null, "{\"request\": \"bar\"}", null, Collections.singletonMap("Content-Type", "application/json"), null, null);
+        httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+        WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(new NestedValueMap()), trustManagerRegistry);
+
+        HttpUriRequest httpRequest = httpRequestConfig.createHttpRequest(ctx);
+
+        Assert.assertEquals(HttpRequestConfig.Method.POST.toString(), httpRequest.getMethod());
+        Assert.assertEquals("application/json", httpRequest.getHeaders("Content-Type")[0].getValue());
+        Assert.assertEquals("/someUri", httpRequest.getURI().toString());
+        String body = new BufferedReader(
+                new InputStreamReader(((HttpEntityEnclosingRequestBase)httpRequest).getEntity().getContent()))
+                .lines()
+                .collect(Collectors.joining("\n"));
+
+        Assert.assertEquals("{\"request\": \"bar\"}", body);
+
+        //check empty body
+        httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST , new URI("/someUri"), null,
+                null, null, null, null, null, null);
+        httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+
+        httpRequest = httpRequestConfig.createHttpRequest(ctx);
+
+        Assert.assertEquals(HttpRequestConfig.Method.POST.toString(), httpRequest.getMethod());
+        Assert.assertNull(httpRequest.getFirstHeader("Content-Type"));
+        Assert.assertEquals("/someUri", httpRequest.getURI().toString());
+        body = new BufferedReader(
+                new InputStreamReader(((HttpEntityEnclosingRequestBase)httpRequest).getEntity().getContent()))
+                .lines()
+                .collect(Collectors.joining("\n"));
+
+        Assert.assertEquals("", body);
+    }
+
+    @Test(expected = HttpEndpointWhitelist.NotWhitelistedException.class)
+    public void httpInputShouldThrowWhiteListException() throws ConfigValidationException, HttpEndpointWhitelist.NotWhitelistedException, IOException, WatchExecutionException, URISyntaxException {
+        HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI("/someUri"), null,
+                null, "{\"request\": \"bar\"}", null, Collections.singletonMap("Content-Type", "application/json"), null, null);
+        httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+        WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(new NestedValueMap()), null, null, new HttpEndpointWhitelist(Collections.singletonList("otherUri")), null, null, null, trustManagerRegistry);
+
+        httpRequestConfig.createHttpRequest(ctx);
     }
 
     @Test

@@ -50,11 +50,11 @@ public class HttpInput extends AbstractInput {
     private static final Logger log = LogManager.getLogger(HttpInput.class);
 
     private HttpClientConfig httpClientConfig;
-    private HttpRequestConfig request;
+    private HttpRequestConfig httpRequestConfig;
 
-    public HttpInput(String name, String target, HttpRequestConfig request, HttpClientConfig httpClientConfig) {
+    public HttpInput(String name, String target, HttpRequestConfig httpRequestConfig, HttpClientConfig httpClientConfig) {
         super(name, target);
-        this.request = request;
+        this.httpRequestConfig = httpRequestConfig;
         this.httpClientConfig = httpClientConfig;
     }
 
@@ -62,7 +62,7 @@ public class HttpInput extends AbstractInput {
     public boolean execute(WatchExecutionContext ctx) throws CheckExecutionException {
 
         try (CloseableHttpClient httpClient = httpClientConfig.createHttpClient(ctx.getHttpProxyConfig())) {
-            HttpUriRequest httpRequest = request.createHttpRequest(ctx);
+            HttpUriRequest httpRequest = httpRequestConfig.createHttpRequest(ctx);
             CloseableHttpResponse response = AccessController
                     .doPrivileged((PrivilegedExceptionAction<CloseableHttpResponse>) () -> httpClient.execute(httpRequest));
 
@@ -75,7 +75,7 @@ public class HttpInput extends AbstractInput {
                         "HTTP input web service returned error: " + response.getStatusLine() + "\n" + HttpUtils.getEntityAsDebugString(response));
             }
 
-            this.request.checkHttpResponse(httpRequest, response);
+            this.httpRequestConfig.checkHttpResponse(httpRequest, response);
 
             
             Format docType = Format.peekByContentType(getContentType(response));
@@ -130,7 +130,7 @@ public class HttpInput extends AbstractInput {
         }
 
         builder.field("request");
-        request.toXContent(builder, params);
+        httpRequestConfig.toXContent(builder, params);
 
         httpClientConfig.toXContent(builder, params);
 
