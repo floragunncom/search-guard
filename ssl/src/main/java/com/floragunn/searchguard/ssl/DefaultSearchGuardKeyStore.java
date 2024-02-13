@@ -222,7 +222,9 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
             initTransportSSLConfig();
         }
 
-        if (httpSSLEnabled) {
+        final boolean client = !"node".equals(this.settings.get(SearchGuardSSLPlugin.CLIENT_TYPE));
+
+        if (!client && httpSSLEnabled) {
             initHttpSSLConfig();
         }
     }

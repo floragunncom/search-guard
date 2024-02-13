@@ -1,9 +1,9 @@
 package com.floragunn.signals.actions.watch.state.search;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.internal.Client;
@@ -35,7 +35,7 @@ public class TransportSearchWatchStateAction extends HandledTransportAction<Sear
     @Inject
     public TransportSearchWatchStateAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(SearchWatchStateAction.NAME, transportService, actionFilters, SearchWatchStateRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        super(SearchWatchStateAction.NAME, transportService, actionFilters, SearchWatchStateRequest::new);
 
         this.signals = signals;
         this.client = client;
@@ -106,7 +106,7 @@ public class TransportSearchWatchStateAction extends HandledTransportAction<Sear
 
                 searchRequest.source(searchSourceBuilder);
 
-                client.execute(TransportSearchAction.TYPE, searchRequest, new ActionListener<SearchResponse>() {
+                client.execute(SearchAction.INSTANCE, searchRequest, new ActionListener<SearchResponse>() {
 
                     @Override
                     public void onResponse(SearchResponse response) {

@@ -39,7 +39,7 @@ public class TransportDeActivateWatchAction extends HandledTransportAction<DeAct
     @Inject
     public TransportDeActivateWatchAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(DeActivateWatchAction.NAME, transportService, actionFilters, DeActivateWatchRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        super(DeActivateWatchAction.NAME, transportService, actionFilters, DeActivateWatchRequest::new);
 
         this.signals = signals;
         this.client = client;

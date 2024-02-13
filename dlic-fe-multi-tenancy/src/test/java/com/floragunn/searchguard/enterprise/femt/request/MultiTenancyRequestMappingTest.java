@@ -103,7 +103,7 @@ public class MultiTenancyRequestMappingTest {
 
     @Before
     public void createTestIndex() {
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
             String mapping = """
                 {
                   "properties": {
@@ -113,9 +113,10 @@ public class MultiTenancyRequestMappingTest {
                   }
                 }
                 """;
-        AcknowledgedResponse createIndexResponse = client.admin().indices()
-                .create(new CreateIndexRequest(KIBANA_INDEX).mapping(mapping)).actionGet();
-        assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
+            AcknowledgedResponse createIndexResponse = client.admin().indices()
+                    .create(new CreateIndexRequest(KIBANA_INDEX).mapping(mapping)).actionGet();
+            assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
+        }
     }
 
     @After
@@ -3116,11 +3117,12 @@ public class MultiTenancyRequestMappingTest {
     }
 
     private DocWriteResponse addDocumentToIndex(String id, String routing, DocNode doc) {
-        Client client = cluster.getInternalNodeClient();
-        DocWriteResponse indexResponse = client.index(new IndexRequest(KIBANA_INDEX).id(id).source(doc)
-                .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).routing(routing)).actionGet();
-        assertThat(indexResponse.status().getStatus(), equalTo(HttpStatus.SC_CREATED));
-        return indexResponse;
+        try (Client client = cluster.getInternalNodeClient()) {
+            DocWriteResponse indexResponse = client.index(new IndexRequest(KIBANA_INDEX).id(id).source(doc)
+                    .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).routing(routing)).actionGet();
+            assertThat(indexResponse.status().getStatus(), equalTo(HttpStatus.SC_CREATED));
+            return indexResponse;
+        }
     }
 
     private DocWriteResponse addDocumentToIndex(String id, DocNode doc) {
@@ -3128,31 +3130,35 @@ public class MultiTenancyRequestMappingTest {
     }
 
     private GetResponse getDocById(String id) {
-        Client client = cluster.getInternalNodeClient();
-        GetResponse getResponse = client.get(new GetRequest(KIBANA_INDEX).id(id)).actionGet();
-        assertThat(getResponse.isExists(), equalTo(true));
-        return getResponse;
+        try (Client client = cluster.getInternalNodeClient()) {
+            GetResponse getResponse = client.get(new GetRequest(KIBANA_INDEX).id(id)).actionGet();
+            assertThat(getResponse.isExists(), equalTo(true));
+            return getResponse;
+        }
     }
 
     private void addAliasToIndex(String aliasName) {
-        Client client = cluster.getInternalNodeClient();
-        IndicesAliasesRequest.AliasActions addAlias = IndicesAliasesRequest.AliasActions.add().index(KIBANA_INDEX).alias(aliasName);
-        AcknowledgedResponse acknowledgedResponse = client.admin().indices()
-                .aliases(new IndicesAliasesRequest().addAliasAction(addAlias))
-                .actionGet();
-        assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+        try (Client client = cluster.getInternalNodeClient()) {
+            IndicesAliasesRequest.AliasActions addAlias = IndicesAliasesRequest.AliasActions.add().index(KIBANA_INDEX).alias(aliasName);
+            AcknowledgedResponse acknowledgedResponse = client.admin().indices()
+                    .aliases(new IndicesAliasesRequest().addAliasAction(addAlias))
+                    .actionGet();
+            assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
+        }
     }
 
     private void updateIndexMappings(DocNode mapping) {
-        Client client = cluster.getInternalNodeClient();
-        AcknowledgedResponse response = client.admin().indices().putMapping(new PutMappingRequest(KIBANA_INDEX).source(mapping)).actionGet();
-        assertThat(response.isAcknowledged(), equalTo(true));
+        try (Client client = cluster.getInternalNodeClient()) {
+            AcknowledgedResponse response = client.admin().indices().putMapping(new PutMappingRequest(KIBANA_INDEX).source(mapping)).actionGet();
+            assertThat(response.isAcknowledged(), equalTo(true));
+        }
     }
 
     private void deleteIndex(String indexNamePattern) {
-        Client client = cluster.getInternalNodeClient();
-        AcknowledgedResponse deleteIndexResponse = client.admin().indices().delete(new DeleteIndexRequest(indexNamePattern)).actionGet();
-        assertThat(deleteIndexResponse.isAcknowledged(), equalTo(true));
+        try (Client client = cluster.getInternalNodeClient()) {
+            AcknowledgedResponse deleteIndexResponse = client.admin().indices().delete(new DeleteIndexRequest(indexNamePattern)).actionGet();
+            assertThat(deleteIndexResponse.isAcknowledged(), equalTo(true));
+        }
     }
 
     private void deleteDoc(String id) {
@@ -3160,9 +3166,10 @@ public class MultiTenancyRequestMappingTest {
     }
 
     private void deleteDoc(String id, String routing) {
-        Client client = cluster.getInternalNodeClient();
-        DeleteResponse deleteResponse = client.delete(new DeleteRequest(KIBANA_INDEX).id(id).routing(routing)).actionGet();
-        assertThat(deleteResponse.status().getStatus(), equalTo(HttpStatus.SC_OK));
+        try (Client client = cluster.getInternalNodeClient()) {
+            DeleteResponse deleteResponse = client.delete(new DeleteRequest(KIBANA_INDEX).id(id).routing(routing)).actionGet();
+            assertThat(deleteResponse.status().getStatus(), equalTo(HttpStatus.SC_OK));
+        }
     }
 
     private DocNode multiGetReqBody(String... docIds) {

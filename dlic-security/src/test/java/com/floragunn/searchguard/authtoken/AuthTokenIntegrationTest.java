@@ -116,20 +116,22 @@ public class AuthTokenIntegrationTest {
     @BeforeClass
     public static void setupTestData() {
 
-        Client client = cluster.getInternalNodeClient();
-        client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
-                "not_allowed_from_token")).actionGet();
-        client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
-                "this_is", "allowed")).actionGet();
-        client.index(new IndexRequest("user_attr_foo").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "allowed"))
-                .actionGet();
-        client.index(
-                new IndexRequest("user_attr_qux").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "not_allowed"))
-                .actionGet();
-        client.index(new IndexRequest("dls_user_attr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "allowed",
-                "a", "foo")).actionGet();
-        client.index(new IndexRequest("dls_user_attr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
-                "not_allowed", "a", "qux")).actionGet();
+        try (Client client = cluster.getInternalNodeClient()) {
+            client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
+                    "not_allowed_from_token")).actionGet();
+            client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+                    "this_is", "allowed")).actionGet();
+            client.index(new IndexRequest("user_attr_foo").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "allowed"))
+                    .actionGet();
+            client.index(
+                    new IndexRequest("user_attr_qux").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "not_allowed"))
+                    .actionGet();
+            client.index(new IndexRequest("dls_user_attr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "allowed",
+                    "a", "foo")).actionGet();
+            client.index(new IndexRequest("dls_user_attr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
+                    "not_allowed", "a", "qux")).actionGet();
+
+        }
 
     }
 
@@ -501,9 +503,10 @@ public class AuthTokenIntegrationTest {
                 .sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().enableModule(AuthTokenModule.class).start();
                 GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
-            Client internalClient = cluster.getInternalNodeClient();
-            internalClient.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
-                    "this_is", "allowed")).actionGet();
+            try (Client client = cluster.getInternalNodeClient()) {
+                client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+                        "this_is", "allowed")).actionGet();
+            }
 
             CreateAuthTokenRequest request = new CreateAuthTokenRequest(RequestedPrivileges.totalWildcard());
             request.setTokenName("my_new_token_without_special_privs");
@@ -667,11 +670,12 @@ public class AuthTokenIntegrationTest {
                 .enterpriseModulesEnabled().enableModule(AuthTokenModule.class).start();
                 GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
-            Client internalClient = cluster.getInternalNodeClient();
-            internalClient.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
-                    "not_allowed_from_token")).actionGet();
-            internalClient.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
-                    "this_is", "allowed")).actionGet();
+            try (Client client = cluster.getInternalNodeClient()) {
+                client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
+                        "not_allowed_from_token")).actionGet();
+                client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+                        "this_is", "allowed")).actionGet();
+            }
 
             CreateAuthTokenRequest request = new CreateAuthTokenRequest(
                     RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
@@ -771,11 +775,12 @@ public class AuthTokenIntegrationTest {
                 .enterpriseModulesEnabled().enableModule(AuthTokenModule.class).start();
                 GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
-            Client internalClient = cluster.getInternalNodeClient();
-            internalClient.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
-                    "not_allowed_from_token")).actionGet();
-            internalClient.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
-                    "this_is", "allowed")).actionGet();
+            try (Client client = cluster.getInternalNodeClient()) {
+                client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
+                        "not_allowed_from_token")).actionGet();
+                client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
+                        "this_is", "allowed")).actionGet();
+            }
 
             CreateAuthTokenRequest request = new CreateAuthTokenRequest(
                     RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));

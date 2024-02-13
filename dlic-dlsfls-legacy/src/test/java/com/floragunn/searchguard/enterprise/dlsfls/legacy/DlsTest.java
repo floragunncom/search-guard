@@ -55,12 +55,13 @@ public class DlsTest {
 
     @BeforeClass
     public static void setupTestData() {
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        client.index(new IndexRequest("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 10}", XContentType.JSON))
-                .actionGet();
-        client.index(new IndexRequest("deals").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 1500}", XContentType.JSON))
-                .actionGet();
+            client.index(new IndexRequest("deals").id("0").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 10}", XContentType.JSON))
+                    .actionGet();
+            client.index(new IndexRequest("deals").id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"amount\": 1500}", XContentType.JSON))
+                    .actionGet();
+        }
     }
 
     @Test
@@ -255,23 +256,24 @@ public class DlsTest {
     @Test
     public void testDlsWithMinDocCountZeroAggregations() throws Exception {
 
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        client.admin().indices().create(new CreateIndexRequest("logs").mapping(
-                ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
+            client.admin().indices().create(new CreateIndexRequest("logs").mapping(
+                    ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
 
-        for (int i = 0; i < 3; i++) {
-            client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "A", "timestamp",
-                    "2022-01-06T09:05:00Z")).actionGet();
-            client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "B", "timestamp",
-                    "2022-01-06T09:08:00Z")).actionGet();
-            client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "C", "timestamp",
-                    "2022-01-06T09:09:00Z")).actionGet();
-            client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "D", "timestamp",
-                    "2022-01-06T09:10:00Z")).actionGet();
+            for (int i = 0; i < 3; i++) {
+                client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "A", "timestamp",
+                        "2022-01-06T09:05:00Z")).actionGet();
+                client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "B", "timestamp",
+                        "2022-01-06T09:08:00Z")).actionGet();
+                client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "C", "timestamp",
+                        "2022-01-06T09:09:00Z")).actionGet();
+                client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "D", "timestamp",
+                        "2022-01-06T09:10:00Z")).actionGet();
+            }
+            client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", 0, "termX", "E", "timestamp",
+                    "2022-01-06T09:11:00Z")).actionGet();
         }
-        client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", 0, "termX", "E", "timestamp",
-                "2022-01-06T09:11:00Z")).actionGet();
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
                 GenericRestClient adminClient = cluster.getRestClient("admin", "admin")) {

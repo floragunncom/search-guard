@@ -104,12 +104,13 @@ public class TrustManagerRegistryTest {
 
     @After
     public void clearData() throws Exception {
-        Client client = cluster.getPrivilegedInternalNodeClient();
-        SearchResponse searchResponse = client.search(new SearchRequest(SignalsSettings.SignalsStaticSettings.IndexNames.TRUSTSTORES)).actionGet();
-        try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
-            for (SearchHit hit : searchResponse.getHits().getHits()) {
-                String id = hit.getId();
-                TruststoreLoader.deleteTruststoreById(restClient, id);
+        try(Client client = cluster.getPrivilegedInternalNodeClient()) {
+            SearchResponse searchResponse = client.search(new SearchRequest(SignalsSettings.SignalsStaticSettings.IndexNames.TRUSTSTORES)).actionGet();
+            try(GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
+                for (SearchHit hit : searchResponse.getHits().getHits()) {
+                    String id = hit.getId();
+                    TruststoreLoader.deleteTruststoreById(restClient, id);
+                }
             }
         }
     }

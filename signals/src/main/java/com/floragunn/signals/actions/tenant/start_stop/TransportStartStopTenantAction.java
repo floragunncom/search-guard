@@ -27,7 +27,7 @@ public class TransportStartStopTenantAction extends HandledTransportAction<Start
     @Inject
     public TransportStartStopTenantAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(StartStopTenantAction.NAME, transportService, actionFilters, StartStopTenantRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        super(StartStopTenantAction.NAME, transportService, actionFilters, StartStopTenantRequest::new);
 
         this.signals = signals;
         this.client = client;

@@ -71,11 +71,12 @@ public class AuthTokenDlsIntTest {
 
     @BeforeClass
     public static void setupTestData() {
-        Client client = cluster.getInternalNodeClient();
-        TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
+        try (Client client = cluster.getInternalNodeClient()) {
+            TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
 
-        client.index(new IndexRequest("user_dept_terms_lookup").id("dept_d_terms_lookup_user").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                .source("dept", "dept_d")).actionGet();
+            client.index(new IndexRequest("user_dept_terms_lookup").id("dept_d_terms_lookup_user").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .source("dept", "dept_d")).actionGet();
+        }
     }
 
     @Test
