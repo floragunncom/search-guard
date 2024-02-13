@@ -34,7 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
-public class AuditTestToXContentObjectImplTest {
+public class AuditMessageTest {
 
     @Mock private ClusterState clusterState;
     @Mock private DiscoveryNode localNode;
