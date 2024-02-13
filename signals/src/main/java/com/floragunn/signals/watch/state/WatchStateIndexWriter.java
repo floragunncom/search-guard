@@ -7,7 +7,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteRequest.OpType;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -19,7 +18,7 @@ import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 
-public class WatchStateIndexWriter implements WatchStateWriter<DocWriteResponse> {
+public class WatchStateIndexWriter implements WatchStateWriter<IndexResponse> {
     private static final Logger log = LogManager.getLogger(WatchStateIndexWriter.class);
 
     private final String indexName;
@@ -35,10 +34,10 @@ public class WatchStateIndexWriter implements WatchStateWriter<DocWriteResponse>
     public void put(String watchId, WatchState watchState) {
 
         try {
-            put(watchId, watchState, new ActionListener<DocWriteResponse>() {
+            put(watchId, watchState, new ActionListener<IndexResponse>() {
 
                 @Override
-                public void onResponse(DocWriteResponse response) {
+                public void onResponse(IndexResponse response) {
                     if (log.isDebugEnabled()) {
                         log.debug("Updated " + watchId + " to:\n" + watchState + "\n" + Strings.toString(response));
                     }
@@ -55,7 +54,7 @@ public class WatchStateIndexWriter implements WatchStateWriter<DocWriteResponse>
         }
     }
 
-    public void put(String watchId, WatchState watchState, ActionListener<DocWriteResponse> actionListener) {
+    public void put(String watchId, WatchState watchState, ActionListener<IndexResponse> actionListener) {
         IndexRequest indexRequest = createIndexRequest(watchId, watchState, RefreshPolicy.IMMEDIATE, null);
 
         client.index(indexRequest, actionListener);
@@ -109,10 +108,10 @@ public class WatchStateIndexWriter implements WatchStateWriter<DocWriteResponse>
     public void putIfAbsent(String watchId, WatchState watchState) {
 
         try {
-            put(watchId, watchState, new ActionListener<DocWriteResponse>() {
+            put(watchId, watchState, new ActionListener<IndexResponse>() {
 
                 @Override
-                public void onResponse(DocWriteResponse response) {
+                public void onResponse(IndexResponse response) {
                     if (log.isDebugEnabled()) {
                         log.debug("Updated " + watchId + " to:\n" + watchState + "\n" + Strings.toString(response));
                     }
@@ -129,7 +128,7 @@ public class WatchStateIndexWriter implements WatchStateWriter<DocWriteResponse>
         }        
     }
     
-    public void putIfAbsent(String watchId, WatchState watchState, ActionListener<DocWriteResponse> actionListener) {
+    public void putIfAbsent(String watchId, WatchState watchState, ActionListener<IndexResponse> actionListener) {
         IndexRequest indexRequest = createIndexRequest(watchId, watchState, RefreshPolicy.IMMEDIATE, OpType.CREATE);
 
         client.index(indexRequest, actionListener);

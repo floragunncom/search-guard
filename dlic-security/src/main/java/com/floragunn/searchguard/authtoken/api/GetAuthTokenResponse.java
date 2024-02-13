@@ -19,13 +19,13 @@ import java.io.IOException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.searchguard.authtoken.AuthToken;
 
-public class GetAuthTokenResponse extends ActionResponse implements ToXContentObject {
+public class GetAuthTokenResponse extends ActionResponse implements StatusToXContentObject {
 
     private AuthToken authToken;
     private RestStatus restStatus;
@@ -90,6 +90,7 @@ public class GetAuthTokenResponse extends ActionResponse implements ToXContentOb
         return authToken;
     }
 
+    @Override
     public RestStatus status() {
         return restStatus;
     }

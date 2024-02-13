@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
@@ -72,7 +71,7 @@ public class IndexAction extends ActionHandler {
             IndexRequest indexRequest = createIndexRequest(ctx, data, this.refreshPolicy);
 
             if (ctx.getSimulationMode() == SimulationMode.FOR_REAL) {
-                DocWriteResponse indexResponse = ctx.getClient().index(indexRequest).get();
+                IndexResponse indexResponse = ctx.getClient().index(indexRequest).get();
 
                 if (log.isDebugEnabled()) {
                     log.debug("Result of " + this + ":\n" + Strings.toString(indexResponse));

@@ -41,12 +41,12 @@ public class ConfigUpdateResponse extends BaseNodesResponse<ConfigUpdateNodeResp
 
     @Override
     public List<ConfigUpdateNodeResponse> readNodesFrom(final StreamInput in) throws IOException {
-        return in.readCollectionAsList(ConfigUpdateNodeResponse::readNodeResponse);
+        return in.readList(ConfigUpdateNodeResponse::readNodeResponse);
     }
 
     @Override
     public void writeNodesTo(final StreamOutput out, List<ConfigUpdateNodeResponse> nodes) throws IOException {
-        out.writeCollection(nodes);
+        out.writeList(nodes);
     }
 
     @Override

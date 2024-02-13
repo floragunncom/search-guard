@@ -208,7 +208,7 @@ class StepRepository {
             bulkRequest.add(indexRequest);
         }
         BulkResponse response = client.bulk(bulkRequest).actionGet();
-        if(response.hasFailures()) {
+        if(response.hasFailures() || isFailure(response.status())) {
             String details = "Index name '" + indexName + "', document ids " + sortedDocumentsIds +  ", error details "
                 + response.buildFailureMessage();
             throw new StepException("Cannot create document in index", CANNOT_BULK_CREATE_DOCUMENT_ERROR, details);

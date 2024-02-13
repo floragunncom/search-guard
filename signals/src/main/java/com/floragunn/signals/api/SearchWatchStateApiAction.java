@@ -11,7 +11,7 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.action.RestToXContentListener;
+import org.elasticsearch.rest.action.RestStatusToXContentListener;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -59,7 +59,7 @@ public class SearchWatchStateApiAction extends SignalsTenantAwareRestHandler {
         }
 
         return channel -> client.execute(SearchWatchStateAction.INSTANCE, searchWatchRequest,
-                new RestToXContentListener<>(channel, SearchWatchStateResponse::status));
+                new RestStatusToXContentListener<SearchWatchStateResponse>(channel));
 
     }
 

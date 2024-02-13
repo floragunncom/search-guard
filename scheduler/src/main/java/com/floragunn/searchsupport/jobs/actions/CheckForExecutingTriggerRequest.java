@@ -16,7 +16,7 @@ public class CheckForExecutingTriggerRequest extends BaseNodesRequest<CheckForEx
     public CheckForExecutingTriggerRequest(StreamInput in) throws IOException {
         super(in);
         this.schedulerName = in.readString();
-        this.triggerKeys = in.readStringCollectionAsList();
+        this.triggerKeys = in.readStringList();
     }
 
     public CheckForExecutingTriggerRequest(String schedulerName, List<String> triggerKeys) {

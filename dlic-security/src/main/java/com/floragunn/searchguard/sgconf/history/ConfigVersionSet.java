@@ -74,7 +74,7 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
     }
 
     public ConfigVersionSet(StreamInput in) throws IOException {
-        this(in.readCollectionAsList(ConfigVersion::new));
+        this(in.readList(ConfigVersion::new));
     }
 
     public ConfigVersion get(CType<?> configurationType) {
@@ -206,7 +206,7 @@ public class ConfigVersionSet implements Iterable<ConfigVersion>, ToXContentObje
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeCollection(new ArrayList<>(this.versionMap.values()));
+        out.writeList(new ArrayList<>(this.versionMap.values()));
     }
 
 }

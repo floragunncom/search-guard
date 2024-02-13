@@ -34,7 +34,7 @@ public class TransportCheckForExecutingTriggerAction extends
     public TransportCheckForExecutingTriggerAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
             final TransportService transportService, final ActionFilters actionFilters) {
         super(CheckForExecutingTriggerAction.NAME, threadPool, clusterService, transportService, actionFilters, CheckForExecutingTriggerRequest::new,
-                TransportCheckForExecutingTriggerAction.NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
+                TransportCheckForExecutingTriggerAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT);
 
     }
 
@@ -112,7 +112,7 @@ public class TransportCheckForExecutingTriggerAction extends
 
         public NodeResponse(StreamInput in) throws IOException {
             super(in);
-            executingTriggers = in.readStringCollectionAsList();
+            executingTriggers = in.readStringList();
             message = in.readOptionalString();
         }
 

@@ -59,7 +59,7 @@ class SgConfigUpdater {
                 log.trace("Updated config: " + config);
             }
 
-            DocWriteResponse response = client
+            IndexResponse response = client
                     .index(new IndexRequest("searchguard").id(configType.toLCString()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
                             .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
                     .actionGet();

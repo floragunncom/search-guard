@@ -282,6 +282,10 @@ public class LocalClusterAliasExtractor {
                 }
 
                 @Override
+                public void writeList(List<? extends Writeable> list) throws IOException {
+                }
+
+                @Override
                 public <T> void writeCollection(Collection<T> collection, Writeable.Writer<T> writer) throws IOException {
                 }
 
@@ -291,6 +295,10 @@ public class LocalClusterAliasExtractor {
 
                 @Override
                 public void writeOptionalStringCollection(Collection<String> collection) throws IOException {
+                }
+
+                @Override
+                public void writeNamedWriteableList(List<? extends NamedWriteable> list) throws IOException {
                 }
 
                 @Override

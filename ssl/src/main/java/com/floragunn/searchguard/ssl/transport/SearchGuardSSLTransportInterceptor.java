@@ -27,8 +27,6 @@ import org.elasticsearch.transport.TransportRequestHandler;
 
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 
-import java.util.concurrent.Executor;
-
 public final class SearchGuardSSLTransportInterceptor implements TransportInterceptor {
     
     protected final Logger log = LogManager.getLogger(this.getClass());
@@ -44,8 +42,8 @@ public final class SearchGuardSSLTransportInterceptor implements TransportInterc
     }
 
     @Override
-    public <T extends TransportRequest> TransportRequestHandler<T> interceptHandler(String action, Executor executor, boolean forceExecution,
-                                                                                    TransportRequestHandler<T> actualHandler) {
+    public <T extends TransportRequest> TransportRequestHandler<T> interceptHandler(String action, String executor, boolean forceExecution,
+            TransportRequestHandler<T> actualHandler) {
         return new SearchGuardSSLRequestHandler<T>(action, actualHandler, threadPool, principalExtractor, errorHandler);
     }
     

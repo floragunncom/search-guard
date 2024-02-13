@@ -42,7 +42,7 @@ public class TransportPushAuthTokenUpdateAction extends
     public TransportPushAuthTokenUpdateAction(Settings settings, ThreadPool threadPool, ClusterService clusterService,
             TransportService transportService, ActionFilters actionFilters, AuthTokenService authTokenService) {
         super(PushAuthTokenUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters, PushAuthTokenUpdateRequest::new,
-                TransportPushAuthTokenUpdateAction.NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
+                TransportPushAuthTokenUpdateAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT);
 
         this.authTokenService = authTokenService;
     }

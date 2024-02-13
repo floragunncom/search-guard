@@ -1,15 +1,15 @@
 /*
  * Copyright 2016-2018 by floragunn GmbH - All rights reserved
- * 
+ *
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 
 package com.floragunn.searchguard.dlic.rest.api;
@@ -29,7 +29,7 @@ import java.util.Map;
 import com.floragunn.codova.validation.ValidationErrors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
@@ -68,9 +68,9 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     protected final Logger log = LogManager.getLogger(this.getClass());
 
     public PatchableResourceApiAction(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDNs,
-            ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
-            AuthorizationService authorizationService, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
-            ThreadPool threadPool, AuditLog auditLog) {
+                                      ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
+                                      AuthorizationService authorizationService, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
+                                      ThreadPool threadPool, AuditLog auditLog) {
         super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
     }
@@ -119,7 +119,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     }
 
     private void handleSinglePatch(RestChannel channel, RestRequest request, Client client, String name,
-            SgDynamicConfiguration<?> existingConfiguration, DocPatch jsonPatch) throws IOException, ConfigValidationException {
+                                   SgDynamicConfiguration<?> existingConfiguration, DocPatch jsonPatch) throws IOException, ConfigValidationException {
         if (isHidden(existingConfiguration, name)) {
             notFound(channel, getResourceName() + " " + name + " not found.");
             return;
@@ -149,7 +149,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
         patchedResourceAsDocNode = postProcessApplyPatchResult(channel, request, existingResourceDocNode,
                 patchedResourceAsDocNode, name);
-        
+
         if (patchedResourceAsDocNode.getBoolean("hidden") == Boolean.FALSE) {
             patchedResourceAsDocNode = patchedResourceAsDocNode.without("hidden");
         }
@@ -172,7 +172,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
         Map<String, Object> updated = new LinkedHashMap<>(existingConfiguration.toDocNode().toMap());
         updated.put(name, patchedResourceAsDocNode.toBasicObject());
-        
+
         try (SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(DocNode.wrap(updated), null,
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
                 existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();) {
@@ -182,10 +182,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
             validationErrors.throwExceptionForPresentErrors();
 
-            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
+            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
                 @Override
-                public void onResponse(DocWriteResponse response) {
+                public void onResponse(IndexResponse response) {
                     successResponse(channel, "'" + name + "' updated.");
 
                 }
@@ -194,12 +194,12 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     }
 
     private void handleBulkPatch(RestChannel channel, RestRequest request, Client client, SgDynamicConfiguration<?> existingConfiguration,
-            DocPatch jsonPatch) throws IOException, ConfigValidationException {
+                                 DocPatch jsonPatch) throws IOException, ConfigValidationException {
 
         LinkedHashMap<String, Object> patchBase = new LinkedHashMap<>(existingConfiguration.getCEntries().size());
-         
+
         for (String resourceName : existingConfiguration.getCEntries().keySet()) {
-            Document<?> oldResource = (Document<?>) existingConfiguration.getCEntries().get(resourceName);            
+            Document<?> oldResource = (Document<?>) existingConfiguration.getCEntries().get(resourceName);
             patchBase.put(resourceName, oldResource.toDocNode().splitDottedAttributeNamesToTree().toBasicObject());
         }
 
@@ -250,7 +250,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 if (patchedResource.getBoolean("static") == Boolean.FALSE) {
                     patchedResource = patchedResource.without("static");
                 }
-                
+
                 AbstractConfigurationValidator validator = getValidator(request, patchedResource);
 
                 if (!validator.validate()) {
@@ -270,10 +270,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
             validationErrors.throwExceptionForPresentErrors();
 
-            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
+            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
                 @Override
-                public void onResponse(DocWriteResponse response) {
+                public void onResponse(IndexResponse response) {
                     successResponse(channel, "Resource updated.");
                 }
             });
@@ -281,7 +281,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     }
 
     protected DocNode postProcessApplyPatchResult(RestChannel channel, RestRequest request,
-            DocNode existingResourceAsJsonNode, DocNode updatedResourceAsJsonNode, String resourceName) throws ConfigValidationException {
+                                                  DocNode existingResourceAsJsonNode, DocNode updatedResourceAsJsonNode, String resourceName) throws ConfigValidationException {
         // do nothing by default
         return updatedResourceAsJsonNode;
     }
@@ -301,3 +301,5 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         return getValidator(request, patchedResourceAsByteReference);
     }
 }
+
+

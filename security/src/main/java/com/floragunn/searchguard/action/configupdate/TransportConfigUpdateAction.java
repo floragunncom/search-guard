@@ -56,7 +56,7 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
                                        final IndicesService indicesService, final RepositoriesService repositoriesService) {
         super(ConfigUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters,
                 ConfigUpdateRequest::new, TransportConfigUpdateAction.NodeConfigUpdateRequest::new,
-                threadPool.executor(ThreadPool.Names.MANAGEMENT));
+                ThreadPool.Names.MANAGEMENT);
 
         guiceDependencies.setTransportService(transportService);
         guiceDependencies.setIndicesService(indicesService);

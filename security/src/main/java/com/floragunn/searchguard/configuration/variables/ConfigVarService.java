@@ -45,6 +45,7 @@ import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -202,10 +203,10 @@ public class ConfigVarService implements ComponentStateProvider {
         log.info("Writing secret " + id);
 
         this.privilegedConfigClient.index(new IndexRequest(indexName).opType(request.mustNotExist() ? OpType.CREATE : OpType.INDEX)
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE).id(id).source(doc), new ActionListener<DocWriteResponse>() {
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE).id(id).source(doc), new ActionListener<IndexResponse>() {
 
                     @Override
-                    public void onResponse(DocWriteResponse indexResponse) {
+                    public void onResponse(IndexResponse indexResponse) {
                         if (indexResponse.getResult() == Result.CREATED || indexResponse.getResult() == Result.UPDATED) {
                             ConfigVarRefreshAction.send(client, new ActionListener<Response>() {
 
@@ -473,7 +474,7 @@ public class ConfigVarService implements ComponentStateProvider {
 
                         doc.put("updated", Instant.now());
 
-                        DocWriteResponse response = privilegedConfigClient
+                        IndexResponse response = privilegedConfigClient
                                 .index(new IndexRequest(this.indexName).id(id).source(doc).setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
 
                         this.requestedValues.remove(id);
