@@ -480,15 +480,14 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }));
 
                 if (stateful != null) {
-                    PrivilegesEvaluationResult resultFromStatefulIndex = stateful.index.hasPermission(user, mappedRoles, actions, resolved, context,
+                    stateful.index.hasPermission(user, mappedRoles, actions, resolved, context,
                             deepCheckTable, incompleteDeepResolved);
 
-                    if (resultFromStatefulIndex != null) {
-                        if (log.isTraceEnabled()) {
-                            log.trace("resultFromStatefulIndex: {}", resultFromStatefulIndex);
-                        }
-
-                        return resultFromStatefulIndex;
+                    if (deepCheckTable.isComplete()) {
+                        // Even though the check table is complete, we always return PARTIALLY_OK because we resolved aliases/datastreams to individual indices above
+                        indexActionCheckResults_partially.increment();
+                        return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(
+                                deepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name), deepCheckTable, localContext.errors);
                     }
 
                     // Note: statefulIndex.hasPermission() modifies as a side effect the checkTable. 
