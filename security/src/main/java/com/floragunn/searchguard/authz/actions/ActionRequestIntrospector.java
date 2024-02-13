@@ -1319,7 +1319,7 @@ public class ActionRequestIntrospector {
 
                 Predicate<Boolean> excludeStatePredicate = WildcardExpressionResolver.excludeStatePredicate(request.indicesOptions);
                 if (excludeStatePredicate != null) {
-                    pureIndices = pureIndices.matching(e -> excludeStatePredicate.test(e.isOpen()));
+                    pureIndices = pureIndices.matching(e -> !excludeStatePredicate.test(e.isOpen()));
                 }
 
                 return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);

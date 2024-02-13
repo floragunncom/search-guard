@@ -345,6 +345,7 @@ public abstract class MetaImpl implements Meta {
 
     static abstract class AbstractIndexCollection<T> extends AbstractIndexLike<T> implements IndexCollection {
         private final UnmodifiableCollection<IndexLikeObject> members;
+        private ImmutableSet<Meta.Index> cachedResolveDeepAsIndex;
 
         public AbstractIndexCollection(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName,
                 UnmodifiableCollection<IndexLikeObject> members, boolean hidden) {
@@ -359,17 +360,32 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected ImmutableSet<Meta.IndexOrNonExistent> resolveDeepImpl() {
-            ImmutableSet.Builder<Meta.IndexOrNonExistent> result = new ImmutableSet.Builder<>(this.members.size());
+            return ImmutableSet.<Meta.IndexOrNonExistent>of(resolveDeepAsIndex());
+        }
 
-            for (IndexLikeObject member : this.members) {
-                if (member instanceof Meta.Index) {
-                    result.add((Meta.Index) member);
-                } else {
-                    result.addAll(member.resolveDeep());
+        @Override
+        public ImmutableSet<Meta.Index> resolveDeepAsIndex() {
+            ImmutableSet<Meta.Index> result = this.cachedResolveDeepAsIndex;
+
+            if (result == null) {
+                ImmutableSet.Builder<Meta.Index> builder = new ImmutableSet.Builder<>(this.members.size());
+
+                for (IndexLikeObject member : this.members) {
+                    if (member instanceof Meta.Index) {
+                        builder.add((Meta.Index) member);
+                    } else if (member instanceof Meta.IndexCollection) {
+                        builder.addAll(((Meta.IndexCollection) member).resolveDeepAsIndex());
+                    } else {
+                        throw new RuntimeException("Unexpected member " + member + " of " + this);
+                    }
                 }
+
+                result = builder.build();
+
+                this.cachedResolveDeepAsIndex = result;
             }
 
-            return result.build();
+            return result;
         }
 
         @Override
@@ -527,7 +543,8 @@ public abstract class MetaImpl implements Meta {
                         ? dataStreamAliasToIndicesMap.get(dataStreamAlias)
                         : ImmutableList.empty();
 
-                Alias alias = new AliasImpl(this, entry.getKey().alias(), entry.getValue().build().with(dataStreams), entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false);
+                Alias alias = new AliasImpl(this, entry.getKey().alias(), entry.getValue().build().with(dataStreams),
+                        entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }

@@ -74,12 +74,12 @@ public interface Meta {
 
         /**
          * Returns the names of the aliases containing this index. 
-         */    
+         */
         Collection<String> parentAliasNames();
-        
+
         /**
          * Returns the names of the aliases containing this index. Additionally, if this is a data stream backing index, this also returns any aliases containing the data stream.
-         */        
+         */
         Collection<String> ancestorAliasNames();
 
         boolean equals(Object other);
@@ -95,20 +95,22 @@ public interface Meta {
 
     interface IndexCollection extends IndexLikeObject {
         UnmodifiableCollection<IndexLikeObject> members();
-        
-        static ImmutableSet<IndexOrNonExistent> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams) {
+
+        ImmutableSet<Index> resolveDeepAsIndex();
+
+        static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams) {
             if (aliasesAndDataStreams.size() == 0) {
                 return ImmutableSet.empty();
             }
 
             if (aliasesAndDataStreams.size() == 1) {
-                return aliasesAndDataStreams.only().resolveDeep();
+                return aliasesAndDataStreams.only().resolveDeepAsIndex();
             }
 
-            ImmutableSet.Builder<IndexOrNonExistent> result = new ImmutableSet.Builder<>(aliasesAndDataStreams.size() * 20);
+            ImmutableSet.Builder<Index> result = new ImmutableSet.Builder<>(aliasesAndDataStreams.size() * 20);
 
             for (Meta.IndexCollection object : aliasesAndDataStreams) {
-                result.addAll(object.resolveDeep());
+                result.addAll(object.resolveDeepAsIndex());
             }
 
             return result.build();
@@ -128,9 +130,9 @@ public interface Meta {
             return new MetaImpl.NonExistentImpl(name);
         }
     }
-    
+
     interface IndexOrNonExistent extends IndexLikeObject {
-        
+
     }
 
     static Meta from(org.elasticsearch.cluster.metadata.Metadata esMetadata) {

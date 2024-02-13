@@ -306,7 +306,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 // We can carry on using this as an intermediate result and further complete checkTable below.
 
                 PrivilegesEvaluationResult resultFromStatefulIndex = stateful.index.hasPermission(user, mappedRoles, actions, resolved, context,
-                        shallowCheckTable);
+                        shallowCheckTable, resolved.getLocal().getPureIndices());
 
                 if (resultFromStatefulIndex != null) {
                     if (log.isTraceEnabled()) {
@@ -362,7 +362,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
 
             ImmutableSet<Meta.Alias> incompleteAliases = resolved.getLocal().getAliases().matching(e -> !shallowCheckTable.isRowComplete(e));
-            ImmutableSet<Meta.DataStream> incompleteDataStreams = resolved.getLocal().getDataStreams().matching(e -> !shallowCheckTable.isRowComplete(e));
+            ImmutableSet<Meta.DataStream> incompleteDataStreams = resolved.getLocal().getDataStreams()
+                    .matching(e -> !shallowCheckTable.isRowComplete(e));
 
             if (incompleteAliases.isEmpty() && incompleteDataStreams.isEmpty()) {
                 ImmutableSet<String> availableIndices = shallowCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name);
@@ -385,7 +386,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             ImmutableSet<Meta.Alias> incompleteAliasesForDataStreams = incompleteAliases
                     .matching((alias) -> alias.members().stream().anyMatch(member -> member instanceof Meta.DataStream));
             CheckTable<Meta.IndexLikeObject, Action> prevCheckTable;
-            
+
             if (!incompleteAliasesForDataStreams.isEmpty()) {
                 try (Meter subMeter = meter.basic("resolve_datastream_aliases")) {
                     ImmutableSet.Builder<Meta.DataStream> resolvedDataStreamsBuilder = new ImmutableSet.Builder<>();
@@ -434,9 +435,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         // Note: statefulIndex.hasPermission() modifies as a side effect the checkTable. 
                         // We can carry on using this as an intermediate result and further complete checkTable below.
                     }
-                    
-                    checkWellKnownActionsWithIndexPatternsForDataStreams(context, localContext, semiDeepCheckTable, resolved, resolvedDataStreams, subMeter);
-                    
+
+                    checkWellKnownActionsWithIndexPatternsForDataStreams(context, localContext, semiDeepCheckTable, resolved, resolvedDataStreams,
+                            subMeter);
+
                     // If all actions are well-known, the index.rolesToActionToIndexPattern data structure that was evaluated above,
                     // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
                     // actions, we also have to evaluate action patterns to check the authorization
@@ -444,7 +446,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     if (!semiDeepCheckTable.isComplete() && !allActionsWellKnown) {
                         checkNonWellKnownActions(context, localContext, semiDeepCheckTable, resolved, meter);
                     }
-                    
+
                     semiDeepCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNames()));
 
                     indexExclusions.uncheckExclusions(semiDeepCheckTable, user, mappedRoles, actions, resolved, context, meter);
@@ -453,13 +455,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         indexActionCheckResults_ok.increment();
                         return PrivilegesEvaluationResult.OK;
                     }
-                    
+
                     prevCheckTable = semiDeepCheckTable;
                 }
             } else {
                 prevCheckTable = shallowCheckTable;
             }
-            
 
             // -------------------------------------------------------------------------------
             // Resolve aliases and data streams with missing permissions into individual indices
@@ -469,11 +470,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     .map(i -> i instanceof Meta.IndexCollection ? (Meta.IndexCollection) i : null);
 
             try (Meter subMeter = meter.basic("resolve_all_aliases")) {
-                ImmutableSet<Meta.IndexLikeObject> incompleteDeepResolved = ImmutableSet.<Meta.IndexLikeObject>of(
-                        Meta.IndexCollection.resolveDeep(incompleteAliasesAndDataStreams));
+                ImmutableSet<Meta.Index> incompleteDeepResolved = Meta.IndexCollection.resolveDeep(incompleteAliasesAndDataStreams);
                 ImmutableSet<Meta.IndexLikeObject> retainedIndices = prevCheckTable.getRows().without(incompleteAliasesAndDataStreams);
 
-                CheckTable<Meta.IndexLikeObject, Action> deepCheckTable = CheckTable.create(incompleteDeepResolved.with(retainedIndices), actions);
+                CheckTable<Meta.IndexLikeObject, Action> deepCheckTable = CheckTable.create(retainedIndices.with(incompleteDeepResolved), actions);
                 actions.forEach((action) -> retainedIndices.forEach((i) -> {
                     if (prevCheckTable.isChecked(i, action))
                         deepCheckTable.check(i, action);
@@ -481,7 +481,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 if (stateful != null) {
                     PrivilegesEvaluationResult resultFromStatefulIndex = stateful.index.hasPermission(user, mappedRoles, actions, resolved, context,
-                            deepCheckTable);
+                            deepCheckTable, incompleteDeepResolved);
 
                     if (resultFromStatefulIndex != null) {
                         if (log.isTraceEnabled()) {
@@ -547,9 +547,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
     }
 
-    
-    
-    
     /**
      * Checks whether we have privileges for all the indices/aliases/data streams using index patterns. Only works for well-known actions.
      * Note: As this works on the distinction between indices/aliases/data streams provided by resolved object, this method can only be used for the
@@ -610,8 +607,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             ImmutableSet<String> mappedRoles = context.getMappedRoles();
 
             for (String role : mappedRoles) {
-                if (checkWellKnownActionsWithIndexPatterns(context, localContext, user, semiDeepCheckTable, role, resolvedDataStreams, this.dataStream,
-                        subMeter)) {
+                if (checkWellKnownActionsWithIndexPatterns(context, localContext, user, semiDeepCheckTable, role, resolvedDataStreams,
+                        this.dataStream, subMeter)) {
                     return;
                 }
             }
@@ -739,15 +736,14 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     }
                                 }
                             }
-                            
+
                             Collection<String> ancestorAliasNames = index.ancestorAliasNames();
                             if (!ancestorAliasNames.isEmpty()) {
                                 IndexPattern indexPattern = actionToAliasPattern.get(action);
 
                                 if (indexPattern != null) {
                                     try {
-                                        if (indexPattern.matches(ancestorAliasNames, user, context, subMeter)
-                                                && checkTable.check(index, action)) {
+                                        if (indexPattern.matches(ancestorAliasNames, user, context, subMeter) && checkTable.check(index, action)) {
                                             break top;
                                         }
                                     } catch (PrivilegesEvaluationException e) {
@@ -1759,9 +1755,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
 
             PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
-                    ResolvedIndices resolvedIndices, PrivilegesEvaluationContext context, CheckTable<Meta.IndexLikeObject, Action> checkTable)
-                    throws PrivilegesEvaluationException {
-                Collection<Meta.Index> indices = resolvedIndices.getLocal().getPureIndices();
+                    ResolvedIndices resolvedIndices, PrivilegesEvaluationContext context, CheckTable<Meta.IndexLikeObject, Action> checkTable,
+                    Collection<Meta.Index> indices) throws PrivilegesEvaluationException {
                 if (indices.isEmpty()) {
                     return null;
                 }

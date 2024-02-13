@@ -261,7 +261,7 @@ public class IgnoreUnauthorizedIntTest {
     @Test
     public void search_alias() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get("xalias_ab1/_search?size=1000");
+            HttpResponse httpResponse = restClient.get("xalias_ab1/_search?size=1000&ignore_unavailable=true");
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1"))));
