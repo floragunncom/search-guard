@@ -238,6 +238,7 @@ SGS_KIBANA_SERVER:
     - ".fleet-agents"
     - "logs-cloud_security_posture*"
     - ".internal.alerts-observability.*"
+    - ".internal.alerts-ml.anomaly-detection.alerts*"
     - ".kibana-observability-ai-assistant-conversations*"
     - ".kibana-observability-ai-assistant-kb*"
     - ".internal.alerts-security.alerts*"
