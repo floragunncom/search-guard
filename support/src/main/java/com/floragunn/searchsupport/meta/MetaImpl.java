@@ -527,7 +527,7 @@ public abstract class MetaImpl implements Meta {
                         ? dataStreamAliasToIndicesMap.get(dataStreamAlias)
                         : ImmutableList.empty();
 
-                Alias alias = new AliasImpl(this, entry.getKey().alias(), entry.getValue().build().with(dataStreams), entry.getKey().isHidden());
+                Alias alias = new AliasImpl(this, entry.getKey().alias(), entry.getValue().build().with(dataStreams), entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
