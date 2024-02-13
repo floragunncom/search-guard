@@ -21,7 +21,7 @@ sg_human_resources_trainee:
     masked_fields: null
     allowed_actions:
     - "READ"
-    - "indices:admin/search/search_shards"
+    - "indices:admin/shards/search_shards"
   - index_patterns:
     - "?kibana"
     dls: null
