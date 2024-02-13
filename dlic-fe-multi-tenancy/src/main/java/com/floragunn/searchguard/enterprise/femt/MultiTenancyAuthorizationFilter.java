@@ -69,8 +69,7 @@ import org.elasticsearch.script.Script;
 
 public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter {
 
-    static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX_1 = "_reindex_temp";
-    static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX_2 = "_reindex_temp_alias";
+    static final String TEMP_MIGRATION_INDEX_NAME_POSTFIX = "_reindex_temp";
 
     public static final String SG_FILTER_LEVEL_FEMT_DONE = ConfigConstants.SG_CONFIG_PREFIX + "filter_level_femt_done";
 
@@ -109,8 +108,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         this.kibanaIndexName = config.getIndex();
         this.kibanaIndexNamePrefix = this.kibanaIndexName + "_";
         this.versionedKibanaIndexPattern = Pattern.compile(
-                "(" + Pattern.quote(this.kibanaIndexName) + toPatternFragment(indexSubNames) + ")" + "(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)?" + "(" + Pattern.quote(
-                    TEMP_MIGRATION_INDEX_NAME_POSTFIX_1) + "|" + Pattern.quote(TEMP_MIGRATION_INDEX_NAME_POSTFIX_2) + ")?");
+                "(" + Pattern.quote(this.kibanaIndexName) + toPatternFragment(indexSubNames) + ")" + "(_[0-9]+\\.[0-9]+\\.[0-9]+(_[0-9]{3})?)?" + "(" + Pattern.quote(TEMP_MIGRATION_INDEX_NAME_POSTFIX) + ")?");
 
         this.KIBANA_ALL_SAVED_OBJECTS_WRITE = KibanaActionsProvider.getKibanaWriteAction(actions);
         this.KIBANA_ALL_SAVED_OBJECTS_READ = KibanaActionsProvider.getKibanaReadAction(actions);
