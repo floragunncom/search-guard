@@ -122,7 +122,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
         public TransportAction(ConfigVarService configVarService, ThreadPool threadPool, ClusterService clusterService,
                 TransportService transportService, ActionFilters actionFilters) {
             super(ConfigVarRefreshAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
-                    TransportAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT);
+                    TransportAction.NodeRequest::new, ThreadPool.Names.MANAGEMENT, TransportAction.NodeResponse.class);
             this.configVarService = configVarService;
         }
 

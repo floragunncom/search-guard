@@ -30,7 +30,6 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexVersion;
 
 public class ClusterInfoHolder implements ClusterStateListener {
 
@@ -105,7 +104,7 @@ public class ClusterInfoHolder implements ClusterStateListener {
         final Iterator<IndexMetadata> indices = state.getMetadata().indices().values().iterator();
         for(;indices.hasNext();) {
             final IndexMetadata indexMetaData = indices.next();
-            if(indexMetaData.getCreationVersion().before(IndexVersion.V_7_0_0)) {
+            if(indexMetaData.getCreationVersion().before(Version.V_7_0_0)) {
                 return true;
             }
         }
