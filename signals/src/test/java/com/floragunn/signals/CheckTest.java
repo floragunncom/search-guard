@@ -447,6 +447,18 @@ public class CheckTest {
     }
 
     @Test
+    public void httpInputShouldWhiteList() throws ConfigValidationException, HttpEndpointWhitelist.NotWhitelistedException, IOException, WatchExecutionException, URISyntaxException {
+        HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI("/someUri"), null,
+                null, "{\"request\": \"bar\"}", null, Collections.singletonMap("Content-Type", "application/json"), null, null);
+        httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+        WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(new NestedValueMap()), null, null, new HttpEndpointWhitelist(Collections.singletonList("/someUri")), null, null, null, trustManagerRegistry);
+
+        Assert.assertNotNull(httpRequestConfig.createHttpRequest(ctx));
+    }
+
+    @Test
     public void httpInputShouldSupportTrustStoreTest() throws Exception {
         try (Client client = cluster.getInternalNodeClient();
             MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/tls_service", true, false)) {
