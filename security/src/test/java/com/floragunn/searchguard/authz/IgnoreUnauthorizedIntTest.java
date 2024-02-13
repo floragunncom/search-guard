@@ -261,6 +261,7 @@ public class IgnoreUnauthorizedIntTest {
     @Test
     public void search_alias() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
+            // TODO adapt test to avoid ignore_unavailable=true
             HttpResponse httpResponse = restClient.get("xalias_ab1/_search?size=1000&ignore_unavailable=true");
 
             Assert.assertThat(httpResponse, isOk());
