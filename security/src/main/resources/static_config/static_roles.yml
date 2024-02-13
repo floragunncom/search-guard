@@ -274,6 +274,7 @@ SGS_KIBANA_SERVER:
     - ".slo-observability.sli-v*"
     - ".slo-observability.summary-v*"
     - "logs-cloud_defend.*"
+    - ".elastic-connectors"
     allowed_actions:
     - "SGS_INDICES_ALL"
     - "indices:admin/data_stream/get"
