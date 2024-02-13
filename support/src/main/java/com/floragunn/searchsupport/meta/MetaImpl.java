@@ -1,8 +1,10 @@
 package com.floragunn.searchsupport.meta;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,8 +37,8 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AbstractIndexLike<IndexImpl> withAlias(String alias) {
-            return new IndexImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), parentDataStreamName(),
-                    isHidden(), this.open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
+            return new IndexImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), parentDataStreamName(), isHidden(),
+                    this.open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
                             : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE);
         }
 
@@ -61,6 +63,21 @@ public abstract class MetaImpl implements Meta {
             return new IndexImpl(null, name(), parentAliasNames(), parentDataStreamName(), isHidden(),
                     open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
                             : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE);
+        }
+
+        @Override
+        public Collection<String> ancestorAliasNames() {
+            if (this.parentDataStreamName() == null) {
+                return this.parentAliasNames();
+            } else {
+                Collection<String> dataStreamParentAliases = this.parentDataStream().parentAliasNames();
+
+                if (this.parentAliasNames().isEmpty()) {
+                    return dataStreamParentAliases;
+                } else {
+                    return ImmutableList.concat(dataStreamParentAliases, this.parentAliasNames());
+                }
+            }
         }
     }
 
@@ -89,6 +106,16 @@ public abstract class MetaImpl implements Meta {
         protected AliasImpl copy() {
             return new AliasImpl(null, name(), members(), isHidden());
         }
+
+        @Override
+        public Collection<String> parentAliasNames() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public Collection<String> ancestorAliasNames() {
+            return ImmutableSet.empty();
+        }
     }
 
     public static class DataStreamImpl extends AbstractIndexCollection<DataStreamImpl> implements Meta.DataStream {
@@ -99,8 +126,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AbstractIndexLike<DataStreamImpl> withAlias(String alias) {
-            return new DataStreamImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), members(),
-                    isHidden());
+            return new DataStreamImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), members(), isHidden());
         }
 
         @Override
@@ -117,6 +143,11 @@ public abstract class MetaImpl implements Meta {
         @Override
         protected DataStreamImpl copy() {
             return new DataStreamImpl(null, name(), parentAliasNames(), members(), isHidden());
+        }
+
+        @Override
+        public Collection<String> ancestorAliasNames() {
+            return parentAliasNames();
         }
     }
 
@@ -144,6 +175,11 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Collection<String> parentAliasNames() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public Collection<String> ancestorAliasNames() {
             return ImmutableSet.empty();
         }
 
@@ -368,9 +404,9 @@ public abstract class MetaImpl implements Meta {
          */
         public DefaultMetaImpl(ImmutableSet<Index> indices, ImmutableSet<Alias> aliases, ImmutableSet<DataStream> datastreams,
                 ImmutableSet<Index> indicesWithoutParents) {
-            indices.forEach((i) -> ((AbstractIndexLike) i).root(this));
-            aliases.forEach((i) -> ((AbstractIndexLike) i).root(this));
-            datastreams.forEach((i) -> ((AbstractIndexLike) i).root(this));
+            indices.forEach((i) -> ((AbstractIndexLike<?>) i).root(this));
+            aliases.forEach((i) -> ((AbstractIndexLike<?>) i).root(this));
+            datastreams.forEach((i) -> ((AbstractIndexLike<?>) i).root(this));
 
             this.indices = indices;
             this.aliases = aliases;
@@ -408,7 +444,7 @@ public abstract class MetaImpl implements Meta {
 
             for (DataStream dataStream : datastreams) {
                 esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStream.name(),
-                        new org.elasticsearch.cluster.metadata.DataStream.TimestampField("ts"),
+                        new org.elasticsearch.cluster.metadata.DataStream.TimestampField("@timestamp"),
                         ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1,
                         ImmutableMap.empty(), false, false, false));
             }
@@ -422,12 +458,20 @@ public abstract class MetaImpl implements Meta {
             ImmutableSet.Builder<Index> indicesWithoutParents = new ImmutableSet.Builder<>(esMetadata.getIndices().size());
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> aliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>>()
                     .defaultValue((k) -> new ImmutableList.Builder<IndexLikeObject>());
+            ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> dataStreamAliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
+                    .defaultValue((k) -> new ArrayList<IndexLikeObject>());
             ImmutableSet.Builder<Alias> aliases = new ImmutableSet.Builder<>(64);
             ImmutableSet.Builder<DataStream> datastreams = new ImmutableSet.Builder<>(64);
             this.esMetadata = esMetadata;
 
-            // TODO data stream aliases
             Map<String, org.elasticsearch.cluster.metadata.DataStreamAlias> dataStreamsAliases = esMetadata.dataStreamAliases();
+            Map<String, ImmutableList.Builder<String>> dataStreamAliasReverseLookup = new HashMap<>();
+
+            for (org.elasticsearch.cluster.metadata.DataStreamAlias dataStreamAlias : dataStreamsAliases.values()) {
+                for (String dataStream : dataStreamAlias.getDataStreams()) {
+                    dataStreamAliasReverseLookup.computeIfAbsent(dataStream, k -> new ImmutableList.Builder<>()).add(dataStreamAlias.getName());
+                }
+            }
 
             for (org.elasticsearch.cluster.metadata.DataStream esDataStream : esMetadata.dataStreams().values()) {
                 ImmutableList.Builder<IndexLikeObject> memberIndices = new ImmutableList.Builder<>(esDataStream.getIndices().size());
@@ -442,10 +486,16 @@ public abstract class MetaImpl implements Meta {
                     memberIndices.add(index);
                 }
 
-                DataStream dataStream = new DataStreamImpl(this, esDataStream.getName(), null, memberIndices.build(), esDataStream.isHidden());
+                ImmutableList.Builder<String> parentAliasNames = dataStreamAliasReverseLookup.get(esDataStream.getName());
+
+                DataStream dataStream = new DataStreamImpl(this, esDataStream.getName(),
+                        parentAliasNames != null ? parentAliasNames.build() : ImmutableList.empty(), memberIndices.build(), esDataStream.isHidden());
                 datastreams.add(dataStream);
                 nameMap.put(dataStream.name(), dataStream);
 
+                for (String parentAlias : dataStream.parentAliasNames()) {
+                    dataStreamAliasToIndicesMap.get(dataStreamsAliases.get(parentAlias)).add(dataStream);
+                }
             }
 
             for (org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata : esMetadata.getIndices().values()) {
@@ -472,7 +522,24 @@ public abstract class MetaImpl implements Meta {
 
             for (Map.Entry<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> entry : aliasToIndicesMap.build()
                     .entrySet()) {
-                Alias alias = new AliasImpl(this, entry.getKey().alias(), entry.getValue().build(), entry.getKey().isHidden());
+                org.elasticsearch.cluster.metadata.DataStreamAlias dataStreamAlias = dataStreamsAliases.get(entry.getKey().alias());
+                List<IndexLikeObject> dataStreams = dataStreamAlias != null && dataStreamAliasToIndicesMap.contains(dataStreamAlias)
+                        ? dataStreamAliasToIndicesMap.get(dataStreamAlias)
+                        : ImmutableList.empty();
+
+                Alias alias = new AliasImpl(this, entry.getKey().alias(), entry.getValue().build().with(dataStreams), entry.getKey().isHidden());
+                aliases.add(alias);
+                nameMap.put(alias.name(), alias);
+            }
+
+            for (Map.Entry<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> entry : dataStreamAliasToIndicesMap.build()
+                    .entrySet()) {
+                if (nameMap.contains(entry.getKey().getName())) {
+                    // Already created above
+                    continue;
+                }
+
+                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
@@ -494,10 +561,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public ImmutableMap<String, IndexLikeObject> indexLikeObjects() {
-            // TODO
-            //return ImmutableSet.of((UnmodifiableCollection<IndexLikeObject>) (UnmodifiableCollection) indices.values())
-            //        .with((UnmodifiableCollection<IndexLikeObject>) (UnmodifiableCollection) indexCollections.values());
-            throw new RuntimeException("not implemented");
+            return nameMap;
         }
 
         @Override
@@ -557,6 +621,7 @@ public abstract class MetaImpl implements Meta {
                     ImmutableSet<String> singleAliasSet = ImmutableSet.of(aliasName);
                     ImmutableMap.Builder<String, IndexLikeObject> aliasMembersBuilder = new ImmutableMap.Builder<>(indexNames.length);
                     ImmutableSet.Builder<Index> newIndices = new ImmutableSet.Builder<>(indexNames.length);
+                    ImmutableSet.Builder<DataStream> newDataStreams = new ImmutableSet.Builder<>(indexNames.length);
 
                     for (String indexName : indexNames) {
                         AbstractIndexLike<?> indexLikeObject = (AbstractIndexLike<?>) getIndexOrLike(indexName);
@@ -568,7 +633,11 @@ public abstract class MetaImpl implements Meta {
                                     org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN);
                         }
 
-                        newIndices.add((Index) indexLikeObject);
+                        if (indexLikeObject instanceof DataStream) {
+                            newDataStreams.add((DataStream) indexLikeObject);
+                        } else {
+                            newIndices.add((Index) indexLikeObject);
+                        }
 
                         aliasMembersBuilder.put(indexName, indexLikeObject);
                     }
@@ -579,11 +648,16 @@ public abstract class MetaImpl implements Meta {
                         }
                     }
 
-                    ImmutableSet<Index> indices = newIndices.build();
+                    for (DataStream existingDataStream : DefaultMetaImpl.this.dataStreams) {
+                        if (!newDataStreams.contains(existingDataStream)) {
+                            newDataStreams.add(((DataStreamImpl) existingDataStream).copy());
+                        }
+                    }
+
                     ImmutableSet<Alias> aliases = ImmutableSet.<Alias>of(DefaultMetaImpl.this.aliases.map(i -> ((AliasImpl) i).copy()))
                             .with(new AliasImpl(null, aliasName, aliasMembersBuilder.build().values(), false));
 
-                    return new DefaultMetaImpl(indices, aliases, DefaultMetaImpl.this.dataStreams, DefaultMetaImpl.this.indicesWithoutParents);
+                    return new DefaultMetaImpl(newIndices.build(), aliases, newDataStreams.build(), DefaultMetaImpl.this.indicesWithoutParents);
                 }
 
             };
@@ -595,7 +669,6 @@ public abstract class MetaImpl implements Meta {
 
                 @Override
                 public Meta of(String... indexNames) {
-                    ImmutableSet<String> dataStreamSet = ImmutableSet.of(dataStreamName);
                     ImmutableMap.Builder<String, IndexLikeObject> dataStreamMembersBuilder = new ImmutableMap.Builder<>(indexNames.length);
                     ImmutableSet.Builder<Index> newIndices = new ImmutableSet.Builder<>(indexNames.length);
 
@@ -603,9 +676,9 @@ public abstract class MetaImpl implements Meta {
                         AbstractIndexLike<?> indexLikeObject = (AbstractIndexLike<?>) getIndexOrLike(indexName);
 
                         if (indexLikeObject != null) {
-                            indexLikeObject = indexLikeObject.withAlias(dataStreamName);
+                            throw new RuntimeException("Cannot reuse datastream backing index");
                         } else {
-                            indexLikeObject = new IndexImpl(null, indexName, dataStreamSet, null, false,
+                            indexLikeObject = new IndexImpl(null, indexName, ImmutableSet.empty(), dataStreamName, false,
                                     org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN);
                         }
 
@@ -613,7 +686,7 @@ public abstract class MetaImpl implements Meta {
 
                         dataStreamMembersBuilder.put(indexName, indexLikeObject);
                     }
-                    
+
                     for (Index existingIndex : DefaultMetaImpl.this.indices) {
                         if (!newIndices.contains(existingIndex)) {
                             newIndices.add(((IndexImpl) existingIndex).copy());

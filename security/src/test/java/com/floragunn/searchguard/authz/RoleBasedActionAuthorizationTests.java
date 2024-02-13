@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
+import static com.floragunn.searchsupport.meta.Meta.Mock.dataStream;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,7 +57,7 @@ import com.floragunn.searchsupport.meta.Meta;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ RoleBasedActionAuthorizationTests.ClusterPermissions.class, RoleBasedActionAuthorizationTests.IndexPermissions.class,
         RoleBasedActionAuthorizationTests.IndexPermissionsSpecial.class, RoleBasedActionAuthorizationTests.AliasPermissions.class,
-        RoleBasedActionAuthorizationTests.AliasPermissionsSpecial.class })
+        RoleBasedActionAuthorizationTests.AliasPermissionsSpecial.class, RoleBasedActionAuthorizationTests.DataStreamPermissions.class })
 public class RoleBasedActionAuthorizationTests {
 
     private static final Actions actions = new Actions(null);
@@ -198,7 +199,8 @@ public class RoleBasedActionAuthorizationTests {
             PrivilegesEvaluationResult result//
                     = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions, ResolvedIndices.of(BASIC, "alias_a1"));
 
-            if ((this.indexSpec.wildcardPrivs || this.indexSpec.givenIndexPrivs.contains("index_*") || this.indexSpec.givenIndexPrivs.contains("index_a1*")) && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
+            if ((this.indexSpec.wildcardPrivs || this.indexSpec.givenIndexPrivs.contains("index_*")
+                    || this.indexSpec.givenIndexPrivs.contains("index_a1*")) && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));
             } else {
@@ -410,12 +412,12 @@ public class RoleBasedActionAuthorizationTests {
         public void positive_alias_full() throws Exception {
             PrivilegesEvaluationResult result//
                     = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions, ResolvedIndices.of(BASIC, "alias_a1"));
-            
+
             if (!this.indexSpec.givenAliasPrivs.isEmpty()) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
             } else if (this.indexSpec.wildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));                
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));
             } else {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));
@@ -439,7 +441,8 @@ public class RoleBasedActionAuthorizationTests {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
             } else if (this.indexSpec.wildcardPrivs) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_b1", "index_b2", "index_a12", "index_a11", "index_a22", "index_a21")));          
+                Assert.assertTrue(result.toString(), result.getAvailableIndices()
+                        .equals(ImmutableSet.of("index_b1", "index_b2", "index_a12", "index_a11", "index_a22", "index_a21")));
             } else if (this.indexSpec.givenAliasPrivs.contains("alias_a*") && this.indexSpec.givenAliasPrivs.contains("-alias_a2")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
@@ -448,7 +451,7 @@ public class RoleBasedActionAuthorizationTests {
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1", "alias_a2")));
             } else if (this.indexSpec.givenAliasPrivs.isEmpty() && this.indexSpec.givenIndexPrivs.equals(ImmutableList.of("index_a11"))) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));                
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));
             } else {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("alias_a1")));
@@ -468,7 +471,7 @@ public class RoleBasedActionAuthorizationTests {
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12", "index_a21")));
             } else if (this.indexSpec.givenAliasPrivs.isEmpty() && this.indexSpec.givenIndexPrivs.equals(ImmutableList.of("index_a11"))) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11"))); 
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11")));
             } else {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));
@@ -520,8 +523,7 @@ public class RoleBasedActionAuthorizationTests {
                     new IndexSpec().givenAliasPrivs("alias_a*"), // 
                     new IndexSpec().givenAliasPrivs("alias_${user.attrs.dept_no}"), //
                     new IndexSpec().givenAliasPrivs("alias_a*", "-alias_a2", "-alias_a"), //
-                    new IndexSpec().givenIndexPrivs("index_a11"))
-            ) {
+                    new IndexSpec().givenIndexPrivs("index_a11"))) {
                 for (ActionSpec actionSpec : Arrays.asList(//
                         new ActionSpec("constant, well known")//
                                 .givenPrivs("indices:data/write/index").requiredPrivs("indices:data/write/index"), //
@@ -658,6 +660,171 @@ public class RoleBasedActionAuthorizationTests {
             result = subject.hasIndexPermission(ctx(user, "other_role"), ImmutableSet.of(indexAction),
                     ResolvedIndices.of(indexMetadata, "alias_a1", "index_b1"));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
+    }
+
+    @RunWith(Parameterized.class)
+    public static class DataStreamPermissions {
+
+        final ActionSpec actionSpec;
+        final IndexSpec indexSpec;
+        final SgDynamicConfiguration<Role> roles;
+        final ImmutableSet<Action> requiredActions;
+        final ImmutableSet<Action> otherActions;
+        final RoleBasedActionAuthorization subject;
+        final User user = User.forUser("test").attribute("dept_no", "a1").build();
+
+        @Test
+        public void positive_datastream_full() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions, ResolvedIndices.of(BASIC, "datastream_a1"));
+
+            if (!this.indexSpec.givenDataStreamPrivs.isEmpty() || this.indexSpec.dataStreamWildcardPrivs || this.indexSpec.aliasWildcardPrivs
+                    || this.indexSpec.givenAliasPrivs.contains("datastream_a")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            } else {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(),
+                        result.getAvailableIndices().equals(ImmutableSet.of(".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002")));
+            }
+        }
+
+        @Test
+        public void positive_index_full() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions, ResolvedIndices.of(BASIC, ".ds-datastream_a1-xyz-0002"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+        }
+
+        @Test
+        public void positive_datastream_partial() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions,
+                            ResolvedIndices.of(BASIC, "datastream_a1", "datastream_a2", "datastream_b1"));
+
+            if (this.indexSpec.dataStreamWildcardPrivs) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            } else if (this.indexSpec.wildcardPrivs) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(),
+                        result.getAvailableIndices()
+                                .equals(ImmutableSet.of(".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002", ".ds-datastream_a2-xyz-0001",
+                                        ".ds-datastream_a2-xyz-0002", ".ds-datastream_b1-xyz-0001", ".ds-datastream_b1-xyz-0002")));
+            } else if (this.indexSpec.givenDataStreamPrivs.contains("datastream_a*")
+                    && this.indexSpec.givenDataStreamPrivs.contains("-datastream_a2")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("datastream_a1")));
+            } else if (this.indexSpec.givenDataStreamPrivs.contains("datastream_a*") || this.indexSpec.aliasWildcardPrivs
+                    || this.indexSpec.givenAliasPrivs.contains("datastream_a")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("datastream_a1", "datastream_a2")));
+            } else if (this.indexSpec.givenIndexPrivs.contains(".ds-datastream_a1*")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(),
+                        result.getAvailableIndices().equals(ImmutableSet.of(".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002")));
+            } else {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("datastream_a1")));
+            }
+        }
+
+        @Test
+        public void positive_index_partial() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions,
+                            ResolvedIndices.of(BASIC, ".ds-datastream_a1-xyz-0001", ".ds-datastream_b1-xyz-0001"));
+
+            if (this.indexSpec.wildcardPrivs || this.indexSpec.dataStreamWildcardPrivs) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            } else {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of(".ds-datastream_a1-xyz-0001")));
+            }
+        }
+
+        @Test
+        public void negative_wrongRole() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "other_role"), requiredActions, ResolvedIndices.of(BASIC, "datastream_a1"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
+        @Test
+        public void negative_wrongAction() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), otherActions, ResolvedIndices.of(BASIC, "datastream_a1"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
+        @Test
+        public void negative_wrongRole_alias() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "other_role"), requiredActions, ResolvedIndices.of(BASIC, "datastream_a1"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
+        @Test
+        public void negative_wrongAction_alias() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), otherActions, ResolvedIndices.of(BASIC, "datastream_a1"));
+            Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+        }
+
+        final static Meta BASIC = dataStream("datastream_a1").of(".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002")//
+                .dataStream("datastream_a2").of(".ds-datastream_a2-xyz-0001", ".ds-datastream_a2-xyz-0002")//
+                .dataStream("datastream_b1").of(".ds-datastream_b1-xyz-0001", ".ds-datastream_b1-xyz-0002")//
+                .dataStream("datastream_b2").of(".ds-datastream_b2-xyz-0001", ".ds-datastream_b2-xyz-0002")//
+                .alias("datastream_a").of("datastream_a1", "datastream_a2");
+
+        @Parameters(name = "{0};  actions: {1};  {2}")
+        public static Collection<Object[]> params() {
+            List<Object[]> result = new ArrayList<>();
+
+            for (IndexSpec indexSpec : Arrays.asList(//
+                    new IndexSpec().givenIndexPrivs("*"), //
+                    new IndexSpec().givenAliasPrivs("*"), //
+                    new IndexSpec().givenDataStreamPrivs("*"), //
+                    new IndexSpec().givenDataStreamPrivs("datastream_a1"), //
+                    new IndexSpec().givenDataStreamPrivs("datastream_a*"), //
+                    new IndexSpec().givenDataStreamPrivs("datastream_${user.attrs.dept_no}"), //
+                    new IndexSpec().givenDataStreamPrivs("datastream_a*", "-datastream_a2"), //
+                    new IndexSpec().givenAliasPrivs("datastream_a"), //
+                    new IndexSpec().givenIndexPrivs(".ds-datastream_a1*"))) {
+                for (ActionSpec actionSpec : Arrays.asList(//
+                        new ActionSpec("constant, well known")//
+                                .givenPrivs("indices:data/write/index").requiredPrivs("indices:data/write/index"), //
+                        new ActionSpec("pattern, well known")//
+                                .givenPrivs("indices:data/write/*").requiredPrivs("indices:data/write/index"), //
+                        new ActionSpec("pattern, well known, two required privs")//
+                                .givenPrivs("indices:data/write/*").requiredPrivs("indices:data/write/index", "indices:data/write/delete"), //
+                        new ActionSpec("constant, non well known")//
+                                .givenPrivs("indices:unknown/unwell").requiredPrivs("indices:unknown/unwell"), //
+                        new ActionSpec("pattern, non well known")//
+                                .givenPrivs("indices:unknown/*").requiredPrivs("indices:unknown/unwell"), //
+                        new ActionSpec("pattern, non well known, two required privs")//
+                                .givenPrivs("indices:unknown/*").requiredPrivs("indices:unknown/unwell", "indices:unknown/notatall")//
+
+                )) {
+                    for (Statefulness statefulness : Statefulness.values()) {
+                        result.add(new Object[] { indexSpec, actionSpec, statefulness });
+                    }
+                }
+            }
+            return result;
+        }
+
+        public DataStreamPermissions(IndexSpec indexSpec, ActionSpec actionSpec, Statefulness statefulness) throws Exception {
+            this.indexSpec = indexSpec;
+            this.actionSpec = actionSpec;
+            this.roles = indexSpec.toRolesConfig(actionSpec);
+
+            this.requiredActions = actionSpec.requiredPrivs;
+            this.otherActions = actionSpec.wellKnownActions ? ImmutableSet.of(actions.get("indices:data/read/get"))
+                    : ImmutableSet.of(actions.get("indices:foobar/unknown"));
+
+            this.subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
+                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty());
         }
 
     }

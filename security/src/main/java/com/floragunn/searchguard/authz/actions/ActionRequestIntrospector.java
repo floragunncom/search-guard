@@ -939,7 +939,7 @@ public class ActionRequestIntrospector {
             private final ImmutableSet<Meta.IndexLikeObject> union;
             private String asString;
             private ImmutableSet<String> deepUnion;
-            private Boolean pureIndicesContainsAliasOrDataStreamMembers;
+            private Boolean containsAliasOrDataStreamMembers;
 
             Local(ImmutableSet<Meta.Index> pureIndices, ImmutableSet<Meta.Alias> aliases, ImmutableSet<Meta.DataStream> dataStreams,
                     ImmutableSet<Meta.NonExistent> nonExistingIndices) {
@@ -1097,9 +1097,9 @@ public class ActionRequestIntrospector {
 
                 return result.build();
             }
-
-            public boolean hasAliasOrDataStreamMembersInPureIndices() {
-                Boolean result = this.pureIndicesContainsAliasOrDataStreamMembers;
+          
+            public boolean hasAliasOrDataStreamMembers() {
+                Boolean result = this.containsAliasOrDataStreamMembers;
 
                 if (result == null) {
                     for (Meta.Index pureIndex : this.pureIndices) {
@@ -1109,11 +1109,18 @@ public class ActionRequestIntrospector {
                         }
                     }
 
+                    for (Meta.DataStream dataStream : this.dataStreams) {
+                        if (!dataStream.parentAliasNames().isEmpty()) {
+                            result = true;
+                            break;
+                        }
+                    }
+                    
                     if (result == null) {
                         result = false;
                     }
 
-                    this.pureIndicesContainsAliasOrDataStreamMembers = result;
+                    this.containsAliasOrDataStreamMembers = result;
                 }
 
                 return result;
@@ -1335,7 +1342,7 @@ public class ActionRequestIntrospector {
                         if (!request.indicesOptions.ignoreAliases()) {
                             aliases.add((Meta.Alias) indexLike);
                         }
-                    } else if (indexLike instanceof DataStream) {
+                    } else if (indexLike instanceof Meta.DataStream) {
                         if (request.includeDataStreams) {
                             dataStreams.add((Meta.DataStream) indexLike);
                         }
