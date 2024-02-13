@@ -72,7 +72,15 @@ public interface Meta {
 
         String parentDataStreamName();
 
+        /**
+         * Returns the names of the aliases containing this index. 
+         */    
         Collection<String> parentAliasNames();
+        
+        /**
+         * Returns the names of the aliases containing this index. Additionally, if this is a data stream backing index, this also returns any aliases containing the data stream.
+         */        
+        Collection<String> ancestorAliasNames();
 
         boolean equals(Object other);
 
