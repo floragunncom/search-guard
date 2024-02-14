@@ -52,10 +52,11 @@ public class IgnoreUnauthorizedIntTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A").roles(//
-            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*"));
+            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD", "SGS_MANAGE_ALIASES")
+                    .on("a*").aliasPermissions("SGS_MANAGE_ALIASES").on("z_alias_a*"));
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B").roles(//
-            new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("b*"));
+            new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD", "SGS_MANAGE_ALIASES").on("b*"));
 
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C").roles(//
             new Role("limited_user_c_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("c*"));
@@ -432,7 +433,7 @@ public class IgnoreUnauthorizedIntTest {
             Assert.assertThat(httpResponse, isOk());
         }
     }
-    
+
     @Test
     public void analyze_noIndex_forbidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A_WITHOUT_ANALYZE)) {
@@ -440,5 +441,35 @@ public class IgnoreUnauthorizedIntTest {
 
             Assert.assertThat(httpResponse, isForbidden());
         }
+    }
+
+    // TODO assert that I cannot add an alias to an alias
+    @Test
+    public void createAlias() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A).trackResources()) {
+            HttpResponse httpResponse = restClient.put("/a1,a2/_alias/z_alias_xxx");
+            
+            Assert.assertThat(httpResponse, isForbidden());
+            
+            httpResponse = restClient.put("/a1,a2/_alias/z_alias_a12");
+            
+            Assert.assertThat(httpResponse, isOk());
+            
+            //httpResponse = restClient.put("/a3,z_alias_a12/_alias/z_alias_aa12");
+            
+            //Assert.assertThat(httpResponse, isOk());
+            
+            httpResponse = restClient.put("/a1,a2,b1/_alias/z_alias_a12b1");
+            
+            Assert.assertThat(httpResponse, isForbidden());
+            
+            try (GenericRestClient restClient2 = cluster.getRestClient(LIMITED_USER_B)) {
+                httpResponse = restClient2.delete("/b1/_alias/z_alias_a12");
+                
+                Assert.assertThat(httpResponse, isForbidden());
+            }
+        }
+
+     
     }
 }
