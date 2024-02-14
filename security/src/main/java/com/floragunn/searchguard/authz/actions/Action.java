@@ -34,6 +34,7 @@ import org.elasticsearch.action.ActionResponse;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
 import com.floragunn.searchguard.authz.actions.Actions.Scope;
 
 public interface Action {
@@ -57,6 +58,8 @@ public interface Action {
 
     boolean requiresSpecialProcessing();
 
+    AliasDataStreamHandling aliasDataStreamHandling();
+    
     default <RequestType extends ActionRequest> WellKnownAction<RequestType, ?, ?> wellKnown(RequestType request) {
         if (this instanceof WellKnownAction) {
             @SuppressWarnings("unchecked")
@@ -79,11 +82,12 @@ public interface Action {
         private final ImmutableSet<Action> asImmutableSet;
         private final Actions actions;
         private final int hashCode;
+        private final AliasDataStreamHandling aliasDataStreamHandling;
 
         public WellKnownAction(String actionName, Scope scope, Class<RequestType> requestType, String requestTypeName,
                 ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
                 ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
-                RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources, Actions actions) {
+                RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources, AliasDataStreamHandling aliasDataStreamHandling, Actions actions) {
             this.actionName = actionName;
             this.scope = scope;
             this.requestType = requestType;
@@ -94,6 +98,7 @@ public interface Action {
             this.actions = actions;
             this.asImmutableSet = ImmutableSet.of(this);
             this.hashCode = actionName.hashCode();
+            this.aliasDataStreamHandling = aliasDataStreamHandling;
         }
 
         @Override
@@ -423,6 +428,11 @@ public interface Action {
             return requestTypeName;
         }
 
+        @Override
+        public AliasDataStreamHandling aliasDataStreamHandling() {
+            return aliasDataStreamHandling;
+        }
+
     }
 
     public static class OtherAction implements Action {
@@ -501,5 +511,11 @@ public interface Action {
 
             return actionName.equals(otherAction.actionName);
         }
+
+        @Override
+        public AliasDataStreamHandling aliasDataStreamHandling() {
+            return AliasDataStreamHandling.RESOLVE_IF_NECESSARY;
+        }
     }
+ 
 }

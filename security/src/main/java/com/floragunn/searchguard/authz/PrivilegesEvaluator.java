@@ -95,7 +95,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     .withDefault(Pattern.createUnchecked("cluster:admin:searchguard:config/*", "cluster:admin:searchguard:internal/*")).asPattern();
     static final StaticSettings.Attribute<Pattern> ADMIN_ONLY_INDICES = //
             StaticSettings.Attribute.define("searchguard.admin_only_indices").withDefault(Pattern.createUnchecked("searchguard", ".searchguard",
-                    ".searchguard_*", ".signals_watches*", ".signals_accounts", ".signals_settings", ".signals_truststores", ".signals_proxies")).asPattern();
+                    ".searchguard_*", ".signals_watches*", ".signals_accounts", ".signals_settings", ".signals_truststores", ".signals_proxies"))
+                    .asPattern();
     static final StaticSettings.Attribute<Boolean> CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES = //
             StaticSettings.Attribute.define("searchguard.check_snapshot_restore_write_privileges").withDefault(true).asBoolean();
 
@@ -320,7 +321,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
                 if (request instanceof RestoreSnapshotRequest && checkSnapshotRestoreWritePrivileges) {
                     // Evaluate additional index privileges                
-                    return evaluateIndexPrivileges(user, action0, action.expandPrivileges(request), request, task, requestInfo, mappedRoles,
+                    return evaluateIndexPrivileges(user, action, action.expandPrivileges(request), request, task, requestInfo, mappedRoles,
                             authzConfig, actionAuthorization, specialPrivilegesEvaluationContext, context);
                 }
 
@@ -352,7 +353,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         log.debug("Additional privileges required: " + additionalPrivileges);
                     }
 
-                    return evaluateAdditionalPrivileges(user, action0, additionalPrivileges, request, task, requestInfo, mappedRoles, authzConfig,
+                    return evaluateAdditionalPrivileges(user, action, additionalPrivileges, request, task, requestInfo, mappedRoles, authzConfig,
                             actionAuthorization, specialPrivilegesEvaluationContext, context);
                 }
             }
@@ -387,7 +388,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 }
             }
 
-            return evaluateIndexPrivileges(user, action0, allIndexPermsRequired, request, task, requestInfo, mappedRoles, authzConfig,
+            return evaluateIndexPrivileges(user, action, allIndexPermsRequired, request, task, requestInfo, mappedRoles, authzConfig,
                     actionAuthorization, specialPrivilegesEvaluationContext, context);
         } catch (Exception e) {
             log.error("Error while evaluating " + action0 + " (" + request.getClass().getName() + ")", e);
@@ -395,7 +396,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         }
     }
 
-    private PrivilegesEvaluationResult evaluateIndexPrivileges(User user, String action0, ImmutableSet<Action> requiredPermissions,
+    private PrivilegesEvaluationResult evaluateIndexPrivileges(User user, Action action, ImmutableSet<Action> requiredPermissions,
             ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
@@ -403,8 +404,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         ActionFilter additionalActionFilter = null;
 
         if (actionRequestInfo.getResolvedIndices().containsOnlyRemoteIndices()) {
-            log.debug(
-                    "Request contains only remote indices. We can skip all further checks and let requests be handled by remote cluster: " + action0);
+            log.debug("Request contains only remote indices. We can skip all further checks and let requests be handled by remote cluster: {}",
+                    action);
             return PrivilegesEvaluationResult.OK;
         }
 
@@ -456,7 +457,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         if (privilegesInterceptor != null) {
 
-            PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(context, request, actions.get(action0),
+            PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(context, request, action,
                     actionAuthorization);
 
             if (log.isDebugEnabled()) {
@@ -464,14 +465,14 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             }
 
             if (replaceResult == PrivilegesInterceptor.InterceptionResult.DENY) {
-                auditLog.logMissingPrivileges(action0, request, task);
+                auditLog.logMissingPrivileges(action.name(), request, task);
                 return PrivilegesEvaluationResult.INSUFFICIENT.reason("Denied due to multi-tenancy settings");
             } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
                 return PrivilegesEvaluationResult.OK.with(additionalActionFilter);
             }
         }
 
-        boolean dnfofPossible = authzConfig.isIgnoreUnauthorizedIndices() && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action0)
+        boolean dnfofPossible = authzConfig.isIgnoreUnauthorizedIndices() && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())
                 && (actionRequestInfo.ignoreUnavailable() || actionRequestInfo.containsWildcards());
 
         if (!dnfofPossible) {
@@ -498,7 +499,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         }
 
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(context, allIndexPermsRequired,
-                actionRequestInfo.getResolvedIndices());
+                actionRequestInfo.getResolvedIndices(), action.aliasDataStreamHandling());
 
         if (log.isTraceEnabled()) {
             log.trace("Result from privileges evaluation: " + privilegesEvaluationResult.getStatus() + "\n" + privilegesEvaluationResult);
@@ -510,7 +511,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     log.debug("DNF: Reducing indices to " + privilegesEvaluationResult.getAvailableIndices() + "\n" + privilegesEvaluationResult);
                 }
 
-                privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action0, request,
+                privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action.name(), request,
                         privilegesEvaluationResult.getAvailableIndices(), actionRequestInfo);
 
             } else {
@@ -519,8 +520,9 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         } else if (privilegesEvaluationResult.getStatus() == Status.INSUFFICIENT) {
             if (dnfofPossible) {
                 if (!actionRequestInfo.getResolvedIndices().getRemoteIndices().isEmpty()) {
-                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action0, request, ImmutableSet.empty(), actionRequestInfo);
-                } else if (authzConfig.getIgnoreUnauthorizedIndicesActionsAllowingEmptyResult().matches(action0)) {
+                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action.name(), request, ImmutableSet.empty(),
+                            actionRequestInfo);
+                } else if (authzConfig.getIgnoreUnauthorizedIndicesActionsAllowingEmptyResult().matches(action.name())) {
                     if (log.isTraceEnabled()) {
                         log.trace("Changing result from INSUFFICIENT to EMPTY");
                     }
@@ -538,7 +540,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
                 privilegesEvaluationResult = privilegesEvaluationResult.status(Status.OK);
             } else {
-                log.warn("DNFOF for empty results is not available for " + action0 + " (" + request.getClass().getName() + ")");
+                log.warn("DNFOF for empty results is not available for {} ({})", action, request.getClass().getName());
             }
         }
 
@@ -547,9 +549,10 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
             if (log.isEnabled(logLevel)) {
                 log.log(logLevel,
-                        "### No index privileges for " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user + "\nResolved Indices: "
-                                + actionRequestInfo.getResolvedIndices() + "\nUnresolved: " + actionRequestInfo.getUnresolved() + "\nRoles: "
-                                + mappedRoles + "\nRequired Privileges: " + allIndexPermsRequired + "\n" + privilegesEvaluationResult);
+                        "### No index privileges for {} ({})\nUser: {}\nResolved Indices: {}\n"
+                                + "Unresolved: {}\nRoles: {}\nRequired Privileges: {}\n{}",
+                        action, request.getClass().getName(), user, actionRequestInfo.getResolvedIndices(), actionRequestInfo.getUnresolved(),
+                        mappedRoles, allIndexPermsRequired, privilegesEvaluationResult);
             }
 
             return privilegesEvaluationResult;
@@ -557,7 +560,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         if (request instanceof ResizeRequest) {
             if (log.isDebugEnabled()) {
-                log.debug("Checking additional create index action for resize operation: " + request);
+                log.debug("Checking additional create index action for resize operation: {}", request);
             }
             ResizeRequest resizeRequest = (ResizeRequest) request;
             CreateIndexRequest createIndexRequest = resizeRequest.getTargetIndexRequest();
@@ -576,45 +579,42 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         return PrivilegesEvaluationResult.OK;
     }
 
-    private PrivilegesEvaluationResult evaluateAdditionalPrivileges(User user, String action0, ImmutableSet<Action> additionalPrivileges,
+    private PrivilegesEvaluationResult evaluateAdditionalPrivileges(User user, Action action, ImmutableSet<Action> additionalPrivileges,
             ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
         if (additionalPrivileges.forAllApplies((a) -> a.isIndexPrivilege())) {
-            return evaluateIndexPrivileges(user, action0, additionalPrivileges, request, task, actionRequestInfo, mappedRoles, authzConfig,
+            return evaluateIndexPrivileges(user, action, additionalPrivileges, request, task, actionRequestInfo, mappedRoles, authzConfig,
                     actionAuthorization, specialPrivilegesEvaluationContext, context);
         }
 
         ImmutableSet<Action> indexPrivileges = ImmutableSet.empty();
 
-        for (Action action : additionalPrivileges) {
-            if (action.isClusterPrivilege()) {
-                PrivilegesEvaluationResult result = actionAuthorization.hasClusterPermission(context, action);
+        for (Action additionalPrivilege : additionalPrivileges) {
+            if (additionalPrivilege.isClusterPrivilege()) {
+                PrivilegesEvaluationResult result = actionAuthorization.hasClusterPermission(context, additionalPrivilege);
 
                 if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
                     log.info("Additional privilege missing: " + result);
                     return result;
                 }
-            } else if (action.isTenantPrivilege()) {
-                PrivilegesEvaluationResult result = hasTenantPermission(user, mappedRoles, action, actionAuthorization, context);
+            } else if (additionalPrivilege.isTenantPrivilege()) {
+                PrivilegesEvaluationResult result = hasTenantPermission(user, mappedRoles, additionalPrivilege, actionAuthorization, context);
 
                 if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
                     log.info("Additional privilege missing: " + result);
                     return result;
                 }
-            } else if (action.isIndexPrivilege()) {
-                indexPrivileges = indexPrivileges.with(action);
+            } else if (additionalPrivilege.isIndexPrivilege()) {
+                indexPrivileges = indexPrivileges.with(additionalPrivilege);
             }
         }
 
         if (!indexPrivileges.isEmpty()) {
-            return evaluateIndexPrivileges(user, action0, indexPrivileges, request, task, actionRequestInfo, mappedRoles, authzConfig,
+            return evaluateIndexPrivileges(user, action, indexPrivileges, request, task, actionRequestInfo, mappedRoles, authzConfig,
                     actionAuthorization, specialPrivilegesEvaluationContext, context);
         } else {
-            if (log.isTraceEnabled()) {
-                log.trace("Allowing: " + action0);
-            }
             return PrivilegesEvaluationResult.OK;
         }
 

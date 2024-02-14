@@ -87,6 +87,8 @@ public interface Meta {
         int hashCode();
 
         boolean isHidden();
+        
+      //  boolean isExisting();
     }
 
     interface Index extends IndexOrNonExistent {

@@ -202,8 +202,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     }
 
     @Override
-    public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions, ResolvedIndices resolved)
-            throws PrivilegesEvaluationException {
+    public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions, ResolvedIndices resolved,
+            AliasDataStreamHandling aliasDataStreamHandling) throws PrivilegesEvaluationException {
         if (metricsLevel.basicEnabled()) {
             actions.forEach((action) -> {
                 indexActionTypes.increment();
@@ -365,7 +365,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             ImmutableSet<Meta.DataStream> incompleteDataStreams = resolved.getLocal().getDataStreams()
                     .matching(e -> !shallowCheckTable.isRowComplete(e));
 
-            if (incompleteAliases.isEmpty() && incompleteDataStreams.isEmpty()) {
+            if (aliasDataStreamHandling == ActionAuthorization.AliasDataStreamHandling.DO_NOT_RESOLVE
+                    || (incompleteAliases.isEmpty() && incompleteDataStreams.isEmpty())) {
                 ImmutableSet<String> availableIndices = shallowCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name);
 
                 if (!availableIndices.isEmpty()) {
@@ -480,8 +481,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }));
 
                 if (stateful != null) {
-                    stateful.index.hasPermission(user, mappedRoles, actions, resolved, context,
-                            deepCheckTable, incompleteDeepResolved);
+                    stateful.index.hasPermission(user, mappedRoles, actions, resolved, context, deepCheckTable, incompleteDeepResolved);
 
                     if (deepCheckTable.isComplete()) {
                         // Even though the check table is complete, we always return PARTIALLY_OK because we resolved aliases/datastreams to individual indices above

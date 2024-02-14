@@ -166,6 +166,7 @@ import com.floragunn.searchguard.authc.LoginPrivileges;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.authc.session.backend.SessionApi;
+import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.AdditionalPrivileges;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
@@ -577,7 +578,8 @@ public class Actions {
         private Scope scope;
         private Function<RequestType, Collection<RequestItem>> requestItemFunction;
         private Function<RequestItem, RequestItemType> requestItemTypeFunction;
-
+        private AliasDataStreamHandling aliasDataStreamHandling = AliasDataStreamHandling.RESOLVE_IF_NECESSARY;
+        
         ActionBuilder(String actionName, Scope scope) {
             this.actionName = actionName;
             this.scope = scope;
@@ -690,6 +692,11 @@ public class Actions {
             return this;
         }
 
+        ActionBuilder<RequestType, RequestItem, RequestItemType> doNotResolveAliasesOrDataStreams() {
+            this.aliasDataStreamHandling = AliasDataStreamHandling.DO_NOT_RESOLVE;
+            return this;
+        }
+        
         <PropertyType> ActionBuilder<RequestType, RequestItem, RequestItemType> setRequestProperty(String name, Class<PropertyType> type,
                 Function<PropertyType, PropertyType> function) {
             requestProperyModifiers.add(new RequestPropertyModifier<>(ReflectiveAttributeAccessors.objectAttr(name, type),
@@ -714,7 +721,7 @@ public class Actions {
             return new Action.WellKnownAction<RequestType, RequestItem, RequestItemType>(actionName, scope, requestType, requestTypeName,
                     ImmutableList.of(additionalPrivileges),
                     additionalPrivilegesByItemType != null ? ImmutableMap.of(additionalPrivilegesByItemType) : ImmutableMap.empty(), requestItems,
-                    resources, Actions.this);
+                    resources, this.aliasDataStreamHandling, Actions.this);
         }
 
     }
