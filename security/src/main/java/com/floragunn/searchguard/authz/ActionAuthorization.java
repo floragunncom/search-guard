@@ -35,10 +35,14 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.Resolve
 public interface ActionAuthorization {
     PrivilegesEvaluationResult hasClusterPermission(PrivilegesEvaluationContext context, Action action) throws PrivilegesEvaluationException;
 
-    PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions, ResolvedIndices resolvedIndices)
+    PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions, ResolvedIndices resolvedIndices, AliasDataStreamHandling aliasDataStreamHandling)
             throws PrivilegesEvaluationException;
 
     PrivilegesEvaluationResult hasTenantPermission(PrivilegesEvaluationContext context, Action action, String requestedTenant)
             throws PrivilegesEvaluationException;
 
+    static enum AliasDataStreamHandling {
+        RESOLVE_IF_NECESSARY,
+        DO_NOT_RESOLVE
+    }
 }
