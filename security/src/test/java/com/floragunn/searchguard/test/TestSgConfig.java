@@ -656,6 +656,8 @@ public class TestSgConfig {
 
         private List<IndexPermission> indexPermissions = new ArrayList<>();
         private List<ExcludedIndexPermission> excludedIndexPermissions = new ArrayList<>();
+        private List<IndexPermission> aliasPermissions = new ArrayList<>();
+        private List<IndexPermission> dataStreamPermissions = new ArrayList<>();
 
         private List<TenantPermission> tenantPermissions = new ArrayList<>();//tenant_permissions
 
@@ -683,9 +685,17 @@ public class TestSgConfig {
         }
 
         public IndexPermission indexPermissions(String... indexPermissions) {
-            return new IndexPermission(this, indexPermissions);
+            return new IndexPermission(this, this.indexPermissions, indexPermissions);
         }
 
+        public IndexPermission aliasPermissions(String... aliasPermissions) {
+            return new IndexPermission(this, this.aliasPermissions, aliasPermissions);
+        }
+
+        public IndexPermission dataStreamPermissions(String... dataStreamPermissions) {
+            return new IndexPermission(this, this.dataStreamPermissions, dataStreamPermissions);
+        }
+        
         public ExcludedIndexPermission excludeIndexPermissions(String... indexPermissions) {
             return new ExcludedIndexPermission(this, indexPermissions);
         }
@@ -709,6 +719,16 @@ public class TestSgConfig {
             if (this.indexPermissions.size() > 0) {
                 map.put(new NestedValueMap.Path(name, "index_permissions"),
                     this.indexPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
+            }
+            
+            if (this.aliasPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "alias_permissions"),
+                    this.aliasPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
+            }
+
+            if (this.dataStreamPermissions.size() > 0) {
+                map.put(new NestedValueMap.Path(name, "data_stream_permissions"),
+                    this.dataStreamPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
             }
 
             if (this.excludedClusterPermissions.size() > 0) {
@@ -796,10 +816,12 @@ public class TestSgConfig {
         private String dlsQuery;
         private List<String> fls;
         private List<String> maskedFields;
+        private List<IndexPermission> targetList;
 
-        IndexPermission(Role role, String... allowedActions) {
+        IndexPermission(Role role, List<IndexPermission> targetList, String... allowedActions) {
             this.allowedActions = asList(allowedActions);
             this.role = role;
+            this.targetList = targetList;
         }
 
         public IndexPermission dls(String dlsQuery) {
@@ -824,7 +846,7 @@ public class TestSgConfig {
 
         public Role on(String... indexPatterns) {
             this.indexPatterns = asList(indexPatterns);
-            this.role.indexPermissions.add(this);
+            this.targetList.add(this);
             return this.role;
         }
 
