@@ -337,7 +337,7 @@ public class PrivilegesEvaluationResult {
     }
 
     private boolean isRelatedToIndexPermission() {
-        return this.indexToActionPrivilegeTable != null && this.indexToActionPrivilegeTable.getColumns().any().isIndexPrivilege();
+        return this.indexToActionPrivilegeTable != null && !this.indexToActionPrivilegeTable.isEmpty() && this.indexToActionPrivilegeTable.getColumns().any().isIndexPrivilege();
     }
 
     private List<String> getFlattenedIndexToActionPrivilegeTable() {
