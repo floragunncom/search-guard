@@ -195,7 +195,7 @@ public class Actions {
         // which can significantly improve performance of privilege checks.
         //
         // Additionally, extended settings are applied for some actions, such as additionally needed privileges.
-        
+
         index(IndexAction.INSTANCE);
         index(GetAction.INSTANCE);
         index(TermVectorsAction.INSTANCE);
@@ -204,7 +204,7 @@ public class Actions {
         index(SearchAction.INSTANCE);
         index(ExplainAction.INSTANCE);
         index(ResolveIndexAction.INSTANCE);
-        
+
         index(UpdateByQueryAction.INSTANCE);
         index(DeleteByQueryAction.INSTANCE);
 
@@ -269,7 +269,7 @@ public class Actions {
 
         cluster("indices:data/read/async_search/delete") //
                 .deletes(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
-        
+
         cluster("indices:searchguard:async_search/_all_owners");
 
         cluster("indices:data/read/sql");
@@ -395,14 +395,14 @@ public class Actions {
 
         open("cluster:admin/searchguard/license/info");
         open(WhoAmIAction.INSTANCE);
-                
+
         dataStream("indices:admin/data_stream/create");
         dataStream("indices:admin/data_stream/get");
         dataStream("indices:admin/data_stream/migrate");
         dataStream("indices:admin/data_stream/modify");
         dataStream("indices:admin/data_stream/promote");
         dataStream("indices:admin/data_stream/delete");
-        cluster("indices:monitor/data_stream/stats");        
+        dataStream("indices:monitor/data_stream/stats");
 
         if (modulesRegistry != null) {
             for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {
@@ -423,7 +423,7 @@ public class Actions {
             } else if (action.isTenantPrivilege()) {
                 tenantActions.add((WellKnownAction<?, ?, ?>) action);
             } else if (action.isDataStreamPrivilege()) {
-                dataStreamActions.add((WellKnownAction<?, ?, ?>) action);                
+                dataStreamActions.add((WellKnownAction<?, ?, ?>) action);
             } else {
                 indexActions.add((WellKnownAction<?, ?, ?>) action);
             }
@@ -452,7 +452,7 @@ public class Actions {
     public ImmutableSet<WellKnownAction<?, ?, ?>> indexActions() {
         return indexActions;
     }
-    
+
     public ImmutableSet<WellKnownAction<?, ?, ?>> dataStreamActions() {
         return dataStreamActions;
     }
@@ -462,7 +462,9 @@ public class Actions {
     }
 
     private static Scope getScope(String action) {
-        if (action.startsWith("cluster:admin:searchguard:tenant:") || action.startsWith("kibana:saved_objects/")) {
+        if (action.startsWith("indices:admin/data_stream/")) {
+            return Scope.DATA_STREAM;
+        } else if (action.startsWith("cluster:admin:searchguard:tenant:") || action.startsWith("kibana:saved_objects/")) {
             return Scope.TENANT;
         } else if (action.startsWith("searchguard:cluster:") || action.startsWith("cluster:")) {
             return Scope.CLUSTER;
@@ -486,7 +488,7 @@ public class Actions {
     private ActionBuilder<?, ?, ?> index(String action) {
         return builder.index(action);
     }
-    
+
     private ActionBuilder<?, ?, ?> dataStream(String action) {
         return builder.dataStream(action);
     }
@@ -530,7 +532,6 @@ public class Actions {
             builders.put(action, builder);
             return builder;
         }
-        
 
         ActionBuilder<?, ?, ?> dataStream(String action) {
             ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.DATA_STREAM);
@@ -598,7 +599,7 @@ public class Actions {
         private Function<RequestType, Collection<RequestItem>> requestItemFunction;
         private Function<RequestItem, RequestItemType> requestItemTypeFunction;
         private AliasDataStreamHandling aliasDataStreamHandling = AliasDataStreamHandling.RESOLVE_IF_NECESSARY;
-        
+
         ActionBuilder(String actionName, Scope scope) {
             this.actionName = actionName;
             this.scope = scope;
@@ -715,7 +716,7 @@ public class Actions {
             this.aliasDataStreamHandling = AliasDataStreamHandling.DO_NOT_RESOLVE;
             return this;
         }
-        
+
         <PropertyType> ActionBuilder<RequestType, RequestItem, RequestItemType> setRequestProperty(String name, Class<PropertyType> type,
                 Function<PropertyType, PropertyType> function) {
             requestProperyModifiers.add(new RequestPropertyModifier<>(ReflectiveAttributeAccessors.objectAttr(name, type),
