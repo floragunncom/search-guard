@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 floragunn GmbH
+ * Copyright 2022-2024 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -182,6 +182,7 @@ import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
 public class Actions {
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexActions;
+    private final ImmutableSet<WellKnownAction<?, ?, ?>> dataStreamActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> clusterActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions;
 
@@ -395,13 +396,12 @@ public class Actions {
         open("cluster:admin/searchguard/license/info");
         open(WhoAmIAction.INSTANCE);
                 
-        // Data Streams
-        index("indices:admin/data_stream/create");
-        index("indices:admin/data_stream/get");
-        index("indices:admin/data_stream/migrate");
-        index("indices:admin/data_stream/modify");
-        index("indices:admin/data_stream/promote");
-        index("indices:admin/data_stream/delete");
+        dataStream("indices:admin/data_stream/create");
+        dataStream("indices:admin/data_stream/get");
+        dataStream("indices:admin/data_stream/migrate");
+        dataStream("indices:admin/data_stream/modify");
+        dataStream("indices:admin/data_stream/promote");
+        dataStream("indices:admin/data_stream/delete");
         cluster("indices:monitor/data_stream/stats");        
 
         if (modulesRegistry != null) {
@@ -414,6 +414,7 @@ public class Actions {
 
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> clusterActions = new ImmutableSet.Builder<>(actionMap.size());
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> indexActions = new ImmutableSet.Builder<>(actionMap.size());
+        ImmutableSet.Builder<WellKnownAction<?, ?, ?>> dataStreamActions = new ImmutableSet.Builder<>();
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> tenantActions = new ImmutableSet.Builder<>();
 
         for (Action action : actionMap.values()) {
@@ -421,6 +422,8 @@ public class Actions {
                 clusterActions.add((WellKnownAction<?, ?, ?>) action);
             } else if (action.isTenantPrivilege()) {
                 tenantActions.add((WellKnownAction<?, ?, ?>) action);
+            } else if (action.isDataStreamPrivilege()) {
+                dataStreamActions.add((WellKnownAction<?, ?, ?>) action);                
             } else {
                 indexActions.add((WellKnownAction<?, ?, ?>) action);
             }
@@ -428,6 +431,7 @@ public class Actions {
 
         this.clusterActions = clusterActions.build();
         this.indexActions = indexActions.build();
+        this.dataStreamActions = dataStreamActions.build();
         this.tenantActions = tenantActions.build();
     }
 
@@ -447,6 +451,10 @@ public class Actions {
 
     public ImmutableSet<WellKnownAction<?, ?, ?>> indexActions() {
         return indexActions;
+    }
+    
+    public ImmutableSet<WellKnownAction<?, ?, ?>> dataStreamActions() {
+        return dataStreamActions;
     }
 
     public ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions() {
@@ -477,6 +485,10 @@ public class Actions {
 
     private ActionBuilder<?, ?, ?> index(String action) {
         return builder.index(action);
+    }
+    
+    private ActionBuilder<?, ?, ?> dataStream(String action) {
+        return builder.dataStream(action);
     }
 
     private ActionBuilder<?, ?, ?> tenant(String action) {
@@ -515,6 +527,13 @@ public class Actions {
 
         ActionBuilder<?, ?, ?> index(String action) {
             ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.INDEX);
+            builders.put(action, builder);
+            return builder;
+        }
+        
+
+        ActionBuilder<?, ?, ?> dataStream(String action) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.DATA_STREAM);
             builders.put(action, builder);
             return builder;
         }
@@ -560,7 +579,7 @@ public class Actions {
     }
 
     public static enum Scope {
-        INDEX, CLUSTER, TENANT, OPEN;
+        INDEX, CLUSTER, TENANT, OPEN, DATA_STREAM;
     }
 
     class ActionBuilder<RequestType extends ActionRequest, RequestItem, RequestItemType> {
