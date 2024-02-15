@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 floragunn GmbH
+ * Copyright 2022-2024 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,8 @@ public interface Action {
     boolean isClusterPrivilege();
 
     boolean isTenantPrivilege();
+    
+    boolean isDataStreamPrivilege();
 
     boolean isOpen();
 
@@ -132,6 +134,11 @@ public interface Action {
         @Override
         public boolean isIndexPrivilege() {
             return scope == Scope.INDEX;
+        }
+        
+        @Override
+        public boolean isDataStreamPrivilege() {
+            return scope == Scope.DATA_STREAM;
         }
 
         @Override
@@ -457,7 +464,12 @@ public interface Action {
         public boolean isIndexPrivilege() {
             return scope == Scope.INDEX;
         }
-
+        
+        @Override
+        public boolean isDataStreamPrivilege() {
+            return scope == Scope.DATA_STREAM;
+        }
+        
         @Override
         public boolean isClusterPrivilege() {
             return scope == Scope.CLUSTER;

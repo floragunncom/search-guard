@@ -793,6 +793,10 @@ public abstract class MetaImpl implements Meta {
             }
         }
 
+        @Override
+        public String toString() {
+            return this.name;
+        }
     }
 
     public static class NonExistentImpl extends AbstractNonExistentImpl implements Meta.NonExistent {
@@ -814,6 +818,33 @@ public abstract class MetaImpl implements Meta {
 
     public static class NonExistentAliasImpl extends AbstractNonExistentImpl implements Meta.Alias {
         public NonExistentAliasImpl(String name) {
+            super(name);
+        }
+
+        @Override
+        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> resolveDeepToNames() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public UnmodifiableCollection<IndexLikeObject> members() {
+            return ImmutableList.empty();
+        }
+
+        @Override
+        public ImmutableSet<Index> resolveDeepAsIndex() {
+            return ImmutableSet.empty();
+        }
+
+    }
+    
+    public static class NonExistentDataStreamImpl extends AbstractNonExistentImpl implements Meta.DataStream {
+        public NonExistentDataStreamImpl(String name) {
             super(name);
         }
 

@@ -27,6 +27,7 @@ import org.elasticsearch.env.Environment;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -80,7 +81,7 @@ public class ComplianceConfig implements LicenseChangeListener {
     }
 
     //check for isEnabled
-    public boolean isIndexImmutable(String action, Object request) {
+    public boolean isIndexImmutable(Action action, Object request) {
 
         if (!this.enabled) {
             return false;
