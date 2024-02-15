@@ -479,7 +479,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             context.setResolveLocalAll(false);
         }
 
-        ImmutableSet<Action> allIndexPermsRequired = requiredPermissions.matching(Action::isIndexPrivilege);
+        ImmutableSet<Action> allIndexPermsRequired = requiredPermissions.matching(Action::isIndexLikePrivilege);
         ImmutableSet<Action> clusterPermissions = requiredPermissions.matching(Action::isClusterPrivilege);
 
         if (!clusterPermissions.isEmpty()) {
