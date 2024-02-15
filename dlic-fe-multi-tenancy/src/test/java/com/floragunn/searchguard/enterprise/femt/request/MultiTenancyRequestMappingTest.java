@@ -63,11 +63,13 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.apache.http.HttpStatus.SC_FORBIDDEN;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
@@ -85,17 +87,22 @@ public class MultiTenancyRequestMappingTest {
     private static final TestSgConfig.User USER = new TestSgConfig.User("user")
             .roles(new TestSgConfig.Role("tenant_access").tenantPermission("*").on(HR_TENANT.getName()).clusterPermissions("*").indexPermissions("*").on(KIBANA_INDEX+"*"));
 
-    private static final TestSgConfig.User LIMITED_USER = new TestSgConfig.User("limited_user") //
-        .roles(new TestSgConfig.Role("limited_access_to_global_tenant") //
-            .tenantPermission("SGS_KIBANA_ALL_READ").on(HR_TENANT.getName(), GLOBAL_TENANT_NAME) //
-            .clusterPermissions("SGS_CLUSTER_MONITOR"));
+    private static final TestSgConfig.Role LIMITED_ROLE = new TestSgConfig.Role("limited_access_to_global_tenant") //
+        .tenantPermission("SGS_KIBANA_ALL_READ").on(HR_TENANT.getName(), GLOBAL_TENANT_NAME) //
+        .indexPermissions("indices:data/read/search").on(KIBANA_INDEX)
+        .clusterPermissions("SGS_CLUSTER_MONITOR");
+
+    private static final TestSgConfig.User LIMITED_USER = new TestSgConfig.User("limited_user")
+        .roles("SGS_KIBANA_MT_USER", LIMITED_ROLE.getName());
 
     private final TenantManager tenantManager = new TenantManager(ImmutableSet.of(HR_TENANT.getName()));
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled()
-            .nodeSettings("action.destructive_requires_name", false, "searchguard.unsupported.single_index_mt_enabled", true)
+            .nodeSettings("action.destructive_requires_name", false)
+            .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
             .enterpriseModulesEnabled()
+            .roles(LIMITED_ROLE)
             .users(USER, LIMITED_USER)
             .frontendMultiTenancy(new TestSgConfig.FrontendMultiTenancy(true).index(KIBANA_INDEX).serverUser(KIBANA_SERVER_USER))
             .tenants(HR_TENANT, IT_TENANT)
@@ -1898,6 +1905,50 @@ public class MultiTenancyRequestMappingTest {
     }
 
     @Test
+    public void searchRequest_withPointInTimeQuery_success() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("a", "a", "sg_tenant", internalTenantName()));
+        try (GenericRestClient client = cluster.getRestClient(LIMITED_USER)) {
+            HttpResponse response = client.post("/" + KIBANA_INDEX + "/_pit?keep_alive=500ms", tenantHeader());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            String pitId = response.getBodyAsDocNode().getAsString("id");
+            assertThat(pitId, not(emptyOrNullString()));
+            DocNode searchRequestBody = DocNode.of("pit", DocNode.of("id", pitId, "keep_alive", "250ms"));
+
+            HttpResponse responseWithoutTenant = client.postJson("/_search/", searchRequestBody);
+            HttpResponse responseWithTenant = client.postJson("/_search/", searchRequestBody, tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
+                equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString())
+            );
+            assertThat(responseWithoutTenant.getBodyAsDocNode(), containsFieldPointedByJsonPath("$", "pit_id"));
+            assertThat(responseWithTenant.getBodyAsDocNode(), containsFieldPointedByJsonPath("$", "pit_id"));
+        }
+    }
+
+    @Test
+    public void searchRequest_withPointInTimeQuery_failure() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("a", "a", "sg_tenant", internalTenantName()));
+        try (GenericRestClient client = cluster.getRestClient(LIMITED_USER)) {
+            //user is allowed to access HR tenant
+            BasicHeader tenantHeader = new BasicHeader("sg_tenant", HR_TENANT.getName());
+            HttpResponse response = client.post("/" + KIBANA_INDEX + "/_pit?keep_alive=500ms", tenantHeader);
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            String pitId = response.getBodyAsDocNode().getAsString("id");
+            assertThat(pitId, not(emptyOrNullString()));
+            DocNode searchRequestBody = DocNode.of("pit", DocNode.of("id", pitId, "keep_alive", "250ms"));
+
+            //user is not allowed to access IT tenant
+            tenantHeader = new BasicHeader("sg_tenant", IT_TENANT.getName());
+            HttpResponse responseWithTenant = client.postJson("/_search/", searchRequestBody, tenantHeader);
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(SC_FORBIDDEN));
+        }
+    }
+
+    @Test
     public void searchRequest_withAllowNoIndicesParam() throws Exception {
         String scopedId = scopedId(DOC_ID);
         addDocumentToIndex(scopedId, DocNode.of("a", "a", "sg_tenant", internalTenantName()));
@@ -3029,6 +3080,31 @@ public class MultiTenancyRequestMappingTest {
                     unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForBulkRequests(responseWithoutTenant), DOC_ID),
                     equalTo(responseBodyWithoutFieldsWhichMayDifferForBulkRequests(responseWithTenant).toJsonString())
             );
+        }
+    }
+
+    @Test
+    public void openPointInTimeRequest_success() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("point", "in", "time", "test"));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            HttpResponse response = client.post("/" + KIBANA_INDEX + "/_pit?keep_alive=500ms", tenantHeader());
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$", "id"));
+            assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("$", 1));
+        }
+    }
+
+    @Test
+    public void openPointInTimeRequest_failure() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("point", "in", "time", "test"));
+        try (GenericRestClient client = cluster.getRestClient(LIMITED_USER)) {
+            BasicHeader tenantHeader = new BasicHeader("sg_tenant", IT_TENANT.getName());
+            HttpResponse response = client.post("/" + KIBANA_INDEX + "/_pit?keep_alive=500ms", tenantHeader);
+
+            assertThat(response.getStatusCode(), equalTo(SC_FORBIDDEN));
         }
     }
 
