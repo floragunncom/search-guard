@@ -451,7 +451,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         
         TestAuditlogImpl.clear();
         
-        HttpResponse response = rh.executeGetRequest("sf/_search?pretty", encodeBasicHeader("admin", "admin"));
+        HttpResponse response = rh.executeGetRequest("sf/_search?pretty&ignore_unavailable=true", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("starfleet_academy"));
@@ -526,7 +526,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         }
            
         TestAuditlogImpl.clear();
-        HttpResponse response = rh.executeGetRequest("thealias/_search?pretty", encodeBasicHeader("admin", "admin"));
+        HttpResponse response = rh.executeGetRequest("thealias/_search?pretty&ignore_unavailable=true", encodeBasicHeader("admin", "admin"));
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("thealias"));
