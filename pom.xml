@@ -63,7 +63,7 @@
     <http.commons.version>4.5.14</http.commons.version>
     <opensaml.version>4.3.0</opensaml.version>
     <opensaml.patch.version>4.3.0-1.0.3</opensaml.patch.version>
-    <powermock.version>2.0.2</powermock.version>
+    <powermock.version>2.0.9</powermock.version>
 
     <!-- For mvn license:aggregate-add-third-party -->
     <license.excludedArtifacts>.*search-guard.*</license.excludedArtifacts>
