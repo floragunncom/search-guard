@@ -463,13 +463,60 @@ public class IgnoreUnauthorizedIntTest {
             
             Assert.assertThat(httpResponse, isForbidden());
             
+            httpResponse = restClient.get("/_alias/z_alias_a12");
+            
+            Assert.assertThat(httpResponse, isOk());
+            
             try (GenericRestClient restClient2 = cluster.getRestClient(LIMITED_USER_B)) {
                 httpResponse = restClient2.delete("/b1/_alias/z_alias_a12");
+                
+                Assert.assertThat(httpResponse, isForbidden());
+                
+                httpResponse = restClient2.get("/_alias/z_alias_a12");
                 
                 Assert.assertThat(httpResponse, isForbidden());
             }
         }
 
      
+    }
+    
+    @Test
+    public void createAlias2() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A).trackResources()) {
+            HttpResponse httpResponse = restClient.put("/a99/_alias/z_alias_xxx");
+            
+            Assert.assertThat(httpResponse, isForbidden());
+            
+           // httpResponse = restClient.put("/a98/_alias/z_alias_a98");      
+            
+            //Assert.assertThat(httpResponse, isOk());
+         
+        }
+
+     
+    }
+    
+    @Test
+    public void getAlias() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A).trackResources()) {
+            HttpResponse httpResponse = restClient.get("/_alias");
+            
+            System.out.println(httpResponse.getBody());
+            
+            Assert.assertThat(httpResponse, isOk());
+            
+         
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_B).trackResources()) {
+            HttpResponse httpResponse = restClient.get("/_alias");
+            
+            System.out.println(httpResponse.getBody());
+            
+            Assert.assertThat(httpResponse, isOk());
+            
+         
+        }
     }
 }
