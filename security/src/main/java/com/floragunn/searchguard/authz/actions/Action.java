@@ -49,6 +49,8 @@ public interface Action {
     
     boolean isDataStreamPrivilege();
 
+    boolean isIndexLikePrivilege();
+    
     boolean isOpen();
 
     ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request);
@@ -134,6 +136,12 @@ public interface Action {
         @Override
         public boolean isIndexPrivilege() {
             return scope == Scope.INDEX;
+        }
+        
+
+        @Override
+        public boolean isIndexLikePrivilege() {
+            return scope == Scope.INDEX || scope == Scope.DATA_STREAM;
         }
         
         @Override
@@ -463,6 +471,11 @@ public interface Action {
         @Override
         public boolean isIndexPrivilege() {
             return scope == Scope.INDEX;
+        }
+        
+        @Override
+        public boolean isIndexLikePrivilege() {
+            return scope == Scope.INDEX || scope == Scope.DATA_STREAM;
         }
         
         @Override
