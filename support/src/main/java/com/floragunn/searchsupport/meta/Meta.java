@@ -88,7 +88,7 @@ public interface Meta {
 
         boolean isHidden();
         
-      //  boolean isExisting();
+        boolean exists();
     }
 
     interface Index extends IndexOrNonExistent {
@@ -120,7 +120,9 @@ public interface Meta {
     }
 
     interface Alias extends IndexCollection {
-
+        static Alias nonExistent(String name) {
+            return new MetaImpl.NonExistentAliasImpl(name);
+        }
     }
 
     interface DataStream extends IndexCollection {

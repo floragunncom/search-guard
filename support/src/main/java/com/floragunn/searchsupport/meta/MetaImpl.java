@@ -79,6 +79,7 @@ public abstract class MetaImpl implements Meta {
                 }
             }
         }
+
     }
 
     public static class AliasImpl extends AbstractIndexCollection<AliasImpl> implements Meta.Alias {
@@ -148,75 +149,6 @@ public abstract class MetaImpl implements Meta {
         @Override
         public Collection<String> ancestorAliasNames() {
             return parentAliasNames();
-        }
-    }
-
-    public static class NonExistentImpl implements Meta.NonExistent {
-        private final String name;
-
-        public NonExistentImpl(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String name() {
-            return name;
-        }
-
-        @Override
-        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep() {
-            return ImmutableSet.of(this);
-        }
-
-        @Override
-        public ImmutableSet<String> resolveDeepToNames() {
-            return ImmutableSet.of(name);
-        }
-
-        @Override
-        public Collection<String> parentAliasNames() {
-            return ImmutableSet.empty();
-        }
-
-        @Override
-        public Collection<String> ancestorAliasNames() {
-            return ImmutableSet.empty();
-        }
-
-        @Override
-        public String parentDataStreamName() {
-            return null;
-        }
-
-        @Override
-        public boolean isHidden() {
-            return false;
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if (this == other) {
-                return true;
-            } else if (other instanceof Meta.NonExistent) {
-                return ((Meta.NonExistent) other).name().equals(this.name());
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public String toString() {
-            return name;
-        }
-
-        @Override
-        public ImmutableSet<Alias> parentAliases() {
-            return ImmutableSet.empty();
-        }
-
-        @Override
-        public DataStream parentDataStream() {
-            return null;
         }
     }
 
@@ -339,6 +271,11 @@ public abstract class MetaImpl implements Meta {
             }
 
             this.root = root;
+        }
+
+        @Override
+        public boolean exists() {
+            return true;
         }
 
     }
@@ -796,5 +733,109 @@ public abstract class MetaImpl implements Meta {
 
             return new DefaultMetaImpl(indices, ImmutableSet.empty(), dataStreams, ImmutableSet.empty());
         }
+    }
+
+    static abstract class AbstractNonExistentImpl implements Meta.IndexLikeObject {
+        private final String name;
+
+        public AbstractNonExistentImpl(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String name() {
+            return name;
+        }
+
+        @Override
+        public Collection<String> parentAliasNames() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public Collection<String> ancestorAliasNames() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public String parentDataStreamName() {
+            return null;
+        }
+
+        @Override
+        public boolean isHidden() {
+            return false;
+        }
+
+        @Override
+        public ImmutableSet<Alias> parentAliases() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public DataStream parentDataStream() {
+            return null;
+        }
+
+        @Override
+        public boolean exists() {
+            return false;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            } else if (other instanceof Meta.IndexLikeObject) {
+                return ((Meta.IndexLikeObject) other).name().equals(this.name()) && !((Meta.IndexLikeObject) other).exists();
+            } else {
+                return false;
+            }
+        }
+
+    }
+
+    public static class NonExistentImpl extends AbstractNonExistentImpl implements Meta.NonExistent {
+        public NonExistentImpl(String name) {
+            super(name);
+        }
+
+        @Override
+        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep() {
+            return ImmutableSet.of(this);
+        }
+
+        @Override
+        public ImmutableSet<String> resolveDeepToNames() {
+            return ImmutableSet.of(name());
+        }
+
+    }
+
+    public static class NonExistentAliasImpl extends AbstractNonExistentImpl implements Meta.Alias {
+        public NonExistentAliasImpl(String name) {
+            super(name);
+        }
+
+        @Override
+        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> resolveDeepToNames() {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public UnmodifiableCollection<IndexLikeObject> members() {
+            return ImmutableList.empty();
+        }
+
+        @Override
+        public ImmutableSet<Index> resolveDeepAsIndex() {
+            return ImmutableSet.empty();
+        }
+
     }
 }

@@ -31,14 +31,17 @@ import java.util.SortedMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.AliasesRequest;
 import org.elasticsearch.action.CompositeIndicesRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.IndicesRequest.Replaceable;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
@@ -122,7 +125,12 @@ public class ActionRequestIntrospector {
                 return new ActionRequestInfo("*", IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN);
             }
         } else if (request instanceof IndicesRequest) {
-            if (request instanceof PutMappingRequest) {
+            if (request instanceof IndicesAliasesRequest) {
+                IndicesAliasesRequest indicesAliasesRequest = (IndicesAliasesRequest) request;
+
+                return new ActionRequestInfo((IndicesRequest) request).additional("aliases", indicesAliasesRequest.getAliasActions());
+
+            } else if (request instanceof PutMappingRequest) {
                 PutMappingRequest putMappingRequest = (PutMappingRequest) request;
 
                 if (putMappingRequest.getConcreteIndex() != null) {
@@ -256,9 +264,9 @@ public class ActionRequestIntrospector {
         ActionRequestInfo newInfo = getActionRequestInfo(action, request);
 
         // TODO optimize and check
-        if (!keepIndices.containsAll(newInfo.getResolvedIndices().getLocal().getUnion().map(Meta.IndexLikeObject::name))) {
+        if (!keepIndices.containsAll(newInfo.getMainResolvedIndices().getLocal().getUnion().map(Meta.IndexLikeObject::name))) {
             throw new PrivilegesEvaluationException(
-                    "Indices were not properly reduced: " + request + "/" + newInfo.getResolvedIndices() + "; keep: " + keepIndices);
+                    "Indices were not properly reduced: " + request + "/" + newInfo.getMainResolvedIndices() + "; keep: " + keepIndices);
         }
     }
 
@@ -378,7 +386,8 @@ public class ActionRequestIntrospector {
         private final ImmutableSet<IndicesRequestInfo> indices;
         private Object sourceRequest;
         private boolean resolvedIndicesInitialized = false;
-        private ResolvedIndices resolvedIndices;
+        private ResolvedIndices mainResolvedIndices;
+        private ResolvedIndices allResolvedIndices;
         private ImmutableMap<String, ResolvedIndices> additionalResolvedIndices;
 
         private Boolean containsWildcards;
@@ -418,19 +427,14 @@ public class ActionRequestIntrospector {
             this(ImmutableSet.of(new IndicesRequestInfo(null, index, indicesOptions, Meta.from(clusterService))));
         }
 
-        ActionRequestInfo(boolean unknown, boolean indexRequest, ImmutableSet<IndicesRequestInfo> indices, ResolvedIndices resolvedIndices,
-                ImmutableMap<String, ResolvedIndices> additionalResolvedIndices, Object sourceRequest) {
-            this.unknown = unknown;
-            this.indexRequest = indexRequest;
-            this.indices = indices;
-            this.resolvedIndices = resolvedIndices;
-            this.resolvedIndicesInitialized = true;
-            this.additionalResolvedIndices = additionalResolvedIndices;
-            this.sourceRequest = sourceRequest;
-        }
-
         ActionRequestInfo additional(String role, IndicesRequest indices) {
             return new ActionRequestInfo(unknown, indexRequest, this.indices.with(new IndicesRequestInfo(role, indices, Meta.from(clusterService))));
+        }
+
+        ActionRequestInfo additional(String role, Collection<? extends IndicesRequest> requests) {
+            Meta meta = Meta.from(clusterService);
+            return new ActionRequestInfo(unknown, indexRequest,
+                    this.indices.with(requests.stream().map(r -> new IndicesRequestInfo(role, r, meta)).collect(Collectors.toList())));
         }
 
         public boolean isUnknown() {
@@ -469,7 +473,16 @@ public class ActionRequestIntrospector {
                 resolvedIndicesInitialized = true;
             }
 
-            return resolvedIndices;
+            return allResolvedIndices;
+        }
+        
+        public ResolvedIndices getMainResolvedIndices() {
+            if (!resolvedIndicesInitialized) {
+                initResolvedIndices();
+                resolvedIndicesInitialized = true;
+            }
+
+            return mainResolvedIndices;
         }
 
         public ImmutableMap<String, ResolvedIndices> getAdditionalResolvedIndices() {
@@ -497,13 +510,15 @@ public class ActionRequestIntrospector {
 
         private void initResolvedIndices() {
             if (unknown) {
-                resolvedIndices = LOCAL_ALL;
+                allResolvedIndices = LOCAL_ALL;
+                mainResolvedIndices = LOCAL_ALL;
                 additionalResolvedIndices = ImmutableMap.empty();
                 return;
             }
 
             if (!indexRequest) {
-                resolvedIndices = null;
+                allResolvedIndices = null;
+                mainResolvedIndices = null;
                 additionalResolvedIndices = ImmutableMap.empty();
                 return;
             }
@@ -511,28 +526,35 @@ public class ActionRequestIntrospector {
             int numberOfEntries = indices.size();
 
             if (numberOfEntries == 0) {
-                resolvedIndices = LOCAL_ALL;
+                allResolvedIndices = LOCAL_ALL;
+                mainResolvedIndices = LOCAL_ALL;
                 additionalResolvedIndices = ImmutableMap.empty();
             } else if (numberOfEntries == 1 && indices.only().role == null) {
-                resolvedIndices = indices.only().resolveIndices();
+                mainResolvedIndices = allResolvedIndices = indices.only().resolveIndices();
                 additionalResolvedIndices = ImmutableMap.empty();
             } else {
-                ResolvedIndices resolvedIndices = null;
+                ResolvedIndices mainResolvedIndices = null;
                 ImmutableMap<String, ResolvedIndices> additionalResolvedIndicesMap = ImmutableMap.empty();
 
                 for (IndicesRequestInfo info : indices) {
                     ResolvedIndices singleResolved = info.resolveIndices();
 
                     if (info.role == null) {
-                        resolvedIndices = singleResolved.with(resolvedIndices);
+                        mainResolvedIndices = singleResolved.with(mainResolvedIndices);
                     } else {
                         additionalResolvedIndicesMap = additionalResolvedIndicesMap.withComputed(info.role,
                                 (additionalResolvedIndices) -> singleResolved.with(additionalResolvedIndices));
                     }
                 }
 
-                this.resolvedIndices = resolvedIndices;
+                this.mainResolvedIndices = mainResolvedIndices;
                 this.additionalResolvedIndices = additionalResolvedIndicesMap;
+                
+                if (additionalResolvedIndicesMap.isEmpty()) {
+                    this.allResolvedIndices = mainResolvedIndices;
+                } else {
+                    this.allResolvedIndices = mainResolvedIndices.with(additionalResolvedIndicesMap.values());
+                }
             }
 
         }
@@ -562,6 +584,7 @@ public class ActionRequestIntrospector {
     public static class IndicesRequestInfo {
 
         private final ImmutableList<String> indices;
+        private final ImmutableList<String> aliases;
         private final String[] indicesArray;
         private final IndicesOptions indicesOptions;
         private final boolean allowsRemoteIndices;
@@ -595,6 +618,12 @@ public class ActionRequestIntrospector {
             this.createIndexRequest = indicesRequest instanceof IndexRequest
                     || indicesRequest instanceof org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
             this.indexMetadata = indexMetadata;
+
+            if (indicesRequest instanceof AliasesRequest) {
+                this.aliases = ImmutableList.ofArray(((AliasesRequest) indicesRequest).aliases());
+            } else {
+                this.aliases = ImmutableList.empty();
+            }
         }
 
         IndicesRequestInfo(String role, String index, IndicesOptions indicesOptions, Meta indexMetadata) {
@@ -614,6 +643,7 @@ public class ActionRequestIntrospector {
             this.writeRequest = false;
             this.createIndexRequest = false;
             this.indexMetadata = indexMetadata;
+            this.aliases = ImmutableList.empty();
         }
 
         IndicesRequestInfo(String role, List<String> indices, IndicesOptions indicesOptions, Meta indexMetadata) {
@@ -633,7 +663,7 @@ public class ActionRequestIntrospector {
             this.writeRequest = false;
             this.createIndexRequest = false;
             this.indexMetadata = indexMetadata;
-
+            this.aliases = ImmutableList.empty();
         }
 
         @Override
@@ -842,6 +872,21 @@ public class ActionRequestIntrospector {
             return new ResolvedIndices(this.localAll || other.localAll, this.localShallow.with(other.localShallow),
                     this.remoteIndices.with(other.remoteIndices), this.deferredRequests.with(other.deferredRequests));
         }
+        
+
+        ResolvedIndices with(Collection<ResolvedIndices> others) {
+            if (others == null || others.isEmpty()) {
+                return this;
+            }
+
+            ResolvedIndices result = this;
+            
+            for (ResolvedIndices other : others) {
+                result = result.with(other);
+            }
+            
+            return result;
+        }
 
         private void resolveDeferredRequests() {
             Local localShallow = this.localShallow;
@@ -1041,7 +1086,7 @@ public class ActionRequestIntrospector {
             public ImmutableSet<Meta.IndexCollection> getAliasesAndDataStreams() {
                 return ImmutableSet.<Meta.IndexCollection>of(aliases).with(dataStreams);
             }
-            
+
             public ImmutableSet<Meta.NonExistent> getNonExistingIndices() {
                 return nonExistingIndices;
             }
@@ -1097,7 +1142,7 @@ public class ActionRequestIntrospector {
 
                 return result.build();
             }
-          
+
             public boolean hasAliasOrDataStreamMembers() {
                 Boolean result = this.containsAliasOrDataStreamMembers;
 
@@ -1115,7 +1160,7 @@ public class ActionRequestIntrospector {
                             break;
                         }
                     }
-                    
+
                     if (result == null) {
                         result = false;
                     }
@@ -1292,7 +1337,8 @@ public class ActionRequestIntrospector {
                     });
                 }
 
-                return new Local(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
+                return new Local(pureIndices, aliases.build().with(resolveExplicitAliases(request, indexMetadata)), dataStreams.build(),
+                        nonExistingIndices.build());
             }
 
             static Local resolveIsAll(IndicesRequestInfo request, Meta indexMetadata) {
@@ -1322,7 +1368,7 @@ public class ActionRequestIntrospector {
                     pureIndices = pureIndices.matching(e -> !excludeStatePredicate.test(e.isOpen()));
                 }
 
-                return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
+                return new Local(pureIndices, aliases.with(resolveExplicitAliases(request, indexMetadata)), dataStreams, nonExistingIndices);
             }
 
             static Local resolveWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
@@ -1367,7 +1413,30 @@ public class ActionRequestIntrospector {
                     });
                 }
 
-                return new Local(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
+                return new Local(pureIndices, aliases.build().with(resolveExplicitAliases(request, indexMetadata)), dataStreams.build(),
+                        nonExistingIndices.build());
+            }
+
+            static ImmutableSet<Meta.Alias> resolveExplicitAliases(IndicesRequestInfo request, Meta indexMetadata) {
+                // TODO resolve expressions
+
+                if (request.aliases.isEmpty()) {
+                    return ImmutableSet.empty();
+                }
+
+                ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
+
+                for (String alias : request.aliases) {
+                    Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(alias);
+
+                    if (indexLike instanceof Meta.Alias) {
+                        aliases.add((Meta.Alias) indexLike);
+                    } else {
+                        aliases.add(Meta.Alias.nonExistent(alias));
+                    }
+                }
+
+                return aliases.build();
             }
 
             static final Local EMPTY = new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
