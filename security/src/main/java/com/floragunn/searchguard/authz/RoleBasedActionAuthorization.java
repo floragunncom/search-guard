@@ -415,22 +415,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             .with(retainedAliases);
                     CheckTable<Meta.IndexLikeObject, Action> semiDeepCheckTable = CheckTable.create(retainedIndices.with(resolvedDataStreams),
                             actions);
-
-                    actions.forEach((action) -> retainedIndices.forEach((i) -> {
-                        if (shallowCheckTable.isChecked(i, action))
-                            semiDeepCheckTable.check(i, action);
-                    }));
+                    semiDeepCheckTable.checkFrom(shallowCheckTable);
 
                     if (stateful != null) {
-                        PrivilegesEvaluationResult resultFromStatefulIndex = stateful.dataStream.hasPermission(user, mappedRoles, actions, resolved,
-                                context, semiDeepCheckTable);
+                        stateful.dataStream.hasPermission(user, mappedRoles, actions, resolved, context, semiDeepCheckTable);
 
-                        if (resultFromStatefulIndex != null) {
-                            if (log.isTraceEnabled()) {
-                                log.trace("resultFromStatefulIndex: {}", resultFromStatefulIndex);
-                            }
-
-                            return resultFromStatefulIndex;
+                        if (semiDeepCheckTable.isComplete()) {
+                            // Even though the check table is complete, we always return PARTIALLY_OK because we resolved aliases to individual datastreams above
+                            indexActionCheckResults_partially.increment();
+                            return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(
+                                    semiDeepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name), semiDeepCheckTable.with(shallowCheckTable),
+                                    localContext.errors);
                         }
 
                         // Note: statefulIndex.hasPermission() modifies as a side effect the checkTable. 
@@ -453,8 +448,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     indexExclusions.uncheckExclusions(semiDeepCheckTable, user, mappedRoles, actions, resolved, context, meter);
 
                     if (semiDeepCheckTable.isComplete()) {
-                        indexActionCheckResults_ok.increment();
-                        return PrivilegesEvaluationResult.OK;
+                        // Even though the check table is complete, we always return PARTIALLY_OK because we resolved aliases to individual datastreams above
+                        indexActionCheckResults_partially.increment();
+                        return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(
+                                semiDeepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name), semiDeepCheckTable.with(shallowCheckTable),
+                                localContext.errors);
                     }
 
                     prevCheckTable = semiDeepCheckTable;
@@ -475,13 +473,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 ImmutableSet<Meta.IndexLikeObject> retainedIndices = prevCheckTable.getRows().without(incompleteAliasesAndDataStreams);
 
                 CheckTable<Meta.IndexLikeObject, Action> deepCheckTable = CheckTable.create(retainedIndices.with(incompleteDeepResolved), actions);
-                actions.forEach((action) -> retainedIndices.forEach((i) -> {
-                    if (prevCheckTable.isChecked(i, action))
-                        deepCheckTable.check(i, action);
-                }));
+                deepCheckTable.checkFrom(prevCheckTable);
 
                 if (stateful != null) {
-                    stateful.index.hasPermission(user, mappedRoles, actions, resolved, context, deepCheckTable, incompleteDeepResolved);
+                    stateful.index.hasPermission(user, mappedRoles, actions, resolved, context, deepCheckTable.with(shallowCheckTable),
+                            incompleteDeepResolved);
 
                     if (deepCheckTable.isComplete()) {
                         // Even though the check table is complete, we always return PARTIALLY_OK because we resolved aliases/datastreams to individual indices above
@@ -530,7 +526,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 if (!availableIndices.isEmpty()) {
                     indexActionCheckResults_partially.increment();
-                    return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(availableIndices, deepCheckTable, localContext.errors);
+                    return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(availableIndices, deepCheckTable.with(shallowCheckTable),
+                            localContext.errors);
                 }
 
                 // If we have gained nothing, we just use the shallowCheckTable for reporting in order to keep the information terse
