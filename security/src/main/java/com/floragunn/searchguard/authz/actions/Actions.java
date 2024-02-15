@@ -396,7 +396,7 @@ public class Actions {
         open(WhoAmIAction.INSTANCE);
                 
         // Data Streams
-        cluster("indices:admin/data_stream/create");
+        index("indices:admin/data_stream/create");
         index("indices:admin/data_stream/get");
         index("indices:admin/data_stream/migrate");
         index("indices:admin/data_stream/modify");

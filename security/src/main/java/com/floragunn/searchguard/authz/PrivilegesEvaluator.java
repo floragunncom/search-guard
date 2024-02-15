@@ -508,14 +508,24 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         if (privilegesEvaluationResult.getStatus() == Status.PARTIALLY_OK) {
             if (dnfofPossible) {
                 if (log.isDebugEnabled()) {
-                    log.debug("DNF: Reducing indices to " + privilegesEvaluationResult.getAvailableIndices() + "\n" + privilegesEvaluationResult);
+                    log.debug("Reducing indices to {}\n{}", privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult);
                 }
 
                 privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action.name(), request,
                         privilegesEvaluationResult.getAvailableIndices(), actionRequestInfo);
 
             } else {
-                privilegesEvaluationResult = privilegesEvaluationResult.status(Status.INSUFFICIENT);
+                String reasonForNoIndexReduction = "You have privileges for some, but not all requested indices. However, access to the whole operation is denied, because ";
+
+                if (!authzConfig.isIgnoreUnauthorizedIndices()) {
+                    reasonForNoIndexReduction += "ignore_unauthorized_indices is globally disabled in sg_authz.";
+                } else if (!authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())) {
+                    reasonForNoIndexReduction += "the action " + action + " is not available for ignore_unauthorized_indices.";
+                } else {
+                    reasonForNoIndexReduction += "ignore_unavailable is set to false. Use ignore_unavailable=true to get access to the indices you have privileges for.";
+                }
+
+                privilegesEvaluationResult = privilegesEvaluationResult.status(Status.INSUFFICIENT).reason(reasonForNoIndexReduction);
             }
         } else if (privilegesEvaluationResult.getStatus() == Status.INSUFFICIENT) {
             if (dnfofPossible) {
