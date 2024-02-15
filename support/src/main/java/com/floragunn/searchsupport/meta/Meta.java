@@ -126,7 +126,9 @@ public interface Meta {
     }
 
     interface DataStream extends IndexCollection {
-
+        static DataStream nonExistent(String name) {
+            return new MetaImpl.NonExistentDataStreamImpl(name);
+        }
     }
 
     interface NonExistent extends IndexOrNonExistent {
