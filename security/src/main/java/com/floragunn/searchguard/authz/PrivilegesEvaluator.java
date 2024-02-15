@@ -287,7 +287,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 }
             }
 
-            ActionRequestInfo requestInfo = actionRequestIntrospector.getActionRequestInfo(action0, request);
+            ActionRequestInfo requestInfo = actionRequestIntrospector.getActionRequestInfo(action, request);
 
             if (log.isDebugEnabled()) {
                 if (requestInfo.isUnknown()) {
@@ -511,7 +511,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     log.debug("Reducing indices to {}\n{}", privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult);
                 }
 
-                privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action.name(), request,
+                privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
                         privilegesEvaluationResult.getAvailableIndices(), actionRequestInfo);
 
             } else {
@@ -530,7 +530,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         } else if (privilegesEvaluationResult.getStatus() == Status.INSUFFICIENT) {
             if (dnfofPossible) {
                 if (!actionRequestInfo.getResolvedIndices().getRemoteIndices().isEmpty()) {
-                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action.name(), request, ImmutableSet.empty(),
+                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request, ImmutableSet.empty(),
                             actionRequestInfo);
                 } else if (authzConfig.getIgnoreUnauthorizedIndicesActionsAllowingEmptyResult().matches(action.name())) {
                     if (log.isTraceEnabled()) {
@@ -543,7 +543,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         }
 
         if (privilegesEvaluationResult.getStatus() == Status.EMPTY) {
-            if (actionRequestIntrospector.forceEmptyResult(request)) {
+            if (actionRequestIntrospector.forceEmptyResult(action, request)) {
                 if (log.isDebugEnabled()) {
                     log.debug("DNF: Reducing indices to yield an empty result\n" + privilegesEvaluationResult);
                 }
