@@ -183,6 +183,7 @@ public class Actions {
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> dataStreamActions;
+    private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> clusterActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions;
 
@@ -433,6 +434,7 @@ public class Actions {
         this.indexActions = indexActions.build();
         this.dataStreamActions = dataStreamActions.build();
         this.tenantActions = tenantActions.build();
+        this.indexLikeActions = this.indexActions.with(this.dataStreamActions);
     }
 
     public Action get(String actionName) {
@@ -451,6 +453,10 @@ public class Actions {
 
     public ImmutableSet<WellKnownAction<?, ?, ?>> indexActions() {
         return indexActions;
+    }
+    
+    public ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions() {
+        return indexLikeActions;
     }
 
     public ImmutableSet<WellKnownAction<?, ?, ?>> dataStreamActions() {

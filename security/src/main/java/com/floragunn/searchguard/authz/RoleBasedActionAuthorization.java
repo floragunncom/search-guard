@@ -1289,7 +1289,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             } else {
                                 Pattern actionPattern = Pattern.create(permission);
 
-                                ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
                                         .matching((a) -> actionPattern.matches(a.name()));
 
                                 for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
@@ -1374,7 +1374,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             } else {
                                 Pattern actionPattern = Pattern.create(permission);
 
-                                ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
                                         .matching((a) -> actionPattern.matches(a.name()));
 
                                 for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
@@ -1599,7 +1599,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (String index : indexPattern.iterateMatching(indexNames)) {
@@ -1655,7 +1655,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (String index : indexPattern.iterateMatching(indexNames)) {
@@ -1704,7 +1704,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::name)) {
@@ -1873,7 +1873,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : indexPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
@@ -2023,7 +2023,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (String alias : indexPattern.iterateMatching(dataStreamNames)) {
@@ -2066,7 +2066,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::name)) {
