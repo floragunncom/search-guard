@@ -9,12 +9,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
 
 public abstract class MetaImpl implements Meta {
+    private static final Logger log = LogManager.getLogger(MetaImpl.class);
 
     public static class IndexImpl extends AbstractIndexLike<IndexImpl> implements Meta.Index {
         private final boolean open;
@@ -80,6 +85,11 @@ public abstract class MetaImpl implements Meta {
             }
         }
 
+        @Override
+        public Object toBasicObject() {
+            return DocNode.of("name", this.name(), "open", open, "hidden", isHidden());
+        }
+
     }
 
     public static class AliasImpl extends AbstractIndexCollection<AliasImpl> implements Meta.Alias {
@@ -117,6 +127,11 @@ public abstract class MetaImpl implements Meta {
         public Collection<String> ancestorAliasNames() {
             return ImmutableSet.empty();
         }
+
+        @Override
+        public Object toBasicObject() {
+            return DocNode.of("name", this.name(), "members", members(), "hidden", isHidden());
+        }
     }
 
     public static class DataStreamImpl extends AbstractIndexCollection<DataStreamImpl> implements Meta.DataStream {
@@ -149,6 +164,11 @@ public abstract class MetaImpl implements Meta {
         @Override
         public Collection<String> ancestorAliasNames() {
             return parentAliasNames();
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return DocNode.of("name", this.name(), "members", members(), "hidden", isHidden());
         }
     }
 
@@ -664,6 +684,11 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
+        public Object toBasicObject() {
+            return DocNode.of("version", version(), "indices", indices, "aliases", aliases, "data_streams", dataStreams, "name_map", nameMap);
+        }
+
+        @Override
         public org.elasticsearch.cluster.metadata.Metadata esMetadata() {
             return esMetadata;
         }
@@ -692,6 +717,11 @@ public abstract class MetaImpl implements Meta {
             if (currentInstance == null || currentInstance.esMetadata.version() != esMetadata.version()) {
                 currentInstance = new DefaultMetaImpl(esMetadata);
                 DefaultMetaImpl.currentInstance.set(currentInstance);
+                
+                
+                if (log.isTraceEnabled()) {
+                    log.trace("New Meta:\n{}", currentInstance.toYamlString());
+                }
             }
 
             return currentInstance;
@@ -797,6 +827,11 @@ public abstract class MetaImpl implements Meta {
         public String toString() {
             return this.name;
         }
+
+        @Override
+        public Object toBasicObject() {
+            return DocNode.of("name", this.name(), "exists", false);
+        }
     }
 
     public static class NonExistentImpl extends AbstractNonExistentImpl implements Meta.NonExistent {
@@ -842,7 +877,7 @@ public abstract class MetaImpl implements Meta {
         }
 
     }
-    
+
     public static class NonExistentDataStreamImpl extends AbstractNonExistentImpl implements Meta.DataStream {
         public NonExistentDataStreamImpl(String name) {
             super(name);
