@@ -150,10 +150,11 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
             this.allowedActions = ImmutableList.of(vNode.get("allowed_actions").asList().withEmptyListAsDefault().ofStrings());
             ImmutableList<Template<String>> indexPatterns = ImmutableList
-                    .of(vNode.get("index_patterns").asList().withEmptyListAsDefault().ofTemplates());
+                    .of(vNode.get(getPatternAttributeName()).asList().withEmptyListAsDefault().ofTemplates());
 
             this.indexPatterns = new IndexPatterns.Builder(indexPatterns).build();
 
+            vNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
         }
 

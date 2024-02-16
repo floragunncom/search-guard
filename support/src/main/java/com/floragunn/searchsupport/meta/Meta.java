@@ -2,6 +2,7 @@ package com.floragunn.searchsupport.meta;
 
 import java.util.Collection;
 
+import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
@@ -12,7 +13,7 @@ import com.floragunn.searchsupport.meta.MetaImpl.DefaultMetaImpl;
  * 
  * Provides unified, controlled and uncluttered interfaces to the ES metadata.
  */
-public interface Meta {
+public interface Meta extends Document<Meta> {
     ImmutableMap<String, IndexLikeObject> indexLikeObjects();
 
     ImmutableSet<Index> indices();
@@ -58,8 +59,8 @@ public interface Meta {
     org.elasticsearch.cluster.metadata.Metadata esMetadata();
 
     long version();
-
-    interface IndexLikeObject {
+    
+    interface IndexLikeObject extends Document<IndexLikeObject> {
         String name();
 
         ImmutableSet<IndexOrNonExistent> resolveDeep();
