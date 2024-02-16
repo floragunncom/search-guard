@@ -83,7 +83,7 @@ class PopulateTenantsStep implements MigrationStep {
             .collect(Collectors.toList());
         GetIndexResponse allExistingIndices = repository.findAllIndicesIncludingHidden();
         log.debug("Tenants found in configuration '{}'.", configuredTenantAliases);
-        List<TenantAlias> globalTenantIndexName = extractGlobalTenantIndexName(config.getIndex(), allExistingIndices, config);
+        List<TenantAlias> globalTenantIndexName = extractGlobalTenantIndexName(config.getIndex(), allExistingIndices);
         List<TenantIndex> tenants = Stream.concat(globalTenantIndexName.stream(), configuredTenantAliases.stream()) //
             .map(this::resolveIndexAlias) //
             .flatMap(Optional::stream) //
@@ -111,13 +111,15 @@ class PopulateTenantsStep implements MigrationStep {
         return new StepResult(OK, message, details);
     }
 
-    private static List<TenantAlias> extractGlobalTenantIndexName(String configuredFrontendIndexName, GetIndexResponse allExistingIndices, FeMultiTenancyConfig config) {
+    private static List<TenantAlias> extractGlobalTenantIndexName(String configuredFrontendIndexName, GetIndexResponse allExistingIndices) {
         var globalTenantIndexNamePattern = Pattern.compile(Pattern.quote(configuredFrontendIndexName) + "_8\\.7\\.\\d+_\\d{3}\\b");
+        var globalTenantAliasNamePattern = Pattern.compile(Pattern.quote(configuredFrontendIndexName) + "_8\\.7\\.\\d+\\b");
         return allExistingIndices.aliases()//
                 .entrySet()//
                 .stream() //
-                .filter(entry -> globalTenantIndexNamePattern.matcher(entry.getKey()).matches()) //
+                .filter(entry -> globalTenantIndexNamePattern.matcher(entry.getKey()).matches()) // index name must match regexp globalTenantIndexNamePattern
                 .filter(entry -> entry.getValue().stream().map(alias -> alias.getAlias()).collect(Collectors.toSet()).contains(configuredFrontendIndexName)) //
+                .filter(entry -> entry.getValue().stream().map(alias -> alias.getAlias()).anyMatch(alias -> globalTenantAliasNamePattern.matcher(alias).matches())) //
                 .map(entry -> entry.getKey()) //
                 .map(indexName -> new TenantAlias(indexName, Tenant.GLOBAL_TENANT_ID)) //
                 .toList();
