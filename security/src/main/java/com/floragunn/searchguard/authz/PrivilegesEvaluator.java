@@ -221,7 +221,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 if (actionAuthorization != null) {
                     actionAuthorization.update(Meta.from(event.state().metadata()));
                 }
-
             }
         });
     }

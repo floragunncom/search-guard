@@ -1259,9 +1259,9 @@ public class ActionRequestIntrospector {
                             return resolveWithPatterns(request, indexMetadata);
                             //} else if (request.writeRequest) { TODO
                             //    return request.resolveWriteIndex();
-                        } else if (request.createIndexRequest) {
-                            return new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(),
-                                    request.resolveDateMathExpressions().map(Meta.NonExistent::of));
+                     //   } else if (request.createIndexRequest) {
+                       //     return new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(),
+                       //             request.resolveDateMathExpressions().map(Meta.NonExistent::of));
                         } else {
                             // No wildcards, no write request, no create index request
                             return resolveWithoutPatterns(request, indexMetadata);

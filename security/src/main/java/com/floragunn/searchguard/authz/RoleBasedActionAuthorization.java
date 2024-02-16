@@ -389,6 +389,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             CheckTable<Meta.IndexLikeObject, Action> prevCheckTable;
 
             if (!incompleteAliasesForDataStreams.isEmpty()) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Resolving aliases for data streams to data streams and checking these privileges on the individual data streams: {}",
+                            incompleteAliasesForDataStreams);
+                }
+
                 try (Meter subMeter = meter.basic("resolve_datastream_aliases")) {
                     ImmutableSet.Builder<Meta.DataStream> resolvedDataStreamsBuilder = new ImmutableSet.Builder<>();
                     ImmutableSet.Builder<Meta.Alias> retainedAliasesBuilder = new ImmutableSet.Builder<>();
@@ -638,10 +643,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 IndexPattern indexPattern = actionToIndexPattern.get(action);
 
                 if (indexPattern != null) {
-                    for (Meta.IndexLikeObject index : resolvedIndexLikeObjects) {
-                        if (!checkTable.isChecked(index, action)) {
+                    for (Meta.IndexLikeObject indexLike : resolvedIndexLikeObjects) {
+                        if (!checkTable.isChecked(indexLike, action)) {
                             try {
-                                if (indexPattern.matches(index.name(), user, context, meter) && checkTable.check(index, action)) {
+                                if (indexPattern.matches(indexLike.name(), user, context, meter) && checkTable.check(indexLike, action)) {
                                     return true;
                                 }
                             } catch (PrivilegesEvaluationException e) {
@@ -992,9 +997,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
     }
 
-    public void update(Meta indexMetadata) {
+    public void update(Meta indexMetadata) {        
         if (stateful == null || !stateful.indexMetadata.equals(indexMetadata)) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
+                if (log.isTraceEnabled()) {
+                    log.trace("Updating due to index metadata change: {}", indexMetadata);
+                }
+                
                 StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups, actions, indexMetadata,
                         universallyDeniedIndices, statefulIndexState);
                 StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups, actions, indexMetadata,
@@ -1005,6 +1014,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 this.stateful = new StatefulPermissions(statefulIndex, statefulAlias, statefulDataStream, indexMetadata);
 
                 this.componentState.updateStateFromParts();
+            }
+        } else {
+            if (log.isTraceEnabled()) {
+                log.trace("Got metadata update, but metadata was unchanged: {}", indexMetadata);
             }
         }
     }
@@ -1253,10 +1266,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         private final ImmutableList<PrivilegesEvaluationResult.Error> initializationErrors;
         private final ComponentState componentState;
+        private final String componentName;
 
         IndexPermissions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
                 Function<Role, Iterable<I>> getPermissionsFunction, String componentName) {
             this.componentState = new ComponentState(componentName);
+            this.componentName = componentName;
 
             ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>> rolesToActionToIndexPattern = //
                     new ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>>().defaultValue(
@@ -1329,11 +1344,22 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
                 this.componentState.addDetail(initializationErrors);
             }
+
+            if (log.isTraceEnabled()) {
+                log.trace("Built {}", this.toString());
+            }
         }
 
         @Override
         public ComponentState getComponentState() {
             return this.componentState;
+        }
+
+        @Override
+        public String toString() {
+            return componentName + ":\nrolesToActionToIndexPattern: " + rolesToActionToIndexPattern + "\nrolesToActionPatternToIndexPattern: "
+                    + rolesToActionPatternToIndexPattern + "\nactionToRolesWithWildcardIndexPrivileges: " + actionToRolesWithWildcardIndexPrivileges
+                    + "\n";
         }
 
     }
