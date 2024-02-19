@@ -32,11 +32,34 @@ import com.floragunn.searchguard.authz.actions.Action;
 
 public class PrivilegesEvaluationResult {
 
+    /**
+     * The user has all necessary privileges for a action request
+     */
     public static final PrivilegesEvaluationResult OK = new PrivilegesEvaluationResult(Status.OK);
+    
+    /**
+     * The user does not have privileges for all requested indices (or aliases or data streams), but for some of the requested indices (or aliases or data streams)
+     */
     public static final PrivilegesEvaluationResult PARTIALLY_OK = new PrivilegesEvaluationResult(Status.PARTIALLY_OK);
+    
+    /**
+     * The user does not have privileges for the requested aliases, but for all indices requested by the aliases.
+     */
+    public static final PrivilegesEvaluationResult OK_WHEN_RESOLVED = new PrivilegesEvaluationResult(Status.OK_WHEN_RESOLVED);
+
+    /**
+     * The user does not have any privileges for the requested indices. The user shall get an empty result as response.
+     */
     public static final PrivilegesEvaluationResult EMPTY = new PrivilegesEvaluationResult(Status.EMPTY);
 
+    /**
+     * The user does not have any privileges for the requested indices. The user shall get an error as response.
+     */
     public static final PrivilegesEvaluationResult INSUFFICIENT = new PrivilegesEvaluationResult(Status.INSUFFICIENT);
+    
+    /**
+     * The current code could not finally determine the authorization status.
+     */
     public static final PrivilegesEvaluationResult PENDING = new PrivilegesEvaluationResult(Status.PENDING);
 
     private final Status status;
@@ -208,7 +231,7 @@ public class PrivilegesEvaluationResult {
     }
 
     public static enum Status {
-        OK, PARTIALLY_OK, EMPTY, INSUFFICIENT, PENDING;
+        OK, PARTIALLY_OK, OK_WHEN_RESOLVED, EMPTY, INSUFFICIENT, PENDING;
     }
 
     public static class Error {
