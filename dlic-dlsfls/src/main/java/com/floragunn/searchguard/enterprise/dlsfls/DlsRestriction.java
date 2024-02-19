@@ -142,4 +142,5 @@ public class DlsRestriction {
     public ImmutableList<com.floragunn.searchsupport.queries.Query> getQueries() {
         return queries;
     }
+
 }

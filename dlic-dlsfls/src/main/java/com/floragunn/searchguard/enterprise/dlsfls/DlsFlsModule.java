@@ -53,6 +53,7 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsDirectoryReaderWrapper;
 import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
@@ -137,8 +138,12 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
                 config.updateIndices(event.state().metadata().indices().keySet());
             }
         });
-
-        return ImmutableList.empty();
+        
+        if (baseDependencies.getStaticSettings().get(DlsFlsPluginApi.ENABLED)) {
+            return ImmutableList.of(new DlsFlsPluginApi(config, dlsFlsBaseContext));
+        } else {
+            return ImmutableList.empty();   
+        }
     }
 
     @Override
@@ -186,5 +191,10 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return DlsFlsConfigApi.ACTION_HANDLERS;
+    }
+    
+    @Override
+    public StaticSettings.AttributeSet getSettings() {
+        return StaticSettings.AttributeSet.of(DlsFlsPluginApi.ENABLED);
     }
 }
