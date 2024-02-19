@@ -149,10 +149,13 @@ public class GetAvailableTenantsActionTest {
             assertThat(body, containsValue("$.data.tenants.user_single_tenant.read_access", true));
             assertThat(body, containsValue("$.data.tenants.user_single_tenant.write_access", true));
             assertThat(body, containsValue("$.data.tenants.user_single_tenant.exists", false));
-            assertThat(body, not(containsFieldPointedByJsonPath("$.data.tenants", "SGS_GLOBAL_TENANT")));
+            // user with role SGS_KIBANA_MT_USER has write access to global tenant
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.read_access", true));
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", true));
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.exists", false));
 
             // only accessible tenants should be present in the response: hr_tenant,  private user tenant
-            assertThat(body, docNodeSizeEqualTo("$.data.tenants", 2));
+            assertThat(body, docNodeSizeEqualTo("$.data.tenants", 3));
         }
     }
 
@@ -181,9 +184,9 @@ public class GetAvailableTenantsActionTest {
             //user should always have access to its private tenant
             assertThat(body, containsValue("$.data.tenants.user_each_tenant_read.write_access", true));
             assertThat(body, containsValue("$.data.tenants.user_each_tenant_read.exists", true));
-            // user with role SGS_KIBANA_USER has write access to global tenant
+            // user with role SGS_KIBANA_MT_USER has write access to global tenant
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.read_access", true));
-            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", false));
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", true));
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.exists", false));
         }
     }
@@ -247,7 +250,7 @@ public class GetAvailableTenantsActionTest {
             log.debug("Response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("$.data.tenants", 7));
+            assertThat(body, docNodeSizeEqualTo("$.data.tenants", 8));
             // read only tenants IT_TENANT, PR_TENANT, QA_TENANT
             assertThat(body, containsValue("$.data.tenants.information_technology_tenant.write_access", false));
             assertThat(body, containsValue("$.data.tenants.information_technology_tenant.exists", false));
@@ -264,6 +267,10 @@ public class GetAvailableTenantsActionTest {
             assertThat(body, containsValue("$.data.tenants.sales_tenant.exists", false));
             assertThat(body, containsValue("$.data.tenants.user_some_tenant_access.write_access", true));
             assertThat(body, containsValue("$.data.tenants.user_some_tenant_access.exists", false));
+            // user with role SGS_KIBANA_MT_USER has write access to global tenant
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.read_access", true));
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", true));
+            assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.exists", false));
         }
     }
 
