@@ -5,12 +5,12 @@ updates:
     directory: /
     schedule:
       interval: daily
+    ignore:
+      - dependency-name: "org.elasticsearch*"
     #pull-request-branch-name:
       #separator: 'default: "-"'
       #prefix: 'default: "dependabot"'
       #max-length: 40
-    #ignore:
-    #  - dependency-name: "org.elasticsearch*"    
     #allow:
     #  - dependency-type: 'default: "direct"'
     #open-pull-requests-limit: 'default: 5'
