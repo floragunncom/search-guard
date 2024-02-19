@@ -49,7 +49,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
 
     public static final AuthorizationConfig DEFAULT = new AuthorizationConfig(DocNode.EMPTY, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
             DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, null, RoleMapping.ResolutionMode.MAPPING_ONLY, false,
-            MetricsLevel.BASIC);
+            MetricsLevel.BASIC, true);
 
     private final DocNode source;
     private final boolean ignoreUnauthorizedIndices;
@@ -60,10 +60,11 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
     private final boolean debugEnabled;
     private final MetricsLevel metricsLevel;
     private final RoleMapping.ResolutionMode roleMappingResolution;
+    private final boolean allowAliasesIfAllIndicesAllowed;
 
     AuthorizationConfig(DocNode source, boolean ignoreUnauthorizedIndices, Pattern ignoreUnauthorizedIndicesActions,
             Pattern ignoreUnauthorizedIndicesActionsAllowingEmptyResult, String fieldAnonymizationSalt,
-            RoleMapping.ResolutionMode roleMappingResolution, boolean debugEnabled, MetricsLevel metricsLevel) {
+            RoleMapping.ResolutionMode roleMappingResolution, boolean debugEnabled, MetricsLevel metricsLevel, boolean allowAliasesIfAllIndicesAllowed) {
         this.source = source;
 
         this.ignoreUnauthorizedIndices = ignoreUnauthorizedIndices;
@@ -73,6 +74,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         this.roleMappingResolution = roleMappingResolution;
         this.debugEnabled = debugEnabled;
         this.metricsLevel = metricsLevel;
+        this.allowAliasesIfAllIndicesAllowed = allowAliasesIfAllIndicesAllowed;
     }
 
     public static ValidationResult<AuthorizationConfig> parse(DocNode docNode, Parser.Context context) {
@@ -93,12 +95,15 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         RoleMapping.ResolutionMode roleMappingResolution = vNode.get("role_mapping.resolution_mode")
                 .withDefault(RoleMapping.ResolutionMode.MAPPING_ONLY).asEnum(RoleMapping.ResolutionMode.class);
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
+        boolean allowAliasesIfAllIndicesAllowed = vNode.get("aliases.allow_if_all_indices_are_allowed").withDefault(true).asBoolean();
         MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
+        
+        vNode.checkForUnusedAttributes();
 
         if (!validationErrors.hasErrors()) {
             return new ValidationResult<AuthorizationConfig>(new AuthorizationConfig(docNode, ignoreUnauthorizedIndices,
                     ignoreUnauthorizedIndicesActions, ignoreUnauthorizedIndicesActionsAllowingEmptyResult, fieldAnonymizationSalt,
-                    roleMappingResolution, debugEnabled, metricsLevel));
+                    roleMappingResolution, debugEnabled, metricsLevel, allowAliasesIfAllIndicesAllowed));
         } else {
             return new ValidationResult<AuthorizationConfig>(validationErrors);
         }
@@ -120,7 +125,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
 
         return new AuthorizationConfig(docNode, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
                 DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, fieldAnonymizationSalt, getRolesMappingResolution(settings), false,
-                MetricsLevel.BASIC);
+                MetricsLevel.BASIC, true);
     }
 
     public boolean isIgnoreUnauthorizedIndices() {
@@ -175,5 +180,9 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
 
     public RoleMapping.ResolutionMode getRoleMappingResolution() {
         return roleMappingResolution;
+    }
+
+    public boolean isAllowAliasesIfAllIndicesAllowed() {
+        return allowAliasesIfAllIndicesAllowed;
     }
 }
