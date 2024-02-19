@@ -1190,6 +1190,10 @@ public class ActionRequestIntrospector {
             boolean hasAliasesOrDataStreams() {
                 return !aliases.isEmpty() || !dataStreams.isEmpty();
             }
+            
+            public boolean hasAliasesOnly() {
+                return !aliases.isEmpty() && this.dataStreams.isEmpty() && this.pureIndices.isEmpty();
+            }
 
             @Override
             public String toString() {
