@@ -504,6 +504,15 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             log.trace("Result from privileges evaluation: " + privilegesEvaluationResult.getStatus() + "\n" + privilegesEvaluationResult);
         }
 
+        if (request instanceof GetRequest && actionRequestInfo.getResolvedIndices().getLocal().hasAliasesOnly()
+                && actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().members().size() == 1
+                && privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED
+                && privilegesEvaluationResult.getAvailableIndices().size() == 1) {
+            // Special case for the GET document by ID API if used on an alias. When the alias only points to a single index and we have privileges for that index, we just let it pass
+
+            privilegesEvaluationResult = PrivilegesEvaluationResult.OK;
+        }
+
         if (privilegesEvaluationResult.getStatus() == Status.PARTIALLY_OK || privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
             if (dnfofPossible) {
                 if (log.isDebugEnabled()) {
