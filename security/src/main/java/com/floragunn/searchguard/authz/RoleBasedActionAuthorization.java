@@ -485,9 +485,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             incompleteDeepResolved);
 
                     if (deepCheckTable.isComplete()) {
-                        // Even though the check table is complete, we always return PARTIALLY_OK because we resolved aliases/datastreams to individual indices above
                         indexActionCheckResults_partially.increment();
-                        return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(
+                        return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(
                                 deepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name), deepCheckTable, localContext.errors);
                     }
 
@@ -525,22 +524,25 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 // This is because async operations could modify an alias to point to other indices while the privilege evaluation is active. 
                 // If we would return PrivilegesEvaluationResult.OK in this case, the index resolve operation executed by the particular
                 // action will resolve to different indices than we checked here. Thus, we would give privileges even though they are not present.
-                // By returning PrivilegesEvaluationResult.PARTIALLY_OK we always force a replacement of the requested indices/aliases by these
+                // By returning PrivilegesEvaluationResult.PARTIALLY_OK or OK_WHEN_RESOLVED we always force a replacement of the requested indices/aliases by these
                 // for which the user actually has privileges for.
                 ImmutableSet<String> availableIndices = deepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name);
 
-                if (!availableIndices.isEmpty()) {
+                if (deepCheckTable.isComplete()) {
+                    indexActionCheckResults_partially.increment();
+                    return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(availableIndices, deepCheckTable.with(shallowCheckTable),
+                            localContext.errors);
+                } else if (!availableIndices.isEmpty()) {
                     indexActionCheckResults_partially.increment();
                     return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(availableIndices, deepCheckTable.with(shallowCheckTable),
                             localContext.errors);
+                } else {
+                    // If we have gained nothing, we just use the shallowCheckTable for reporting in order to keep the information terse
+                    indexActionCheckResults_insufficient.increment();
+                    return PrivilegesEvaluationResult.INSUFFICIENT.with(shallowCheckTable, localContext.errors)
+                            .reason(resolved.getLocal().size() == 1 ? "Insufficient permissions for the referenced index"
+                                    : "None of " + resolved.getLocal().size() + " referenced indices has sufficient permissions");
                 }
-
-                // If we have gained nothing, we just use the shallowCheckTable for reporting in order to keep the information terse
-                indexActionCheckResults_insufficient.increment();
-                return PrivilegesEvaluationResult.INSUFFICIENT.with(shallowCheckTable, localContext.errors)
-                        .reason(resolved.getLocal().size() == 1 ? "Insufficient permissions for the referenced index"
-                                : "None of " + resolved.getLocal().size() + " referenced indices has sufficient permissions");
-
             }
 
         } finally {
@@ -997,13 +999,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
     }
 
-    public void update(Meta indexMetadata) {        
+    public void update(Meta indexMetadata) {
         if (stateful == null || !stateful.indexMetadata.equals(indexMetadata)) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
                 if (log.isTraceEnabled()) {
                     log.trace("Updating due to index metadata change: {}", indexMetadata);
                 }
-                
+
                 StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups, actions, indexMetadata,
                         universallyDeniedIndices, statefulIndexState);
                 StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups, actions, indexMetadata,

@@ -504,7 +504,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             log.trace("Result from privileges evaluation: " + privilegesEvaluationResult.getStatus() + "\n" + privilegesEvaluationResult);
         }
 
-        if (privilegesEvaluationResult.getStatus() == Status.PARTIALLY_OK) {
+        if (privilegesEvaluationResult.getStatus() == Status.PARTIALLY_OK || privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
             if (dnfofPossible) {
                 if (log.isDebugEnabled()) {
                     log.debug("Reducing indices to {}\n{}", privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult);
@@ -512,7 +512,28 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
                 privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
                         privilegesEvaluationResult.getAvailableIndices(), actionRequestInfo);
+            } else if (actionRequestInfo.getResolvedIndices().getLocal().hasAliasesOnly()
+                    && privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
+                // We only come here if no wildcard was requested and ignore_unavailable=false. Thus, normally we won't apply dnfof logic. However, we make
+                // an exception if enabled in the config: aliases.allow_if_all_indices_are_allowed
 
+                if (authzConfig.isAllowAliasesIfAllIndicesAllowed() && authzConfig.isIgnoreUnauthorizedIndices()
+                        && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())) {
+                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
+                            privilegesEvaluationResult.getAvailableIndices(), actionRequestInfo);
+                } else {
+                    String reasonForNoIndexReduction = "You have privileges for all members of an alias, but for the whole alias. Access to the alias is denied, because ";
+
+                    if (!authzConfig.isIgnoreUnauthorizedIndices()) {
+                        reasonForNoIndexReduction += "ignore_unauthorized_indices is globally disabled in sg_authz.";
+                    } else if (!authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())) {
+                        reasonForNoIndexReduction += "the action " + action + " is not available for ignore_unauthorized_indices.";
+                    } else {
+                        reasonForNoIndexReduction += "ignore_unavailable is set to false. Use ignore_unavailable=true to get access to the indices you have privileges for. Alternatively, set aliases.allow_if_all_indices_are_allowed: true in sg_authz.yml";
+                    }
+
+                    privilegesEvaluationResult = privilegesEvaluationResult.status(Status.INSUFFICIENT).reason(reasonForNoIndexReduction);
+                }
             } else {
                 String reasonForNoIndexReduction = "You have privileges for some, but not all requested indices. However, access to the whole operation is denied, because ";
 
@@ -526,11 +547,11 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
                 privilegesEvaluationResult = privilegesEvaluationResult.status(Status.INSUFFICIENT).reason(reasonForNoIndexReduction);
             }
+
         } else if (privilegesEvaluationResult.getStatus() == Status.INSUFFICIENT) {
             if (dnfofPossible) {
                 if (!actionRequestInfo.getResolvedIndices().getRemoteIndices().isEmpty()) {
-                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request, ImmutableSet.empty(),
-                            actionRequestInfo);
+                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request, ImmutableSet.empty(), actionRequestInfo);
                 } else if (authzConfig.getIgnoreUnauthorizedIndicesActionsAllowingEmptyResult().matches(action.name())) {
                     if (log.isTraceEnabled()) {
                         log.trace("Changing result from INSUFFICIENT to EMPTY");
