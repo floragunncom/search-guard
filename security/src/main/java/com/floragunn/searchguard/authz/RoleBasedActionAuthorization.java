@@ -332,7 +332,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
 
             if (!shallowCheckTable.isComplete() && !allActionsWellKnown) {
-                checkNonWellKnownActions(context, localContext, shallowCheckTable, resolved, meter);
+                checkNonWellKnownActions(context, localContext, shallowCheckTable, !resolved.getLocal().getAliases().isEmpty(),
+                        !resolved.getLocal().getDataStreams().isEmpty(), meter);
             }
 
             if (!shallowCheckTable.isComplete() && !allActionsWellKnown && resolved.getLocal().hasAliasOrDataStreamMembers()) {
@@ -426,9 +427,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         stateful.dataStream.hasPermission(user, mappedRoles, actions, resolved, context, semiDeepCheckTable);
 
                         if (semiDeepCheckTable.isComplete()) {
-                            // Even though the check table is complete, we always return PARTIALLY_OK because we resolved aliases to individual datastreams above
                             indexActionCheckResults_partially.increment();
-                            return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(
+                            return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(
                                     semiDeepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name), semiDeepCheckTable.with(shallowCheckTable),
                                     localContext.errors);
                         }
@@ -445,7 +445,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     // actions, we also have to evaluate action patterns to check the authorization
 
                     if (!semiDeepCheckTable.isComplete() && !allActionsWellKnown) {
-                        checkNonWellKnownActions(context, localContext, semiDeepCheckTable, resolved, meter);
+                        checkNonWellKnownActions(context, localContext, semiDeepCheckTable, false, true, meter);
                     }
 
                     semiDeepCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNames()));
@@ -453,9 +453,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     indexExclusions.uncheckExclusions(semiDeepCheckTable, user, mappedRoles, actions, resolved, context, meter);
 
                     if (semiDeepCheckTable.isComplete()) {
-                        // Even though the check table is complete, we always return PARTIALLY_OK because we resolved aliases to individual datastreams above
                         indexActionCheckResults_partially.increment();
-                        return PrivilegesEvaluationResult.PARTIALLY_OK.availableIndices(
+                        return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(
                                 semiDeepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name), semiDeepCheckTable.with(shallowCheckTable),
                                 localContext.errors);
                     }
@@ -501,7 +500,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 // actions, we also have to evaluate action patterns to check the authorization
 
                 if (!deepCheckTable.isComplete() && !allActionsWellKnown) {
-                    checkNonWellKnownActions(context, localContext, deepCheckTable, resolved, meter);
+                    checkNonWellKnownActions(context, localContext, deepCheckTable, false, false, meter);
                 }
 
                 if (log.isTraceEnabled()) {
@@ -574,7 +573,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
 
                 if (!resolvedNonExistentIndices.isEmpty()) {
-                    // TODO check action type: data stream
                     if (checkWellKnownActionsWithIndexPatterns(context, localContext, user, shallowCheckTable, role, resolvedNonExistentIndices,
                             this.index, subMeter)) {
                         return;
@@ -765,17 +763,19 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     }
 
     private void checkNonWellKnownActions(PrivilegesEvaluationContext context, LocalContext localContext,
-            CheckTable<Meta.IndexLikeObject, Action> checkTable, ResolvedIndices resolved, Meter meter) {
+            CheckTable<Meta.IndexLikeObject, Action> checkTable, boolean checkAliases, boolean checkDataStreams, Meter meter) {
         User user = context.getUser();
         ImmutableSet<String> mappedRoles = context.getMappedRoles();
 
         try (Meter subMeter = meter.basic("non_well_known_actions_index_pattern")) {
             top: for (String role : mappedRoles) {
                 ImmutableMap<Pattern, IndexPattern> actionPatternToIndexPattern = this.index.rolesToActionPatternToIndexPattern.get(role);
-                ImmutableMap<Pattern, IndexPattern> actionPatternToAliasPattern = resolved.getLocal().getAliases().isEmpty() ? null
-                        : this.alias.rolesToActionPatternToIndexPattern.get(role);
-                ImmutableMap<Pattern, IndexPattern> actionPatternToDataStreamPattern = resolved.getLocal().getDataStreams().isEmpty() ? null
-                        : this.dataStream.rolesToActionPatternToIndexPattern.get(role);
+                ImmutableMap<Pattern, IndexPattern> actionPatternToAliasPattern = checkAliases
+                        ? this.alias.rolesToActionPatternToIndexPattern.get(role)
+                        : null;
+                ImmutableMap<Pattern, IndexPattern> actionPatternToDataStreamPattern = checkDataStreams
+                        ? this.dataStream.rolesToActionPatternToIndexPattern.get(role)
+                        : null;
 
                 if (actionPatternToIndexPattern != null || actionPatternToAliasPattern != null || actionPatternToDataStreamPattern != null) {
 
@@ -1615,14 +1615,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                         for (String index : indexPattern.iterateMatching(indexNames)) {
                                             excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                         }
-
-                                        /*
-                                        for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
-                                                Meta.IndexCollection::name)) {
-                                            indexCollection.resolveDeepToNames().forEach((index) -> {
-                                                excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
-                                            });
-                                        }*/
                                     }
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
@@ -1635,16 +1627,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                             excludedActionToIndexToRoles.get(action).get(index).add(roleName);
                                         }
                                     }
-
-                                    /*
-                                    for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
-                                            Meta.IndexCollection::name)) {
-                                        indexCollection.resolveDeepToNames().forEach((index) -> {
-                                            for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                                excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
-                                            }
-                                        });
-                                    }*/
                                 }
                             }
                         }
@@ -1671,14 +1653,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                         for (String index : indexPattern.iterateMatching(indexNames)) {
                                             actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                         }
-                                        /*
-                                        
-                                        for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
-                                                Meta.IndexCollection::name)) {
-                                            indexCollection.resolveDeepToNames().forEach((index) -> {
-                                                actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
-                                            });
-                                        }*/
                                     }
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
@@ -1691,15 +1665,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                             actionToIndexToRoles.get(action).get(index).add(roleName);
                                         }
                                     }
-                                    /*
-                                    for (Meta.IndexCollection indexCollection : indexPattern.iterateMatching(indexMetadata.indexCollections(),
-                                            Meta.IndexCollection::name)) {
-                                        indexCollection.resolveDeepToNames().forEach((index) -> {
-                                            for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                                actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
-                                            }
-                                        });
-                                    }*/
                                 }
                             }
                         }
@@ -1746,7 +1711,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             }
                         }
 
-                        // TODO data streams
+                        // We do not create a stateful map for backing indices for data streams. As data streams backing indices are usually not supposed to directly used,
+                        // we do not need to have an ultra-fast solution for this. On the other hand, there might be many backing indices, which could lead to a blow up of required heap
 
                     } catch (ConfigValidationException e) {
                         log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
@@ -1874,7 +1840,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         String roleName = entry.getKey();
                         Role role = entry.getValue();
 
-                        for (Role.DataStream aliasPermissions : role.getDataStreamPermissions()) {
+                        for (Role.Alias aliasPermissions : role.getAliasPermissions()) {
                             ImmutableSet<String> permissions = actionGroups.resolve(aliasPermissions.getAllowedActions());
                             Pattern indexPattern = aliasPermissions.getIndexPatterns().getPattern();
 
