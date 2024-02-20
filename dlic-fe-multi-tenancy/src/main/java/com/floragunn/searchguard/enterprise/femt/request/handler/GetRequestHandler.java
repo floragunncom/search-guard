@@ -47,31 +47,17 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             GetRequest scoped = getMapper.toScopedGetRequest(request, requestedTenant);
 
-            nodeClient.get(scoped, new ActionListener<>() {
-                @Override
-                public void onResponse(GetResponse response) {
-                    try {
-
+            TenantScopedActionListenerWrapper<GetResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
+                    listener,
+                    (response) -> storedContext.restore(),
+                    getMapper::toUnscopedGetResponse,
+                    (ex) -> {
+                        log.error("An error occurred while sending get request", ex);
                         storedContext.restore();
-
-                        GetResponse getResponse = getMapper.toUnscopedGetResponse(response);
-                        @SuppressWarnings("unchecked")
-                        ActionListener<GetResponse> getListener = (ActionListener<GetResponse>) listener;
-                        getListener.onResponse(getResponse);
-
-                    } catch (Exception e) {
-                        log.error("An error occurred while handling get response", e);
-                        listener.onFailure(e);
                     }
-                }
+            );
 
-                @Override
-                public void onFailure(Exception e) {
-                    log.error("An error occurred while sending get request", e);
-                    storedContext.restore();
-                    listener.onFailure(e);
-                }
-            });
+            nodeClient.get(scoped, listenerWrapper);
 
             return SyncAuthorizationFilter.Result.INTERCEPTED;
         }
