@@ -727,6 +727,34 @@ public class RoleBasedActionAuthorizationTests {
         }
 
         @Test
+        public void positive_alias_full() throws Exception {
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions, ResolvedIndices.of(BASIC, "datastream_a"),
+                            AliasDataStreamHandling.RESOLVE_IF_NECESSARY);
+
+            if (this.indexSpec.aliasWildcardPrivs || this.indexSpec.givenAliasPrivs.contains("datastream_a")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            } else if (this.indexSpec.givenDataStreamPrivs.contains("datastream_a1")
+                    || this.indexSpec.givenDataStreamPrivs.contains("datastream_${user.attrs.dept_no}")
+                    || (this.indexSpec.givenDataStreamPrivs.contains("datastream_a*")
+                            && this.indexSpec.givenDataStreamPrivs.contains("-datastream_a2"))) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("datastream_a1")));
+            } else if (this.indexSpec.dataStreamWildcardPrivs || this.indexSpec.givenDataStreamPrivs.contains("datastream_a*")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("datastream_a1", "datastream_a2")));
+            } else if (this.indexSpec.givenIndexPrivs.contains(".ds-datastream_a1*")) {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertTrue(result.toString(),
+                        result.getAvailableIndices().equals(ImmutableSet.of(".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002")));
+            } else {
+                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED);
+                Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of(".ds-datastream_a1-xyz-0001",
+                        ".ds-datastream_a1-xyz-0002", ".ds-datastream_a2-xyz-0001", ".ds-datastream_a2-xyz-0002")));
+            }
+        }
+
+        @Test
         public void positive_datastream_partial() throws Exception {
             PrivilegesEvaluationResult result//
                     = subject.hasIndexPermission(ctx(user, "test_role"), requiredActions,
@@ -793,7 +821,7 @@ public class RoleBasedActionAuthorizationTests {
         @Test
         public void negative_wrongRole_alias() throws Exception {
             PrivilegesEvaluationResult result//
-                    = subject.hasIndexPermission(ctx(user, "other_role"), requiredActions, ResolvedIndices.of(BASIC, "datastream_a1"),
+                    = subject.hasIndexPermission(ctx(user, "other_role"), requiredActions, ResolvedIndices.of(BASIC, "datastream_a"),
                             AliasDataStreamHandling.RESOLVE_IF_NECESSARY);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
         }
@@ -801,7 +829,7 @@ public class RoleBasedActionAuthorizationTests {
         @Test
         public void negative_wrongAction_alias() throws Exception {
             PrivilegesEvaluationResult result//
-                    = subject.hasIndexPermission(ctx(user, "test_role"), otherActions, ResolvedIndices.of(BASIC, "datastream_a1"),
+                    = subject.hasIndexPermission(ctx(user, "test_role"), otherActions, ResolvedIndices.of(BASIC, "datastream_a"),
                             AliasDataStreamHandling.RESOLVE_IF_NECESSARY);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
         }
