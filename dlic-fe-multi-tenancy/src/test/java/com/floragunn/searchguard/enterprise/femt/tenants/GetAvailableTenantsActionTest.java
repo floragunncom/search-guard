@@ -13,7 +13,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
 import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
@@ -32,7 +31,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
 import static org.apache.http.HttpStatus.SC_FORBIDDEN;
@@ -42,7 +40,6 @@ import static org.elasticsearch.rest.RestStatus.CREATED;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
 
 public class GetAvailableTenantsActionTest {
 
@@ -142,6 +139,7 @@ public class GetAvailableTenantsActionTest {
             log.debug("Response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.data.username", USER_SINGLE_TENANT.getName()));
             assertThat(body, containsValue("$.data.multi_tenancy_enabled", true));
             assertThat(body, containsValue("$.data.tenants.hr_tenant.read_access", true));
             assertThat(body, containsValue("$.data.tenants.hr_tenant.write_access", true));
@@ -173,6 +171,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 12));
+            assertThat(body, containsValue("$.data.username", USER_EACH_TENANT_READ.getName()));
             for(String tenantName : ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName)) {
                 String readAccessPath = "$.data.tenants." + tenantName + ".read_access";
                 String writeAccessPath = "$.data.tenants." + tenantName + ".write_access";
@@ -205,6 +204,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 12));
+            assertThat(body, containsValue("$.data.username", USER_EACH_TENANT_WRITE.getName()));
             for(String tenantName : tenantsToBeCreated) {
                 String readAccessPath = "$.data.tenants." + tenantName + ".read_access";
                 String writeAccessPath = "$.data.tenants." + tenantName + ".write_access";
@@ -229,6 +229,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 12));
+            assertThat(body, containsValue("$.data.username", USER_EACH_TENANT_WRITE.getName()));
             for(String tenantName : accessibleTenantsNames) {
                 String readAccessPath = "$.data.tenants." + tenantName + ".read_access";
                 String writeAccessPath = "$.data.tenants." + tenantName + ".write_access";
@@ -251,6 +252,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 8));
+            assertThat(body, containsValue("$.data.username", USER_SOME_TENANT_ACCESS.getName()));
             // read only tenants IT_TENANT, PR_TENANT, QA_TENANT
             assertThat(body, containsValue("$.data.tenants.information_technology_tenant.write_access", false));
             assertThat(body, containsValue("$.data.tenants.information_technology_tenant.exists", false));
