@@ -14,8 +14,10 @@
 
 package com.floragunn.searchguard.enterprise.femt.request.handler;
 
+import com.floragunn.searchguard.enterprise.femt.request.mapper.BulkMapper;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.GetMapper;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.MultiGetMapper;
+import com.floragunn.searchguard.enterprise.femt.request.mapper.UpdateByQueryMapper;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -28,6 +30,7 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 import org.elasticsearch.indices.IndicesService;
 
 
@@ -71,6 +74,10 @@ public class RequestHandlerFactory {
             handler = (RequestHandler<T>)  new BulkRequestHandler(nodeClient, threadContext);
         } else if (request instanceof UpdateRequest) {
             handler = (RequestHandler<T>)  new UpdateRequestHandler(nodeClient, threadContext);
+        } else if (request instanceof UpdateByQueryRequest) {
+            handler = (RequestHandler<T>) new UpdateByQueryRequestHandler(
+                    nodeClient, threadContext, new UpdateByQueryMapper(new BulkMapper())
+            );
         }
         return Optional.ofNullable(handler);
     }

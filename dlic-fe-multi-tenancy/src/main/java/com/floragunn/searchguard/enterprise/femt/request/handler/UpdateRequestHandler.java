@@ -46,30 +46,18 @@ public class UpdateRequestHandler extends RequestHandler<UpdateRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             UpdateRequest scoped = updateMapper.toScopedUpdateRequest(request, requestedTenant);
 
-            nodeClient.update(scoped, new ActionListener<>() {
-
-                @Override
-                public void onResponse(UpdateResponse updateResponse) {
-                    try {
+            TenantScopedActionListenerWrapper<UpdateResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
+                    listener,
+                    response -> storedContext.restore(),
+                    updateMapper::toUnscopedUpdateResponse,
+                    (ex) ->  {
+                        log.error("An error occurred while sending update request", ex);
                         storedContext.restore();
-
-                        UpdateResponse unscoped = updateMapper.toUnscopedUpdateResponse(updateResponse);
-                        @SuppressWarnings("unchecked")
-                        ActionListener<UpdateResponse> updateListener = (ActionListener<UpdateResponse>) listener;
-                        updateListener.onResponse(unscoped);
-                    } catch (Exception e) {
-                        log.error("An error occurred while handling update response", e);
-                        listener.onFailure(e);
                     }
-                }
+            );
 
-                @Override
-                public void onFailure(Exception e) {
-                    log.error("An error occurred while sending update request", e);
-                    storedContext.restore();
-                    listener.onFailure(e);
-                }
-            });
+            nodeClient.update(scoped, listenerWrapper);
+
             return SyncAuthorizationFilter.Result.INTERCEPTED;
         }
     }

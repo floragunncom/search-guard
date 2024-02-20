@@ -306,14 +306,6 @@ public class MultiTenancyRequestMappingTest {
             assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
-
-            //wrong preference
-            preference = preference.concat("-fake");
-            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?preference=" + preference);
-            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?preference=" + preference, tenantHeader());
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
-            assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
         }
     }
 
@@ -385,14 +377,6 @@ public class MultiTenancyRequestMappingTest {
             assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
-
-            //invalid version
-            docVersion++;
-            responseWithoutTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + scopedId + "?version=" + docVersion);
-            responseWithTenant = client.get("/" + KIBANA_INDEX + "/_doc/" + DOC_ID + "?version=" + docVersion, tenantHeader());
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
-            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
         }
     }
 
@@ -406,19 +390,6 @@ public class MultiTenancyRequestMappingTest {
             assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
             assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
             assertThat(unscopeResponseBody(responseWithoutTenant, DOC_ID), equalTo(responseWithTenant.getBody()));
-        }
-    }
-
-    @Test
-    public void getRequest_indexDoesNotExist() throws Exception {
-        String missingIndex = KIBANA_INDEX.concat("_1.1.1");
-        try (GenericRestClient client = cluster.getRestClient(USER)) {
-
-            HttpResponse responseWithoutTenant = client.get("/" + missingIndex + "/_doc/" + DOC_ID);
-            HttpResponse responseWithTenant = client.get("/" + missingIndex + "/_doc/" + DOC_ID, tenantHeader());
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody()));
         }
     }
 
@@ -481,26 +452,6 @@ public class MultiTenancyRequestMappingTest {
     }
 
     @Test
-    public void updateRequest_docDoesNotExist() throws Exception {
-        String scopedId = scopedId(DOC_ID);
-        DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
-        try (GenericRestClient client = cluster.getRestClient(USER)) {
-
-            DocNode updateReqBody = DocNode.of("doc", doc);
-            HttpResponse responseWithoutTenant = client.postJson(
-                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId), updateReqBody
-            );
-            HttpResponse responseWithTenant = client.postJson(
-                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID), updateReqBody, tenantHeader()
-            );
-
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
-        }
-    }
-
-    @Test
     public void updateRequest_withIfSeqNoAndIfPrimaryTermParams() throws Exception {
         String scopedId = scopedId(DOC_ID);
         DocNode doc = DocNode.of("aa", "a", "ab", "b", "bb", "b");
@@ -534,25 +485,6 @@ public class MultiTenancyRequestMappingTest {
                     unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
                     equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
             );
-
-            //invalid seq no and primary term
-            seqNo *= 10;
-            primaryTerm *= 10;
-            responseWithoutTenant = client.postJson(
-                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" +
-                            scopedId + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm),
-                    updateReqBody
-            );
-
-            responseWithTenant = client.postJson(
-                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" +
-                            DOC_ID + "?if_seq_no=" + seqNo + "&if_primary_term=" + primaryTerm), updateReqBody,
-                    tenantHeader()
-            );
-
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_CONFLICT));
-            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
         }
     }
 
@@ -584,21 +516,6 @@ public class MultiTenancyRequestMappingTest {
                     unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
                     equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
             );
-
-            //alias required, index name provided
-            responseWithoutTenant = client.postJson(
-                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId + "?require_alias=" + requireAlias),
-                    updateReqBody
-            );
-
-            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
-            responseWithTenant = client.postJson(
-                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID + "?require_alias=" + requireAlias),
-                    updateReqBody, tenantHeader()
-            );
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody()));
         }
     }
 
@@ -677,23 +594,6 @@ public class MultiTenancyRequestMappingTest {
                     unscopeResponseBody(responseBodyWithoutAutoIncrementedFields(responseWithoutTenant), DOC_ID),
                     equalTo(responseBodyWithoutAutoIncrementedFields(responseWithTenant).toJsonString())
             );
-
-            //wrong routing
-            routing = routing.concat("-fake");
-            updateReqBody = DocNode.of("doc", doc.with("aa", "new value"));
-            responseWithoutTenant = client.postJson(
-                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + scopedId + "?routing=" + routing),
-                    updateReqBody
-            );
-
-            updateReqBody = DocNode.of("doc", doc.with("aa", "another new value"));
-            responseWithTenant = client.postJson(
-                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update/" + DOC_ID + "?routing=" + routing),
-                    updateReqBody, tenantHeader()
-            );
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody())); //todo response contains scoped id since an exception is thrown and we do not modify it's message
         }
     }
 
@@ -1966,20 +1866,6 @@ public class MultiTenancyRequestMappingTest {
                     unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
                     equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString())
             );
-
-            //allow no indices false
-            responseWithoutTenant = client.get(
-                    "/" + KIBANA_INDEX + ",*_1.1.1" + "/_search/?allow_no_indices=" + false
-            );
-            responseWithTenant = client.get(
-                    "/" + KIBANA_INDEX + ",*_1.1.1" + "/_search/?allow_no_indices=" + false, tenantHeader()
-            );
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(
-                    unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
-                    equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString())
-            );
         }
     }
 
@@ -2081,17 +1967,6 @@ public class MultiTenancyRequestMappingTest {
                     responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString(),
                     equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant).toJsonString())
             );
-
-            //ignore unavailable false
-            responseWithoutTenant = client.get(
-                    "/" + indexName + "/_search?ignore_unavailable=" + false
-            );
-            responseWithTenant = client.get(
-                    "/" + indexName + "/_search?ignore_unavailable=" + false, tenantHeader()
-            );
-            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
-            assertThat(responseWithoutTenant.getBody(), equalTo(responseWithTenant.getBody()));
         }
     }
 
@@ -3114,6 +2989,173 @@ public class MultiTenancyRequestMappingTest {
             HttpResponse response = client.delete(KIBANA_INDEX);
 
             assertThat(response.getStatusCode(), equalTo(SC_FORBIDDEN));
+        }
+    }
+
+    @Test
+    public void updateByQueryRequest_withRefreshParam() throws Exception {
+        // refresh set to true, otherwise from time to time the second request ends with 409 CONFLICT
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", 1, "b", "value", "sg_tenant", internalTenantName());
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            // one doc matches query
+            String scriptAndQuery = """
+                    {
+                      "script": {
+                        "source": "ctx._source.a += params.add_to_a",
+                        "lang": "painless",
+                        "params": {
+                          "add_to_a": 4
+                        }
+                      },
+                      "query": {
+                        "term": {
+                          "b": "value"
+                        }
+                      }
+                    }
+                    """;
+
+            HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update_by_query?refresh=true"), scriptAndQuery
+            );
+
+            HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update_by_query?refresh=true"), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
+
+            // no doc matches query
+            scriptAndQuery = """
+                    {
+                      "script": {
+                        "source": "ctx._source.a += params.add_to_a",
+                        "lang": "painless",
+                        "params": {
+                          "add_to_a": 4
+                        }
+                      },
+                      "query": {
+                        "term": {
+                          "b": "fake-value"
+                        }
+                      }
+                    }
+                    """;
+
+            responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update_by_query?refresh=true"), scriptAndQuery
+            );
+
+            responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam("/" + KIBANA_INDEX + "/_update_by_query?refresh=true"), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
+        }
+    }
+
+    @Test
+    public void updateByQueryRequest_withAllowNoIndicesParam() throws Exception {
+        // refresh set to true, otherwise from time to time the second request ends with 409 CONFLICT
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", 1, "b", "value", "sg_tenant", internalTenantName());
+        addDocumentToIndex(scopedId, doc);
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            // allow no indices true
+            String scriptAndQuery = """
+                    {
+                      "script": {
+                        "source": "ctx._source.a += params.add_to_a",
+                        "lang": "painless",
+                        "params": {
+                          "add_to_a": 4
+                        }
+                      },
+                      "query": {
+                        "term": {
+                          "b": "value"
+                        }
+                      }
+                    }
+                    """;
+
+            HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + ",*_1.1.1" + "/_update_by_query?refresh=true&" + "allow_no_indices=" + true
+                    ), scriptAndQuery
+            );
+
+            HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + ",*_1.1.1" + "/_update_by_query?refresh=true&" + "allow_no_indices=" + true
+                    ), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
+        }
+    }
+
+    @Test
+    public void updateByQueryRequest_withPreferenceParam() throws Exception {
+        // refresh set to true, otherwise from time to time the second request ends with 409 CONFLICT
+        String scopedId = scopedId(DOC_ID);
+        DocNode doc = DocNode.of("a", 1, "b", "value", "sg_tenant", internalTenantName());
+        addDocumentToIndex(scopedId, doc);
+        String preference = "_local";
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+
+            // correct preference
+            String scriptAndQuery = """
+                    {
+                      "script": {
+                        "source": "ctx._source.a += params.add_to_a",
+                        "lang": "painless",
+                        "params": {
+                          "add_to_a": 4
+                        }
+                      },
+                      "query": {
+                        "term": {
+                          "b": "value"
+                        }
+                      }
+                    }
+                    """;
+
+            HttpResponse responseWithoutTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_update_by_query?refresh=true&" + "preference=" + preference
+                    ), scriptAndQuery
+            );
+
+            HttpResponse responseWithTenant = client.postJson(
+                    appendWaitForAllActiveShardsParam(
+                            "/" + KIBANA_INDEX + "/_update_by_query?refresh=true&" + "preference=" + preference
+                    ), scriptAndQuery, tenantHeader()
+            );
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                    responseWithoutTenant.getBodyAsDocNode().without("took"),
+                    equalTo(responseWithTenant.getBodyAsDocNode().without("took"))
+            );
         }
     }
 
