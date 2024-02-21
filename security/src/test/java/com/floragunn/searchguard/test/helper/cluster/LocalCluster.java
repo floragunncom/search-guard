@@ -86,54 +86,54 @@ import com.google.common.base.Strings;
 
 /**
  * Test resource class for starting ES clusters for integration tests.
- * 
+ *
  * There are two kinds of local clusters:
- * 
+ *
  * 1. The "JVM embedded cluster":
- *  
+ *
  * This is a cluster which is pulled up in the same JVM the tests are running in. You can force using an embedded cluster by calling embedded() on the Builder object.
- * 
- * This has some advantages: 
- * - It is possible to debug through the application code. 
+ *
+ * This has some advantages:
+ * - It is possible to debug through the application code.
  * - Code coverage can be measured.
  * - It is possible to use node clients (org.elasticsearch.client.Client) in test code
  * - It is possible to access injectables in test code
  * - It is possible to install mock plug-ins in the cluster
  * - You have greater control over the Search Guard configuration index; you can control its name and write invalid configuration into it.
- * 
+ *
  * The disadvantages are:
  * - The cluster does not completely match the real thing.
  * - Class loading is different, especially when it comes to "jar hell".
  * - No security manager is available.
  * - Only the core ES features are available.
- * 
+ *
  * 2. The "external process cluster":
- * 
- * This is an actual ES cluster. The infrastructure will automatically download the correct ES archive, provision the cluster nodes and execute them in separate processes. 
+ *
+ * This is an actual ES cluster. The infrastructure will automatically download the correct ES archive, provision the cluster nodes and execute them in separate processes.
  * You can force using an external process cluster by calling useExternalProcessCluster() on the Builder object.
- * 
+ *
  * Advantages:
  * - As close as possible to a production environment.
  * - Complete ES feature set.
- * 
+ *
  * Disadvantages:
- * - Slower when tests are manually run. When run on CI in batches, the difference is negligible, though. 
+ * - Slower when tests are manually run. When run on CI in batches, the difference is negligible, though.
  * - Maven is used for building the plugin. In local environments, this can interfere with the build logic of the IDE.
- * 
- * 
+ *
+ *
  * By default, tests are run using the JVM embedded cluster. You have a number of system properties available to control this:
- * 
+ *
  * - sg.tests.use_ep_cluster: Use -Dsg.tests.use_ep_cluster=true to force the external process cluster ("ep cluster") wherever possible. This is used on the CI.
  * - sg.tests.sg_plugin.file: Use -Dsg.tests.sg_plugin.file=/path/to/search-guard-flx-plugin.zip to specify a pre-built plugin to be used. If not specified, the test code will build the plugin by itself.
  * - sg.tests.es_download_cache.dir: Use -sg.tests.es_download_cache.dir=/path/to/dir to control the directory where ES downloads are stored. The code will re-use existing downloads.
- * 
- * 
+ *
+ *
  * Other things to keep in mind:
- * 
- * - The JVM embedded cluster will only run with the SG modules which are in the dependency list of the module where the test is located. 
- *   Thus, it is possible that Signals or enterprise modules are not present. The external process cluster will, however, run on a full build of Search Guard with all modules. 
+ *
+ * - The JVM embedded cluster will only run with the SG modules which are in the dependency list of the module where the test is located.
+ *   Thus, it is possible that Signals or enterprise modules are not present. The external process cluster will, however, run on a full build of Search Guard with all modules.
  *   You can still use disableModule() and enableModule() to control these.
- * 
+ *
  *
  */
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
@@ -425,7 +425,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                         lastErrorResponse = response;
                     }
                 }
-                
+
                 if (componentsCheckList.isComplete()) {
                     break;
                 }
@@ -560,6 +560,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         public Builder users(TestSgConfig.User... users) {
+            for (TestSgConfig.User user : users) {
+                testSgConfig.user(user);
+            }
+            return this;
+        }
+
+        public Builder users(Collection<TestSgConfig.User> users) {
             for (TestSgConfig.User user : users) {
                 testSgConfig.user(user);
             }

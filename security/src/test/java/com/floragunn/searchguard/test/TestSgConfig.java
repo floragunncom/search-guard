@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.test;
 
+import static java.util.Arrays.asList;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -46,6 +50,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.hamcrest.Matcher;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
@@ -63,12 +68,11 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.Response;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.EsClientProvider.UserCredentialsHolder;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.NestedValueMap;
 import com.floragunn.searchguard.test.helper.cluster.NestedValueMap.Path;
-
-import static java.util.Arrays.asList;
 
 public class TestSgConfig {
     private static final Logger log = LogManager.getLogger(TestSgConfig.class);
@@ -619,11 +623,18 @@ public class TestSgConfig {
         private UserPassword password;
         private Role[] roles;
         private String[] roleNames;
+        private String description;
         private Map<String, Object> attributes = new HashMap<>();
+        private BiFunction<String, List<String>, Matcher<HttpResponse>> restMatcher;
 
         public User(String name) {
             this.name = name;
             this.password = UserPassword.of("secret");
+        }
+        
+        public User description(String description) {
+            this.description = description;
+            return this;
         }
 
         public User password(String password) {
@@ -650,6 +661,15 @@ public class TestSgConfig {
             this.attributes.put(key, value);
             return this;
         }
+        
+        public User restMatcher(BiFunction<String, List<String>, Matcher<HttpResponse>> restMatcher) {
+            this.restMatcher = restMatcher;
+            return this;
+        }
+        
+        public Matcher<HttpResponse> restMatcher(String jsonPath, String ... params) {
+            return this.restMatcher.apply(jsonPath, ImmutableList.ofArray(params));
+        }
 
         public String getName() {
             return name;
@@ -671,6 +691,10 @@ public class TestSgConfig {
             }
 
             return result;
+        }
+
+        public String getDescription() {
+            return description;
         }
 
     }
