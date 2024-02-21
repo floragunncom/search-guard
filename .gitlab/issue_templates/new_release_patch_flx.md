@@ -8,12 +8,16 @@
 
 **Release branches:**
 
-*The release branches have been created for the preceding minor release. Please fill in version numbers.* 
+*The release branches have been created for the preceding minor release. Please complete the versions listed below by replacing `?` by the respective version numbers.* 
 
-- `sg-flx-1.?.0-es-7.17.?`
-- `sg-flx-1.?.0-es-8.?.x`
-- `sgctl-1.?.0`
+- `sg-flx-1.?.x-es-7.17.?`
+- `sg-flx-1.?.x-es-8.?.x`
+- `sgctl-1.?.x`
 
+
+## Scope
+
+*A patch release is only created to address issues which cannot wait until the next minor release. A patch release usually does not contain new features.*
 
 ## Special notes
 
@@ -25,17 +29,19 @@
 
 ## Check completeness 
 
-- [ ] Verify that all expected features/enhancements/bugfixes have been merged to `master` 
-- [ ] Verify that all expected features/enhancements/bugfixes have been associated with the Gitlab milestone (see above). Not necessary all changes since the last minor release need to be associated with the milestone. 
+*This is mainly a verification of pre-conditions. Ideally, these tasks have been already completed before the release was performed.*
+
+- [ ] Verify that all expected fixes have been merged to `master` 
+- [ ] Verify that all expected fixes have been associated with the Gitlab milestone (see above). Not necessary all changes since the last minor release need to be associated with the milestone. 
 
 
 ## Release branches
 
-- [ ] Pick the commits for all expected features/enhancements/bugfixes to the release branch. 
+- [ ] Pick the commits for all expected fixes (i.e., the ones associated with the mile stone) to the release branch. 
 
 ## Tags
 
-- [ ] Create new release tag `sgctl-1.?.?` on the release branch. *Replace ?.? by the targeted SG patch version*
+- [ ] Create new release tag `sgctl-1.?.?` on the release branch. *Replace ?.? by the targeted SG patch version. Creating the tag will automatically trigger the build CI.*
 - [ ] Check CI for failures and possibly re-try failed test jobs.
 
 
@@ -44,19 +50,21 @@
 
 ## Check completeness 
 
-- [ ] Verify that all expected features/enhancements/bugfixes have been merged to `master` 
+*This is mainly a verification of pre-conditions. Ideally, these tasks have been already completed before the release was performed.*
+
+- [ ] Verify that all expected fixes have been merged to `master` 
   - [ ] [search-guard-suite-enterprise](https://git.floragunn.com/search-guard/search-guard-suite-enterprise)
   - [ ] [search-guard-kibana-plugin](https://git.floragunn.com/search-guard/search-guard-kibana-plugin)
-- [ ] Verify that all expected features/enhancements/bugfixes have been associated with the Gitlab milestone (see above). Not necessary all changes since the last minor release need to be associated with the milestone. 
+- [ ] Verify that all expected fixes have been associated with the Gitlab milestone (see above). Not necessary all changes since the last minor release need to be associated with the milestone. 
   - [ ] [search-guard-suite-enterprise](https://git.floragunn.com/search-guard/search-guard-suite-enterprise)
   - [ ] [search-guard-kibana-plugin](https://git.floragunn.com/search-guard/search-guard-kibana-plugin)
 
 ## Release branches
 
-- [ ] Pick the commits for all expected features/enhancements/bugfixes to the release branches. Pick from `master` to `sg-flx-1.?.0-es-7.17.?` and pick from `main-es8` to `sg-flx-1.?.0-es-8.?.x`.  - - [ ] For release branches that are based on an ES version that does not match the particular version of the release branch, follow this process:
+- [ ] Pick the commits for all expected features/enhancements/bug-fixes (i.e., the ones associated with the mile stone) to the release branches. Pick from `master` to `sg-flx-1.?.x-es-7.17.?` and pick from `main-es8` to `sg-flx-1.?.x-es-8.?.x`.  - - [ ] For release branches that are based on an ES version that does not match the particular version of the release branch, follow this process:
   - [ ] Create a branch `pick-to-sg-flx-...`. Pick the wanted changes to that branch first. After each commit, check for compile errors. If there are errors, fix the errors and amend the original commit.
   - [ ] Submit MR for branch. Use the release branch as target.
-  - [ ] If CI is green, merge the MR without squashing the commits. If there are CI failures, these need to be analysed and fixed.
+  - [ ] If CI is green, merge the MR without squashing the commits. If there are CI failures, these need to be analyzed and fixed.
   - [ ] `search-guard-suite-enterprise`: *please list all additional release branches* 
   - [ ] `search-guard-kibana-plugin`: *please list all additional release branches* 
 - [ ] Verify that versions of `sgctl` and `tlstool` are up to date in `plugin/src/main/assemblies/searchguard-test-instance-installer.sh`.
@@ -68,11 +76,11 @@
 
 ## Tags
 
-- [ ] Create release tags. *Do not create too many release tags at the same time as this might overwhelm the CI runners. Check CI for failures and possibly re-try failed test jobs.*   
-  - [ ] `search-guard-suite-enterprise`: `sg-flx-1.?.?-es-7.17.?` on `sg-flx-1.?.0-es-7.17.x` *Replace `?` by the respectively targeted versions. You can create several tags on a single release branch to target different ES patch versions.*
-  - [ ] `search-guard-suite-enterprise`: `sg-flx-1.?.?-es-8.?.?` on `sg-flx-1.?.0-es-8.?.x` *Replace `?` by the respectively targeted versions. You can create several tags on a single release branch to target different ES patch versions.*  
-  - [ ] `search-guard-kibana-plugin`: `sg-flx-1.?.?-es-7.17.?` on `sg-flx-1.?.0-es-7.17.x` *Replace `?` by the respectively targeted versions. You can create several tags on a single release branch to target different ES patch versions.*
-  - [ ] `search-guard-kibana-plugin`: `sg-flx-1.?.?-es-8.?.?` on `sg-flx-1.?.0-es-8.?.x` *Replace `?` by the respectively targeted versions. You can create several tags on a single release branch to target different ES patch versions.*    
+- [ ] Create release tags. *Creating the release tags triggers the CI. Do not create too many release tags at the same time as this might overwhelm the CI runners. Check CI for failures and possibly re-try failed test jobs.*   
+  - [ ] `search-guard-suite-enterprise`: `sg-flx-1.?.?-es-7.17.?` on `sg-flx-1.?.x-es-7.17.x` *Replace `?` by the respectively targeted versions. You can create several tags on a single release branch to target different ES patch versions.*
+  - [ ] `search-guard-suite-enterprise`: `sg-flx-1.?.?-es-8.?.?` on `sg-flx-1.?.x-es-8.?.x` *Replace `?` by the respectively targeted versions. You can create several tags on a single release branch to target different ES patch versions.*  
+  - [ ] `search-guard-kibana-plugin`: `sg-flx-1.?.?-es-7.17.?` on `sg-flx-1.?.x-es-7.17.x` *Replace `?` by the respectively targeted versions. You can create several tags on a single release branch to target different ES patch versions.*
+  - [ ] `search-guard-kibana-plugin`: `sg-flx-1.?.?-es-8.?.?` on `sg-flx-1.?.x-es-8.?.x` *Replace `?` by the respectively targeted versions. You can create several tags on a single release branch to target different ES patch versions.*    
   
   
 # Documentation
@@ -87,6 +95,7 @@
 ## Write release notes
 
 - [ ] Create new page `changelog_searchguard_flx_1_?_?.md` in `_content/_changelogs`.  *Replace `?` by the respectively targeted SG version.*  Copy markdown frontmatter and doc head from previous version. Adapt version numbers and release date. For release date, use ISO format YYYY-MM-DD. Decrease `order` by 10 (Beware: The numbers are negative: -1010 becomes -1020).
+- [ ] Link the new page from `changelog_searchguard_overview.md`. 
 - [ ] For each feature/enhancement/bugfix in milestone, add an entry. Link to issue and/or merge request.
 - [ ] Preview the result
 
@@ -100,7 +109,6 @@
 
 - [ ] Preview the result, verify that download links lead to actual downloads and not to 404s.
 - [ ] Merge the MR to `release`
-- [ ] After docs CI finished: Flush Cloudflare cache
 - [ ] Verify that new docs are live
 
 ## Announcement
