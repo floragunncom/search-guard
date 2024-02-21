@@ -249,7 +249,7 @@ public class RestMatchers {
                 } else {
                     String valueString = value.toString();
 
-                    if (valueString.length() < 20) {
+                    if (valueString.length() < 80) {
                         mismatchDescription.appendText("at " + jsonPath + ": ").appendValue(valueString).appendText("\n");
                     } else {
                         mismatchDescription.appendText("at " + jsonPath + ": ").appendText("\n");
