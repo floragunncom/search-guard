@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.test.helper.cluster;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -26,6 +28,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,9 +43,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import com.floragunn.searchguard.test.TestSgConfig.UserPassword;
-import com.floragunn.searchsupport.cstate.ComponentState;
-import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.awaitility.Awaitility;
@@ -78,9 +78,10 @@ import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
+import com.floragunn.searchguard.test.TestSgConfig.UserPassword;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-
-import static org.hamcrest.MatcherAssert.assertThat;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.google.common.base.Strings;
 
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
 
@@ -548,6 +549,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         public Builder users(TestSgConfig.User... users) {
+            for (TestSgConfig.User user : users) {
+                testSgConfig.user(user);
+            }
+            return this;
+        }
+        
+        public Builder users(Collection<TestSgConfig.User> users) {
             for (TestSgConfig.User user : users) {
                 testSgConfig.user(user);
             }
