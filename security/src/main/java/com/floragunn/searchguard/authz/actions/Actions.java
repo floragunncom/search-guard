@@ -220,6 +220,8 @@ public class Actions {
         index(ClusterSearchShardsAction.INSTANCE) //
                 .requiresAdditionalPrivileges(always(), "indices:data/read/search");
 
+        index(MultiGetAction.NAME + "[shard]");
+
         cluster(MultiGetAction.INSTANCE);
         cluster(BulkAction.INSTANCE);
         cluster(SearchScrollAction.INSTANCE);
@@ -454,7 +456,7 @@ public class Actions {
     public ImmutableSet<WellKnownAction<?, ?, ?>> indexActions() {
         return indexActions;
     }
-    
+
     public ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions() {
         return indexLikeActions;
     }
