@@ -626,6 +626,7 @@ public class TestSgConfig {
         private String description;
         private Map<String, Object> attributes = new HashMap<>();
         private BiFunction<String, List<String>, Matcher<HttpResponse>> restMatcher;
+        private Map<String, IndexApiMatchers.IndexMatcher> indexMatchers = new HashMap<>();
 
         public User(String name) {
             this.name = name;
@@ -666,11 +667,20 @@ public class TestSgConfig {
             this.restMatcher = restMatcher;
             return this;
         }
-        
+
         public Matcher<HttpResponse> restMatcher(String jsonPath, String ... params) {
             return this.restMatcher.apply(jsonPath, ImmutableList.ofArray(params));
         }
 
+        public User indexMatcher(String key, IndexApiMatchers.IndexMatcher indexMatcher) {
+            this.indexMatchers.put(key, indexMatcher);
+            return this;
+        }
+        
+        public IndexApiMatchers.IndexMatcher indexMatcher(String key) {
+            return this.indexMatchers.get(key);
+        }
+        
         public String getName() {
             return name;
         }
@@ -678,7 +688,8 @@ public class TestSgConfig {
         public String getPassword() {
             return password.loginPassword();
         }
-
+        
+        
         public Set<String> getRoleNames() {
             ImmutableSet<String> result = ImmutableSet.empty();
 
