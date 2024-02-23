@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 floragunn GmbH
+ * Copyright 2021-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,11 @@
 
 package com.floragunn.searchguard.test;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -26,10 +31,12 @@ import org.elasticsearch.client.Client;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableSet;
 
-public class TestAlias {
+public class TestAlias implements TestIndexLike {
 
     private final String name;
     private final ImmutableSet<TestIndex> indices;
+    private Set<String> documentIds;
+    private Map<String, Map<String, ?>> documents;
 
     public TestAlias(String name, TestIndex... indices) {
         this.name = name;
@@ -60,5 +67,39 @@ public class TestAlias {
 
     public String[] getIndexNamesAsArray() {
         return indices.stream().map(i -> i.getName()).collect(Collectors.toSet()).toArray(new String[0]);
+    }
+
+    @Override
+    public Set<String> getDocumentIds() {
+        Set<String> result = this.documentIds;
+
+        if (result == null) {
+            result = new HashSet<>();
+            for (TestIndex testIndex : this.indices) {
+                result.addAll(testIndex.getDocumentIds());
+            }
+
+            result = Collections.unmodifiableSet(result);
+            this.documentIds = result;
+        }
+
+        return result;
+    }
+
+    @Override
+    public Map<String, Map<String, ?>> getDocuments() {
+        Map<String, Map<String, ?>> result = this.documents;
+
+        if (result == null) {
+            result = new HashMap<>();
+            for (TestIndex testIndex : this.indices) {
+                result.putAll(testIndex.getDocuments());
+            }
+
+            result = Collections.unmodifiableMap(result);
+            this.documents = result;
+        }
+
+        return result;
     }
 }

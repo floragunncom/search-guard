@@ -42,6 +42,7 @@ import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.IndicesRequest.Replaceable;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
@@ -68,7 +69,6 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.reindex.ReindexRequest;
-import org.elasticsearch.indices.cluster.IndicesClusterStateService.AllocatedIndices.IndexRemovalReason;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotUtils;
 
@@ -128,6 +128,11 @@ public class ActionRequestIntrospector {
         } else if (request instanceof IndicesRequest) {
             if (action.isDataStreamPrivilege()) {
                 return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.DATA_STREAM);
+            } else if (request instanceof AliasesRequest) {
+                AliasesRequest aliasesRequest = (AliasesRequest) request;
+                IndicesRequest indicesRequest = (IndicesRequest) request;
+                return new ActionRequestInfo(ImmutableList.ofArray(indicesRequest.indices()), indicesRequest.indicesOptions(),
+                        IndicesRequestInfo.Scope.ANY).additional("aliases", aliasesRequest, IndicesRequestInfo.Scope.ANY);
             } else if (request instanceof IndicesAliasesRequest) {
                 IndicesAliasesRequest indicesAliasesRequest = (IndicesAliasesRequest) request;
 
@@ -241,23 +246,45 @@ public class ActionRequestIntrospector {
                 return PrivilegesEvaluationResult.OK;
             }
 
-            if (!replaceableIndicesRequest.indicesOptions().ignoreUnavailable() && !containsWildcard(replaceableIndicesRequest)) {
-                return PrivilegesEvaluationResult.INSUFFICIENT;
-            }
+            if (request instanceof AliasesRequest) {
+                // AliasesRequest is a sub interface of IndicesRequest.Replaceable
+                AliasesRequest aliasesRequest = (AliasesRequest) request;
 
-            ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(resolvedIndices.getRemoteIndices());
+                ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices)
+                        .intersection(resolvedIndices.getLocal().getPureIndices().map(Meta.Index::name)).with(resolvedIndices.getRemoteIndices());
+                ImmutableSet<String> newAliases = ImmutableSet.of(keepIndices)
+                        .intersection(resolvedIndices.getLocal().getAliases().map(Meta.Alias::name));
 
-            if (log.isTraceEnabled()) {
-                log.trace("reduceIndicesForIgnoreUnavailable: keep: {}; actual: {}; newIndices: {}; remote: {}", keepIndices, actualIndices,
-                        newIndices, resolvedIndices.getRemoteIndices());
-            }
-
-            if (newIndices.size() > 0) {
-                replaceableIndicesRequest.indices(toArray(newIndices));
-                validateIndexReduction(action, replaceableIndicesRequest, keepIndices);
-                return PrivilegesEvaluationResult.OK;
+                if (newAliases.size() > 0) {
+                    aliasesRequest.replaceAliases(toArray(newAliases));
+                    aliasesRequest.indices(toArray(newIndices));
+                    validateIndexReduction(action, replaceableIndicesRequest, keepIndices);
+                    return PrivilegesEvaluationResult.OK;
+                } else {
+                    return PrivilegesEvaluationResult.EMPTY;
+                }
             } else {
-                return PrivilegesEvaluationResult.EMPTY;
+                // request instanceof IndicesRequest.Replaceable
+
+                // TODO check if this is really necessary here or checked before
+                if (!replaceableIndicesRequest.indicesOptions().ignoreUnavailable() && !containsWildcard(replaceableIndicesRequest)) {
+                    return PrivilegesEvaluationResult.INSUFFICIENT;
+                }
+
+                ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(resolvedIndices.getRemoteIndices());
+
+                if (log.isTraceEnabled()) {
+                    log.trace("reduceIndicesForIgnoreUnavailable: keep: {}; actual: {}; newIndices: {}; remote: {}", keepIndices, actualIndices,
+                            newIndices, resolvedIndices.getRemoteIndices());
+                }
+
+                if (newIndices.size() > 0) {
+                    replaceableIndicesRequest.indices(toArray(newIndices));
+                    validateIndexReduction(action, replaceableIndicesRequest, keepIndices);
+                    return PrivilegesEvaluationResult.OK;
+                } else {
+                    return PrivilegesEvaluationResult.EMPTY;
+                }
             }
         }
 
@@ -267,10 +294,14 @@ public class ActionRequestIntrospector {
     private void validateIndexReduction(Action action, Object request, Set<String> keepIndices) throws PrivilegesEvaluationException {
         ActionRequestInfo newInfo = getActionRequestInfo(action, request);
 
+        if (log.isDebugEnabled()) {
+            log.debug("Reduced request to:\n{}\n{}", request, newInfo);
+        }
+        
         // TODO optimize and check
         if (!keepIndices.containsAll(newInfo.getMainResolvedIndices().getLocal().getUnion().map(Meta.IndexLikeObject::name))) {
-            throw new PrivilegesEvaluationException(
-                    "Indices were not properly reduced: " + request + "/" + newInfo.getMainResolvedIndices() + "; keep: " + keepIndices);
+            throw new PrivilegesEvaluationException("Indices were not properly reduced: " + request + "; new resolved:"
+                    + newInfo.getMainResolvedIndices() + "; keep: " + keepIndices);
         }
     }
 
@@ -283,6 +314,13 @@ public class ActionRequestIntrospector {
                 replaceableIndicesRequest.indices(new String[] { ".force_no_index*", "-*" });
             } else {
                 replaceableIndicesRequest.indices(new String[0]);
+            }
+
+            if (request instanceof GetAliasesRequest) {
+                ((GetAliasesRequest) request).aliases(new String[] { ".force_no_alias*", "-*" });
+            } else if (request instanceof AliasesRequest) {
+                // AliasesRequest is a sub-interface of IndicesRequest.Replaceable
+                ((AliasesRequest) request).replaceAliases();
             }
 
             validateIndexReduction(action, replaceableIndicesRequest, Collections.emptySet());
@@ -450,7 +488,8 @@ public class ActionRequestIntrospector {
 
         public boolean containsWildcards() {
             if (containsWildcards == null) {
-                boolean result = this.indices != null ? this.indices.stream().anyMatch((i) -> i.containsWildcards()) : false;
+                boolean result = this.indices != null ? this.indices.stream().anyMatch((i) -> i.containsWildcards() || i.containsAliasWildcards())
+                        : false;
                 this.containsWildcards = result;
                 return result;
             } else {
@@ -594,8 +633,10 @@ public class ActionRequestIntrospector {
         private final boolean includeDataStreams;
         private final String role;
         private final boolean expandWildcards;
+        private final boolean expandAliasWildcards;
         private final boolean isAll;
         private final boolean containsWildcards;
+        private final boolean containsAliasWildcards;
         private final boolean containsNegation;
         private final boolean writeRequest;
         private final boolean createIndexRequest;
@@ -615,7 +656,7 @@ public class ActionRequestIntrospector {
                     || indicesOptions.expandWildcardsClosed();
             this.localIndices = this.indices.matching((i) -> !i.contains(":"));
             this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
-            this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices);
+            this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, indicesRequest);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
             this.containsNegation = this.containsWildcards && !this.isAll && containsNegation(this.indices);
             this.writeRequest = indicesRequest instanceof DocWriteRequest;
@@ -626,8 +667,12 @@ public class ActionRequestIntrospector {
 
             if (indicesRequest instanceof AliasesRequest) {
                 this.aliases = ImmutableList.ofArray(((AliasesRequest) indicesRequest).aliases());
+                this.expandAliasWildcards = ((AliasesRequest) indicesRequest).expandAliasesWildcards();
+                this.containsAliasWildcards = this.expandAliasWildcards ? containsWildcard(this.aliases) : false;
             } else {
                 this.aliases = ImmutableList.empty();
+                this.expandAliasWildcards = false;
+                this.containsAliasWildcards = false;
             }
         }
 
@@ -642,13 +687,15 @@ public class ActionRequestIntrospector {
                     || indicesOptions.expandWildcardsClosed();
             this.localIndices = this.indices.matching((i) -> !i.contains(":"));
             this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
-            this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices);
+            this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(index) : false;
             this.containsNegation = false;
             this.writeRequest = false;
             this.createIndexRequest = false;
             this.indexMetadata = indexMetadata;
             this.aliases = ImmutableList.empty();
+            this.expandAliasWildcards = false;
+            this.containsAliasWildcards = false;
             this.scope = scope;
         }
 
@@ -663,13 +710,15 @@ public class ActionRequestIntrospector {
                     || indicesOptions.expandWildcardsClosed();
             this.localIndices = this.indices.matching((i) -> !i.contains(":"));
             this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
-            this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices);
+            this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
             this.containsNegation = this.containsWildcards && !this.isAll && containsNegation(this.indices);
             this.writeRequest = false;
             this.createIndexRequest = false;
             this.indexMetadata = indexMetadata;
             this.aliases = ImmutableList.empty();
+            this.expandAliasWildcards = false;
+            this.containsAliasWildcards = false;
             this.scope = scope;
         }
 
@@ -746,13 +795,29 @@ public class ActionRequestIntrospector {
             return containsWildcards;
         }
 
+        public boolean containsAliasWildcards() {
+            return containsAliasWildcards;
+        }
+
         public boolean isAll() {
             return this.isAll;
         }
 
-        private boolean isAll(List<String> localIndices, ImmutableSet<String> remoteIndices) {
+        private boolean isAll(List<String> localIndices, ImmutableSet<String> remoteIndices, IndicesRequest indicesRequest) {
             if (localIndices.isEmpty() && !remoteIndices.isEmpty()) {
                 return false;
+            }
+
+            if (indicesRequest instanceof AliasesRequest) {
+                AliasesRequest aliasesRequest = (AliasesRequest) indicesRequest;
+
+                if (aliasesRequest.aliases() != null && aliasesRequest.aliases().length != 0) {
+                    ImmutableSet<String> aliases = ImmutableSet.ofArray(aliasesRequest.aliases());
+
+                    if (!aliases.contains("*") && !aliases.contains("_all")) {
+                        return false;
+                    }
+                }
             }
 
             return IndexNameExpressionResolver.isAllIndices(localIndices)
@@ -764,7 +829,7 @@ public class ActionRequestIntrospector {
                 return new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.of(this));
             }
 
-            if (localIndices.size() == 0) {
+            if (localIndices.isEmpty() && aliases.isEmpty()) {
                 return new ResolvedIndices(false, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.empty());
             } else if (isExpandWildcards() && localIndices.size() == 1 && (localIndices.contains(Metadata.ALL) || localIndices.contains("*"))) {
                 // In case of * wildcards, we defer resolution of indices. Chances are that we do not need to resolve the wildcard at all in this case.
@@ -1190,7 +1255,7 @@ public class ActionRequestIntrospector {
             boolean hasAliasesOrDataStreams() {
                 return !aliases.isEmpty() || !dataStreams.isEmpty();
             }
-            
+
             public boolean hasAliasesOnly() {
                 return !aliases.isEmpty() && this.dataStreams.isEmpty() && this.pureIndices.isEmpty();
             }
@@ -1253,7 +1318,7 @@ public class ActionRequestIntrospector {
                                     ImmutableSet.of(request.resolveDateMathExpressions().map(Meta.DataStream::nonExistent)), ImmutableSet.empty());
                         } else {
                             return resolveDataStreamsWithoutPatterns(request, indexMetadata);
-                        }   
+                        }
                     } else {
                         // Scope.ANY
 
@@ -1263,9 +1328,9 @@ public class ActionRequestIntrospector {
                             return resolveWithPatterns(request, indexMetadata);
                             //} else if (request.writeRequest) { TODO
                             //    return request.resolveWriteIndex();
-                     //   } else if (request.createIndexRequest) {
-                       //     return new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(),
-                       //             request.resolveDateMathExpressions().map(Meta.NonExistent::of));
+                            //   } else if (request.createIndexRequest) {
+                            //     return new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(),
+                            //             request.resolveDateMathExpressions().map(Meta.NonExistent::of));
                         } else {
                             // No wildcards, no write request, no create index request
                             return resolveWithoutPatterns(request, indexMetadata);
@@ -1490,21 +1555,66 @@ public class ActionRequestIntrospector {
             }
 
             static ImmutableSet<Meta.Alias> resolveExplicitAliases(IndicesRequestInfo request, Meta indexMetadata) {
-                // TODO resolve expressions
-
                 if (request.aliases.isEmpty()) {
                     return ImmutableSet.empty();
                 }
 
+                if (request.expandAliasWildcards && containsWildcard(request.aliases)) {
+                    return resolveExplicitAliasesWithPatterns(request, indexMetadata);
+                } else {
+                    ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
+
+                    for (String alias : request.aliases) {
+                        Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(alias);
+
+                        if (indexLike instanceof Meta.Alias) {
+                            aliases.add((Meta.Alias) indexLike);
+                        } else {
+                            aliases.add(Meta.Alias.nonExistent(alias));
+                        }
+                    }
+
+                    return aliases.build();
+                }
+            }
+
+            static ImmutableSet<Meta.Alias> resolveExplicitAliasesWithPatterns(IndicesRequestInfo request, Meta indexMetadata) {
                 ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
+                Set<String> excludeNames = new HashSet<>();
 
-                for (String alias : request.aliases) {
-                    Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(alias);
+                for (int i = request.aliases.size() - 1; i >= 0; i--) {
+                    String alias = request.aliases.get(i);
 
-                    if (indexLike instanceof Meta.Alias) {
-                        aliases.add((Meta.Alias) indexLike);
+                    if (alias.startsWith("-")) {
+                        String positivePattern = alias.substring(1);
+
+                        if (positivePattern.contains("*")) {
+                            indexMetadata.aliases().iterateMatching(candidate -> Regex.simpleMatch(positivePattern, candidate.name()))
+                                    .forEach(candidate -> excludeNames.add(candidate.name()));
+                        } else {
+                            excludeNames.add(alias);
+                        }
                     } else {
-                        aliases.add(Meta.Alias.nonExistent(alias));
+                        if (alias.contains("*")) {
+                            for (Meta.Alias matched : indexMetadata.aliases()
+                                    .iterateMatching(candidate -> Regex.simpleMatch(alias, candidate.name()))) {
+                                if (!excludeNames.contains(matched.name())) {
+                                    aliases.add(matched);
+                                }
+                            }
+                        } else {
+                            if (excludeNames.contains(alias)) {
+                                continue;
+                            }
+
+                            Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(alias);
+
+                            if (indexLikeObject instanceof Meta.Alias) {
+                                aliases.add((Meta.Alias) indexLikeObject);
+                            } else {
+                                aliases.add(Meta.Alias.nonExistent(alias));
+                            }
+                        }
                     }
                 }
 

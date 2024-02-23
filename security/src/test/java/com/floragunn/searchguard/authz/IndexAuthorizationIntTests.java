@@ -19,9 +19,11 @@ package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
+import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.ArrayList;
@@ -38,6 +40,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.IndexApiMatchers.IndexMatcher;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestData.TestDocument;
 import com.floragunn.searchguard.test.TestIndex;
@@ -68,7 +71,8 @@ public class IndexAuthorizationIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*")//
                             .aliasPermissions("SGS_MANAGE_ALIASES").on("z_alias_a*"))//
-            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3));
+            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3))//
+            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B")//
             .description("index_b*")//
@@ -76,7 +80,8 @@ public class IndexAuthorizationIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*"))//
-            .indexMatcher("read", limitedTo(index_b1, index_b2, index_b3));
+            .indexMatcher("read", limitedTo(index_b1, index_b2, index_b3))//
+            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B1 = new TestSgConfig.User("limited_user_B1")//
             .description("index_b1")//
@@ -84,7 +89,8 @@ public class IndexAuthorizationIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b1"))//
-            .indexMatcher("read", limitedTo(index_b1));
+            .indexMatcher("read", limitedTo(index_b1))//
+            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C")//
             .description("index_c*")//
@@ -92,15 +98,17 @@ public class IndexAuthorizationIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_c*"))//
-            .indexMatcher("read", limitedTo(index_c1));
+            .indexMatcher("read", limitedTo(index_c1))//
+            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_ALIAS_AB1 = new TestSgConfig.User("limited_user_alias_AB1")//
             .description("alias_ab1")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("alias_ab1*"))//
-            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_b1));
+                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1*"))//
+            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_b1, alias_ab1))//
+            .indexMatcher("get_alias", limitedTo(index_a1, index_a2, index_a3, index_b1, alias_ab1));
 
     static TestSgConfig.User LIMITED_USER_ALIAS_C1 = new TestSgConfig.User("limited_user_alias_C1")//
             .description("alias_c1")//
@@ -108,7 +116,8 @@ public class IndexAuthorizationIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("alias_c1"))//
-            .indexMatcher("read", limitedTo(index_c1));
+            .indexMatcher("read", limitedTo(index_c1, alias_c1))//
+            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_NONE = new TestSgConfig.User("limited_user_none")//
             .description("no privileges for existing indices")//
@@ -116,7 +125,8 @@ public class IndexAuthorizationIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_CRUD", "SGS_INDICES_MONITOR").on("index_does_not_exist_*"))//
-            .indexMatcher("read", limitedTo());
+            .indexMatcher("read", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS = new TestSgConfig.User("invalid_user_index_permissions_for_alias")//
             .description("invalid: index permissions for alias")//
@@ -124,7 +134,8 @@ public class IndexAuthorizationIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("alias_ab1"))//
-            .indexMatcher("read", limitedTo());
+            .indexMatcher("read", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user")//
             .description("unlimited")//
@@ -135,7 +146,8 @@ public class IndexAuthorizationIntTests {
                             .aliasPermissions("*").on("*")
 
             )//
-            .indexMatcher("read", unlimited());
+            .indexMatcher("read", unlimited())//
+            .indexMatcher("get_alias", unlimited());
 
     /*
     static TestSgConfig.User LIMITED_USER_D = new TestSgConfig.User("limited_user_D").roles(//
@@ -151,8 +163,8 @@ public class IndexAuthorizationIntTests {
     static TestSgConfig.User LIMITED_USER_A_WITHOUT_ANALYZE = new TestSgConfig.User("limited_user_A_without_analyze").roles(//
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("indices:data/read*").on("a*"));
     */
-    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B1, LIMITED_USER_C, LIMITED_USER_ALIAS_C1,
-            LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER);
+    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B1, LIMITED_USER_C, LIMITED_USER_ALIAS_AB1,
+            LIMITED_USER_ALIAS_C1, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
@@ -442,6 +454,75 @@ public class IndexAuthorizationIntTests {
             HttpResponse httpResponse = restClient.get("index_b*/_stats");
             assertThat(httpResponse,
                     containsExactly(index_b1, index_b2, index_b3).at("indices.keys()").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void getAlias_all() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_alias");
+            assertThat(httpResponse,
+                    containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1).at("$.keys()")
+                    .but(user.indexMatcher("get_alias")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void getAlias_staticAlias() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_alias/alias_c1");
+            assertThat(httpResponse, containsExactly(alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(403));
+            assertThat(httpResponse, containsExactly(index_c1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(403));
+        }
+    }
+
+    @Test
+    public void getAlias_aliasPattern() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_alias/alias_ab*");
+            assertThat(httpResponse, containsExactly(alias_ab1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(403));
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_a3, index_b1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(403));
+        }
+    }
+
+    @Test
+    public void getAlias_mixed() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_alias/alias_ab1,alias_c*");
+            // RestGetAliasesAction does some further post processing on the results, this we get 404 errors in case a non wildcard alias was removed
+            assertThat(httpResponse,
+                    containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_c1).at("$.keys()")
+                    .but(user.indexMatcher("get_alias")).whenEmpty(404));
+        }
+    }
+
+    @Test
+    public void analyze_noIndex() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.postJson("_analyze", "{\"text\": \"sample text\"}");
+
+            if (user.indexMatcher("read").isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isOk());
+            }
+        }
+    }
+
+    @Test
+    public void analyze_staticIndex() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.postJson("index_a1/_analyze", "{\"text\": \"sample text\"}");
+            IndexMatcher matcher = containsExactly(index_a1).but(user.indexMatcher("read"));
+
+            if (matcher.isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isOk());
+            }
         }
     }
 
