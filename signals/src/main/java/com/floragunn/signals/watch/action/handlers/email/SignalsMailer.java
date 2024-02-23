@@ -34,8 +34,7 @@ public class SignalsMailer {
                 .withDebugLogging(Boolean.valueOf(emailDestination.isDebug()))
                 .withTransportModeLoggingOnly(Boolean.valueOf(emailDestination.isSimulate())).withTransportStrategy(evalTransportStrategy())
                 .trustingAllHosts(sslUsed() ? Boolean.valueOf(emailDestination.isTrustAll()) : Boolean.FALSE).trustingSSLHosts(trustedHosts)
-                .withProperty("mail.smtps.ssl.checkserveridentity",
-                        (sslUsed() && (emailDestination.isTrustAll() || trustedHosts.length > 0)) ? "false" : "true");
+                .verifyingServerIdentity((sslUsed() && (emailDestination.isTrustAll() || trustedHosts.length > 0)) ? false : true);
 
         if (emailDestination.getSessionTimeout() != null) {
             mailerBuilder.withSessionTimeout(emailDestination.getSessionTimeout());
