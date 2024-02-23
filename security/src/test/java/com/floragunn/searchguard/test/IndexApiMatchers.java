@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
@@ -41,24 +42,24 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 
 public class IndexApiMatchers {
-    public static IndexMatcher containsExactly(TestIndex... testIndices) {
-        Map<String, TestIndex> indexNameMap = new HashMap<>();
+    public static IndexMatcher containsExactly(TestIndexLike... testIndices) {
+        Map<String, TestIndexLike> indexNameMap = new HashMap<>();
 
-        for (TestIndex testIndex : testIndices) {
+        for (TestIndexLike testIndex : testIndices) {
             indexNameMap.put(testIndex.getName(), testIndex);
         }
 
         return containsExactly(indexNameMap);
     }
 
-    public static IndexMatcher containsExactly(Map<String, TestIndex> indexNameMap) {
+    public static IndexMatcher containsExactly(Map<String, TestIndexLike> indexNameMap) {
         return new ContainsExactlyMatcher(indexNameMap);
     }
 
-    public static IndexMatcher limitedTo(TestIndex... testIndices) {
-        Map<String, TestIndex> indexNameMap = new HashMap<>();
+    public static IndexMatcher limitedTo(TestIndexLike... testIndices) {
+        Map<String, TestIndexLike> indexNameMap = new HashMap<>();
 
-        for (TestIndex testIndex : testIndices) {
+        for (TestIndexLike testIndex : testIndices) {
             indexNameMap.put(testIndex.getName(), testIndex);
         }
 
@@ -69,13 +70,17 @@ public class IndexApiMatchers {
         return new UnlimitedMatcher();
     }
 
+    public static IndexMatcher limitedToNone() {
+        return new LimitedToMatcher(Collections.emptyMap());
+    }
+
     public static class ContainsExactlyMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
-        public ContainsExactlyMatcher(Map<String, TestIndex> indexNameMap) {
+        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap) {
             super(indexNameMap);
         }
 
-        public ContainsExactlyMatcher(Map<String, TestIndex> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
+        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
             super(indexNameMap, jsonPath, statusCodeWhenEmpty);
         }
 
@@ -97,6 +102,10 @@ public class IndexApiMatchers {
         protected boolean matchesImpl(Collection<?> collection, Description mismatchDescription, GenericRestClient.HttpResponse response) {
 
             boolean checkDocs = false;
+
+            // Flatten the collection
+            collection = collection.stream().flatMap(e -> e instanceof Collection ? ((Collection<?>) e).stream() : Stream.of(e))
+                    .collect(Collectors.toSet());
 
             for (Object object : collection) {
                 if (object instanceof String) {
@@ -124,7 +133,7 @@ public class IndexApiMatchers {
             for (Object object : collection) {
 
                 DocNode docNode = DocNode.wrap(object);
-                TestIndex index = indexNameMap.get(docNode.getAsString("_index"));
+                TestIndexLike index = indexNameMap.get(docNode.getAsString("_index"));
 
                 if (index == null) {
                     mismatchDescription.appendText("result contains unknown index: ").appendValue(docNode.getAsString("_index"))
@@ -133,7 +142,7 @@ public class IndexApiMatchers {
                     return false;
                 }
 
-                Map<String, ?> document = index.getTestData().getRetainedDocuments().get(docNode.getAsString("_id"));
+                Map<String, ?> document = index.getDocuments().get(docNode.getAsString("_id"));
 
                 if (document == null) {
                     mismatchDescription.appendText("result contains unknown document id ").appendValue(docNode.getAsString("_id"))
@@ -179,8 +188,8 @@ public class IndexApiMatchers {
                 return true;
             } else {
                 if (!missingIndices.isEmpty()) {
-                    mismatchDescription.appendText("result does not contain expected indices: ").appendValue(missingIndices).appendText("\n\n")
-                            .appendText(formatResponse(response));
+                    mismatchDescription.appendText("result does not contain expected indices; found: ").appendValue(seenIndices)
+                            .appendText("; missing: ").appendValue(missingIndices).appendText("\n\n").appendText(formatResponse(response));
                 }
 
                 if (!unexpectedIndices.isEmpty()) {
@@ -194,8 +203,8 @@ public class IndexApiMatchers {
         private Set<String> getExpectedDocuments() {
             Set<String> pendingDocuments = new HashSet<>();
 
-            for (Map.Entry<String, TestIndex> entry : indexNameMap.entrySet()) {
-                for (String id : entry.getValue().getTestData().getRetainedDocuments().keySet()) {
+            for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
+                for (String id : entry.getValue().getDocumentIds()) {
                     pendingDocuments.add(entry.getKey() + "/" + id);
                 }
             }
@@ -236,11 +245,11 @@ public class IndexApiMatchers {
 
     public static class LimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
-        public LimitedToMatcher(Map<String, TestIndex> indexNameMap) {
+        public LimitedToMatcher(Map<String, TestIndexLike> indexNameMap) {
             super(indexNameMap);
         }
 
-        public LimitedToMatcher(Map<String, TestIndex> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
+        public LimitedToMatcher(Map<String, TestIndexLike> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
             super(indexNameMap, jsonPath, statusCodeWhenEmpty);
         }
 
@@ -269,7 +278,9 @@ public class IndexApiMatchers {
                     checkDocs = true;
                     break;
                 } else {
-                    mismatchDescription.appendText("unexpected value ").appendValue(object);
+                    mismatchDescription.appendText("unexpected value ").appendValue(object).appendText(" (")
+                            .appendValue(object != null ? object.getClass().toString() : "null").appendText(")\n\n")
+                            .appendText(formatResponse(response));
                     return false;
                 }
             }
@@ -397,6 +408,11 @@ public class IndexApiMatchers {
         public IndexMatcher butFailIfIncomplete(IndexMatcher other, int statusCode) {
             return this;
         }
+
+        @Override
+        public boolean isEmpty() {
+            return false;
+        }
     }
 
     public static class StatusCodeMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
@@ -455,6 +471,11 @@ public class IndexApiMatchers {
             }
         }
 
+        @Override
+        public boolean isEmpty() {
+            return true;
+        }
+
     }
 
     public static interface IndexMatcher extends Matcher<Object> {
@@ -465,6 +486,8 @@ public class IndexApiMatchers {
         IndexMatcher at(String jsonPath);
 
         IndexMatcher whenEmpty(int statusCode);
+        
+        boolean isEmpty();
 
         default IndexMatcher butForbiddenIfIncomplete(IndexMatcher other) {
             return butFailIfIncomplete(other, 403);
@@ -473,17 +496,17 @@ public class IndexApiMatchers {
     }
 
     static abstract class AbstractIndexMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
-        protected final Map<String, TestIndex> indexNameMap;
+        protected final Map<String, TestIndexLike> indexNameMap;
         protected final String jsonPath;
         protected final int statusCodeWhenEmpty;
 
-        AbstractIndexMatcher(Map<String, TestIndex> indexNameMap) {
+        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap) {
             this.indexNameMap = indexNameMap;
             this.jsonPath = null;
             this.statusCodeWhenEmpty = 200;
         }
 
-        AbstractIndexMatcher(Map<String, TestIndex> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
+        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
             this.indexNameMap = indexNameMap;
             this.jsonPath = jsonPath;
             this.statusCodeWhenEmpty = statusCodeWhenEmpty;
@@ -545,7 +568,7 @@ public class IndexApiMatchers {
                 return this;
             }
 
-            HashMap<String, TestIndex> unmatched = new HashMap<>(this.indexNameMap);
+            HashMap<String, TestIndexLike> unmatched = new HashMap<>(this.indexNameMap);
             unmatched.keySet().removeAll(((AbstractIndexMatcher) other).indexNameMap.keySet());
 
             if (!unmatched.isEmpty()) {
@@ -553,6 +576,11 @@ public class IndexApiMatchers {
             } else {
                 return this;
             }
+        }
+        
+        @Override
+        public boolean isEmpty() {
+            return indexNameMap.isEmpty();
         }
 
     }
