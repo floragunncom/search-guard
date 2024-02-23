@@ -6,10 +6,11 @@ import java.security.PrivilegedExceptionAction;
 
 import org.elasticsearch.SpecialPermission;
 import org.simplejavamail.MailException;
-import org.simplejavamail.email.Email;
-import org.simplejavamail.mailer.Mailer;
+import org.simplejavamail.api.email.Email;
+import org.simplejavamail.api.mailer.Mailer;
+import org.simplejavamail.api.mailer.config.TransportStrategy;
 import org.simplejavamail.mailer.MailerBuilder;
-import org.simplejavamail.mailer.config.TransportStrategy;
+import org.simplejavamail.mailer.internal.MailerRegularBuilderImpl;
 
 public class SignalsMailer {
 
@@ -26,7 +27,7 @@ public class SignalsMailer {
             trustedHosts = emailDestination.getTrustedHosts().toArray(new String [] {});
         }
 
-        MailerBuilder.MailerRegularBuilder mailerBuilder = MailerBuilder
+        MailerRegularBuilderImpl mailerBuilder = MailerBuilder
                 .withSMTPServer(emailDestination.getHost(), emailDestination.getPort(), emailDestination.getUser(), emailDestination.getPassword())
                 .withProxy(emailDestination.getProxyHost(), emailDestination.getProxyPort(), emailDestination.getProxyUser(),
                         emailDestination.getProxyPassword())
