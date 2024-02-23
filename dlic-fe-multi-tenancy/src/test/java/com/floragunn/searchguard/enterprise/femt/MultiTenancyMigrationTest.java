@@ -4,16 +4,25 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import joptsimple.internal.Strings;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.awaitility.Awaitility;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.client.internal.Client;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
@@ -23,8 +32,15 @@ import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 
 public class MultiTenancyMigrationTest {
+
+    public static final String ID_DASHBOARD = "dashboard:20a2f580-c03e-11ee-9cfc-b76b5a069927__sg_ten__-152937574_admintenant";
+    public static final String ID_CASES = "cases-telemetry:cases-telemetry__sg_ten__-1216324346_sgsglobaltenant";
+    public static final String ID_SPACE = "space:20a2f580-c03e-11ee-9cfc-b76b5a069927__sg_ten__-152937574_admintenant";
+    public static final String ID_ENDPOINT = "exception-list-agnostic:endpoint_list__sg_ten__-152937574_admintenant";
+    public static final String ID_INGEST = "ingest__sg_ten__-1216324346_sgsglobaltenant";
 
     private static final Logger log = LogManager.getLogger(MultiTenancyMigrationTest.class);
 
@@ -862,6 +878,305 @@ public class MultiTenancyMigrationTest {
             assertThat(body, not(containsFieldPointedByJsonPath("$.hits.hits[0]", "_version")));
         }
     }
+
+    // secondStageTest - data migration stage where request send by frontend are intercepted and modified to
+    // - add mappings related to sg_tenant field
+    // - add sg_tenant field based on document id
+
+    private void createInternalIndex(String indexName) {
+        Client client = cluster.getInternalNodeClient();
+        CreateIndexResponse response = client.admin().indices().create(new CreateIndexRequest(indexName)).actionGet();
+        assertThat(response.isAcknowledged(), equalTo(true));
+    }
+
+    @Test
+    public void shouldExtendsDashboardWithSgTenantAttribute_secondStageTest() throws Exception {
+        String indexName = ".kibana_analytics_8.8.0_001";
+        createInternalIndex(indexName);
+        String scopedId = ID_DASHBOARD;
+        DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
+        DocNode source = DocNode.of("type", "dashboard", "name", "migrated dashboard");
+
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
+            String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
+
+            HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            GetResponse documentResponse = client.get(new GetRequest(indexName, scopedId)).actionGet();
+            assertThat(documentResponse.isExists(), equalTo(true));
+            DocNode document = DocNode.wrap(documentResponse.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+        }
+    }
+
+    @Test
+    public void shouldExtendsCaseWithSgTenantAttribute_secondStageTest() throws Exception {
+        String indexName = ".kibana_alerting_cases_8.8.0_001";
+        createInternalIndex(indexName);
+        String scopedId = ID_CASES;
+        DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
+        DocNode source = DocNode.of("type", "cases-telemetry", "name", "migrated case");
+
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
+            String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
+
+            HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            GetResponse documentResponse = client.get(new GetRequest(indexName, scopedId)).actionGet();
+            assertThat(documentResponse.isExists(), equalTo(true));
+            DocNode document = DocNode.wrap(documentResponse.getSource());
+            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+        }
+    }
+
+    @Test
+    public void shouldExtendsSpaceWithSgTenantAttribute_secondStageTest() throws Exception {
+        String indexName = ".kibana_8.8.0_001";
+        createInternalIndex(indexName);
+        String scopedId = ID_SPACE;
+        DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
+        DocNode source = DocNode.of("type", "space", "name", "migrated space default");
+
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
+            String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
+
+            HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            GetResponse documentResponse = client.get(new GetRequest(indexName, scopedId)).actionGet();
+            assertThat(documentResponse.isExists(), equalTo(true));
+            DocNode document = DocNode.wrap(documentResponse.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+        }
+    }
+
+    @Test
+    public void shouldExtendsEndpointWithSgTenantAttribute_secondStageTest() throws Exception {
+        String indexName = ".kibana_security_solution_8.8.0_001";
+        createInternalIndex(indexName);
+        String scopedId = ID_ENDPOINT;
+        DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
+        DocNode source = DocNode.of("type", "endpoint", "name", "Endpoint name");
+
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
+            String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
+
+            HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            GetResponse documentResponse = client.get(new GetRequest(indexName, scopedId)).actionGet();
+            assertThat(documentResponse.isExists(), equalTo(true));
+            DocNode document = DocNode.wrap(documentResponse.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+        }
+    }
+
+    @Test
+    public void shouldExtendsIngestWithSgTenantAttribute_secondStageTest() throws Exception {
+        String indexName = ".kibana_ingest_8.8.0_001";
+        createInternalIndex(indexName);
+        String scopedId = "ingest__sg_ten__-152937574_admintenant";
+        DocNode operation = DocNode.of("index", DocNode.of("_id", scopedId));
+        DocNode source = DocNode.of("type", "ingest", "name", "ingest");
+
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
+            String body = Stream.of(operation, source).map(DocNode::toJsonString).collect(Collectors.joining("\n")) + "\n";
+
+            HttpResponse response = restClient.postJson("/" + indexName + "/_bulk", body);
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            GetResponse documentResponse = client.get(new GetRequest(indexName, scopedId)).actionGet();
+            assertThat(documentResponse.isExists(), equalTo(true));
+            DocNode document = DocNode.wrap(documentResponse.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+        }
+    }
+
+    @Test
+    public void shouldExtendsSavedObjectsWithSgTenantFieldInTempIndex_secondStageTest() throws Exception {
+        String indexName = ".kibana_8.7.1_001_reindex_temp"; // TODO use real index name
+        createInternalIndex(indexName);
+        String bulkBody = Stream.of(
+                DocNode.of("index", DocNode.of("_id", ID_DASHBOARD)),
+                DocNode.of("type", "dashboard", "name", "migrated dashboard"),
+                DocNode.of("index", DocNode.of("_id", ID_CASES)),
+                DocNode.of("type", "cases-telemetry", "name", "migrated case"),
+                DocNode.of("index", DocNode.of("_id", ID_SPACE)),
+                DocNode.of("type", "space", "name", "migrated space"),
+                DocNode.of("index", DocNode.of("_id", ID_ENDPOINT)),
+                DocNode.of("type", "endpoint", "name", "Endpoint name"),
+                DocNode.of("index", DocNode.of("_id", ID_INGEST)),
+                DocNode.of("type", "ingest", "name", "ingest")
+            )//
+            .map(DocNode::toJsonString) //
+            .collect(Collectors.joining("\n")) + "\n";
+
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
+
+            HttpResponse bulkResponse = restClient.postJson("/" + indexName + "/_bulk", bulkBody);
+
+            assertThat(bulkResponse.getStatusCode(), equalTo(SC_OK));
+            GetResponse response = client.get(new GetRequest(indexName, ID_DASHBOARD)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            DocNode document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+
+            response = client.get(new GetRequest(indexName, ID_CASES)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+
+            response = client.get(new GetRequest(indexName, ID_SPACE)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+
+            response = client.get(new GetRequest(indexName, ID_ENDPOINT)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+
+            response = client.get(new GetRequest(indexName, ID_ENDPOINT)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+
+            response = client.get(new GetRequest(indexName, ID_INGEST)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+        }
+    }
+
+    @Test
+    public void shouldExtendMappingsWhenFrontendRelatedIndexIsCreated() throws Exception {
+        DocNode createIndexBody = DocNode.of("mappings", DocNode.of("dynamic", false, "properties", DocNode.of("name", DocNode.of("type","keyword"))));
+        List<String> indices = Stream.of(".kibana",".kibana_analytics",".kibana_ingest",".kibana_security_solution",".kibana_alerting_cases")//
+            .map(index ->  index + "_8.9.2_001") //
+            .flatMap(index -> Stream.of(index, index + "_reindex_temp", index + "_reindex_temp_alias")) //
+            .toList();
+        log.info("Index to test mappings extensions '{}'", Strings.join(indices, ", "));
+        try(GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")){
+            for(String indexName : indices) {
+                // create index
+                HttpResponse response = client.putJson(indexName, createIndexBody.toJsonString());
+                log.info("Create index '{}' response code '{}' and body '{}'", indexName, response.getStatusCode(), response.getBody());
+                assertThat(response.getStatusCode(), equalTo(SC_OK));
+
+                response = client.get("/" + indexName + "/_mappings");
+                log.info("Index '{}' mappings response status '{}' and body '{}'", indexName, response.getStatusCode(), response.getBody());
+                assertThat(response.getStatusCode(), equalTo(SC_OK));
+                DocNode mappingsResponseBody = response.getBodyAsDocNode().getAsNode(indexName);
+                assertThat(mappingsResponseBody, notNullValue());
+                assertThat(mappingsResponseBody, containsValue("$.mappings.properties.name.type", "keyword"));
+                assertThat(mappingsResponseBody, containsValue("$.mappings.properties.sg_tenant.type", "keyword"));
+            }
+        }
+    }
+
+    @Test
+    public void shouldExtendMappingsWhenFrontendUpdateMappings() throws Exception {
+        DocNode updateMappings = DocNode.of( "properties", DocNode.of("description", DocNode.of("type","keyword")));
+        List<String> indices = Stream.of(".kibana",".kibana_analytics",".kibana_ingest",".kibana_security_solution",".kibana_alerting_cases")//
+            .map(index ->  index + "_8.9.2") //
+            .flatMap(index -> Stream.of(index, index + "_reindex_temp", index + "_reindex_temp_alias")) //
+            .toList();
+        log.info("Index to test mappings extensions '{}'", Strings.join(indices, ", "));
+        try(GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")){
+            for(String indexName : indices) {
+                // create index
+                HttpResponse response = client.postJson(indexName + "/_doc", DocNode.of("type","config").toJsonString());
+                log.info("Create index '{}' response code '{}' and body '{}'", indexName, response.getStatusCode(), response.getBody());
+                assertThat(response.getStatusCode(), equalTo(SC_CREATED));
+
+                response = client.get("/" + indexName + "/_mappings");
+                log.info("Index '{}' mappings response status '{}' and body '{}'", indexName, response.getStatusCode(), response.getBody());
+                assertThat(response.getStatusCode(), equalTo(SC_OK));
+                DocNode mappingsResponseBody = response.getBodyAsDocNode().getAsNode(indexName);
+                assertThat(mappingsResponseBody, notNullValue());
+                assertThat(mappingsResponseBody, containsValue("$.mappings.properties.type.type", "text"));
+                assertThat(mappingsResponseBody, not(containsValue("$.mappings.properties.sg_tenant.type", "keyword")));
+
+                // update mappings
+                response = client.putJson("/" + indexName + "/_mapping", updateMappings.toJsonString());
+                log.info("Update index '{}' mappings response status '{}' and body '{}'", indexName, response.getStatusCode(), response.getBody());
+                assertThat(response.getStatusCode(), equalTo(SC_OK));
+
+                response = client.get("/" + indexName + "/_mappings");
+                log.info("Get index '{}' mappings after update response status '{}' and body '{}'", indexName, response.getStatusCode(), response.getBody());
+                assertThat(response.getStatusCode(), equalTo(SC_OK));
+                mappingsResponseBody = response.getBodyAsDocNode().getAsNode(indexName);
+                assertThat(mappingsResponseBody, notNullValue());
+                assertThat(mappingsResponseBody, containsValue("$.mappings.properties.description.type", "keyword"));
+                assertThat(mappingsResponseBody, containsValue("$.mappings.properties.sg_tenant.type", "keyword"));
+            }
+        }
+    }
+
+    @Test
+    public void shouldExtendsSavedObjectsWithSgTenantFieldInTempIndexAlias_secondStageTest() throws Exception {
+        String indexName = ".kibana_8.7.1_001_reindex_temp_alias"; // TODO use real index name
+        createInternalIndex(indexName);
+        String bulkBody = Stream.of(
+                DocNode.of("index", DocNode.of("_id", ID_DASHBOARD)),
+                DocNode.of("type", "dashboard", "name", "migrated dashboard"),
+                DocNode.of("index", DocNode.of("_id", ID_CASES)),
+                DocNode.of("type", "cases-telemetry", "name", "migrated case"),
+                DocNode.of("index", DocNode.of("_id", ID_SPACE)),
+                DocNode.of("type", "space", "name", "migrated space"),
+                DocNode.of("index", DocNode.of("_id", ID_ENDPOINT)),
+                DocNode.of("type", "endpoint", "name", "Endpoint name"),
+                DocNode.of("index", DocNode.of("_id", ID_INGEST)),
+                DocNode.of("type", "ingest", "name", "ingest")
+            ) //
+            .map(DocNode::toJsonString) //
+            .collect(Collectors.joining("\n")) + "\n";
+
+        try(GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            Client client = cluster.getInternalNodeClient();
+            HttpResponse bulkResponse = restClient.postJson("/" + indexName + "/_bulk", bulkBody);
+            assertThat(bulkResponse.getStatusCode(), equalTo(SC_OK));
+
+            GetResponse response = client.get(new GetRequest(indexName, ID_DASHBOARD)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            DocNode document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+
+            response = client.get(new GetRequest(indexName, ID_CASES)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+
+            response = client.get(new GetRequest(indexName, ID_SPACE)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+
+            response = client.get(new GetRequest(indexName, ID_ENDPOINT)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+
+            response = client.get(new GetRequest(indexName, ID_ENDPOINT)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-152937574_admintenant"));
+
+            response = client.get(new GetRequest(indexName, ID_INGEST)).actionGet();
+            assertThat(response.isExists(), equalTo(true));
+            document = DocNode.wrap(response.getSource());
+            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+        }
+    }
+
 
     // TODO add index related to multi-index search
 
