@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 floragunn GmbH
+ * Copyright 2021-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,14 @@
 
 package com.floragunn.searchguard.test;
 
+import java.util.Map;
+import java.util.Set;
+
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 
-public class TestIndex {
+public class TestIndex implements TestIndexLike {
 
     private final String name;
     private final Settings settings;
@@ -119,6 +122,16 @@ public class TestIndex {
 
             return new TestIndex(name, settings.build(), testData);
         }
+    }
+
+    @Override
+    public Set<String> getDocumentIds() {
+        return getTestData().getRetainedDocuments().keySet();
+    }
+
+    @Override
+    public Map<String, Map<String, ?>> getDocuments() {
+        return getTestData().getRetainedDocuments();
     }
 
 }
