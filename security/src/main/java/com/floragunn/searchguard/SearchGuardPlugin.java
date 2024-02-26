@@ -813,7 +813,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         final ClusterInfoHolder cih = new ClusterInfoHolder();
         this.clusterService.addListener(cih);
 
-        actionRequestIntrospector = new ActionRequestIntrospector(clusterService, cih, guiceDependencies);
+        actionRequestIntrospector = new ActionRequestIntrospector(clusterService, indexNameExpressionResolver, cih, guiceDependencies);
     
         final String DEFAULT_INTERCLUSTER_REQUEST_EVALUATOR_CLASS = DefaultInterClusterRequestEvaluator.class.getName();
         InterClusterRequestEvaluator interClusterRequestEvaluator = new DefaultInterClusterRequestEvaluator(settings);

@@ -33,6 +33,9 @@ public interface Meta extends Document<Meta> {
     ImmutableSet<Index> indicesWithoutParents();
 
     /**
+    
+    
+    /**
      * Returns indices that are not hidden 
      */
     ImmutableSet<Index> nonHiddenIndices();
@@ -41,6 +44,16 @@ public interface Meta extends Document<Meta> {
      * Returns indices that are not hidden and which are not contained in an alias or data stream
      */
     ImmutableSet<Index> nonHiddenIndicesWithoutParents();
+
+    /**
+     * Returns indices that are not system indices (but may be possibly hidden indices)
+     */
+    ImmutableSet<Index> nonSystemIndices();
+
+    /**
+     * Returns indices that are not contained in an alias or data stream and that are not system indices (but may be possibly hidden indices)
+     */
+    ImmutableSet<Index> nonSystemIndicesWithoutParents();
 
     Iterable<String> namesOfIndices();
 
@@ -59,7 +72,7 @@ public interface Meta extends Document<Meta> {
     org.elasticsearch.cluster.metadata.Metadata esMetadata();
 
     long version();
-    
+
     interface IndexLikeObject extends Document<IndexLikeObject> {
         String name();
 
@@ -88,12 +101,14 @@ public interface Meta extends Document<Meta> {
         int hashCode();
 
         boolean isHidden();
-        
+
         boolean exists();
     }
 
     interface Index extends IndexOrNonExistent {
         boolean isOpen();
+
+        boolean isSystem();
     }
 
     interface IndexCollection extends IndexLikeObject {
