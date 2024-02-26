@@ -23,6 +23,9 @@ import java.util.Set;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.elasticsearch.indices.SystemIndices;
 
 public class TestIndex implements TestIndexLike {
 
@@ -37,9 +40,17 @@ public class TestIndex implements TestIndexLike {
     }
 
     public void create(Client client) {
-        if (!client.admin().indices().exists(new IndicesExistsRequest(name)).actionGet().isExists()) {
-            testData.createIndex(client, name, settings);
+        ThreadContext threadContext = client.threadPool().getThreadContext();
+
+        try (StoredContext stored = threadContext.newStoredContext(false)) {
+             threadContext.putHeader(SystemIndices.SYSTEM_INDEX_ACCESS_CONTROL_HEADER_KEY, "true");
+ 
+            if (!client.admin().indices().exists(new IndicesExistsRequest(name)).actionGet().isExists()) {
+                testData.createIndex(client, name, settings);
+            }
+     
         }
+        
     }
 
     public String getName() {
@@ -75,6 +86,11 @@ public class TestIndex implements TestIndexLike {
             return this;
         }
 
+        public Builder hidden() {
+            settings.put("index.hidden", true);
+            return this;
+        }
+        
         public Builder data(TestData data) {
             this.testData = data;
             return this;
