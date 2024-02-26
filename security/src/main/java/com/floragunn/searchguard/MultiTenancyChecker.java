@@ -55,7 +55,7 @@ class MultiTenancyChecker {
     }
 
     public Optional<String> findMultiTenancyConfigurationError() {
-        if(settings.getAsBoolean(SEARCHGUARD_MT_BOOTSTRAP_CHECK_ENABLED, true)) {
+        if(settings.getAsBoolean(SEARCHGUARD_MT_BOOTSTRAP_CHECK_ENABLED, false)) {
             List<String> indices = indexRepository.findIndicesMetadata() //
                 .entrySet() //
                 .stream() //
