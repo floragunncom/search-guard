@@ -18,6 +18,8 @@
 package com.floragunn.searchguard.authz.config;
 
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
+import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
+import org.elasticsearch.action.admin.indices.open.OpenIndexAction;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
@@ -40,7 +42,8 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
             "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/resolve/index", "indices:admin/delete",
             "indices:admin/mapping/put", "indices:admin/settings/update", "indices:monitor/settings/get", "indices:monitor/stats",
             "indices:admin/upgrade", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get",
-            "indices:admin/data_stream/get", "indices:admin/data_stream/delete", "indices:monitor/data_stream/stats", "indices:admin/get", AnalyzeAction.NAME);
+            "indices:admin/data_stream/get", "indices:admin/data_stream/delete", "indices:monitor/data_stream/stats", "indices:admin/get",
+            AnalyzeAction.NAME, CloseIndexAction.NAME, OpenIndexAction.NAME);
 
     static final Pattern DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT = Pattern.createUnchecked("indices:data/read/*",
             "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/resolve/index", "indices:monitor/settings/get",
@@ -64,7 +67,8 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
 
     AuthorizationConfig(DocNode source, boolean ignoreUnauthorizedIndices, Pattern ignoreUnauthorizedIndicesActions,
             Pattern ignoreUnauthorizedIndicesActionsAllowingEmptyResult, String fieldAnonymizationSalt,
-            RoleMapping.ResolutionMode roleMappingResolution, boolean debugEnabled, MetricsLevel metricsLevel, boolean allowAliasesIfAllIndicesAllowed) {
+            RoleMapping.ResolutionMode roleMappingResolution, boolean debugEnabled, MetricsLevel metricsLevel,
+            boolean allowAliasesIfAllIndicesAllowed) {
         this.source = source;
 
         this.ignoreUnauthorizedIndices = ignoreUnauthorizedIndices;
@@ -97,7 +101,7 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
         boolean allowAliasesIfAllIndicesAllowed = vNode.get("aliases.allow_if_all_indices_are_allowed").withDefault(true).asBoolean();
         MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
-        
+
         vNode.checkForUnusedAttributes();
 
         if (!validationErrors.hasErrors()) {

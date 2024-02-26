@@ -73,7 +73,7 @@ public class IndexApiMatchers {
     public static IndexMatcher limitedToNone() {
         return new LimitedToMatcher(Collections.emptyMap());
     }
-
+    
     public static class ContainsExactlyMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap) {
