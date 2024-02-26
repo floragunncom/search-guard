@@ -23,11 +23,17 @@ public abstract class MetaImpl implements Meta {
 
     public static class IndexImpl extends AbstractIndexLike<IndexImpl> implements Meta.Index {
         private final boolean open;
+        private final boolean system;
 
         public IndexImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName, boolean hidden,
-                org.elasticsearch.cluster.metadata.IndexMetadata.State state) {
+                boolean system, org.elasticsearch.cluster.metadata.IndexMetadata.State state) {
             super(root, name, parentAliasNames, parentDataStreamName, hidden);
             this.open = state == org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN;
+            this.system = system;
+        }
+
+        IndexImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName) {
+            this(root, name, parentAliasNames, parentDataStreamName, false, false, org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN);
         }
 
         @Override
@@ -42,7 +48,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AbstractIndexLike<IndexImpl> withAlias(String alias) {
-            return new IndexImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), parentDataStreamName(), isHidden(),
+            return new IndexImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), parentDataStreamName(), isHidden(), system,
                     this.open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
                             : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE);
         }
@@ -50,6 +56,11 @@ public abstract class MetaImpl implements Meta {
         @Override
         public boolean isOpen() {
             return open;
+        }
+
+        @Override
+        public boolean isSystem() {
+            return system;
         }
 
         @Override
@@ -65,7 +76,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected IndexImpl copy() {
-            return new IndexImpl(null, name(), parentAliasNames(), parentDataStreamName(), isHidden(),
+            return new IndexImpl(null, name(), parentAliasNames(), parentDataStreamName(), isHidden(), system,
                     open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
                             : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE);
         }
@@ -87,7 +98,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Object toBasicObject() {
-            return DocNode.of("name", this.name(), "open", open, "hidden", isHidden());
+            return DocNode.of("name", this.name(), "open", open, "system", isSystem(), "hidden", isHidden());
         }
 
     }
@@ -368,6 +379,8 @@ public abstract class MetaImpl implements Meta {
         private final ImmutableSet<Index> indicesWithoutParents;
         private final ImmutableSet<Index> nonHiddenIndicesWithoutParents;
         private final ImmutableSet<Index> nonHiddenIndices;
+        private final ImmutableSet<Index> nonSystemIndices;
+        private final ImmutableSet<Index> nonSystemIndicesWithoutParents;
         private final ImmutableSet<IndexCollection> indexCollections;
         private final ImmutableMap<String, Meta.IndexLikeObject> nameMap;
         private final org.elasticsearch.cluster.metadata.Metadata esMetadata;
@@ -388,6 +401,9 @@ public abstract class MetaImpl implements Meta {
             this.indexCollections = ImmutableSet.<IndexCollection>of(aliases).with(datastreams);
             this.nonHiddenIndicesWithoutParents = this.indicesWithoutParents.matching(e -> !e.isHidden());
             this.nonHiddenIndices = this.indices.matching(e -> !e.isHidden());
+            this.nonSystemIndices = this.indices.matching(e -> !e.isSystem());
+            this.nonSystemIndicesWithoutParents = this.indicesWithoutParents.matching(e -> !e.isSystem());
+
             this.nameMap = ImmutableMap
                     .<String, IndexLikeObject>of(ImmutableMap.<Index, String, Index>map(indices, e -> ImmutableMap.entry(e.name(), e)))
                     .with(ImmutableMap.<IndexCollection, String, IndexCollection>map(indexCollections, e -> ImmutableMap.entry(e.name(), e)));
@@ -453,7 +469,7 @@ public abstract class MetaImpl implements Meta {
                     org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata = esMetadata.index(esIndex.getName());
 
                     Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), esDataStream.getName(), esIndexMetadata.isHidden(),
-                            esIndexMetadata.getState());
+                            esIndexMetadata.isSystem(), esIndexMetadata.getState());
                     indices.add(index);
                     nameMap.put(index.name(), index);
                     memberIndices.add(index);
@@ -480,7 +496,7 @@ public abstract class MetaImpl implements Meta {
                 }
 
                 Index index = new IndexImpl(this, name, esIndexMetadata.getAliases().keySet(), null, esIndexMetadata.isHidden(),
-                        esIndexMetadata.getState());
+                        esIndexMetadata.isSystem(), esIndexMetadata.getState());
                 indices.add(index);
                 nameMap.put(name, index);
 
@@ -525,6 +541,8 @@ public abstract class MetaImpl implements Meta {
             this.indexCollections = ImmutableSet.<IndexCollection>of(this.aliases).with(this.dataStreams);
             this.nonHiddenIndicesWithoutParents = this.indicesWithoutParents.matching(e -> !e.isHidden());
             this.nonHiddenIndices = this.indices.matching(e -> !e.isHidden());
+            this.nonSystemIndices = this.indices.matching(e -> !e.isSystem());
+            this.nonSystemIndicesWithoutParents = this.indicesWithoutParents.matching(e -> !e.isSystem());
             this.nameMap = nameMap.build();
         }
 
@@ -572,6 +590,16 @@ public abstract class MetaImpl implements Meta {
         public ImmutableSet<Index> nonHiddenIndicesWithoutParents() {
             return nonHiddenIndicesWithoutParents;
         }
+        
+        @Override
+        public ImmutableSet<Index> nonSystemIndices() {
+            return nonSystemIndices;
+        }
+        
+        @Override
+        public ImmutableSet<Index> nonSystemIndicesWithoutParents() {
+            return this.nonSystemIndicesWithoutParents;
+        }
 
         @Override
         public Iterable<String> namesOfIndices() {
@@ -603,8 +631,7 @@ public abstract class MetaImpl implements Meta {
                         if (indexLikeObject != null) {
                             indexLikeObject = indexLikeObject.withAlias(aliasName);
                         } else {
-                            indexLikeObject = new IndexImpl(null, indexName, singleAliasSet, null, false,
-                                    org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN);
+                            indexLikeObject = new IndexImpl(null, indexName, singleAliasSet, null);
                         }
 
                         if (indexLikeObject instanceof DataStream) {
@@ -652,8 +679,7 @@ public abstract class MetaImpl implements Meta {
                         if (indexLikeObject != null) {
                             throw new RuntimeException("Cannot reuse datastream backing index");
                         } else {
-                            indexLikeObject = new IndexImpl(null, indexName, ImmutableSet.empty(), dataStreamName, false,
-                                    org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN);
+                            indexLikeObject = new IndexImpl(null, indexName, ImmutableSet.empty(), dataStreamName);
                         }
 
                         newIndices.add((Index) indexLikeObject);
@@ -702,8 +728,7 @@ public abstract class MetaImpl implements Meta {
          * For testing and mocking purposes
          */
         static Meta indices(String... indexNames) {
-            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames),
-                    (k) -> new IndexImpl(null, k, ImmutableSet.empty(), null, false, org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN));
+            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, ImmutableSet.empty(), null));
 
             return new DefaultMetaImpl(indices, ImmutableSet.empty(), ImmutableSet.empty(), indices);
         }
@@ -717,8 +742,7 @@ public abstract class MetaImpl implements Meta {
             if (currentInstance == null || currentInstance.esMetadata.version() != esMetadata.version()) {
                 currentInstance = new DefaultMetaImpl(esMetadata);
                 DefaultMetaImpl.currentInstance.set(currentInstance);
-                
-                
+
                 if (log.isTraceEnabled()) {
                     log.trace("New Meta:\n{}", currentInstance.toYamlString());
                 }
@@ -726,7 +750,6 @@ public abstract class MetaImpl implements Meta {
 
             return currentInstance;
         }
-
     }
 
     static class AliasBuilderImpl implements Meta.Mock.AliasBuilder {
@@ -739,8 +762,7 @@ public abstract class MetaImpl implements Meta {
         @Override
         public Meta of(String... indexNames) {
             ImmutableSet<String> aliasSet = ImmutableSet.of(name);
-            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames),
-                    (k) -> new IndexImpl(null, k, aliasSet, null, false, org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN));
+            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, aliasSet, null));
             ImmutableSet<Alias> aliases = ImmutableSet.of(new AliasImpl(null, name, ImmutableSet.<IndexLikeObject>of(indices), false));
 
             return new DefaultMetaImpl(indices, aliases, ImmutableSet.empty(), ImmutableSet.empty());
@@ -756,8 +778,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Meta of(String... indexNames) {
-            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames),
-                    k -> new IndexImpl(null, k, null, name, false, org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN));
+            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), k -> new IndexImpl(null, k, null, name));
             ImmutableSet<DataStream> dataStreams = ImmutableSet
                     .of(new DataStreamImpl(null, name, ImmutableSet.empty(), ImmutableSet.<IndexLikeObject>of(indices), false));
 
