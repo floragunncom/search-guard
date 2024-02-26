@@ -81,6 +81,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*"))//
             .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3))//
+            .indexMatcher("read_top_level", limitedTo(index_a1, index_a2, index_a3))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B")//
@@ -90,6 +91,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*"))//
             .indexMatcher("read", limitedTo(index_b1, index_b2, index_b3))//
+            .indexMatcher("read_top_level", limitedTo(index_b1, index_b2, index_b3))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B1 = new TestSgConfig.User("limited_user_B1")//
@@ -99,6 +101,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b1"))//
             .indexMatcher("read", limitedTo(index_b1))//
+            .indexMatcher("read_top_level", limitedTo(index_b1))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C")//
@@ -108,6 +111,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_c*"))//
             .indexMatcher("read", limitedTo(index_c1))//
+            .indexMatcher("read_top_level", limitedTo(index_c1))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_ALIAS_AB1 = new TestSgConfig.User("limited_user_alias_AB1")//
@@ -117,6 +121,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1*"))//
             .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_b1, alias_ab1))//
+            .indexMatcher("read_top_level", limitedTo(alias_ab1))//
             .indexMatcher("get_alias", limitedTo(index_a1, index_a2, index_a3, index_b1, alias_ab1));
 
     static TestSgConfig.User LIMITED_USER_ALIAS_C1 = new TestSgConfig.User("limited_user_alias_C1")//
@@ -126,6 +131,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("alias_c1"))//
             .indexMatcher("read", limitedTo(index_c1, alias_c1))//
+            .indexMatcher("read_top_level", limitedTo(alias_c1))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_A_HIDDEN = new TestSgConfig.User("limited_user_A_hidden")//
@@ -135,6 +141,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*", "index_hidden*", ".index_hidden*"))//
             .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_hidden, index_hidden_dot))//
+            .indexMatcher("read_top_level", limitedTo(index_a1, index_a2, index_a3, index_hidden, index_hidden_dot))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_A_SYSTEM = new TestSgConfig.User("limited_user_A_system")//
@@ -144,6 +151,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*", ".index_system*"))//
             .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_system))//
+            .indexMatcher("read_top_level", limitedTo(index_a1, index_a2, index_a3, index_system))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_NONE = new TestSgConfig.User("limited_user_none")//
@@ -153,6 +161,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_CRUD", "SGS_INDICES_MONITOR").on("index_does_not_exist_*"))//
             .indexMatcher("read", limitedToNone())//
+            .indexMatcher("read_top_level", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS = new TestSgConfig.User("invalid_user_index_permissions_for_alias")//
@@ -162,6 +171,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("alias_ab1"))//
             .indexMatcher("read", limitedToNone())//
+            .indexMatcher("read_top_level", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user")//
@@ -174,6 +184,7 @@ public class IndexAuthorizationReadOnlyIntTests {
 
             )//
             .indexMatcher("read", unlimited())//
+            .indexMatcher("read_top_level", unlimited())//
             .indexMatcher("get_alias", unlimited());
 
     /*
@@ -563,9 +574,9 @@ public class IndexAuthorizationReadOnlyIntTests {
     public void getAlias_aliasPattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_alias/alias_ab*");
-            assertThat(httpResponse, containsExactly(alias_ab1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(403));
+            assertThat(httpResponse, containsExactly(alias_ab1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
             assertThat(httpResponse,
-                    containsExactly(index_a1, index_a2, index_a3, index_b1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(403));
+                    containsExactly(index_a1, index_a2, index_a3, index_b1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
     }
 
@@ -574,6 +585,7 @@ public class IndexAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_alias/alias_ab1,alias_c*");
             // RestGetAliasesAction does some further post processing on the results, thus we get 404 errors in case a non wildcard alias was removed
+
             assertThat(httpResponse,
                     containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_c1).at("$.keys()")
@@ -605,6 +617,33 @@ public class IndexAuthorizationReadOnlyIntTests {
             } else {
                 assertThat(httpResponse, isOk());
             }
+        }
+    }
+
+    @Test
+    public void resolve_wildcard() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_resolve/index/*");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, alias_ab1, alias_c1)
+                    .at("$.*[*].name").but(user.indexMatcher("read_top_level")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void resolve_wildcard_includeHidden() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_resolve/index/*?expand_wildcards=all");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, alias_ab1, alias_c1,
+                    index_hidden, index_hidden_dot).at("$.*[*].name").but(user.indexMatcher("read_top_level")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void resolve_indexPattern() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_resolve/index/index_a*,index_b*");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3).at("$.*[*].name")
+                    .but(user.indexMatcher("read_top_level")).whenEmpty(200));
         }
     }
 
