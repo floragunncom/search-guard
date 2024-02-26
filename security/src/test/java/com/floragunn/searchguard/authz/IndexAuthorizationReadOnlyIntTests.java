@@ -30,6 +30,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.http.message.BasicHeader;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.indices.SystemIndexDescriptor;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.SystemIndexPlugin;
+import org.elasticsearch.tasks.Task;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -61,6 +67,10 @@ public class IndexAuthorizationReadOnlyIntTests {
     static TestIndex index_b2 = TestIndex.name("index_b2").documentCount(52).seed(5).attr("prefix", "b").build();
     static TestIndex index_b3 = TestIndex.name("index_b3").documentCount(53).seed(6).attr("prefix", "b").build();
     static TestIndex index_c1 = TestIndex.name("index_c1").documentCount(5).seed(7).attr("prefix", "c").build();
+    static TestIndex index_hidden = TestIndex.name("index_hidden").hidden().documentCount(1).seed(8).attr("prefix", "h").build();
+    static TestIndex index_hidden_dot = TestIndex.name(".index_hidden_dot").hidden().documentCount(1).seed(8).attr("prefix", "h").build();
+    static TestIndex index_system = TestIndex.name(".index_system").hidden().documentCount(1).seed(8).attr("prefix", "system").build();
+
     static TestAlias alias_ab1 = new TestAlias("alias_ab1", index_a1, index_a2, index_a3, index_b1);
     static TestAlias alias_c1 = new TestAlias("alias_c1", index_c1);
 
@@ -118,6 +128,24 @@ public class IndexAuthorizationReadOnlyIntTests {
             .indexMatcher("read", limitedTo(index_c1, alias_c1))//
             .indexMatcher("get_alias", limitedToNone());
 
+    static TestSgConfig.User LIMITED_USER_A_HIDDEN = new TestSgConfig.User("limited_user_A_hidden")//
+            .description("index_a*, index_hidden*")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*", "index_hidden*", ".index_hidden*"))//
+            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_hidden, index_hidden_dot))//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_A_SYSTEM = new TestSgConfig.User("limited_user_A_system")//
+            .description("index_a*, .index_system*")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*", ".index_system*"))//
+            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_system))//
+            .indexMatcher("get_alias", limitedToNone());
+
     static TestSgConfig.User LIMITED_USER_NONE = new TestSgConfig.User("limited_user_none")//
             .description("no privileges for existing indices")//
             .roles(//
@@ -163,13 +191,15 @@ public class IndexAuthorizationReadOnlyIntTests {
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("indices:data/read*").on("a*"));
     */
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B1, LIMITED_USER_C, LIMITED_USER_ALIAS_AB1,
-            LIMITED_USER_ALIAS_C1, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER);
+            LIMITED_USER_ALIAS_C1, LIMITED_USER_A_HIDDEN, LIMITED_USER_A_SYSTEM, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS,
+            UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
-            .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1)//
+            .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden, index_hidden_dot, index_system)//
             .aliases(alias_ab1, alias_c1)//
             .authzDebug(true)//
+            .plugin(TestSystemIndexPlugin.class)//
             .build();
 
     final TestSgConfig.User user;
@@ -214,9 +244,26 @@ public class IndexAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all/_search?size=1000&expand_wildcards=none");
             assertThat(httpResponse, containsExactly().at("hits.hits[*]._index").whenEmpty(200));
+        }
+    }
 
-            System.out.println(httpResponse.getBody());
+    @Test
+    public void search_all_includeHidden() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_all/_search?size=1000&expand_wildcards=all");
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden, index_hidden_dot)
+                            .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
 
+    @Test
+    public void search_all_includeHidden_origin() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_all/_search?size=1000&expand_wildcards=all",
+                    new BasicHeader(Task.X_ELASTIC_PRODUCT_ORIGIN_HTTP_HEADER, "origin-with-allowed-system-indices"));
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
+                    index_hidden_dot, index_system).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -234,9 +281,16 @@ public class IndexAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*/_search?size=1000&expand_wildcards=none");
             assertThat(httpResponse, containsExactly().at("hits.hits[*]._index").whenEmpty(200));
+        }
+    }
 
-            System.out.println(httpResponse.getBody());
-
+    @Test
+    public void search_wildcard_includeHidden() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/*/_search?size=1000&expand_wildcards=all");
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden, index_hidden_dot)
+                            .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -447,6 +501,26 @@ public class IndexAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void cat_all_includeHidden() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_cat/indices?format=json&expand_wildcards=all");
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden, index_hidden_dot)
+                            .at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void cat_all_includeHidden_origin() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_cat/indices?format=json&expand_wildcards=all",
+                    new BasicHeader(Task.X_ELASTIC_PRODUCT_ORIGIN_HTTP_HEADER, "origin-with-allowed-system-indices"));
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
+                    index_hidden_dot, index_system).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void index_stats_all() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_stats");
@@ -479,8 +553,9 @@ public class IndexAuthorizationReadOnlyIntTests {
     public void getAlias_staticAlias() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_alias/alias_c1");
-            assertThat(httpResponse, containsExactly(alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(403));
-            assertThat(httpResponse, containsExactly(index_c1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(403));
+            // RestGetAliasesAction does some further post processing on the results, thus we get 404 errors in case a non wildcard alias was removed
+            assertThat(httpResponse, containsExactly(alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
+            assertThat(httpResponse, containsExactly(index_c1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
         }
     }
 
@@ -498,7 +573,7 @@ public class IndexAuthorizationReadOnlyIntTests {
     public void getAlias_mixed() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_alias/alias_ab1,alias_c*");
-            // RestGetAliasesAction does some further post processing on the results, this we get 404 errors in case a non wildcard alias was removed
+            // RestGetAliasesAction does some further post processing on the results, thus we get 404 errors in case a non wildcard alias was removed
             assertThat(httpResponse,
                     containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_c1).at("$.keys()")
@@ -546,6 +621,28 @@ public class IndexAuthorizationReadOnlyIntTests {
 
     public IndexAuthorizationReadOnlyIntTests(TestSgConfig.User user, String description) throws Exception {
         this.user = user;
+    }
+
+    public static class TestSystemIndexPlugin extends Plugin implements SystemIndexPlugin {
+
+        @Override
+        public String getFeatureName() {
+            return "TestSystemIndexPlugin";
+        }
+
+        @Override
+        public String getFeatureDescription() {
+            return "Plugin that defines system indices";
+        }
+
+        @Override
+        public Collection<SystemIndexDescriptor> getSystemIndexDescriptors(Settings settings) {
+            return ImmutableList.of(//
+                    SystemIndexDescriptor.builder()//
+                            .setIndexPattern(".index_system*").setDescription("Test system indices")
+                            .setType(SystemIndexDescriptor.Type.EXTERNAL_UNMANAGED)
+                            .setAllowedElasticProductOrigins(ImmutableList.of("origin-with-allowed-system-indices")).setNetNew().build());
+        }
     }
 
 }
