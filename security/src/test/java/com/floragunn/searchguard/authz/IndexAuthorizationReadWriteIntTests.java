@@ -31,7 +31,12 @@ import java.util.List;
 
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.xcontent.XContentType;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -304,7 +309,7 @@ public class IndexAuthorizationReadWriteIntTests {
             assertThat(httpResponse, containsExactly(index_bwx).at("_index").but(user.indexMatcher("create_index")).whenEmpty(403));
         }
     }
-    
+
     @Test
     public void createIndex() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
@@ -360,6 +365,38 @@ public class IndexAuthorizationReadWriteIntTests {
 
             // TODO test for absense of docs
 
+        }
+    }
+
+    @Test
+    public void cloneIndex() throws Exception {
+        try (Client client = cluster.getInternalNodeClient()) {
+            client.admin().indices()
+                    .updateSettings(new UpdateSettingsRequest("index_br1").settings(Settings.builder().put("index.blocks.write", true).build()))
+                    .actionGet();
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
+            restClient.deleteWhenClosed("/index_bwx");
+
+            HttpResponse httpResponse = restClient.post("/index_br1/_clone/index_bwx");
+            
+            /*
+            if (containsExactly(index_br1).but(user.indexMatcher("create_index")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isOk());
+            }*/
+            
+            assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
+
+            // TODO test for absense of docs
+        } finally {
+            try (Client client = cluster.getInternalNodeClient()) {
+                client.admin().indices()
+                        .updateSettings(new UpdateSettingsRequest("index_br1").settings(Settings.builder().put("index.blocks.write", false).build()))
+                        .actionGet();
+            }
         }
     }
 
