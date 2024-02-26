@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,8 +76,10 @@ public class GenericRestClient implements AutoCloseable {
     private final List<Header> headers = new ArrayList<>();
     private final Header CONTENT_TYPE_JSON = new BasicHeader("Content-Type", "application/json");
     private final Header CONTENT_TYPE_JSON_MERGE = new BasicHeader("Content-Type", "application/merge-patch+json");
+    private final Header CONTENT_TYPE_NDJSON = new BasicHeader("Content-Type", "application/x-ndjson");
 
     private boolean trackResources = false;
+    private GenericRestClient clientForTrackedResourceDeletion;
 
     private final Set<String> puttedResourcesSet = new HashSet<>();
     private final List<String> puttedResourcesList = new ArrayList<>();
@@ -124,7 +126,7 @@ public class GenericRestClient implements AutoCloseable {
     public HttpResponse putJson(String path, Document<?> body) throws Exception {
         return putJson(path, body.toJsonString());
     }
-    
+
     public HttpResponse putJson(String path, ToXContentObject body) throws Exception {
         return putJson(path, Strings.toString(body));
     }
@@ -132,6 +134,26 @@ public class GenericRestClient implements AutoCloseable {
     public HttpResponse put(String path) throws Exception {
         HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + path);
         HttpResponse response = executeRequest(uriRequest);
+
+        if (response.getStatusCode() < 400 && trackResources && !puttedResourcesSet.contains(path)) {
+            puttedResourcesSet.add(path);
+            puttedResourcesList.add(path);
+        }
+
+        return response;
+    }
+
+    public HttpResponse putNdJson(String path, Document<?>... bodyElements) throws Exception {
+        HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + path);
+        StringBuilder body = new StringBuilder();
+        for (Document<?> bodyElement : bodyElements) {
+            body.append(bodyElement.toJsonString());
+            body.append("\n");
+        }
+
+        uriRequest.setEntity(new StringEntity(body.toString()));
+
+        HttpResponse response = executeRequest(uriRequest, CONTENT_TYPE_NDJSON);
 
         if (response.getStatusCode() < 400 && trackResources && !puttedResourcesSet.contains(path)) {
             puttedResourcesSet.add(path);
@@ -174,17 +196,17 @@ public class GenericRestClient implements AutoCloseable {
         uriRequest.setEntity(new StringEntity(body));
         return executeRequest(uriRequest, CONTENT_TYPE_JSON);
     }
-    
+
     public HttpResponse patch(String path, DocPatch docPatch, Header... headers) throws Exception {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(docPatch.toJsonString()));
         return executeRequest(uriRequest, mergeHeaders(new BasicHeader("Content-Type", docPatch.getMediaType()), headers));
     }
-    
+
     public HttpResponse patchJsonMerge(String path, Document<?> body, Header... headers) throws Exception {
         return patchJsonMerge(path, body.toJsonString(), headers);
     }
-    
+
     public HttpResponse patchJsonMerge(String path, String body, Header... headers) throws Exception {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
         uriRequest.setEntity(new StringEntity(body));
@@ -218,13 +240,31 @@ public class GenericRestClient implements AutoCloseable {
             }
         }
     }
-    
-    protected CloseableHttpResponse innerExecuteRequest(CloseableHttpClient httpClient, HttpUriRequest uriRequest) throws ClientProtocolException, IOException {
+
+    protected CloseableHttpResponse innerExecuteRequest(CloseableHttpClient httpClient, HttpUriRequest uriRequest)
+            throws ClientProtocolException, IOException {
         return httpClient.execute(uriRequest);
     }
 
     public GenericRestClient trackResources() {
-        trackResources = true;
+        this.trackResources = true;
+        this.clientForTrackedResourceDeletion = this;
+        return this;
+    }
+
+    public GenericRestClient trackResources(GenericRestClient clientForTrackedResourceDeletion) {
+        this.trackResources = true;
+        this.clientForTrackedResourceDeletion = clientForTrackedResourceDeletion;
+        return this;
+    }
+
+    public GenericRestClient deleteWhenClosed(String... paths) {
+        for (String path : paths) {
+            if (!puttedResourcesSet.contains(path)) {
+                puttedResourcesSet.add(path);
+                puttedResourcesList.add(path);
+            }
+        }
         return this;
     }
 
@@ -234,7 +274,7 @@ public class GenericRestClient implements AutoCloseable {
 
             for (String resource : Lists.reverse(puttedResourcesList)) {
                 try {
-                    delete(resource);
+                    this.clientForTrackedResourceDeletion.delete(resource);
                 } catch (Exception e) {
                     log.error("Error cleaning up created resources " + resource, e);
                 }
@@ -273,16 +313,15 @@ public class GenericRestClient implements AutoCloseable {
         if (requestConfig != null) {
             clientBuilder.setDefaultRequestConfig(requestConfig);
         }
-        
+
         configureHttpClientBuilder(clientBuilder);
 
         return clientBuilder.build();
     }
-    
-    protected void configureHttpClientBuilder(HttpClientBuilder clientBuilder) {
-        
-    }
 
+    protected void configureHttpClientBuilder(HttpClientBuilder clientBuilder) {
+
+    }
 
     private Header[] mergeHeaders(Header header, Header... headers) {
 
@@ -337,7 +376,7 @@ public class GenericRestClient implements AutoCloseable {
         private final int statusCode;
         private final String statusReason;
         private DocNode parsedBody;
-        
+
         public HttpResponse(CloseableHttpResponse inner) throws IllegalStateException, IOException {
             super();
             this.inner = inner;
@@ -379,15 +418,15 @@ public class GenericRestClient implements AutoCloseable {
 
         public DocNode getBodyAsDocNode() throws DocumentParseException, UnknownDocTypeException {
             DocNode result = this.parsedBody;
-            
+
             if (result != null) {
                 return result;
             }
-            
+
             result = DocNode.parse(ContentType.parseHeader(getContentType())).from(body);
-            
+
             this.parsedBody = result;
-            
+
             return result;
         }
 
@@ -402,14 +441,14 @@ public class GenericRestClient implements AutoCloseable {
         public List<Header> getHeaders() {
             return headers == null ? Collections.emptyList() : Arrays.asList(headers);
         }
-        
+
         public String getHeaderValue(String name) {
             for (Header header : this.headers) {
                 if (header.getName().equalsIgnoreCase(name)) {
                     return header.getValue();
                 }
             }
-            
+
             return null;
         }
 
