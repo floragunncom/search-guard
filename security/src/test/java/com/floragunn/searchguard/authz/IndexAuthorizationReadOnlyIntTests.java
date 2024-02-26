@@ -50,7 +50,7 @@ import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 @RunWith(Parameterized.class)
-public class IndexAuthorizationIntTests {
+public class IndexAuthorizationReadOnlyIntTests {
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
@@ -69,8 +69,7 @@ public class IndexAuthorizationIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*")//
-                            .aliasPermissions("SGS_MANAGE_ALIASES").on("z_alias_a*"))//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*"))//
             .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3))//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -356,6 +355,14 @@ public class IndexAuthorizationIntTests {
     }
 
     @Test
+    public void search_protectedIndex() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/.searchguard/_search");
+            assertThat(httpResponse, isForbidden());
+        }
+    }
+
+    @Test
     public void msearch_staticIndices() throws Exception {
         String msearchBody = "{\"index\":\"index_b1\"}\n" //
                 + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
@@ -537,7 +544,7 @@ public class IndexAuthorizationIntTests {
         return result;
     }
 
-    public IndexAuthorizationIntTests(TestSgConfig.User user, String description) throws Exception {
+    public IndexAuthorizationReadOnlyIntTests(TestSgConfig.User user, String description) throws Exception {
         this.user = user;
     }
 

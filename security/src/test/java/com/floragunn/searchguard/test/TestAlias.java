@@ -37,15 +37,27 @@ public class TestAlias implements TestIndexLike {
     private final ImmutableSet<TestIndex> indices;
     private Set<String> documentIds;
     private Map<String, Map<String, ?>> documents;
+    private TestIndex writeIndex;
 
     public TestAlias(String name, TestIndex... indices) {
         this.name = name;
         this.indices = ImmutableSet.ofArray(indices);
     }
 
+    public TestAlias writeIndex(TestIndex writeIndex) {
+        this.writeIndex = writeIndex;
+        return this;
+    }
+
     public void create(Client client) {
         client.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices(getIndexNamesAsArray()).alias(name)))
                 .actionGet();
+
+        if (writeIndex != null) {
+            client.admin().indices()
+                    .aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().index(writeIndex.getName()).alias(name).writeIndex(true)))
+                    .actionGet();
+        }
     }
 
     public void create(GenericRestClient client) throws Exception {
