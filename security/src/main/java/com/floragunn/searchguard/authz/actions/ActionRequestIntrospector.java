@@ -78,6 +78,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
+import com.floragunn.searchguard.authz.SystemIndexAccess;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.support.SnapshotRestoreHelper;
 import com.floragunn.searchsupport.meta.Meta;
@@ -97,11 +98,14 @@ public class ActionRequestIntrospector {
     private final ClusterService clusterService;
     private final ClusterInfoHolder clusterInfoHolder;
     private final GuiceDependencies guiceDependencies;
+    private final IndexNameExpressionResolver indexNameExpressionResolver;
 
-    public ActionRequestIntrospector(ClusterService clusterService, ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies) {
+    public ActionRequestIntrospector(ClusterService clusterService, IndexNameExpressionResolver indexNameExpressionResolver,
+            ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies) {
         this.clusterService = clusterService;
         this.clusterInfoHolder = clusterInfoHolder;
         this.guiceDependencies = guiceDependencies;
+        this.indexNameExpressionResolver = indexNameExpressionResolver;
     }
 
     public ActionRequestInfo getActionRequestInfo(Action action, Object request) {
@@ -297,7 +301,7 @@ public class ActionRequestIntrospector {
         if (log.isDebugEnabled()) {
             log.debug("Reduced request to:\n{}\n{}", request, newInfo);
         }
-        
+
         // TODO optimize and check
         if (!keepIndices.containsAll(newInfo.getMainResolvedIndices().getLocal().getUnion().map(Meta.IndexLikeObject::name))) {
             throw new PrivilegesEvaluationException("Indices were not properly reduced: " + request + "; new resolved:"
@@ -451,7 +455,8 @@ public class ActionRequestIntrospector {
         }
 
         ActionRequestInfo(IndicesRequest indices, IndicesRequestInfo.Scope scope) {
-            this(ImmutableSet.of(new IndicesRequestInfo(null, indices, scope, Meta.from(clusterService))));
+            this(ImmutableSet
+                    .of(new IndicesRequestInfo(null, indices, scope, SystemIndexAccess.get(indexNameExpressionResolver), Meta.from(clusterService))));
             this.sourceRequest = indices;
         }
 
@@ -460,22 +465,25 @@ public class ActionRequestIntrospector {
         }
 
         ActionRequestInfo(String index, IndicesOptions indicesOptions, IndicesRequestInfo.Scope scope) {
-            this(ImmutableSet.of(new IndicesRequestInfo(null, index, indicesOptions, scope, Meta.from(clusterService))));
+            this(ImmutableSet.of(new IndicesRequestInfo(null, index, indicesOptions, scope, SystemIndexAccess.get(indexNameExpressionResolver),
+                    Meta.from(clusterService))));
         }
 
         ActionRequestInfo(List<String> index, IndicesOptions indicesOptions, IndicesRequestInfo.Scope scope) {
-            this(ImmutableSet.of(new IndicesRequestInfo(null, index, indicesOptions, scope, Meta.from(clusterService))));
+            this(ImmutableSet.of(new IndicesRequestInfo(null, index, indicesOptions, scope, SystemIndexAccess.get(indexNameExpressionResolver),
+                    Meta.from(clusterService))));
         }
 
         ActionRequestInfo additional(String role, IndicesRequest indices, IndicesRequestInfo.Scope scope) {
-            return new ActionRequestInfo(unknown, indexRequest,
-                    this.indices.with(new IndicesRequestInfo(role, indices, scope, Meta.from(clusterService))));
+            return new ActionRequestInfo(unknown, indexRequest, this.indices.with(
+                    new IndicesRequestInfo(role, indices, scope, SystemIndexAccess.get(indexNameExpressionResolver), Meta.from(clusterService))));
         }
 
         ActionRequestInfo additional(String role, Collection<? extends IndicesRequest> requests, IndicesRequestInfo.Scope scope) {
             Meta meta = Meta.from(clusterService);
-            return new ActionRequestInfo(unknown, indexRequest,
-                    this.indices.with(requests.stream().map(r -> new IndicesRequestInfo(role, r, scope, meta)).collect(Collectors.toList())));
+            SystemIndexAccess systemIndexAccess = SystemIndexAccess.get(indexNameExpressionResolver);
+            return new ActionRequestInfo(unknown, indexRequest, this.indices
+                    .with(requests.stream().map(r -> new IndicesRequestInfo(role, r, scope, systemIndexAccess, meta)).collect(Collectors.toList())));
         }
 
         public boolean isUnknown() {
@@ -640,12 +648,13 @@ public class ActionRequestIntrospector {
         private final boolean containsNegation;
         private final boolean writeRequest;
         private final boolean createIndexRequest;
+        private final SystemIndexAccess systemIndexAccess;
         private final Meta indexMetadata;
         private final ImmutableSet<String> remoteIndices;
         private final ImmutableList<String> localIndices;
         private final Scope scope;
 
-        IndicesRequestInfo(String role, IndicesRequest indicesRequest, Scope scope, Meta indexMetadata) {
+        IndicesRequestInfo(String role, IndicesRequest indicesRequest, Scope scope, SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
             this.indices = indicesRequest.indices() != null ? ImmutableList.ofArray(indicesRequest.indices()) : ImmutableList.empty();
             this.indicesArray = indicesRequest.indices();
             this.indicesOptions = indicesRequest.indicesOptions();
@@ -664,6 +673,7 @@ public class ActionRequestIntrospector {
                     || indicesRequest instanceof org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
             this.indexMetadata = indexMetadata;
             this.scope = scope;
+            this.systemIndexAccess = systemIndexAccess;
 
             if (indicesRequest instanceof AliasesRequest) {
                 this.aliases = ImmutableList.ofArray(((AliasesRequest) indicesRequest).aliases());
@@ -676,7 +686,8 @@ public class ActionRequestIntrospector {
             }
         }
 
-        IndicesRequestInfo(String role, String index, IndicesOptions indicesOptions, Scope scope, Meta indexMetadata) {
+        IndicesRequestInfo(String role, String index, IndicesOptions indicesOptions, Scope scope, SystemIndexAccess systemIndexAccess,
+                Meta indexMetadata) {
             this.indices = ImmutableList.of(index);
             this.indicesArray = new String[] { index };
             this.indicesOptions = indicesOptions;
@@ -697,9 +708,11 @@ public class ActionRequestIntrospector {
             this.expandAliasWildcards = false;
             this.containsAliasWildcards = false;
             this.scope = scope;
+            this.systemIndexAccess = systemIndexAccess;
         }
 
-        IndicesRequestInfo(String role, List<String> indices, IndicesOptions indicesOptions, Scope scope, Meta indexMetadata) {
+        IndicesRequestInfo(String role, List<String> indices, IndicesOptions indicesOptions, Scope scope, SystemIndexAccess systemIndexAccess,
+                Meta indexMetadata) {
             this.indices = ImmutableList.of(indices);
             this.indicesArray = indices.toArray(new String[indices.size()]);
             this.indicesOptions = indicesOptions;
@@ -720,6 +733,7 @@ public class ActionRequestIntrospector {
             this.expandAliasWildcards = false;
             this.containsAliasWildcards = false;
             this.scope = scope;
+            this.systemIndexAccess = systemIndexAccess;
         }
 
         @Override
@@ -1346,9 +1360,8 @@ public class ActionRequestIntrospector {
              * Only for testing!
              */
             public static Local resolve(Meta indexMetadata, String... indices) {
-                return resolveWithoutPatterns(
-                        new IndicesRequestInfo(null, ImmutableList.ofArray(indices), EXACT, IndicesRequestInfo.Scope.ANY, indexMetadata),
-                        indexMetadata);
+                return resolveWithoutPatterns(new IndicesRequestInfo(null, ImmutableList.ofArray(indices), EXACT, IndicesRequestInfo.Scope.ANY,
+                        SystemIndexAccess.DISALLOWED, indexMetadata), indexMetadata);
             }
 
             static Local resolveWithPatterns(IndicesRequestInfo request, Meta indexMetadata) {
@@ -1406,7 +1419,11 @@ public class ActionRequestIntrospector {
                                     }
                                 } else {
                                     if (includeIndices) {
-                                        indices.add((Meta.Index) indexMetadata.getIndexOrLike(entry.getKey()));
+                                        Meta.Index indexMeta = (Meta.Index) indexMetadata.getIndexOrLike(entry.getKey());
+
+                                        if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(entry.getKey())) {
+                                            indices.add(indexMeta);
+                                        }
                                     }
                                 }
                             }
@@ -1427,13 +1444,17 @@ public class ActionRequestIntrospector {
                                 if (includeAliases) {
                                     aliases.add((Meta.Alias) indexLikeObject);
                                 }
-                            } else if (indexLikeObject instanceof DataStream) {
+                            } else if (indexLikeObject instanceof Meta.DataStream) {
                                 if (includeDataStreams) {
                                     dataStreams.add((Meta.DataStream) indexLikeObject);
                                 }
                             } else {
                                 if (includeIndices) {
-                                    indices.add((Meta.Index) indexLikeObject);
+                                    Meta.Index indexMeta = (Meta.Index) indexLikeObject;
+
+                                    if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(indexMeta)) {
+                                        indices.add((Meta.Index) indexLikeObject);
+                                    }
                                 }
                             }
                         }
@@ -1462,6 +1483,7 @@ public class ActionRequestIntrospector {
 
             static Local resolveIsAll(IndicesRequestInfo request, Meta indexMetadata) {
                 boolean includeHidden = request.indicesOptions.expandWildcardsHidden();
+                boolean excludeSystem = request.systemIndexAccess.isNotAllowed();
 
                 ImmutableSet<Meta.Index> pureIndices;
                 ImmutableSet<Meta.Alias> aliases;
@@ -1469,11 +1491,25 @@ public class ActionRequestIntrospector {
                 ImmutableSet<Meta.NonExistent> nonExistingIndices = ImmutableSet.empty();
 
                 if (request.includeDataStreams) {
-                    pureIndices = includeHidden ? indexMetadata.indicesWithoutParents() : indexMetadata.nonHiddenIndicesWithoutParents();
+                    if (!includeHidden) {
+                        pureIndices = indexMetadata.nonHiddenIndicesWithoutParents();
+                    } else if (excludeSystem) {
+                        pureIndices = indexMetadata.nonSystemIndicesWithoutParents();
+                    } else {
+                        pureIndices = indexMetadata.indicesWithoutParents();
+                    }
+
                     aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching(e -> !e.isHidden());
                     dataStreams = indexMetadata.dataStreams();
                 } else {
-                    pureIndices = includeHidden ? indexMetadata.indices() : indexMetadata.nonHiddenIndices();
+                    if (!includeHidden) {
+                        pureIndices = indexMetadata.nonHiddenIndices();
+                    } else if (excludeSystem) {
+                        pureIndices = indexMetadata.nonSystemIndices();
+                    } else {
+                        pureIndices = indexMetadata.indices();
+                    }
+
                     aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching(e -> !e.isHidden());
                     dataStreams = ImmutableSet.empty();
 
@@ -1653,6 +1689,7 @@ public class ActionRequestIntrospector {
         }
 
         Meta indexMetadata = Meta.from(clusterService);
+        SystemIndexAccess systemIndexAccess = SystemIndexAccess.get(indexNameExpressionResolver);
 
         IndicesRequest first = null;
         IndicesRequestInfo firstInfo = null;
@@ -1660,16 +1697,16 @@ public class ActionRequestIntrospector {
 
         for (IndicesRequest current : indicesRequests) {
             if (set != null) {
-                set.add(new IndicesRequestInfo(null, current, scope, indexMetadata));
+                set.add(new IndicesRequestInfo(null, current, scope, systemIndexAccess, indexMetadata));
             } else if (first == null) {
                 first = current;
-                firstInfo = new IndicesRequestInfo(null, current, scope, indexMetadata);
+                firstInfo = new IndicesRequestInfo(null, current, scope, systemIndexAccess, indexMetadata);
             } else if (equals(current, first)) {
                 // skip
             } else {
                 set = new ImmutableSet.Builder<>(indicesRequests.size());
                 set.add(firstInfo);
-                set.add(new IndicesRequestInfo(null, current, scope, indexMetadata));
+                set.add(new IndicesRequestInfo(null, current, scope, systemIndexAccess, indexMetadata));
             }
         }
 
