@@ -147,10 +147,13 @@ public interface Meta extends Document<Meta> {
         }
     }
 
-    interface NonExistent extends IndexOrNonExistent {
+    interface NonExistent extends IndexOrNonExistent {      
         static NonExistent of(String name) {
             return new MetaImpl.NonExistentImpl(name);
         }
+        
+        static final NonExistent BLANK = of("_");
+        static final NonExistent STAR = of("*");
     }
 
     interface IndexOrNonExistent extends IndexLikeObject {
