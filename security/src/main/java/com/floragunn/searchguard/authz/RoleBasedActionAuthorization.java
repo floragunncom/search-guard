@@ -231,14 +231,16 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             if (resolved.isLocalAll() && universallyDeniedIndices.isBlank()) {
                 // If we have a query on all indices, first check for roles which give privileges for *. Thus, we avoid costly index resolutions
 
+                final Meta.IndexLikeObject rowKey = Meta.NonExistent.STAR;
+                
                 try (Meter subMeter = meter.basic("local_all")) {
-                    CheckTable<String, Action> checkTable = CheckTable.create("*", actions);
+                    CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(rowKey, actions);
 
                     top: for (Action action : actions) {
                         ImmutableSet<String> rolesWithWildcardIndexPrivileges = index.actionToRolesWithWildcardIndexPrivileges.get(action);
 
                         if (rolesWithWildcardIndexPrivileges != null && rolesWithWildcardIndexPrivileges.containsAny(mappedRoles)) {
-                            if (checkTable.check("*", action)) {
+                            if (checkTable.check(rowKey, action)) {
                                 break top;
                             }
                         }

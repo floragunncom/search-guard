@@ -134,12 +134,13 @@ public class ActionRequestIntrospector {
                 AliasesRequest aliasesRequest = (AliasesRequest) request;
                 IndicesRequest indicesRequest = (IndicesRequest) request;
                 return new ActionRequestInfo(ImmutableList.ofArray(indicesRequest.indices()), indicesRequest.indicesOptions(),
-                        IndicesRequestInfo.Scope.ANY).additional("aliases", aliasesRequest, IndicesRequestInfo.Scope.ANY);
+                        IndicesRequestInfo.Scope.ANY).additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES, aliasesRequest,
+                                IndicesRequestInfo.Scope.ANY);
             } else if (request instanceof IndicesAliasesRequest) {
                 IndicesAliasesRequest indicesAliasesRequest = (IndicesAliasesRequest) request;
 
-                return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY).additional("aliases",
-                        indicesAliasesRequest.getAliasActions(), IndicesRequestInfo.Scope.ANY); // TODO scope alias?
+                return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY).additional(
+                        IndicesRequestInfo.AdditionalInfoRole.ALIASES, indicesAliasesRequest.getAliasActions(), IndicesRequestInfo.Scope.ANY); // TODO scope alias?
 
             } else if (request instanceof PutMappingRequest) {
                 PutMappingRequest putMappingRequest = (PutMappingRequest) request;
@@ -160,8 +161,9 @@ public class ActionRequestIntrospector {
                 // ResizeRequest returns incorrect indicesOptions, so we hardcode them here
                 ResizeRequest resizeRequest = (ResizeRequest) request;
 
-                return new ActionRequestInfo(resizeRequest.getSourceIndex(), EXACT, IndicesRequestInfo.Scope.ANY).additional("target",
-                        ((ResizeRequest) request).getTargetIndexRequest(), IndicesRequestInfo.Scope.ANY);
+                return new ActionRequestInfo(resizeRequest.getSourceIndex(), EXACT, IndicesRequestInfo.Scope.ANY).additional(
+                        IndicesRequestInfo.AdditionalInfoRole.RESIZE_TARGET, ((ResizeRequest) request).getTargetIndexRequest(),
+                        IndicesRequestInfo.Scope.ANY);
             } else {
                 // request instanceof IndicesRequest
                 return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY);
@@ -224,8 +226,9 @@ public class ActionRequestIntrospector {
         }
     }
 
-    public PrivilegesEvaluationResult reduceIndices(Action action, Object request, Set<String> keepIndices, ActionRequestInfo actionRequestInfo)
-            throws PrivilegesEvaluationException {
+    public PrivilegesEvaluationResult reduceIndices(Action action, Object request, ImmutableSet<String> keepIndices,
+            ImmutableMap<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ImmutableSet<String>> additionalKeepIndices,
+            ActionRequestInfo actionRequestInfo) throws PrivilegesEvaluationException {
 
         if (request instanceof AnalyzeAction.Request) {
             AnalyzeAction.Request analyzeRequest = (AnalyzeAction.Request) request;
@@ -252,19 +255,27 @@ public class ActionRequestIntrospector {
                 // AliasesRequest is a sub interface of IndicesRequest.Replaceable
                 AliasesRequest aliasesRequest = (AliasesRequest) request;
 
-                ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices)
-                        .intersection(resolvedIndices.getLocal().getPureIndices().map(Meta.Index::name)).with(resolvedIndices.getRemoteIndices());
-                ImmutableSet<String> newAliases = ImmutableSet.of(keepIndices)
-                        .intersection(resolvedIndices.getLocal().getAliases().map(Meta.Alias::name));
+                if (keepIndices != null) {
+                    ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(resolvedIndices.getRemoteIndices());
 
-                if (newAliases.size() > 0) {
-                    aliasesRequest.replaceAliases(toArray(newAliases));
-                    aliasesRequest.indices(toArray(newIndices));
-                    validateIndexReduction(action, replaceableIndicesRequest, keepIndices);
-                    return PrivilegesEvaluationResult.OK;
-                } else {
-                    return PrivilegesEvaluationResult.EMPTY;
+                    if (!keepIndices.isEmpty()) {
+                        aliasesRequest.indices(toArray(newIndices));
+                    } else {
+                        return PrivilegesEvaluationResult.EMPTY;
+                    }
                 }
+
+                ImmutableSet<String> keepAliases = additionalKeepIndices.get(ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole.ALIASES);
+                if (keepAliases != null) {
+                    if (!keepAliases.isEmpty()) {
+                        aliasesRequest.replaceAliases(toArray(keepAliases));
+                    } else {
+                        return PrivilegesEvaluationResult.EMPTY;
+                    }
+                }
+
+                validateIndexReduction(action, replaceableIndicesRequest, keepIndices);
+                return PrivilegesEvaluationResult.OK;
             } else {
                 // request instanceof IndicesRequest.Replaceable
 
@@ -272,7 +283,7 @@ public class ActionRequestIntrospector {
                 if (!replaceableIndicesRequest.indicesOptions().ignoreUnavailable() && !containsWildcard(replaceableIndicesRequest)) {
                     return PrivilegesEvaluationResult.INSUFFICIENT;
                 }
-
+                
                 ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(resolvedIndices.getRemoteIndices());
 
                 if (log.isTraceEnabled()) {
@@ -430,7 +441,7 @@ public class ActionRequestIntrospector {
         private boolean resolvedIndicesInitialized = false;
         private ResolvedIndices mainResolvedIndices;
         private ResolvedIndices allResolvedIndices;
-        private ImmutableMap<String, ResolvedIndices> additionalResolvedIndices;
+        private ImmutableMap<IndicesRequestInfo.AdditionalInfoRole, ResolvedIndices> additionalResolvedIndices;
 
         private Boolean containsWildcards;
 
@@ -471,12 +482,13 @@ public class ActionRequestIntrospector {
                     .of(new IndicesRequestInfo(null, index, indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
-        ActionRequestInfo additional(String role, IndicesRequest indices, IndicesRequestInfo.Scope scope) {
+        ActionRequestInfo additional(IndicesRequestInfo.AdditionalInfoRole role, IndicesRequest indices, IndicesRequestInfo.Scope scope) {
             return new ActionRequestInfo(unknown, indexRequest,
                     this.indices.with(new IndicesRequestInfo(role, indices, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
-        ActionRequestInfo additional(String role, Collection<? extends IndicesRequest> requests, IndicesRequestInfo.Scope scope) {
+        ActionRequestInfo additional(IndicesRequestInfo.AdditionalInfoRole role, Collection<? extends IndicesRequest> requests,
+                IndicesRequestInfo.Scope scope) {
             Meta meta = metaDataSupplier.get();
             SystemIndexAccess systemIndexAccess = systemIndexAccessSupplier.get();
             return new ActionRequestInfo(unknown, indexRequest, this.indices
@@ -532,7 +544,7 @@ public class ActionRequestIntrospector {
             return mainResolvedIndices;
         }
 
-        public ImmutableMap<String, ResolvedIndices> getAdditionalResolvedIndices() {
+        public ImmutableMap<IndicesRequestInfo.AdditionalInfoRole, ResolvedIndices> getAdditionalResolvedIndices() {
             if (!resolvedIndicesInitialized) {
                 initResolvedIndices();
                 resolvedIndicesInitialized = true;
@@ -581,7 +593,7 @@ public class ActionRequestIntrospector {
                 additionalResolvedIndices = ImmutableMap.empty();
             } else {
                 ResolvedIndices mainResolvedIndices = null;
-                ImmutableMap<String, ResolvedIndices> additionalResolvedIndicesMap = ImmutableMap.empty();
+                ImmutableMap<IndicesRequestInfo.AdditionalInfoRole, ResolvedIndices> additionalResolvedIndicesMap = ImmutableMap.empty();
 
                 for (IndicesRequestInfo info : indices) {
                     ResolvedIndices singleResolved = info.resolveIndices();
@@ -636,7 +648,7 @@ public class ActionRequestIntrospector {
         private final IndicesOptions indicesOptions;
         private final boolean allowsRemoteIndices;
         private final boolean includeDataStreams;
-        private final String role;
+        private final IndicesRequestInfo.AdditionalInfoRole role;
         private final boolean expandWildcards;
         private final boolean expandAliasWildcards;
         private final boolean isAll;
@@ -651,7 +663,8 @@ public class ActionRequestIntrospector {
         private final ImmutableList<String> localIndices;
         private final Scope scope;
 
-        IndicesRequestInfo(String role, IndicesRequest indicesRequest, Scope scope, SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
+        IndicesRequestInfo(IndicesRequestInfo.AdditionalInfoRole role, IndicesRequest indicesRequest, Scope scope,
+                SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
             this.indices = indicesRequest.indices() != null ? ImmutableList.ofArray(indicesRequest.indices()) : ImmutableList.empty();
             this.indicesArray = indicesRequest.indices();
             this.indicesOptions = indicesRequest.indicesOptions();
@@ -683,8 +696,8 @@ public class ActionRequestIntrospector {
             }
         }
 
-        IndicesRequestInfo(String role, String index, IndicesOptions indicesOptions, Scope scope, SystemIndexAccess systemIndexAccess,
-                Meta indexMetadata) {
+        IndicesRequestInfo(IndicesRequestInfo.AdditionalInfoRole role, String index, IndicesOptions indicesOptions, Scope scope,
+                SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
             this.indices = ImmutableList.of(index);
             this.indicesArray = new String[] { index };
             this.indicesOptions = indicesOptions;
@@ -708,8 +721,8 @@ public class ActionRequestIntrospector {
             this.systemIndexAccess = systemIndexAccess;
         }
 
-        IndicesRequestInfo(String role, List<String> indices, IndicesOptions indicesOptions, Scope scope, SystemIndexAccess systemIndexAccess,
-                Meta indexMetadata) {
+        IndicesRequestInfo(IndicesRequestInfo.AdditionalInfoRole role, List<String> indices, IndicesOptions indicesOptions, Scope scope,
+                SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
             this.indices = ImmutableList.of(indices);
             this.indicesArray = indices.toArray(new String[indices.size()]);
             this.indicesOptions = indicesOptions;
@@ -922,6 +935,39 @@ public class ActionRequestIntrospector {
 
         public static enum Scope {
             ANY, DATA_STREAM
+        }
+
+        public static class AdditionalInfoRole {
+            public static final AdditionalInfoRole ALIASES = new AdditionalInfoRole("aliases");
+            public static final AdditionalInfoRole RESIZE_TARGET = new AdditionalInfoRole("resize_target");
+
+            private final String id;
+
+            public AdditionalInfoRole(String id) {
+                this.id = id;
+            }
+
+            @Override
+            public int hashCode() {
+                return id.hashCode();
+            }
+
+            @Override
+            public boolean equals(Object other) {
+                if (this == other) {
+                    return true;
+                }
+                if (!(other instanceof AdditionalInfoRole)) {
+                    return false;
+                }
+                return (((AdditionalInfoRole) other).id.equals(this.id));
+            }
+
+            @Override
+            public String toString() {
+                return id;
+            }
+
         }
     }
 
