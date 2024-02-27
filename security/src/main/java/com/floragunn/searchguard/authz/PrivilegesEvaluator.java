@@ -498,7 +498,15 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         }
 
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(context, allIndexPermsRequired,
-                actionRequestInfo.getResolvedIndices(), action.aliasDataStreamHandling());
+                actionRequestInfo.getMainResolvedIndices(), action.aliasDataStreamHandling());
+
+        if (!actionRequestInfo.getAdditionalResolvedIndices().isEmpty()) {
+            for (Map.Entry<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ActionRequestIntrospector.ResolvedIndices> entry : actionRequestInfo.getAdditionalResolvedIndices().entrySet()) {
+                PrivilegesEvaluationResult subResult = actionAuthorization.hasIndexPermission(context, allIndexPermsRequired, entry.getValue(),
+                        action.aliasDataStreamHandling());
+                privilegesEvaluationResult = privilegesEvaluationResult.withAdditional(entry.getKey(), subResult);
+            }
+        }
 
         if (log.isTraceEnabled()) {
             log.trace("Result from privileges evaluation: " + privilegesEvaluationResult.getStatus() + "\n" + privilegesEvaluationResult);
@@ -520,7 +528,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 }
 
                 privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
-                        privilegesEvaluationResult.getAvailableIndices(), actionRequestInfo);
+                        privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult.getAdditionalAvailableIndices(),
+                        actionRequestInfo);
             } else if (actionRequestInfo.getResolvedIndices().getLocal().hasAliasesOnly()
                     && privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
                 // We only come here if no wildcard was requested and ignore_unavailable=false. Thus, normally we won't apply dnfof logic. However, we make
@@ -529,7 +538,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 if (authzConfig.isAllowAliasesIfAllIndicesAllowed() && authzConfig.isIgnoreUnauthorizedIndices()
                         && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())) {
                     privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
-                            privilegesEvaluationResult.getAvailableIndices(), actionRequestInfo);
+                            privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult.getAdditionalAvailableIndices(),
+                            actionRequestInfo);
                 } else {
                     String reasonForNoIndexReduction = "You have privileges for all members of an alias, but for the whole alias. Access to the alias is denied, because ";
 
@@ -560,7 +570,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         } else if (privilegesEvaluationResult.getStatus() == Status.INSUFFICIENT) {
             if (dnfofPossible) {
                 if (!actionRequestInfo.getResolvedIndices().getRemoteIndices().isEmpty()) {
-                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request, ImmutableSet.empty(), actionRequestInfo);
+                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request, ImmutableSet.empty(), ImmutableMap.empty(),
+                            actionRequestInfo);
                 } else if (authzConfig.getIgnoreUnauthorizedIndicesActionsAllowingEmptyResult().matches(action.name())) {
                     if (log.isTraceEnabled()) {
                         log.trace("Changing result from INSUFFICIENT to EMPTY");
