@@ -28,8 +28,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
@@ -65,7 +67,6 @@ import org.elasticsearch.cluster.metadata.IndexAbstraction.Alias;
 import org.elasticsearch.cluster.metadata.IndexAbstraction.DataStream;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.Metadata;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.reindex.ReindexRequest;
@@ -75,12 +76,9 @@ import org.elasticsearch.snapshots.SnapshotUtils;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.SystemIndexAccess;
-import com.floragunn.searchguard.configuration.ClusterInfoHolder;
-import com.floragunn.searchguard.support.SnapshotRestoreHelper;
 import com.floragunn.searchsupport.meta.Meta;
 import com.floragunn.searchsupport.queries.DateMathExpressionResolver;
 import com.floragunn.searchsupport.queries.WildcardExpressionResolver;
@@ -95,17 +93,17 @@ public class ActionRequestIntrospector {
             "cluster:admin/scripts/painless/execute");
 
     private final static Logger log = LogManager.getLogger(ActionRequestIntrospector.class);
-    private final ClusterService clusterService;
-    private final ClusterInfoHolder clusterInfoHolder;
-    private final GuiceDependencies guiceDependencies;
-    private final IndexNameExpressionResolver indexNameExpressionResolver;
+    private final Supplier<Meta> metaDataSupplier;
+    private final Supplier<SystemIndexAccess> systemIndexAccessSupplier;
+    private final BooleanSupplier isLocalNodeElectedMaster;
+    private final Function<RestoreSnapshotRequest, SnapshotInfo> getSnapshotInfoFunction;
 
-    public ActionRequestIntrospector(ClusterService clusterService, IndexNameExpressionResolver indexNameExpressionResolver,
-            ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies) {
-        this.clusterService = clusterService;
-        this.clusterInfoHolder = clusterInfoHolder;
-        this.guiceDependencies = guiceDependencies;
-        this.indexNameExpressionResolver = indexNameExpressionResolver;
+    public ActionRequestIntrospector(Supplier<Meta> metaDataSupplier, Supplier<SystemIndexAccess> systemIndexAccessSupplier,
+            BooleanSupplier isLocalNodeElectedMaster, Function<RestoreSnapshotRequest, SnapshotInfo> getSnapshotInfoFunction) {
+        this.metaDataSupplier = metaDataSupplier;
+        this.isLocalNodeElectedMaster = isLocalNodeElectedMaster;
+        this.getSnapshotInfoFunction = getSnapshotInfoFunction;
+        this.systemIndexAccessSupplier = systemIndexAccessSupplier;
     }
 
     public ActionRequestInfo getActionRequestInfo(Action action, Object request) {
@@ -187,12 +185,12 @@ public class ActionRequestIntrospector {
 
         } else if (request instanceof RestoreSnapshotRequest) {
 
-            if (clusterInfoHolder.isLocalNodeElectedMaster() == Boolean.FALSE) {
+            if (!isLocalNodeElectedMaster.getAsBoolean()) {
                 return UNKNOWN;
             }
 
             RestoreSnapshotRequest restoreRequest = (RestoreSnapshotRequest) request;
-            SnapshotInfo snapshotInfo = SnapshotRestoreHelper.getSnapshotInfo(restoreRequest, guiceDependencies.getRepositoriesService());
+            SnapshotInfo snapshotInfo = this.getSnapshotInfoFunction.apply(restoreRequest);
 
             if (snapshotInfo == null) {
                 log.warn("snapshot repository '" + restoreRequest.repository() + "', snapshot '" + restoreRequest.snapshot() + "' not found");
@@ -455,8 +453,7 @@ public class ActionRequestIntrospector {
         }
 
         ActionRequestInfo(IndicesRequest indices, IndicesRequestInfo.Scope scope) {
-            this(ImmutableSet
-                    .of(new IndicesRequestInfo(null, indices, scope, SystemIndexAccess.get(indexNameExpressionResolver), Meta.from(clusterService))));
+            this(ImmutableSet.of(new IndicesRequestInfo(null, indices, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
             this.sourceRequest = indices;
         }
 
@@ -465,23 +462,23 @@ public class ActionRequestIntrospector {
         }
 
         ActionRequestInfo(String index, IndicesOptions indicesOptions, IndicesRequestInfo.Scope scope) {
-            this(ImmutableSet.of(new IndicesRequestInfo(null, index, indicesOptions, scope, SystemIndexAccess.get(indexNameExpressionResolver),
-                    Meta.from(clusterService))));
+            this(ImmutableSet
+                    .of(new IndicesRequestInfo(null, index, indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
         ActionRequestInfo(List<String> index, IndicesOptions indicesOptions, IndicesRequestInfo.Scope scope) {
-            this(ImmutableSet.of(new IndicesRequestInfo(null, index, indicesOptions, scope, SystemIndexAccess.get(indexNameExpressionResolver),
-                    Meta.from(clusterService))));
+            this(ImmutableSet
+                    .of(new IndicesRequestInfo(null, index, indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
         ActionRequestInfo additional(String role, IndicesRequest indices, IndicesRequestInfo.Scope scope) {
-            return new ActionRequestInfo(unknown, indexRequest, this.indices.with(
-                    new IndicesRequestInfo(role, indices, scope, SystemIndexAccess.get(indexNameExpressionResolver), Meta.from(clusterService))));
+            return new ActionRequestInfo(unknown, indexRequest,
+                    this.indices.with(new IndicesRequestInfo(role, indices, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
         ActionRequestInfo additional(String role, Collection<? extends IndicesRequest> requests, IndicesRequestInfo.Scope scope) {
-            Meta meta = Meta.from(clusterService);
-            SystemIndexAccess systemIndexAccess = SystemIndexAccess.get(indexNameExpressionResolver);
+            Meta meta = metaDataSupplier.get();
+            SystemIndexAccess systemIndexAccess = systemIndexAccessSupplier.get();
             return new ActionRequestInfo(unknown, indexRequest, this.indices
                     .with(requests.stream().map(r -> new IndicesRequestInfo(role, r, scope, systemIndexAccess, meta)).collect(Collectors.toList())));
         }
@@ -1688,8 +1685,8 @@ public class ActionRequestIntrospector {
             return ImmutableSet.empty();
         }
 
-        Meta indexMetadata = Meta.from(clusterService);
-        SystemIndexAccess systemIndexAccess = SystemIndexAccess.get(indexNameExpressionResolver);
+        Meta indexMetadata = metaDataSupplier.get();
+        SystemIndexAccess systemIndexAccess = systemIndexAccessSupplier.get();
 
         IndicesRequest first = null;
         IndicesRequestInfo firstInfo = null;
