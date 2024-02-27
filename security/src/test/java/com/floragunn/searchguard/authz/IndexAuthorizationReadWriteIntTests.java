@@ -79,7 +79,8 @@ public class IndexAuthorizationReadWriteIntTests {
 
     static TestAlias alias_c1 = new TestAlias("alias_c1", index_cr1);
 
-    static TestIndex index_bwx = TestIndex.name("index_bwx").documentCount(0).build(); // index_bwx is not initially created
+    static TestIndex index_bwx = TestIndex.name("index_bwx").documentCount(0).build(); // not initially created
+    static TestAlias alias_bwx = new TestAlias("alias_bwx"); // not initially created
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A")//
             .description("index_a*")//
@@ -128,12 +129,13 @@ public class IndexAuthorizationReadWriteIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_bw*")//
-                            .indexPermissions("SGS_MANAGE").on("index_bw*"))//
+                            .indexPermissions("SGS_MANAGE").on("index_bw*")//
+                            .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
             .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
             .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx))//
             .indexMatcher("create_index", limitedTo(index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("manage_index", limitedTo(index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("get_alias", limitedToNone());
+            .indexMatcher("manage_index", limitedTo(index_bw1, index_bw2, index_bwx, alias_bwx))//
+            .indexMatcher("get_alias", limitedTo(alias_bwx));
 
     static TestSgConfig.User LIMITED_USER_AB_MANAGE_INDEX = new TestSgConfig.User("limited_user_AB_manage_index")//
             .description("index_a*, index_b* with manage index privs")//
@@ -332,6 +334,20 @@ public class IndexAuthorizationReadWriteIntTests {
             }
         }
     }
+    
+    @Test
+    public void createIndex_withAlias() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
+            HttpResponse httpResponse = restClient.putJson("/index_bwx", DocNode.of("aliases.alias_bwx", DocNode.EMPTY));
+            
+            if (containsExactly(alias_bwx).but(user.indexMatcher("manage_index")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));                
+            }
+        }
+    }
+
 
     @Test
     public void reindex() throws Exception {
@@ -380,14 +396,14 @@ public class IndexAuthorizationReadWriteIntTests {
             restClient.deleteWhenClosed("/index_bwx");
 
             HttpResponse httpResponse = restClient.post("/index_br1/_clone/index_bwx");
-            
+
             /*
             if (containsExactly(index_br1).but(user.indexMatcher("create_index")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
                 assertThat(httpResponse, isOk());
             }*/
-            
+
             assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
 
             // TODO test for absense of docs
