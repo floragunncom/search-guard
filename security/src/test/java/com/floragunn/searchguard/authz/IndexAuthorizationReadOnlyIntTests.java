@@ -342,6 +342,15 @@ public class IndexAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_indexPattern_nonExistingIndex_ignoreUnavailable() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_a*,index_b*,xxx_non_existing/_search?size=1000&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3).at("hits.hits[*]._index")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void search_alias_ignoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("alias_ab1/_search?size=1000&ignore_unavailable=true");
