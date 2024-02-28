@@ -275,9 +275,8 @@ public class IndexAuthorizationReadOnlyIntTests {
     public void search_all_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all/_search?size=1000&expand_wildcards=all");
-            assertThat(httpResponse,
-                    containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden, index_hidden_dot)
-                            .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
+                    index_hidden_dot, searchGuardIndices()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -287,7 +286,7 @@ public class IndexAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("/_all/_search?size=1000&expand_wildcards=all",
                     new BasicHeader(Task.X_ELASTIC_PRODUCT_ORIGIN_HTTP_HEADER, "origin-with-allowed-system-indices"));
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
-                    index_hidden_dot, index_system).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+                    index_hidden_dot, index_system, searchGuardIndices()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -312,9 +311,8 @@ public class IndexAuthorizationReadOnlyIntTests {
     public void search_wildcard_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*/_search?size=1000&expand_wildcards=all");
-            assertThat(httpResponse,
-                    containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden, index_hidden_dot)
-                            .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
+                    index_hidden_dot, searchGuardIndices()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -413,7 +411,7 @@ public class IndexAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("x_does_not_exist/_search?size=1000");
 
-            if (user.getName().equals("unlimited_user")) {
+            if (user == UNLIMITED_USER || user == SUPER_UNLIMITED_USER) {
                 assertThat(httpResponse, isNotFound());
             } else {
                 assertThat(httpResponse, isForbidden());
@@ -445,7 +443,12 @@ public class IndexAuthorizationReadOnlyIntTests {
     public void search_protectedIndex() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/.searchguard/_search");
-            assertThat(httpResponse, isForbidden());
+
+            if (user == SUPER_UNLIMITED_USER) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
         }
     }
 
@@ -537,9 +540,8 @@ public class IndexAuthorizationReadOnlyIntTests {
     public void cat_all_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_cat/indices?format=json&expand_wildcards=all");
-            assertThat(httpResponse,
-                    containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden, index_hidden_dot)
-                            .at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
+                    index_hidden_dot, searchGuardIndices()).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -549,7 +551,7 @@ public class IndexAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("/_cat/indices?format=json&expand_wildcards=all",
                     new BasicHeader(Task.X_ELASTIC_PRODUCT_ORIGIN_HTTP_HEADER, "origin-with-allowed-system-indices"));
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
-                    index_hidden_dot, index_system).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
+                    index_hidden_dot, index_system, searchGuardIndices()).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -656,7 +658,7 @@ public class IndexAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*?expand_wildcards=all");
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, alias_ab1, alias_c1,
-                    index_hidden, index_hidden_dot).at("$.*[*].name").but(user.indexMatcher("read_top_level")).whenEmpty(200));
+                    index_hidden, index_hidden_dot, searchGuardIndices()).at("$.*[*].name").but(user.indexMatcher("read_top_level")).whenEmpty(200));
         }
     }
 
