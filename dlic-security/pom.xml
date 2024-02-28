@@ -18,7 +18,7 @@
 
   <properties>
     <jjwt.version>0.10.5</jjwt.version>
-    <ldaptive.version>2.2.0</ldaptive.version>
+    <ldaptive.version>2.3.0</ldaptive.version>
 
     <unboundid-ldapsdk.version>6.0.11</unboundid-ldapsdk.version>
   </properties>
@@ -131,7 +131,7 @@
       <!-- Replacement dependency for com.onelogin:java-saml (see above) -->
       <groupId>org.apache.santuario</groupId>
       <artifactId>xmlsec</artifactId>
-      <version>2.3.4</version>
+      <version>4.0.1</version>
     </dependency>
     <dependency>
       <!-- Replacement for bcprov-jdk18on (see above)  -->
