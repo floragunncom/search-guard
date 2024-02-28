@@ -46,6 +46,7 @@ import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotR
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -134,16 +135,27 @@ public class ActionRequestIntrospector {
                 AliasesRequest aliasesRequest = (AliasesRequest) request;
                 IndicesRequest indicesRequest = (IndicesRequest) request;
 
-                return new ActionRequestInfo(indicesRequest.indices(), indicesRequest.indicesOptions(), IndicesRequestInfo.Scope.ANY)//
+                return new ActionRequestInfo(indicesRequest.indices(), indicesRequest.indicesOptions(), IndicesRequestInfo.Scope.INDICES_DATA_STREAMS)//
                         .additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES, aliasesRequest.aliases(),
                                 aliasesRequest.expandAliasesWildcards() ? IndicesOptions.lenientExpandHidden() : EXACT,
                                 IndicesRequestInfo.Scope.ALIAS);
             } else if (request instanceof IndicesAliasesRequest) {
                 IndicesAliasesRequest indicesAliasesRequest = (IndicesAliasesRequest) request;
 
-                return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY).additional(
-                        IndicesRequestInfo.AdditionalInfoRole.ALIASES, indicesAliasesRequest.getAliasActions(), IndicesRequestInfo.Scope.ANY); // TODO scope alias?
+                return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS).additional(
+                        IndicesRequestInfo.AdditionalInfoRole.ALIASES, indicesAliasesRequest.getAliasActions().stream()
+                                .flatMap(a -> Arrays.asList(a.aliases()).stream()).collect(ImmutableList.collector()),
+                        IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN, IndicesRequestInfo.Scope.ALIAS);
+            } else if (request instanceof CreateIndexRequest) {
+                CreateIndexRequest createIndexRequest = (CreateIndexRequest) request;
 
+                if (createIndexRequest.aliases() == null || createIndexRequest.aliases().isEmpty()) {
+                    return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY);
+                } else {
+                    return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY)//
+                            .additional(IndicesRequestInfo.AdditionalInfoRole.MANAGE_ALIASES,
+                                    ImmutableList.of(createIndexRequest.aliases()).map(a -> a.name()), EXACT, IndicesRequestInfo.Scope.ALIAS);
+                }
             } else if (request instanceof PutMappingRequest) {
                 PutMappingRequest putMappingRequest = (PutMappingRequest) request;
 
@@ -245,20 +257,14 @@ public class ActionRequestIntrospector {
             }
         } else if (request instanceof IndicesRequest.Replaceable) {
             IndicesRequest.Replaceable replaceableIndicesRequest = (IndicesRequest.Replaceable) request;
-
-            ResolvedIndices resolvedIndices = getResolvedIndices(action, replaceableIndicesRequest, actionRequestInfo);
-            ImmutableSet<String> actualIndices = resolvedIndices.getLocal().getUnion().map(Meta.IndexLikeObject::name);
-
-            if (keepIndices.containsAll(actualIndices)) {
-                return PrivilegesEvaluationResult.OK;
-            }
+            actionRequestInfo = ensureActionRequestInfo(action, replaceableIndicesRequest, actionRequestInfo);
 
             if (request instanceof AliasesRequest) {
                 // AliasesRequest is a sub interface of IndicesRequest.Replaceable
                 AliasesRequest aliasesRequest = (AliasesRequest) request;
 
                 if (keepIndices != null) {
-                    ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(resolvedIndices.getRemoteIndices());
+                    ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(actionRequestInfo.getResolvedIndices().getRemoteIndices());
 
                     if (!keepIndices.isEmpty()) {
                         aliasesRequest.indices(toArray(newIndices));
@@ -280,6 +286,13 @@ public class ActionRequestIntrospector {
                 return PrivilegesEvaluationResult.OK;
             } else {
                 // request instanceof IndicesRequest.Replaceable
+
+                ResolvedIndices resolvedIndices = actionRequestInfo.getResolvedIndices();
+                ImmutableSet<String> actualIndices = resolvedIndices.getLocal().getUnion().map(Meta.IndexLikeObject::name);
+
+                if (keepIndices.containsAll(actualIndices)) {
+                    return PrivilegesEvaluationResult.OK;
+                }
 
                 // TODO check if this is really necessary here or checked before
                 if (!replaceableIndicesRequest.indicesOptions().ignoreUnavailable() && !containsWildcard(replaceableIndicesRequest)) {
@@ -395,20 +408,20 @@ public class ActionRequestIntrospector {
         return false;
     }
 
-    private ResolvedIndices getResolvedIndices(Action action, IndicesRequest indicesRequest, ActionRequestInfo actionRequestInfo) {
+    private ActionRequestInfo ensureActionRequestInfo(Action action, IndicesRequest indicesRequest, ActionRequestInfo actionRequestInfo) {
         if (actionRequestInfo != null && actionRequestInfo.isFor(indicesRequest)) {
-            return actionRequestInfo.getResolvedIndices();
+            return actionRequestInfo;
         } else {
             return new ActionRequestInfo(indicesRequest,
-                    action.isDataStreamPrivilege() ? IndicesRequestInfo.Scope.DATA_STREAM : IndicesRequestInfo.Scope.ANY).getResolvedIndices();
+                    action.isDataStreamPrivilege() ? IndicesRequestInfo.Scope.DATA_STREAM : IndicesRequestInfo.Scope.ANY);
         }
     }
 
     private String[] applyReplacementFunction(Action action, IndicesRequest indicesRequest,
             Function<ResolvedIndices, List<String>> replacementFunction, ActionRequestInfo actionRequestInfo) {
-        ResolvedIndices resolvedIndices = getResolvedIndices(action, indicesRequest, actionRequestInfo);
-        List<String> replacedLocalIndices = new ArrayList<>(replacementFunction.apply(resolvedIndices));
-        replacedLocalIndices.addAll(resolvedIndices.getRemoteIndices());
+        actionRequestInfo = ensureActionRequestInfo(action, indicesRequest, actionRequestInfo);
+        List<String> replacedLocalIndices = new ArrayList<>(replacementFunction.apply(actionRequestInfo.getResolvedIndices()));
+        replacedLocalIndices.addAll(actionRequestInfo.getResolvedIndices().getRemoteIndices());
         return replacedLocalIndices.toArray(new String[replacedLocalIndices.size()]);
     }
 
@@ -930,17 +943,57 @@ public class ActionRequestIntrospector {
         }
 
         public static enum Scope {
-            ANY, INDEX, ALIAS, DATA_STREAM
+            ANY(true, true, true), INDEX(true, false, false), ALIAS(false, true, false), DATA_STREAM(false, false, true),
+            INDICES_DATA_STREAMS(true, false, true);
+
+            private final boolean includeIndices;
+            private final boolean includeAliases;
+            private final boolean includeDataStreams;
+
+            private Scope(boolean includeIndices, boolean includeAliases, boolean includeDataStreams) {
+                this.includeIndices = includeIndices;
+                this.includeAliases = includeAliases;
+                this.includeDataStreams = includeDataStreams;
+            }
+
+            public boolean includeIndices() {
+                return includeIndices;
+            }
+
+            public boolean includeAliases() {
+                return includeAliases;
+            }
+
+            public boolean includeDataStreams() {
+                return includeDataStreams;
+            }
         }
 
         public static class AdditionalInfoRole {
             public static final AdditionalInfoRole ALIASES = new AdditionalInfoRole("aliases");
             public static final AdditionalInfoRole RESIZE_TARGET = new AdditionalInfoRole("resize_target");
+            public static final AdditionalInfoRole MANAGE_ALIASES = new AdditionalInfoRole("manage_aliases",
+                    ImmutableSet.ofArray("indices:admin/aliases"));
 
             private final String id;
+            private final ImmutableSet<String> requiredPrivileges;
 
             public AdditionalInfoRole(String id) {
                 this.id = id;
+                this.requiredPrivileges = null;
+            }
+
+            public AdditionalInfoRole(String id, ImmutableSet<String> requiredPrivileges) {
+                this.id = id;
+                this.requiredPrivileges = requiredPrivileges;
+            }
+
+            public ImmutableSet<Action> getRequiredPrivileges(ImmutableSet<Action> original, Actions actions) {
+                if (this.requiredPrivileges == null) {
+                    return original;
+                } else {
+                    return this.requiredPrivileges.map(a -> actions.get(a));
+                }
             }
 
             @Override
@@ -1384,7 +1437,7 @@ public class ActionRequestIntrospector {
                             return resolveAliasesWithoutPatterns(request, indexMetadata);
                         }
                     } else {
-                        // Scope.ANY
+                        // other scope
 
                         if (request.isAll) {
                             return resolveIsAll(request, indexMetadata);
@@ -1417,10 +1470,9 @@ public class ActionRequestIntrospector {
             static Local resolveWithPatterns(IndicesRequestInfo request, Meta indexMetadata) {
                 Metadata metadata = indexMetadata.esMetadata();
                 IndicesRequestInfo.Scope scope = request.scope;
-                boolean includeDataStreams = request.includeDataStreams || scope == IndicesRequestInfo.Scope.DATA_STREAM;
-                boolean includeIndices = scope == IndicesRequestInfo.Scope.ANY;
-                boolean includeAliases = (scope == IndicesRequestInfo.Scope.ANY && !request.indicesOptions.ignoreAliases())
-                        || scope == IndicesRequestInfo.Scope.ALIAS;
+                boolean includeDataStreams = request.includeDataStreams && scope.includeDataStreams;
+                boolean includeIndices = scope.includeIndices;
+                boolean includeAliases = (scope.includeAliases && !request.indicesOptions.ignoreAliases()) || scope == IndicesRequestInfo.Scope.ALIAS; // An explict ALIAS scope overrides ignoreAliases
 
                 SortedMap<String, IndexAbstraction> indicesLookup = metadata.getIndicesLookup();
 
@@ -1488,6 +1540,8 @@ public class ActionRequestIntrospector {
                             if (indexLikeObject == null) {
                                 if (scope == IndicesRequestInfo.Scope.DATA_STREAM) {
                                     dataStreams.add(Meta.DataStream.nonExistent(index));
+                                } else if (scope == IndicesRequestInfo.Scope.ALIAS) {
+                                    aliases.add(Meta.Alias.nonExistent(index));                                    
                                 } else {
                                     nonExistingIndices.add(Meta.NonExistent.of(index));
                                 }
@@ -1532,16 +1586,23 @@ public class ActionRequestIntrospector {
             }
 
             static Local resolveIsAll(IndicesRequestInfo request, Meta indexMetadata) {
+                IndicesRequestInfo.Scope scope = request.scope;
+
                 boolean includeHidden = request.indicesOptions.expandWildcardsHidden();
                 boolean excludeSystem = request.systemIndexAccess.isNotAllowed();
+                boolean includeDataStreams = request.includeDataStreams && scope.includeDataStreams;
+                boolean includeIndices = scope.includeIndices;
+                boolean includeAliases = (scope.includeAliases && !request.indicesOptions.ignoreAliases()) || scope == IndicesRequestInfo.Scope.ALIAS;
 
                 ImmutableSet<Meta.Index> pureIndices;
                 ImmutableSet<Meta.Alias> aliases;
                 ImmutableSet<Meta.DataStream> dataStreams;
                 ImmutableSet<Meta.NonExistent> nonExistingIndices = ImmutableSet.empty();
 
-                if (request.includeDataStreams) {
-                    if (!includeHidden) {
+                if (includeDataStreams && includeAliases) {
+                    if (!includeIndices) {
+                        pureIndices = ImmutableSet.empty();
+                    } else if (!includeHidden) {
                         pureIndices = indexMetadata.nonHiddenIndicesWithoutParents();
                     } else if (excludeSystem) {
                         pureIndices = indexMetadata.nonSystemIndicesWithoutParents();
@@ -1552,7 +1613,9 @@ public class ActionRequestIntrospector {
                     aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching(e -> !e.isHidden());
                     dataStreams = indexMetadata.dataStreams();
                 } else {
-                    if (!includeHidden) {
+                    if (!includeIndices) {
+                        pureIndices = ImmutableSet.empty();
+                    } else if (!includeHidden) {
                         pureIndices = indexMetadata.nonHiddenIndices();
                     } else if (excludeSystem) {
                         pureIndices = indexMetadata.nonSystemIndices();
@@ -1560,8 +1623,13 @@ public class ActionRequestIntrospector {
                         pureIndices = indexMetadata.indices();
                     }
 
-                    aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching(e -> !e.isHidden());
-                    dataStreams = ImmutableSet.empty();
+                    aliases = includeAliases ? (includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching(e -> !e.isHidden()))
+                            : ImmutableSet.empty();
+                    dataStreams = includeDataStreams ? indexMetadata.dataStreams() : ImmutableSet.empty();
+
+                    if (!dataStreams.isEmpty()) {
+                        pureIndices = pureIndices.matching(e -> e.parentDataStreamName() == null);
+                    }
 
                     if (!aliases.isEmpty()) {
                         pureIndices = pureIndices.matching(e -> e.parentAliasNames().isEmpty());
@@ -1577,10 +1645,16 @@ public class ActionRequestIntrospector {
             }
 
             static Local resolveWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
+                IndicesRequestInfo.Scope scope = request.scope;
+
                 ImmutableSet.Builder<Meta.Index> indices = new ImmutableSet.Builder<>();
                 ImmutableSet.Builder<Meta.NonExistent> nonExistingIndices = new ImmutableSet.Builder<>();
                 ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
                 ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
+
+                boolean includeDataStreams = request.includeDataStreams && scope.includeDataStreams;
+                boolean includeIndices = scope.includeIndices;
+                boolean includeAliases = (scope.includeAliases && !request.indicesOptions.ignoreAliases()) || scope == IndicesRequestInfo.Scope.ALIAS;
 
                 for (String index : request.localIndices) {
                     String resolved = DateMathExpressionResolver.resolveExpression(index);
@@ -1590,15 +1664,18 @@ public class ActionRequestIntrospector {
                     if (indexLike == null) {
                         nonExistingIndices.add(Meta.NonExistent.of(resolved));
                     } else if (indexLike instanceof Meta.Alias) {
-                        if (!request.indicesOptions.ignoreAliases()) {
+                        if (includeAliases) {
                             aliases.add((Meta.Alias) indexLike);
                         }
+                        // TODO check whether we need to add NonExistent elements when we have an alias but we want to ignore it
                     } else if (indexLike instanceof Meta.DataStream) {
-                        if (request.includeDataStreams) {
+                        if (includeDataStreams) {
                             dataStreams.add((Meta.DataStream) indexLike);
                         }
                     } else {
-                        indices.add((Meta.Index) indexLike);
+                        if (includeIndices) {
+                            indices.add((Meta.Index) indexLike);
+                        }
                     }
                 }
 

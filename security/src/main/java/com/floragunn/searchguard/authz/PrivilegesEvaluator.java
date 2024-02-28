@@ -502,8 +502,15 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         if (!actionRequestInfo.getAdditionalResolvedIndices().isEmpty()) {
             for (Map.Entry<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ActionRequestIntrospector.ResolvedIndices> entry : actionRequestInfo.getAdditionalResolvedIndices().entrySet()) {
-                PrivilegesEvaluationResult subResult = actionAuthorization.hasIndexPermission(context, allIndexPermsRequired, entry.getValue(),
+                ImmutableSet<Action> additionalIndexPermissions = entry.getKey().getRequiredPrivileges(allIndexPermsRequired, actions);
+                
+                PrivilegesEvaluationResult subResult = actionAuthorization.hasIndexPermission(context, additionalIndexPermissions, entry.getValue(),
                         action.aliasDataStreamHandling());
+                
+                if (log.isTraceEnabled()) {
+                    log.trace("Sub result for {}:\n{}", entry.getKey(), subResult);
+                }
+                
                 privilegesEvaluationResult = privilegesEvaluationResult.withAdditional(entry.getKey(), subResult);
             }
         }
