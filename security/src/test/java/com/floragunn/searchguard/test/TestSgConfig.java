@@ -573,7 +573,7 @@ public class TestSgConfig {
         }
     }
 
-    public static class User implements UserCredentialsHolder {
+    public static class User implements UserCredentialsHolder {        
         private String name;
         private UserPassword password;
         private Role[] roles;
@@ -582,6 +582,7 @@ public class TestSgConfig {
         private Map<String, Object> attributes = new HashMap<>();
         private BiFunction<String, List<String>, Matcher<HttpResponse>> restMatcher;
         private Map<String, IndexApiMatchers.IndexMatcher> indexMatchers = new HashMap<>();
+        private boolean adminCertUser = false;
 
         public User(String name) {
             this.name = name;
@@ -661,6 +662,15 @@ public class TestSgConfig {
 
         public String getDescription() {
             return description;
+        }
+
+        public boolean isAdminCertUser() {
+            return adminCertUser;
+        }
+
+        public User adminCertUser() {
+            this.adminCertUser = true;
+            return this;
         }
 
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 floragunn GmbH
+ * Copyright 2015-2024 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -133,9 +133,11 @@ public class ActionRequestIntrospector {
             } else if (request instanceof AliasesRequest) {
                 AliasesRequest aliasesRequest = (AliasesRequest) request;
                 IndicesRequest indicesRequest = (IndicesRequest) request;
-                return new ActionRequestInfo(ImmutableList.ofArray(indicesRequest.indices()), indicesRequest.indicesOptions(),
-                        IndicesRequestInfo.Scope.ANY).additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES, aliasesRequest,
-                                IndicesRequestInfo.Scope.ANY);
+
+                return new ActionRequestInfo(indicesRequest.indices(), indicesRequest.indicesOptions(), IndicesRequestInfo.Scope.ANY)//
+                        .additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES, aliasesRequest.aliases(),
+                                aliasesRequest.expandAliasesWildcards() ? IndicesOptions.lenientExpandHidden() : EXACT,
+                                IndicesRequestInfo.Scope.ALIAS);
             } else if (request instanceof IndicesAliasesRequest) {
                 IndicesAliasesRequest indicesAliasesRequest = (IndicesAliasesRequest) request;
 
@@ -283,7 +285,7 @@ public class ActionRequestIntrospector {
                 if (!replaceableIndicesRequest.indicesOptions().ignoreUnavailable() && !containsWildcard(replaceableIndicesRequest)) {
                     return PrivilegesEvaluationResult.INSUFFICIENT;
                 }
-                
+
                 ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(resolvedIndices.getRemoteIndices());
 
                 if (log.isTraceEnabled()) {
@@ -477,6 +479,10 @@ public class ActionRequestIntrospector {
                     .of(new IndicesRequestInfo(null, index, indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
+        ActionRequestInfo(String[] indices, IndicesOptions indicesOptions, IndicesRequestInfo.Scope scope) {
+            this(ImmutableList.ofArray(indices), indicesOptions, scope);
+        }
+
         ActionRequestInfo(List<String> index, IndicesOptions indicesOptions, IndicesRequestInfo.Scope scope) {
             this(ImmutableSet
                     .of(new IndicesRequestInfo(null, index, indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
@@ -495,6 +501,17 @@ public class ActionRequestIntrospector {
                     .with(requests.stream().map(r -> new IndicesRequestInfo(role, r, scope, systemIndexAccess, meta)).collect(Collectors.toList())));
         }
 
+        ActionRequestInfo additional(IndicesRequestInfo.AdditionalInfoRole role, ImmutableList<String> indices, IndicesOptions indicesOptions,
+                IndicesRequestInfo.Scope scope) {
+            return new ActionRequestInfo(unknown, indexRequest, this.indices
+                    .with(new IndicesRequestInfo(role, indices, indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
+        }
+
+        ActionRequestInfo additional(IndicesRequestInfo.AdditionalInfoRole role, String[] indices, IndicesOptions indicesOptions,
+                IndicesRequestInfo.Scope scope) {
+            return this.additional(role, ImmutableList.ofArray(indices), indicesOptions, scope);
+        }
+
         public boolean isUnknown() {
             return unknown;
         }
@@ -505,8 +522,7 @@ public class ActionRequestIntrospector {
 
         public boolean containsWildcards() {
             if (containsWildcards == null) {
-                boolean result = this.indices != null ? this.indices.stream().anyMatch((i) -> i.containsWildcards() || i.containsAliasWildcards())
-                        : false;
+                boolean result = this.indices != null ? this.indices.stream().anyMatch((i) -> i.containsWildcards()) : false;
                 this.containsWildcards = result;
                 return result;
             } else {
@@ -643,17 +659,14 @@ public class ActionRequestIntrospector {
     public static class IndicesRequestInfo {
 
         private final ImmutableList<String> indices;
-        private final ImmutableList<String> aliases;
         private final String[] indicesArray;
         private final IndicesOptions indicesOptions;
         private final boolean allowsRemoteIndices;
         private final boolean includeDataStreams;
         private final IndicesRequestInfo.AdditionalInfoRole role;
         private final boolean expandWildcards;
-        private final boolean expandAliasWildcards;
         private final boolean isAll;
         private final boolean containsWildcards;
-        private final boolean containsAliasWildcards;
         private final boolean containsNegation;
         private final boolean writeRequest;
         private final boolean createIndexRequest;
@@ -685,15 +698,6 @@ public class ActionRequestIntrospector {
             this.scope = scope;
             this.systemIndexAccess = systemIndexAccess;
 
-            if (indicesRequest instanceof AliasesRequest) {
-                this.aliases = ImmutableList.ofArray(((AliasesRequest) indicesRequest).aliases());
-                this.expandAliasWildcards = ((AliasesRequest) indicesRequest).expandAliasesWildcards();
-                this.containsAliasWildcards = this.expandAliasWildcards ? containsWildcard(this.aliases) : false;
-            } else {
-                this.aliases = ImmutableList.empty();
-                this.expandAliasWildcards = false;
-                this.containsAliasWildcards = false;
-            }
         }
 
         IndicesRequestInfo(IndicesRequestInfo.AdditionalInfoRole role, String index, IndicesOptions indicesOptions, Scope scope,
@@ -714,9 +718,7 @@ public class ActionRequestIntrospector {
             this.writeRequest = false;
             this.createIndexRequest = false;
             this.indexMetadata = indexMetadata;
-            this.aliases = ImmutableList.empty();
-            this.expandAliasWildcards = false;
-            this.containsAliasWildcards = false;
+
             this.scope = scope;
             this.systemIndexAccess = systemIndexAccess;
         }
@@ -739,9 +741,7 @@ public class ActionRequestIntrospector {
             this.writeRequest = false;
             this.createIndexRequest = false;
             this.indexMetadata = indexMetadata;
-            this.aliases = ImmutableList.empty();
-            this.expandAliasWildcards = false;
-            this.containsAliasWildcards = false;
+
             this.scope = scope;
             this.systemIndexAccess = systemIndexAccess;
         }
@@ -819,10 +819,6 @@ public class ActionRequestIntrospector {
             return containsWildcards;
         }
 
-        public boolean containsAliasWildcards() {
-            return containsAliasWildcards;
-        }
-
         public boolean isAll() {
             return this.isAll;
         }
@@ -853,7 +849,7 @@ public class ActionRequestIntrospector {
                 return new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.of(this));
             }
 
-            if (localIndices.isEmpty() && aliases.isEmpty()) {
+            if (localIndices.isEmpty()) {
                 return new ResolvedIndices(false, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.empty());
             } else if (isExpandWildcards() && localIndices.size() == 1 && (localIndices.contains(Metadata.ALL) || localIndices.contains("*"))) {
                 // In case of * wildcards, we defer resolution of indices. Chances are that we do not need to resolve the wildcard at all in this case.
@@ -934,7 +930,7 @@ public class ActionRequestIntrospector {
         }
 
         public static enum Scope {
-            ANY, DATA_STREAM
+            ANY, INDEX, ALIAS, DATA_STREAM
         }
 
         public static class AdditionalInfoRole {
@@ -1376,6 +1372,17 @@ public class ActionRequestIntrospector {
                         } else {
                             return resolveDataStreamsWithoutPatterns(request, indexMetadata);
                         }
+                    } else if (request.scope == IndicesRequestInfo.Scope.ALIAS) {
+                        if (request.isAll) {
+                            return new Local(ImmutableSet.empty(), indexMetadata.aliases(), ImmutableSet.empty(), ImmutableSet.empty());
+                        } else if (request.expandWildcards) {
+                            return resolveWithPatterns(request, indexMetadata);
+                        } else if (request.createIndexRequest) {
+                            return new Local(ImmutableSet.empty(), ImmutableSet.of(request.resolveDateMathExpressions().map(Meta.Alias::nonExistent)),
+                                    ImmutableSet.empty(), ImmutableSet.empty());
+                        } else {
+                            return resolveAliasesWithoutPatterns(request, indexMetadata);
+                        }
                     } else {
                         // Scope.ANY
 
@@ -1412,7 +1419,8 @@ public class ActionRequestIntrospector {
                 IndicesRequestInfo.Scope scope = request.scope;
                 boolean includeDataStreams = request.includeDataStreams || scope == IndicesRequestInfo.Scope.DATA_STREAM;
                 boolean includeIndices = scope == IndicesRequestInfo.Scope.ANY;
-                boolean includeAliases = scope == IndicesRequestInfo.Scope.ANY && !request.indicesOptions.ignoreAliases();
+                boolean includeAliases = (scope == IndicesRequestInfo.Scope.ANY && !request.indicesOptions.ignoreAliases())
+                        || scope == IndicesRequestInfo.Scope.ALIAS;
 
                 SortedMap<String, IndexAbstraction> indicesLookup = metadata.getIndicesLookup();
 
@@ -1520,8 +1528,7 @@ public class ActionRequestIntrospector {
                     });
                 }
 
-                return new Local(pureIndices, aliases.build().with(resolveExplicitAliases(request, indexMetadata)), dataStreams.build(),
-                        nonExistingIndices.build());
+                return new Local(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
             }
 
             static Local resolveIsAll(IndicesRequestInfo request, Meta indexMetadata) {
@@ -1566,7 +1573,7 @@ public class ActionRequestIntrospector {
                     pureIndices = pureIndices.matching(e -> !excludeStatePredicate.test(e.isOpen()));
                 }
 
-                return new Local(pureIndices, aliases.with(resolveExplicitAliases(request, indexMetadata)), dataStreams, nonExistingIndices);
+                return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
             }
 
             static Local resolveWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
@@ -1611,8 +1618,7 @@ public class ActionRequestIntrospector {
                     });
                 }
 
-                return new Local(pureIndices, aliases.build().with(resolveExplicitAliases(request, indexMetadata)), dataStreams.build(),
-                        nonExistingIndices.build());
+                return new Local(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
             }
 
             static Local resolveDataStreamsWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
@@ -1633,71 +1639,22 @@ public class ActionRequestIntrospector {
                 return new Local(ImmutableSet.empty(), ImmutableSet.empty(), dataStreams.build(), ImmutableSet.empty());
             }
 
-            static ImmutableSet<Meta.Alias> resolveExplicitAliases(IndicesRequestInfo request, Meta indexMetadata) {
-                if (request.aliases.isEmpty()) {
-                    return ImmutableSet.empty();
-                }
-
-                if (request.expandAliasWildcards && containsWildcard(request.aliases)) {
-                    return resolveExplicitAliasesWithPatterns(request, indexMetadata);
-                } else {
-                    ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
-
-                    for (String alias : request.aliases) {
-                        Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(alias);
-
-                        if (indexLike instanceof Meta.Alias) {
-                            aliases.add((Meta.Alias) indexLike);
-                        } else {
-                            aliases.add(Meta.Alias.nonExistent(alias));
-                        }
-                    }
-
-                    return aliases.build();
-                }
-            }
-
-            static ImmutableSet<Meta.Alias> resolveExplicitAliasesWithPatterns(IndicesRequestInfo request, Meta indexMetadata) {
+            static Local resolveAliasesWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
                 ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
-                Set<String> excludeNames = new HashSet<>();
 
-                for (int i = request.aliases.size() - 1; i >= 0; i--) {
-                    String alias = request.aliases.get(i);
+                for (String index : request.localIndices) {
+                    String resolved = DateMathExpressionResolver.resolveExpression(index);
 
-                    if (alias.startsWith("-")) {
-                        String positivePattern = alias.substring(1);
+                    Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved);
 
-                        if (positivePattern.contains("*")) {
-                            indexMetadata.aliases().iterateMatching(candidate -> Regex.simpleMatch(positivePattern, candidate.name()))
-                                    .forEach(candidate -> excludeNames.add(candidate.name()));
-                        } else {
-                            excludeNames.add(alias);
-                        }
-                    } else {
-                        if (alias.contains("*")) {
-                            for (Meta.Alias matched : indexMetadata.aliases()
-                                    .iterateMatching(candidate -> Regex.simpleMatch(alias, candidate.name()))) {
-                                if (!excludeNames.contains(matched.name())) {
-                                    aliases.add(matched);
-                                }
-                            }
-                        } else {
-                            if (excludeNames.contains(alias)) {
-                                continue;
-                            }
-
-                            Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(alias);
-
-                            if (indexLikeObject instanceof Meta.Alias) {
-                                aliases.add((Meta.Alias) indexLikeObject);
-                            } else {
-                                aliases.add(Meta.Alias.nonExistent(alias));
-                            }
-                        }
+                    if (indexLike == null) {
+                        aliases.add(Meta.Alias.nonExistent(resolved));
+                    } else if (indexLike instanceof Meta.Alias) {
+                        aliases.add((Meta.Alias) indexLike);
                     }
                 }
 
-                return aliases.build();
+                return new Local(ImmutableSet.empty(), aliases.build(), ImmutableSet.empty(), ImmutableSet.empty());
             }
 
             static final Local EMPTY = new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
