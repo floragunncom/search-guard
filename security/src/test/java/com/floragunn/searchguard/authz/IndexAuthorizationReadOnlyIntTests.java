@@ -21,6 +21,8 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
+import static com.floragunn.searchguard.test.IndexApiMatchers.*;
+
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
@@ -187,6 +189,17 @@ public class IndexAuthorizationReadOnlyIntTests {
             .indexMatcher("read_top_level", unlimited())//
             .indexMatcher("get_alias", unlimited());
 
+    /**
+     * The SUPER_UNLIMITED_USER authenticates with an admin cert, which will cause all access control code to be skipped.
+     * This serves as a base for comparison with the default behavior.
+     */
+    static TestSgConfig.User SUPER_UNLIMITED_USER = new TestSgConfig.User("super_unlimited_user")//
+            .description("super unlimited (admin cert)")//
+            .adminCertUser()//
+            .indexMatcher("read", unlimitedIncludingSearchGuardIndices())//
+            .indexMatcher("read_top_level", unlimitedIncludingSearchGuardIndices())//
+            .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
+
     /*
     static TestSgConfig.User LIMITED_USER_D = new TestSgConfig.User("limited_user_D").roles(//
             new Role("limited_user_d_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")
@@ -203,7 +216,7 @@ public class IndexAuthorizationReadOnlyIntTests {
     */
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B1, LIMITED_USER_C, LIMITED_USER_ALIAS_AB1,
             LIMITED_USER_ALIAS_C1, LIMITED_USER_A_HIDDEN, LIMITED_USER_A_SYSTEM, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS,
-            UNLIMITED_USER);
+            UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
@@ -564,8 +577,8 @@ public class IndexAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("_alias");
             assertThat(httpResponse,
                     containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1).at("$.keys()")
-                    .but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
+                    index_hidden_dot, searchGuardIndices()).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
     }
 

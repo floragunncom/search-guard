@@ -44,16 +44,17 @@ import com.jayway.jsonpath.Option;
 public class IndexApiMatchers {
     public static IndexMatcher containsExactly(TestIndexLike... testIndices) {
         Map<String, TestIndexLike> indexNameMap = new HashMap<>();
+        boolean containsSearchGuardIndices = false;
 
         for (TestIndexLike testIndex : testIndices) {
-            indexNameMap.put(testIndex.getName(), testIndex);
+            if (testIndex == SEARCH_GUARD_INDICES) {
+                containsSearchGuardIndices = true;
+            } else {
+                indexNameMap.put(testIndex.getName(), testIndex);
+            }
         }
 
-        return containsExactly(indexNameMap);
-    }
-
-    public static IndexMatcher containsExactly(Map<String, TestIndexLike> indexNameMap) {
-        return new ContainsExactlyMatcher(indexNameMap);
+        return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices);
     }
 
     public static IndexMatcher limitedTo(TestIndexLike... testIndices) {
@@ -70,18 +71,48 @@ public class IndexApiMatchers {
         return new UnlimitedMatcher();
     }
 
+    public static IndexMatcher unlimitedIncludingSearchGuardIndices() {
+        return new UnlimitedMatcher(true);
+    }
+
     public static IndexMatcher limitedToNone() {
         return new LimitedToMatcher(Collections.emptyMap());
     }
-    
-    public static class ContainsExactlyMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
-        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap) {
-            super(indexNameMap);
+    /**
+     * This returns a magic TestIndexLike object which matches all internal search guard indices.
+     */
+    public static TestIndexLike searchGuardIndices() {
+        return SEARCH_GUARD_INDICES;
+    }
+
+    private final static TestIndexLike SEARCH_GUARD_INDICES = new TestIndexLike() {
+
+        @Override
+        public String getName() {
+            return ".searchguard*";
         }
 
-        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
-            super(indexNameMap, jsonPath, statusCodeWhenEmpty);
+        @Override
+        public Map<String, Map<String, ?>> getDocuments() {
+            return null;
+        }
+
+        @Override
+        public Set<String> getDocumentIds() {
+            return null;
+        }
+    };
+
+    public static class ContainsExactlyMatcher extends AbstractIndexMatcher implements IndexMatcher {
+
+        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices) {
+            super(indexNameMap, containsSearchGuardIndices);
+        }
+
+        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices, String jsonPath,
+                int statusCodeWhenEmpty) {
+            super(indexNameMap, containsSearchGuardIndices, jsonPath, statusCodeWhenEmpty);
         }
 
         @Override
@@ -174,15 +205,26 @@ public class IndexApiMatchers {
         protected boolean matchesByIndices(Collection<?> collection, Description mismatchDescription, GenericRestClient.HttpResponse response) {
             ImmutableSet<String> expectedIndices = this.getExpectedIndices();
             ImmutableSet.Builder<String> seenIndicesBuilder = new ImmutableSet.Builder<String>(expectedIndices.size());
+            ImmutableSet.Builder<String> seenSearchGuardIndicesBuilder = new ImmutableSet.Builder<String>(expectedIndices.size());
 
             for (Object object : collection) {
-                seenIndicesBuilder.add(object.toString());
+                String index = object.toString();
+
+                if (containsSearchGuardIndices && (index.startsWith(".searchguard") || index.equals("searchguard"))) {
+                    seenSearchGuardIndicesBuilder.add(index);
+                } else {
+                    seenIndicesBuilder.add(index);
+                }
             }
 
             ImmutableSet<String> seenIndices = seenIndicesBuilder.build();
 
             ImmutableSet<String> unexpectedIndices = seenIndices.without(expectedIndices);
             ImmutableSet<String> missingIndices = expectedIndices.without(seenIndices);
+
+            if (containsSearchGuardIndices && seenSearchGuardIndicesBuilder.size() == 0) {
+                missingIndices = missingIndices.with(".searchguard indices");
+            }
 
             if (unexpectedIndices.isEmpty() && missingIndices.isEmpty()) {
                 return true;
@@ -219,14 +261,18 @@ public class IndexApiMatchers {
         @Override
         public IndexMatcher but(IndexMatcher other) {
             if (other instanceof LimitedToMatcher) {
-                return new ContainsExactlyMatcher(ImmutableMap.of(this.indexNameMap).intersection(((LimitedToMatcher) other).getExpectedIndices()),
+                return new ContainsExactlyMatcher(ImmutableMap.of(this.indexNameMap).intersection(((LimitedToMatcher) other).getExpectedIndices()), //
+                        this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof ContainsExactlyMatcher) {
                 return new ContainsExactlyMatcher(
-                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), this.jsonPath,
-                        this.statusCodeWhenEmpty);
+                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), //
+                        this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
+                        this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof UnlimitedMatcher) {
-                return this;
+                return new ContainsExactlyMatcher(this.indexNameMap, //
+                        this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
+                        this.jsonPath, this.statusCodeWhenEmpty);
             } else {
                 throw new RuntimeException("Unexpected argument " + other);
             }
@@ -234,23 +280,23 @@ public class IndexApiMatchers {
 
         @Override
         public IndexMatcher at(String jsonPath) {
-            return new ContainsExactlyMatcher(indexNameMap, jsonPath, statusCodeWhenEmpty);
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCodeWhenEmpty);
         }
 
         @Override
         public IndexMatcher whenEmpty(int statusCode) {
-            return new ContainsExactlyMatcher(indexNameMap, jsonPath, statusCode);
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCode);
         }
     }
 
     public static class LimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         public LimitedToMatcher(Map<String, TestIndexLike> indexNameMap) {
-            super(indexNameMap);
+            super(indexNameMap, false);
         }
 
         public LimitedToMatcher(Map<String, TestIndexLike> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
-            super(indexNameMap, jsonPath, statusCodeWhenEmpty);
+            super(indexNameMap, false, jsonPath, statusCodeWhenEmpty);
         }
 
         @Override
@@ -299,7 +345,7 @@ public class IndexApiMatchers {
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof ContainsExactlyMatcher) {
                 return new ContainsExactlyMatcher(
-                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), this.jsonPath,
+                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), false, this.jsonPath,
                         this.statusCodeWhenEmpty);
             } else if (other instanceof UnlimitedMatcher) {
                 return this;
@@ -354,19 +400,26 @@ public class IndexApiMatchers {
 
         @Override
         public IndexMatcher at(String jsonPath) {
-            return new ContainsExactlyMatcher(indexNameMap, jsonPath, statusCodeWhenEmpty);
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCodeWhenEmpty);
         }
 
         @Override
         public IndexMatcher whenEmpty(int statusCode) {
-            return new ContainsExactlyMatcher(indexNameMap, jsonPath, statusCode);
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCode);
         }
 
     }
 
     public static class UnlimitedMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
 
+        private final boolean containsSearchGuardIndices;
+
         public UnlimitedMatcher() {
+            this.containsSearchGuardIndices = false;
+        }
+
+        public UnlimitedMatcher(boolean containsSearchGuardIndices) {
+            this.containsSearchGuardIndices = containsSearchGuardIndices;
         }
 
         @Override
@@ -412,6 +465,11 @@ public class IndexApiMatchers {
         @Override
         public boolean isEmpty() {
             return false;
+        }
+
+        @Override
+        public boolean containsSearchGuardIndices() {
+            return containsSearchGuardIndices;
         }
     }
 
@@ -476,6 +534,11 @@ public class IndexApiMatchers {
             return true;
         }
 
+        @Override
+        public boolean containsSearchGuardIndices() {
+            return true;
+        }
+
     }
 
     public static interface IndexMatcher extends Matcher<Object> {
@@ -486,12 +549,14 @@ public class IndexApiMatchers {
         IndexMatcher at(String jsonPath);
 
         IndexMatcher whenEmpty(int statusCode);
-        
+
         boolean isEmpty();
 
         default IndexMatcher butForbiddenIfIncomplete(IndexMatcher other) {
             return butFailIfIncomplete(other, 403);
         }
+
+        boolean containsSearchGuardIndices();
 
     }
 
@@ -499,17 +564,20 @@ public class IndexApiMatchers {
         protected final Map<String, TestIndexLike> indexNameMap;
         protected final String jsonPath;
         protected final int statusCodeWhenEmpty;
+        protected final boolean containsSearchGuardIndices;
 
-        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap) {
+        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices) {
             this.indexNameMap = indexNameMap;
             this.jsonPath = null;
             this.statusCodeWhenEmpty = 200;
+            this.containsSearchGuardIndices = containsSearchGuardIndices;
         }
 
-        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
+        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices, String jsonPath, int statusCodeWhenEmpty) {
             this.indexNameMap = indexNameMap;
             this.jsonPath = jsonPath;
             this.statusCodeWhenEmpty = statusCodeWhenEmpty;
+            this.containsSearchGuardIndices = containsSearchGuardIndices;
         }
 
         @Override
@@ -577,10 +645,15 @@ public class IndexApiMatchers {
                 return this;
             }
         }
-        
+
         @Override
         public boolean isEmpty() {
             return indexNameMap.isEmpty();
+        }
+
+        @Override
+        public boolean containsSearchGuardIndices() {
+            return containsSearchGuardIndices;
         }
 
     }
