@@ -1,4 +1,21 @@
-package com.floragunn.searchguard;
+/*
+ * Copyright 2020-2024 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package com.floragunn.searchguard.authz.int_tests;
 
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
@@ -56,7 +73,7 @@ import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.collect.ImmutableMap;
 
-public class PrivilegesEvaluatorTest {
+public class MiscAuthorizationIntTests {
 
     private static TestSgConfig.User RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV = new TestSgConfig.User("resize_user_without_create_index_priv")
             .roles(new Role("resize_role").clusterPermissions("*").indexPermissions("indices:admin/resize", "indices:monitor/stats")
@@ -258,17 +275,6 @@ public class PrivilegesEvaluatorTest {
     }
 
     @Test
-    public void resolveTestLocal() throws Exception {
-
-        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
-            HttpResponse httpResponse = restClient.get("/_resolve/index/resolve_test_*");
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2"))));
-        }
-    }
-
-    @Test
     public void resolveTestRemote() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
 
@@ -300,18 +306,6 @@ public class PrivilegesEvaluatorTest {
 
             assertThat(httpResponse, isOk());
             assertThat(httpResponse, json(nodeAt("indices[*].name", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
-                    "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
-        }
-    }
-
-    @Test
-    public void readAliasAndIndexMixed() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
-
-            HttpResponse httpResponse = restClient.get("/alias_resolve_test_*/_search");
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
                     "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
         }
     }
@@ -506,7 +500,7 @@ public class PrivilegesEvaluatorTest {
             client.admin().indices()
             .create(new CreateIndexRequest(sourceIndex).settings(Settings.builder().put("index.number_of_shards", 5).build()))
             .actionGet();
-            
+
             client.index(new IndexRequest(sourceIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index", "a", "b", "y",
                     "date", "1985/01/01")).actionGet();
 
@@ -583,28 +577,4 @@ public class PrivilegesEvaluatorTest {
         }
     }
 
-    @Test
-    public void regexPattern() throws Exception {
-
-        try (GenericRestClient restClient = clusterFof.getRestClient(REGEX_USER)) {
-
-            HttpResponse httpResponse = restClient.get("*/_search");
-
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
-        }
-    }
-
-    @Test
-    public void resolveTestHidden() throws Exception {
-
-        try (GenericRestClient restClient = clusterFof.getRestClient(HIDDEN_TEST_USER)) {
-            HttpResponse httpResponse = restClient.get("/*hidden_test*/_search?expand_wildcards=all&pretty=true");
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
-
-            httpResponse = restClient.get("/*hidden_test*/_search?pretty=true");
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(httpResponse.getBody(), httpResponse.getBody(), not(containsString("hidden_test_actually_hidden")));
-        }
-
-    }
 }

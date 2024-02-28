@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.authz;
+package com.floragunn.searchguard.authz.int_tests;
 
 import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
