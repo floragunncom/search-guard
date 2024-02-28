@@ -182,23 +182,23 @@ public class PrivilegesEvaluationResult {
     }
 
     public PrivilegesEvaluationResult withAdditional(ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole role,
-            PrivilegesEvaluationResult result) {
+            PrivilegesEvaluationResult additional) {
         Status status;
 
-        if (this.status != result.status) {
-            if (result.status == Status.INSUFFICIENT || this.status == Status.INSUFFICIENT) {
+        if (this.status != additional.status) {
+            if (additional.status == Status.INSUFFICIENT || this.status == Status.INSUFFICIENT) {
                 status = Status.INSUFFICIENT;
-            } else if (result.status == Status.PENDING || this.status == Status.PENDING) {
+            } else if (additional.status == Status.PENDING || this.status == Status.PENDING) {
                 status = Status.PENDING;
-            } else if (result.status == Status.EMPTY || this.status == Status.EMPTY) {
+            } else if (additional.status == Status.EMPTY || this.status == Status.EMPTY) {
                 status = Status.EMPTY;
-            } else if (result.status == Status.OK_WHEN_RESOLVED) {
+            } else if (additional.status == Status.OK_WHEN_RESOLVED) {
                 if (this.status == Status.OK || this.status == Status.OK_WHEN_RESOLVED) {
                     status = Status.OK_WHEN_RESOLVED;
                 } else {
                     status = this.status;
                 }
-            } else if (result.status == Status.PARTIALLY_OK) {
+            } else if (additional.status == Status.PARTIALLY_OK) {
                 if (this.status == Status.OK || this.status == Status.OK_WHEN_RESOLVED || this.status == Status.PARTIALLY_OK) {
                     status = Status.PARTIALLY_OK;
                 } else {
@@ -216,14 +216,19 @@ public class PrivilegesEvaluationResult {
         String reason = this.reason;
 
         if (reason == null) {
-            reason = result.reason;
-        } else if (result.reason != null) {
-            reason = this.reason + "\n" + result.reason;
+            reason = additional.reason;
+        } else if (additional.reason != null) {
+            reason = this.reason + "\n" + additional.reason;
         }
 
-        return new PrivilegesEvaluationResult(status, reason, availableIndices, this.additionalAvailableIndices.with(role, result.availableIndices),
-                this.indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables.with(role, result.indexToActionPrivilegeTable),
-                errors.with(result.errors), this.additionalActionFilters.with(result.additionalActionFilters));
+        return new PrivilegesEvaluationResult(status, reason, availableIndices,
+                additional.availableIndices != null ? this.additionalAvailableIndices.with(role, additional.availableIndices)
+                        : this.additionalAvailableIndices,
+                this.indexToActionPrivilegeTable,
+                additional.indexToActionPrivilegeTable != null
+                        ? this.additionalIndexToActionPrivilegeTables.with(role, additional.indexToActionPrivilegeTable)
+                        : this.additionalIndexToActionPrivilegeTables,
+                errors.with(additional.errors), this.additionalActionFilters.with(additional.additionalActionFilters));
     }
 
     public PrivilegesEvaluationResult missingPrivileges(Action action) {
@@ -281,44 +286,49 @@ public class PrivilegesEvaluationResult {
 
     @Override
     public String toString() {
-        StringBuilder result = new StringBuilder("");
+        try {
+            StringBuilder result = new StringBuilder("");
 
-        result.append("Status: ").append(status).append("\n");
+            result.append("Status: ").append(status).append("\n");
 
-        if (reason != null) {
-            result.append("Reason: ").append(reason).append("\n");
-        }
-
-        if (indexToActionPrivilegeTable != null) {
-            String evaluatedPrivileges = indexToActionPrivilegeTable.toString("ok", "MISSING");
-
-            if (evaluatedPrivileges.length() > 30 || evaluatedPrivileges.contains("\n")) {
-                result.append("Evaluated Privileges:\n").append(evaluatedPrivileges).append("\n");
-            } else {
-                result.append("Evaluated Privileges: ").append(evaluatedPrivileges).append("\n");
+            if (reason != null) {
+                result.append("Reason: ").append(reason).append("\n");
             }
-        }
 
-        if (!this.additionalIndexToActionPrivilegeTables.isEmpty()) {
-            for (Map.Entry<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, CheckTable<Meta.IndexLikeObject, Action>> entry : this.additionalIndexToActionPrivilegeTables
-                    .entrySet()) {
-                String evaluatedPrivileges = entry.getValue().toString("ok", "MISSING");
+            if (indexToActionPrivilegeTable != null) {
+                String evaluatedPrivileges = indexToActionPrivilegeTable.toString("ok", "MISSING");
 
                 if (evaluatedPrivileges.length() > 30 || evaluatedPrivileges.contains("\n")) {
-                    result.append("Evaluated Privileges for ").append(entry.getKey()).append(":\n").append(evaluatedPrivileges).append("\n");
+                    result.append("Evaluated privileges:\n").append(evaluatedPrivileges).append("\n");
                 } else {
-                    result.append("Evaluated Privileges for ").append(entry.getKey()).append(": ").append(evaluatedPrivileges).append("\n");
+                    result.append("Evaluated privileges: ").append(evaluatedPrivileges).append("\n");
                 }
             }
-        }
 
-        if (errors.size() == 1) {
-            result.append("Errors: ").append(errors.only());
-        } else if (errors.size() > 1) {
-            result.append("Errors:\n").append(errors.stream().map((e) -> " - " + e + "\n").collect(Collectors.toList())).append("\n");
-        }
+            if (!this.additionalIndexToActionPrivilegeTables.isEmpty()) {
+                for (Map.Entry<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, CheckTable<Meta.IndexLikeObject, Action>> entry : this.additionalIndexToActionPrivilegeTables
+                        .entrySet()) {
+                    String evaluatedPrivileges = entry.getValue().toString("ok", "MISSING");
 
-        return result.toString();
+                    if (evaluatedPrivileges.length() > 30 || evaluatedPrivileges.contains("\n")) {
+                        result.append("Evaluated privileges for ").append(entry.getKey()).append(":\n").append(evaluatedPrivileges).append("\n");
+                    } else {
+                        result.append("Evaluated privileges for ").append(entry.getKey()).append(": ").append(evaluatedPrivileges).append("\n");
+                    }
+                }
+            }
+
+            if (errors.size() == 1) {
+                result.append("Errors: ").append(errors.only());
+            } else if (errors.size() > 1) {
+                result.append("Errors:\n").append(errors.stream().map((e) -> " - " + e + "\n").collect(Collectors.toList())).append("\n");
+            }
+
+            return result.toString();
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
     }
 
     public static enum Status {

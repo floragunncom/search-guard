@@ -524,7 +524,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         if (privilegesEvaluationResult.getStatus() == Status.PARTIALLY_OK || privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
             if (dnfofPossible) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Reducing indices to {}\n{}", privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult);
+                    log.debug("Reducing indices to {}; {}\n{}", privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult.getAdditionalAvailableIndices(), privilegesEvaluationResult);
                 }
 
                 privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
