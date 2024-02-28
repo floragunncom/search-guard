@@ -360,7 +360,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             if (shallowCheckTable.isComplete()) {
                 // TODO check whether we should move universallyDeniedUnchecking here because we will never gain these privileges later
                 indexActionCheckResults_ok.increment();
-                return PrivilegesEvaluationResult.OK;
+                return PrivilegesEvaluationResult.OK.availableIndices(shallowCheckTable.getCompleteRows(), shallowCheckTable);
             }
 
             ImmutableSet<Meta.Alias> incompleteAliases = resolved.getLocal().getAliases().matching(e -> !shallowCheckTable.isRowComplete(e));
@@ -369,7 +369,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             if (aliasDataStreamHandling == ActionAuthorization.AliasDataStreamHandling.DO_NOT_RESOLVE
                     || (incompleteAliases.isEmpty() && incompleteDataStreams.isEmpty())) {
-                ImmutableSet<String> availableIndices = shallowCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name);
+                ImmutableSet<Meta.IndexLikeObject> availableIndices = shallowCheckTable.getCompleteRows();
 
                 if (!availableIndices.isEmpty()) {
                     indexActionCheckResults_partially.increment();
@@ -430,7 +430,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         if (semiDeepCheckTable.isComplete()) {
                             indexActionCheckResults_partially.increment();
                             return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(
-                                    semiDeepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name), semiDeepCheckTable.with(shallowCheckTable),
+                                    semiDeepCheckTable.getCompleteRows(), semiDeepCheckTable.with(shallowCheckTable),
                                     localContext.errors);
                         }
 
@@ -456,7 +456,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     if (semiDeepCheckTable.isComplete()) {
                         indexActionCheckResults_partially.increment();
                         return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(
-                                semiDeepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name), semiDeepCheckTable.with(shallowCheckTable),
+                                semiDeepCheckTable.getCompleteRows(), semiDeepCheckTable.with(shallowCheckTable),
                                 localContext.errors);
                     }
 
@@ -487,7 +487,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     if (deepCheckTable.isComplete()) {
                         indexActionCheckResults_partially.increment();
                         return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(
-                                deepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name), deepCheckTable, localContext.errors);
+                                deepCheckTable.getCompleteRows(), deepCheckTable, localContext.errors);
                     }
 
                     // Note: statefulIndex.hasPermission() modifies as a side effect the checkTable. 
@@ -526,7 +526,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 // action will resolve to different indices than we checked here. Thus, we would give privileges even though they are not present.
                 // By returning PrivilegesEvaluationResult.PARTIALLY_OK or OK_WHEN_RESOLVED we always force a replacement of the requested indices/aliases by these
                 // for which the user actually has privileges for.
-                ImmutableSet<String> availableIndices = deepCheckTable.getCompleteRows().map(Meta.IndexLikeObject::name);
+                ImmutableSet<Meta.IndexLikeObject> availableIndices = deepCheckTable.getCompleteRows();
 
                 if (deepCheckTable.isComplete()) {
                     indexActionCheckResults_partially.increment();

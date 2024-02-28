@@ -279,6 +279,32 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public boolean isCoveredBy(IndexMatcher other) {
+            // Returns true of other provides at least all indices as this
+            // Examples:
+            //
+            // this:  a, b, c
+            // other:    b, c
+            // -> a missing -> false
+            //
+            // this:  a, b
+            // other: a, b, c
+            // -> true
+            
+            
+            
+            if (other instanceof LimitedToMatcher) {
+                return ((LimitedToMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+            } else if (other instanceof ContainsExactlyMatcher) {
+                return ((ContainsExactlyMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+            } else if (other instanceof UnlimitedMatcher) {
+                return true;
+            } else {
+                throw new RuntimeException("Unexpected argument " + other);
+            }
+        }
+
+        @Override
         public IndexMatcher at(String jsonPath) {
             return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCodeWhenEmpty);
         }
@@ -287,6 +313,7 @@ public class IndexApiMatchers {
         public IndexMatcher whenEmpty(int statusCode) {
             return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCode);
         }
+
     }
 
     public static class LimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
@@ -349,6 +376,19 @@ public class IndexApiMatchers {
                         this.statusCodeWhenEmpty);
             } else if (other instanceof UnlimitedMatcher) {
                 return this;
+            } else {
+                throw new RuntimeException("Unexpected argument " + other);
+            }
+        }
+
+        @Override
+        public boolean isCoveredBy(IndexMatcher other) {
+            if (other instanceof LimitedToMatcher) {
+                return ((LimitedToMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+            } else if (other instanceof ContainsExactlyMatcher) {
+                return ((ContainsExactlyMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+            } else if (other instanceof UnlimitedMatcher) {
+                return true;
             } else {
                 throw new RuntimeException("Unexpected argument " + other);
             }
@@ -448,6 +488,15 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public boolean isCoveredBy(IndexMatcher other) {
+            if (other instanceof UnlimitedMatcher) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        @Override
         public IndexMatcher at(String jsonPath) {
             return this;
         }
@@ -539,6 +588,11 @@ public class IndexApiMatchers {
             return true;
         }
 
+        @Override
+        public boolean isCoveredBy(IndexMatcher other) {
+            return false;
+        }
+
     }
 
     public static interface IndexMatcher extends Matcher<Object> {
@@ -551,6 +605,8 @@ public class IndexApiMatchers {
         IndexMatcher whenEmpty(int statusCode);
 
         boolean isEmpty();
+
+        boolean isCoveredBy(IndexMatcher other);
 
         default IndexMatcher butForbiddenIfIncomplete(IndexMatcher other) {
             return butFailIfIncomplete(other, 403);

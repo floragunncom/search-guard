@@ -21,6 +21,7 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
+import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -54,6 +55,7 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.meta.Meta;
 
 import net.jcip.annotations.NotThreadSafe;
 
@@ -129,6 +131,20 @@ public class IndexAuthorizationReadWriteIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_bw*")//
+                            .indexPermissions("SGS_MANAGE").on("index_bw*"))//
+            .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
+            .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx))//
+            .indexMatcher("create_index", limitedTo(index_bw1, index_bw2, index_bwx))//
+            .indexMatcher("manage_index", limitedTo(index_bw1, index_bw2, index_bwx))//
+            .indexMatcher("get_alias", limitedTo());
+
+    static TestSgConfig.User LIMITED_USER_B_MANAGE_INDEX_ALIAS = new TestSgConfig.User("limited_user_B_manage_index_alias")//
+            .description("index_b*, alias_bwx* with manage index privs")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*")//
+                            .indexPermissions("SGS_WRITE").on("index_bw*")//
                             .indexPermissions("SGS_MANAGE").on("index_bw*")//
                             .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
             .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
@@ -164,7 +180,7 @@ public class IndexAuthorizationReadWriteIntTests {
             .indexMatcher("manage_index", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
-    static TestSgConfig.User LIMITED_USER_ALIAS_AB1 = new TestSgConfig.User("limited_user_alias_AB1")//
+    static TestSgConfig.User LIMITED_USER_AB1_ALIAS = new TestSgConfig.User("limited_user_alias_AB1")//
             .description("alias_ab1")//
             .roles(//
                     new Role("r1")//
@@ -227,6 +243,19 @@ public class IndexAuthorizationReadWriteIntTests {
             .indexMatcher("manage_index", unlimited())//
             .indexMatcher("get_alias", unlimited());
 
+    /**
+     * The SUPER_UNLIMITED_USER authenticates with an admin cert, which will cause all access control code to be skipped.
+     * This serves as a base for comparison with the default behavior.
+     */
+    static TestSgConfig.User SUPER_UNLIMITED_USER = new TestSgConfig.User("super_unlimited_user")//
+            .description("super unlimited (admin cert)")//
+            .adminCertUser()//
+            .indexMatcher("read", unlimitedIncludingSearchGuardIndices())//
+            .indexMatcher("write", unlimitedIncludingSearchGuardIndices())//
+            .indexMatcher("create_index", unlimitedIncludingSearchGuardIndices())//
+            .indexMatcher("manage_index", unlimitedIncludingSearchGuardIndices())//
+            .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
+
     /*
     static TestSgConfig.User LIMITED_USER_D = new TestSgConfig.User("limited_user_D").roles(//
             new Role("limited_user_d_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")
@@ -242,8 +271,8 @@ public class IndexAuthorizationReadWriteIntTests {
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("indices:data/read*").on("a*"));
     */
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_CREATE_INDEX, LIMITED_USER_B_MANAGE_INDEX,
-            LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_ALIAS_AB1, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS,
-            UNLIMITED_USER);
+            LIMITED_USER_B_MANAGE_INDEX_ALIAS, LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_AB1_ALIAS, LIMITED_USER_NONE,
+            INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
@@ -334,16 +363,103 @@ public class IndexAuthorizationReadWriteIntTests {
             }
         }
     }
-    
+
     @Test
     public void createIndex_withAlias() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
             HttpResponse httpResponse = restClient.putJson("/index_bwx", DocNode.of("aliases.alias_bwx", DocNode.EMPTY));
-            
+
             if (containsExactly(alias_bwx).but(user.indexMatcher("manage_index")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
-                assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));                
+                assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
+            }
+        }
+    }
+
+    @Test
+    public void createAlias() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
+            restClient.deleteWhenClosed("/*/_alias/alias_bwx");
+
+            HttpResponse httpResponse = restClient.postJson("/_aliases",
+                    DocNode.of("actions", DocNode.array(DocNode.of("add.index", "index_bw1", "add.alias", "alias_bwx"))));
+            if (containsExactly(index_bw1, alias_bwx).isCoveredBy(user.indexMatcher("manage_index"))) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
+    public void createAlias_deleteAlias_staticIndex() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
+            restClient.deleteWhenClosed("/*/_alias/alias_bwx");
+
+            HttpResponse httpResponse = restClient.postJson("/_aliases",
+                    DocNode.of("actions", DocNode.array(DocNode.of("add.index", "index_bw1", "add.alias", "alias_bwx"))));
+            if (containsExactly(index_bw1, alias_bwx).isCoveredBy(user.indexMatcher("manage_index"))) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+
+            httpResponse = restClient.delete("/index_bw1/_aliases/alias_bwx");
+            if (containsExactly(index_bw1, alias_bwx).isCoveredBy(user.indexMatcher("manage_index"))) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+    
+
+    @Test
+    public void createAlias_deleteAlias_staticIndexInAliasesAPI() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
+            restClient.deleteWhenClosed("/*/_alias/alias_bwx");
+
+            HttpResponse httpResponse = restClient.postJson("/_aliases",
+                    DocNode.of("actions", DocNode.array(DocNode.of("add.index", "index_bw1", "add.alias", "alias_bwx"))));
+            if (containsExactly(index_bw1, alias_bwx).isCoveredBy(user.indexMatcher("manage_index"))) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+
+            httpResponse = restClient.postJson("/_aliases",
+                    DocNode.of("actions", DocNode.array(DocNode.of("remove.index", "index_bw1", "remove.alias", "alias_bwx"))));
+            if (containsExactly(index_bw1, alias_bwx).isCoveredBy(user.indexMatcher("manage_index"))) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+    
+
+    // TODO _aliases remove_index
+    // TODO wildcards in _aliases remove.index
+    
+    @Test
+    public void createAlias_deleteAlias_wildcard() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
+            restClient.deleteWhenClosed("/*/_alias/alias_bwx");
+
+            HttpResponse httpResponse = restClient.postJson("/_aliases",
+                    DocNode.of("actions", DocNode.array(DocNode.of("add.index", "index_bw1", "add.alias", "alias_bwx"))));
+            if (containsExactly(index_bw1, alias_bwx).isCoveredBy(user.indexMatcher("manage_index"))) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+
+            httpResponse = restClient.delete("/*/_aliases/alias_bwx");
+            if (containsExactly(index_bw1, alias_bwx).isCoveredBy(user.indexMatcher("manage_index"))) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
             }
         }
     }
