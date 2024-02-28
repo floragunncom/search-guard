@@ -79,7 +79,11 @@ public interface EsClientProvider {
     }
 
     default GenericRestClient getRestClient(UserCredentialsHolder user, Header... headers) {
-        return getRestClient(user.getName(), user.getPassword(), headers);
+        if (user.isAdminCertUser()) {
+            return getAdminCertRestClient();
+        } else {
+            return getRestClient(user.getName(), user.getPassword(), headers);   
+        }        
     }
 
     default GenericRestClient getRestClient(String user, String password, String tenant) {
@@ -176,6 +180,10 @@ public interface EsClientProvider {
         String getName();
 
         String getPassword();
+        
+        default boolean isAdminCertUser() {
+            return false;
+        }
     }
 
 }
