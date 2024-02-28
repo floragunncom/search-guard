@@ -154,17 +154,24 @@ public class PrivilegesEvaluationResult {
         }
     }
 
-    public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices,
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<Meta.IndexLikeObject> availableIndices,
             CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, this.additionalAvailableIndices,
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices.map(Meta.IndexLikeObject::name), this.additionalAvailableIndices,
+                indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
+    }
+    
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<Meta.IndexLikeObject> availableIndices,
+            CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices.map(Meta.IndexLikeObject::name), this.additionalAvailableIndices,
                 indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
     }
 
+/*
     public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices,
             CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
         return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, this.additionalAvailableIndices,
                 indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
-    }
+    }*/
 
     public PrivilegesEvaluationResult availableAdditionally(ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole role,
             ImmutableSet<String> addtionalAvailableIndices, CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable,
