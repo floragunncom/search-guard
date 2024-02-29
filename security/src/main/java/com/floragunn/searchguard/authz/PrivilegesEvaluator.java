@@ -32,7 +32,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
@@ -613,20 +612,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             }
 
             return privilegesEvaluationResult;
-        }
-
-        if (request instanceof ResizeRequest) {
-            if (log.isDebugEnabled()) {
-                log.debug("Checking additional create index action for resize operation: {}", request);
-            }
-            ResizeRequest resizeRequest = (ResizeRequest) request;
-            CreateIndexRequest createIndexRequest = resizeRequest.getTargetIndexRequest();
-            PrivilegesEvaluationResult subResponse = evaluate(user, mappedRoles, CreateIndexAction.NAME, createIndexRequest, task, context,
-                    specialPrivilegesEvaluationContext);
-
-            if (!subResponse.isOk()) {
-                return subResponse;
-            }
         }
 
         if (log.isDebugEnabled()) {

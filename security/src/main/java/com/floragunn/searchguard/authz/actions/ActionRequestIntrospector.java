@@ -971,7 +971,8 @@ public class ActionRequestIntrospector {
 
         public static class AdditionalInfoRole {
             public static final AdditionalInfoRole ALIASES = new AdditionalInfoRole("aliases");
-            public static final AdditionalInfoRole RESIZE_TARGET = new AdditionalInfoRole("resize_target");
+            public static final AdditionalInfoRole RESIZE_TARGET = new AdditionalInfoRole("resize_target",
+                    ImmutableSet.ofArray("indices:admin/create"));
             public static final AdditionalInfoRole MANAGE_ALIASES = new AdditionalInfoRole("manage_aliases",
                     ImmutableSet.ofArray("indices:admin/aliases"));
 
