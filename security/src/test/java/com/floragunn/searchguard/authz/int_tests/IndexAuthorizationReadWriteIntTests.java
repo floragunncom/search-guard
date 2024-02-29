@@ -187,11 +187,23 @@ public class IndexAuthorizationReadWriteIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1r")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE").on("alias_ab1w"))//
-            .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1, alias_ab1r))//
+            .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1, alias_ab1r, alias_ab1w))//
             .indexMatcher("write", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2, alias_ab1w))//
             .indexMatcher("create_index", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2))//
             .indexMatcher("manage_index", limitedToNone())//
             .indexMatcher("get_alias", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1, alias_ab1r, alias_ab1w));
+
+    static TestSgConfig.User LIMITED_USER_AB1_ALIAS_READ_ONLY = new TestSgConfig.User("limited_user_alias_AB1")//
+            .description("read/only on alias_ab1w, but with write privs in write index index_aw1")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ", "SGS_WRITE").on("index_aw1")//
+                            .aliasPermissions("SGS_READ").on("alias_ab1w"))//
+            .indexMatcher("read", limitedTo(index_aw1, index_aw2, index_bw1, alias_ab1w))//
+            .indexMatcher("write", limitedTo(index_aw1, alias_ab1w)) // alias_ab1w is included because index_aw1 is the write index of alias_ab1w
+            .indexMatcher("create_index", limitedToNone())//
+            .indexMatcher("manage_index", limitedToNone());
 
     /* TODO
     static TestSgConfig.User LIMITED_USER_ALIAS_C1 = new TestSgConfig.User("limited_user_alias_C1")//
@@ -203,6 +215,30 @@ public class IndexAuthorizationReadWriteIntTests {
             .indexMatcher("read", limitedTo(index_cr1, alias_c1))//
             .indexMatcher("get_alias", limitedToNone());
             */
+
+    static TestSgConfig.User LIMITED_READ_ONLY_ALL = new TestSgConfig.User("limited_read_only_all")//
+            .description("read/only on *")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ").on("*"))//
+            .indexMatcher("read", unlimited())//
+            .indexMatcher("write", limitedToNone())//
+            .indexMatcher("create_index", limitedToNone())//
+            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_READ_ONLY_A = new TestSgConfig.User("limited_read_only_A")//
+            .description("read/only on index_a*")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ").on("index_a*"))//
+            .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2))//
+            .indexMatcher("write", limitedToNone())//
+            .indexMatcher("create_index", limitedToNone())//
+            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_NONE = new TestSgConfig.User("limited_user_none")//
             .description("no privileges for existing indices")//
@@ -271,8 +307,9 @@ public class IndexAuthorizationReadWriteIntTests {
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("indices:data/read*").on("a*"));
     */
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_CREATE_INDEX, LIMITED_USER_B_MANAGE_INDEX,
-            LIMITED_USER_B_MANAGE_INDEX_ALIAS, LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_AB1_ALIAS, LIMITED_USER_NONE,
-            INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER, SUPER_UNLIMITED_USER);
+            LIMITED_USER_B_MANAGE_INDEX_ALIAS, LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_AB1_ALIAS, LIMITED_USER_AB1_ALIAS_READ_ONLY,
+            LIMITED_READ_ONLY_ALL, LIMITED_READ_ONLY_A, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER,
+            SUPER_UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
@@ -311,6 +348,7 @@ public class IndexAuthorizationReadWriteIntTests {
                     DocNode.of("index._index", "index_bw1", "index._id", "d1"), DocNode.of("b", 1), //
                     DocNode.of("index._index", "index_cw1", "index._id", "d1"), DocNode.of("c", 1)//
             );
+
             assertThat(httpResponse, containsExactly(index_aw1, index_bw1, index_cw1).at("items[*].index[?(@.result == 'created')]._index")
                     .but(user.indexMatcher("write")).whenEmpty(200));
 
@@ -413,7 +451,6 @@ public class IndexAuthorizationReadWriteIntTests {
             }
         }
     }
-    
 
     @Test
     public void createAlias_deleteAlias_staticIndexInAliasesAPI() throws Exception {
@@ -437,11 +474,10 @@ public class IndexAuthorizationReadWriteIntTests {
             }
         }
     }
-    
 
     // TODO _aliases remove_index
     // TODO wildcards in _aliases remove.index
-    
+
     @Test
     public void createAlias_deleteAlias_wildcard() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
@@ -463,7 +499,6 @@ public class IndexAuthorizationReadWriteIntTests {
             }
         }
     }
-
 
     @Test
     public void reindex() throws Exception {
@@ -489,7 +524,7 @@ public class IndexAuthorizationReadWriteIntTests {
 
             HttpResponse httpResponse = restClient.postJson("/_reindex", DocNode.of("source.index", "index_ar1", "dest.index", "index_bwx"));
 
-            if (user == UNLIMITED_USER || user == LIMITED_USER_AB_MANAGE_INDEX) {
+            if (user == UNLIMITED_USER || user == SUPER_UNLIMITED_USER || user == LIMITED_USER_AB_MANAGE_INDEX) {
                 assertThat(httpResponse, isOk());
             } else {
                 assertThat(httpResponse, isForbidden());
@@ -500,33 +535,28 @@ public class IndexAuthorizationReadWriteIntTests {
         }
     }
 
-    @Test // TODO also test shrink?
+    @Test
     public void cloneIndex() throws Exception {
+        String sourceIndex = "index_bw1";
+        String targetIndex = "index_bwx";
+
         try (Client client = cluster.getInternalNodeClient()) {
             client.admin().indices()
-                    .updateSettings(new UpdateSettingsRequest("index_br1").settings(Settings.builder().put("index.blocks.write", true).build()))
+                    .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", true).build()))
                     .actionGet();
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            restClient.deleteWhenClosed("/index_bwx");
+            restClient.deleteWhenClosed(targetIndex);
 
-            HttpResponse httpResponse = restClient.post("/index_br1/_clone/index_bwx");
+            HttpResponse httpResponse = restClient.post(sourceIndex + "/_clone/" + targetIndex);
 
-            /*
-            if (containsExactly(index_br1).but(user.indexMatcher("create_index")).isEmpty()) {
-                assertThat(httpResponse, isForbidden());
-            } else {
-                assertThat(httpResponse, isOk());
-            }*/
+            assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("manage_index")).whenEmpty(403));
 
-            assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
-
-            // TODO test for absense of docs
         } finally {
             try (Client client = cluster.getInternalNodeClient()) {
                 client.admin().indices()
-                        .updateSettings(new UpdateSettingsRequest("index_br1").settings(Settings.builder().put("index.blocks.write", false).build()))
+                        .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", false).build()))
                         .actionGet();
             }
         }
