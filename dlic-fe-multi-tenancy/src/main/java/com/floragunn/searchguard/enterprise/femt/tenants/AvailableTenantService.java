@@ -1,13 +1,10 @@
 package com.floragunn.searchguard.enterprise.femt.tenants;
 
-import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.action.StandardResponse;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
