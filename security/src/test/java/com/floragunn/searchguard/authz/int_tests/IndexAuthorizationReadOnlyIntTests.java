@@ -65,6 +65,7 @@ public class IndexAuthorizationReadOnlyIntTests {
     static TestIndex index_a1 = TestIndex.name("index_a1").documentCount(100).seed(1).attr("prefix", "a").build();
     static TestIndex index_a2 = TestIndex.name("index_a2").documentCount(110).seed(2).attr("prefix", "a").build();
     static TestIndex index_a3 = TestIndex.name("index_a3").documentCount(120).seed(3).attr("prefix", "a").build();
+    static TestIndex index_ax = TestIndex.name("index_ax").build(); // Not existing index
     static TestIndex index_b1 = TestIndex.name("index_b1").documentCount(51).seed(4).attr("prefix", "b").build();
     static TestIndex index_b2 = TestIndex.name("index_b2").documentCount(52).seed(5).attr("prefix", "b").build();
     static TestIndex index_b3 = TestIndex.name("index_b3").documentCount(53).seed(6).attr("prefix", "b").build();
@@ -82,7 +83,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*"))//
-            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3))//
+            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_ax))//
             .indexMatcher("read_top_level", limitedTo(index_a1, index_a2, index_a3))//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -142,8 +143,8 @@ public class IndexAuthorizationReadOnlyIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*", "index_hidden*", ".index_hidden*"))//
-            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_hidden, index_hidden_dot))//
-            .indexMatcher("read_top_level", limitedTo(index_a1, index_a2, index_a3, index_hidden, index_hidden_dot))//
+            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_ax, index_hidden, index_hidden_dot))//
+            .indexMatcher("read_top_level", limitedTo(index_a1, index_a2, index_a3, index_ax, index_hidden, index_hidden_dot))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_A_SYSTEM = new TestSgConfig.User("limited_user_A_system")//
@@ -152,8 +153,8 @@ public class IndexAuthorizationReadOnlyIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*", ".index_system*"))//
-            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_system))//
-            .indexMatcher("read_top_level", limitedTo(index_a1, index_a2, index_a3, index_system))//
+            .indexMatcher("read", limitedTo(index_a1, index_a2, index_a3, index_ax, index_system))//
+            .indexMatcher("read_top_level", limitedTo(index_a1, index_a2, index_a3, index_ax, index_system))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_NONE = new TestSgConfig.User("limited_user_none")//
@@ -331,6 +332,19 @@ public class IndexAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("index_a1,index_a2,index_b1/_search?size=1000&ignore_unavailable=true");
             assertThat(httpResponse,
                     containsExactly(index_a1, index_a2, index_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_staticIndicies_nonExisting() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_ax/_search?size=1000");
+
+            if (containsExactly(index_ax).but(user.indexMatcher("read")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isNotFound());
+            }
         }
     }
 
