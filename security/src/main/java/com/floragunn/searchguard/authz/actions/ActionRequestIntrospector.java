@@ -231,7 +231,7 @@ public class ActionRequestIntrospector {
         } else if (request instanceof SearchScrollRequest) {
             return CLUSTER_REQUEST;
         } else {
-            if (action.name().startsWith("index:")) {
+            if (action.name().startsWith("indices:")) {
                 log.warn("Unknown action request: {}", request.getClass().getName());
             } else {
                 log.debug("Unknown action request: {}", request.getClass().getName());
@@ -1022,7 +1022,7 @@ public class ActionRequestIntrospector {
     }
 
     private final ActionRequestInfo UNKNOWN = new ActionRequestInfo(true, false);
-    private final ActionRequestInfo CLUSTER_REQUEST = new ActionRequestInfo(true, false);
+    private final ActionRequestInfo CLUSTER_REQUEST = new ActionRequestInfo(false, false);
     private final static ResolvedIndices LOCAL_ALL = new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(),
             ImmutableSet.empty());
     private final static ResolvedIndices EMPTY = new ResolvedIndices(false, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(), ImmutableSet.empty());
