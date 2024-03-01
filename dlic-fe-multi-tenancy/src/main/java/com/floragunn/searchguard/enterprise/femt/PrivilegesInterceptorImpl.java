@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.femt;
 
+import static com.floragunn.searchguard.authz.SyncAuthorizationFilter.Result.INTERCEPTED;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.ALLOW;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
@@ -29,6 +30,8 @@ import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -36,6 +39,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -64,6 +69,7 @@ import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.script.Script;
 
 public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
@@ -166,6 +172,17 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         }
 
         String requestedTenant = user.getRequestedTenant();
+        if (requestedTenant == null || requestedTenant.isEmpty()) {
+            return NORMAL;
+        }
+
+        boolean frontendServerUser = user.getName().equals(kibanaServerUsername);
+        TenantAccess tenantAccess = frontendServerUser ? TenantAccess.FULL_ACCESS : getTenantAccess(context, requestedTenant, actionAuthorization);
+
+        SyncAuthorizationFilter.Result result = handleRequestRequiringSpecialTreatment(tenantAccess, context);
+        if(result == INTERCEPTED) {
+            return InterceptionResult.INTERCEPTED;
+        }
 
         if (requestedTenant == null || requestedTenant.length() == 0 || requestedTenant.equals(Tenant.GLOBAL_TENANT_ID)) {
             if (kibanaIndexInfo.tenantInfoPart != null) {
@@ -193,6 +210,100 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         // regular tenant
         // to avoid security issue
 
+    }
+
+    record TenantAccess(boolean hasReadPermission, boolean hasWritePermission) {
+
+        public static final TenantAccess INACCESSIBLE = new TenantAccess(false, false);
+        public static final TenantAccess FULL_ACCESS = new TenantAccess(true, true);
+
+        public boolean hasAnyAccess() {
+            return hasReadPermission | hasWritePermission;
+        }
+
+        public boolean isProhibited() {
+            return ! hasAnyAccess();
+        }
+
+        public boolean isWriteProhibited() {
+            return ! hasWritePermission;
+        }
+
+        public boolean isReadOnly() {
+            return (!hasWritePermission) && hasReadPermission;
+        }
+    }
+
+    /**
+     * Method handle update request issued by search frontend when the dashboard is opened. User with read-only permission is not allowed
+     * to perform the update. When SG returns 403 response then process of opening the dashboard is interrupted. Therefore, the method
+     * replace response with code 403 to 404. Loading dashboard works correctly in case of 404 response (inside bulk request).
+     */
+    private SyncAuthorizationFilter.Result handleRequestRequiringSpecialTreatment(TenantAccess tenantAccess,
+                                                                                  PrivilegesEvaluationContext context) {
+        boolean shouldReturnNotFound = tenantAccess.isReadOnly() &&
+                "indices:data/write/bulk".equals(context.getAction().name()) &&
+                (context.getRequest() instanceof BulkRequest) &&
+                isUpdateRequestDuringLoadingDashboard((BulkRequest)context.getRequest());
+        if(shouldReturnNotFound) {
+            return SyncAuthorizationFilter.Result.INTERCEPTED;
+        }
+        return SyncAuthorizationFilter.Result.OK;
+    }
+
+    private boolean isUpdateRequestDuringLoadingDashboard(BulkRequest request) {
+        if(request.getIndices().size() != 1) {
+            return false;
+        }
+        if(!new ArrayList<>(request.getIndices()).get(0).startsWith(kibanaIndexName)) {
+            return false;
+        }
+        if(request.requests() == null || (request.requests().size() != 1)) {
+            return false;
+        }
+        DocWriteRequest<?> firstBulkRequest = request.requests().get(0);
+        if((firstBulkRequest.id() == null) || (!firstBulkRequest.id().startsWith("legacy-url-alias"))) {
+            return false;
+        }
+        if(!(firstBulkRequest instanceof UpdateRequest updateRequest)) {
+            return false;
+        }
+        Script script = updateRequest.script();
+        if(script == null) {
+            return false;
+        }
+        if(!"painless".contains(script.getLang())) {
+            return false;
+        }
+        Map<String, Object> params = script.getParams();
+        if((params == null) || (!params.containsKey("type") || (!params.containsKey("time")))) {
+            return false;
+        }
+        if(!"legacy-url-alias".equals(params.get("type"))) {
+            return false;
+        }
+        String code = script.getIdOrCode();
+        if((code == null) || (!code.contains("ctx._source[params.type].disabled")) || (!code.contains("ctx._source[params.type].resolveCounter"))) {
+            return false;
+        }
+        return true;
+    }
+
+    private TenantAccess getTenantAccess(PrivilegesEvaluationContext context, String requestedTenant, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
+        if (!Tenant.GLOBAL_TENANT_ID.equals(requestedTenant) && !USER_TENANT.equals(requestedTenant) && !tenantNames.contains(requestedTenant)) {
+            log.warn("Invalid tenant: " + requestedTenant + "; user: " + context.getUser());
+
+            return TenantAccess.INACCESSIBLE;
+        }
+
+        if (USER_TENANT.equals(requestedTenant)) {
+            return TenantAccess.FULL_ACCESS;
+        }
+
+        return new TenantAccess(
+                actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, requestedTenant).isOk(),
+                actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, requestedTenant).isOk()
+        );
     }
 
     private void replaceIndex(ActionRequest request, String oldIndexName, String newIndexName, Action action, User user) {

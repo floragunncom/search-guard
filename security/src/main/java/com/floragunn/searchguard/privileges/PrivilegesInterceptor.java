@@ -42,6 +42,6 @@ public interface PrivilegesInterceptor {
     String getKibanaServerUser();
 
     enum InterceptionResult {
-        ALLOW, DENY, NORMAL
+        ALLOW, DENY, NORMAL, INTERCEPTED
     }
 }
