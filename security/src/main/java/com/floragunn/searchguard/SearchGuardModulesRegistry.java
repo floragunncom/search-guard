@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -92,6 +93,8 @@ public class SearchGuardModulesRegistry {
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForAllOperations;
 
     private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
+
+    private TenantSelector tenantSelector;
     private TenantAccessMapper tenantAccessMapper;
     private Set<String> moduleNames = new HashSet<>();
     private final Set<String> disabledModules;
@@ -193,6 +196,8 @@ public class SearchGuardModulesRegistry {
         }
 
         this.multiTenancyConfigurationProvider = getMultiTenancyConfigurationProvider(result);
+        this.tenantSelector = getTenantSelector(result);
+        log.debug("Tenant selector '{}' and MT config provider '{}'", tenantSelector);
         this.tenantAccessMapper = getTenantAccessMapper(result);
 
         return result;
@@ -427,6 +432,9 @@ public class SearchGuardModulesRegistry {
         return multiTenancyConfigurationProvider;
     }
 
+    public Optional<TenantSelector> getTenantSelector() {
+        return Optional.ofNullable(this.tenantSelector);
+    }
     public TenantAccessMapper getTenantAccessMapper() {
         return tenantAccessMapper;
     }
@@ -466,6 +474,14 @@ public class SearchGuardModulesRegistry {
         } else {
             return MultiTenancyConfigurationProvider.DEFAULT;
         }
+    }
+
+    private TenantSelector getTenantSelector(List<Object> componentsList) {
+        return componentsList.stream()
+            .filter(o -> TenantSelector.class.isAssignableFrom(o.getClass()))
+            .map(TenantSelector.class::cast)
+            .findAny()
+            .orElse(TenantSelector.NO_OP);
     }
 
     private TenantAccessMapper getTenantAccessMapper(List<Object> componentsList) {

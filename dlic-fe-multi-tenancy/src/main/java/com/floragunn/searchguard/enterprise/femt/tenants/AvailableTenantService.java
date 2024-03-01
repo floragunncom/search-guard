@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.enterprise.femt.tenants;
 
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.TenantSelector;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -16,7 +17,7 @@ import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
-public class AvailableTenantService {
+public class AvailableTenantService implements TenantSelector {
 
     private final MultiTenancyConfigurationProvider configProvider;
     private final AuthorizationService authorizationService;
@@ -48,5 +49,17 @@ public class AvailableTenantService {
                         configProvider.isMultiTenancyEnabled(), tenantsAccess, user.getName(),
                         tenantSelectedByDefault.orElseThrow(DefaultTenantNotFoundException::new));
             });
+    }
+
+    @Override
+    public Optional<String> selectTenant(User user) {
+        ThreadContext threadContext = threadPool.getThreadContext();
+        final TransportAddress remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+        Set<String> internalRoles = authorizationService.getMappedRoles(user, remoteAddress);
+        Map<String, Boolean> tenantsWriteAccessMap = configProvider.getTenantAccessMapper().mapTenantsAccess(user, internalRoles);
+        ImmutableSet<String> exists = tenantRepository.exists(tenantsWriteAccessMap.keySet().toArray(String[]::new));
+        Map<String, TenantAccessData> tenantsAccess = new HashMap<>(tenantsWriteAccessMap.size());
+        tenantsWriteAccessMap.forEach((key, value) -> tenantsAccess.put(key, new TenantAccessData(true, value, exists.contains(key))));
+        return defaultTenantSelector.findDefaultTenantForUser(user, tenantsAccess, configProvider.getPreferredTenants());
     }
 }

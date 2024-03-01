@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import com.floragunn.searchguard.TenantSelector;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -245,9 +246,12 @@ public class SessionApi {
         private String token;
         private String redirectUri;
 
-        public StartSessionResponse(String token, String redirectUri) {
+        private String defaultTenant;
+
+        public StartSessionResponse(String token, String redirectUri, String defaultTenant) {
             this.token = token;
             this.redirectUri = redirectUri;
+            this.defaultTenant = defaultTenant;
         }
 
         public StartSessionResponse(UnparsedMessage message) throws ConfigValidationException {
@@ -256,6 +260,7 @@ public class SessionApi {
 
             this.token = docNode.getAsString("token");
             this.redirectUri = docNode.getAsString("redirect_uri");
+            this.defaultTenant = docNode.getAsString("default_tenant");
         }
 
         public String getToken() {
@@ -268,7 +273,7 @@ public class SessionApi {
 
         @Override
         public Object toBasicObject() {
-            return OrderedImmutableMap.of("token", token, "redirect_uri", redirectUri);
+            return OrderedImmutableMap.of("token", token, "redirect_uri", redirectUri, "default_tenant", defaultTenant);
         }
     }
 

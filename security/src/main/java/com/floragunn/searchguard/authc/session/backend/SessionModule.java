@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.TenantSelector;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
@@ -86,11 +88,11 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
         this.configVarService.requestRandomKey(SessionServiceConfig.SIGNING_KEY_SECRET, 512, "authc");
 
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(baseDependencies.getLocalClient());
-
+        SearchGuardModulesRegistry modulesRegistry = baseDependencies.getModulesRegistry();
         sessionService = new SessionService(baseDependencies.getConfigurationRepository(), privilegedConfigClient, baseDependencies.getStaticSettings(),
                 baseDependencies.getPrivilegesEvaluator(), baseDependencies.getAuditLog(), baseDependencies.getThreadPool(),
                 baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService(), new SessionServiceConfig(),
-                baseDependencies.getBlockedIpRegistry(), baseDependencies.getBlockedUserRegistry(), componentState);
+                baseDependencies.getBlockedIpRegistry(), baseDependencies.getBlockedUserRegistry(), componentState, modulesRegistry);
 
         sessionTokenAuthenticationDomain = new SessionTokenAuthenticationDomain(sessionService);
 

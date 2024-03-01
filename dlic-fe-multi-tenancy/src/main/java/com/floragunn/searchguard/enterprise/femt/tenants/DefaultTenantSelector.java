@@ -1,37 +1,36 @@
 package com.floragunn.searchguard.enterprise.femt.tenants;
 
+import com.floragunn.searchguard.TenantSelector;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.user.User;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
 class DefaultTenantSelector {
 
-    private final Predicate<TenantAccessData> writeAccessOrReadAccessToExistingTenant = tenantAccessData ->
-            tenantAccessData.writeAccess() || (tenantAccessData.readAccess() && tenantAccessData.exists());
 
     Optional<String> findDefaultTenantForUser(
             User user, Map<String, TenantAccessData> tenantsAvailableToUser, List<String> configuredPreferredTenants) {
 
+        Predicate<String> writeAccessOrReadAccessToExistingTenant = tenantName -> {
+            TenantAccessData tenantAccessData = tenantsAvailableToUser.get(tenantName);
+            return Objects.nonNull(tenantAccessData) && (tenantAccessData.writeAccess() || (tenantAccessData.readAccess() && tenantAccessData.exists()));
+        };
+
         Optional<String> preferredGlobalOrPrivateTenant = configuredPreferredTenants
                 .stream()
-                .sorted()
                 //return first of preferred tenants to which: user has write access or (user has read access and tenant exists)
-                .filter(tenant -> Optional.ofNullable(tenantsAvailableToUser.get(tenant))
-                        .map(writeAccessOrReadAccessToExistingTenant::test)
-                        .orElse(false))
+                .filter(writeAccessOrReadAccessToExistingTenant)
                 .findFirst()
                 //return global tenant if user has write access or (user has read access and tenant exists)
-                .or(() -> Optional.ofNullable(tenantsAvailableToUser.get(Tenant.GLOBAL_TENANT_ID))
-                        .map(writeAccessOrReadAccessToExistingTenant::test)
-                        .flatMap(accessible -> accessible? Optional.of(Tenant.GLOBAL_TENANT_ID) : Optional.empty()))
+                .or(() -> Optional.ofNullable(Tenant.GLOBAL_TENANT_ID).filter(writeAccessOrReadAccessToExistingTenant::test))
                 //return private tenant if it's enabled
                 .or(() -> Optional.ofNullable(tenantsAvailableToUser.get(user.getName()))
-                        .map(tenantAccessData -> user.getName())
-                );
+                    .map(tenantAccessData -> user.getName()));
 
         return preferredGlobalOrPrivateTenant
                 //return first of tenants available to user to which: user has write access or (user has read access and tenant exists)
@@ -39,7 +38,7 @@ class DefaultTenantSelector {
                         .keySet()
                         .stream()
                         .sorted()
-                        .filter(tenantName -> writeAccessOrReadAccessToExistingTenant.test(tenantsAvailableToUser.get(tenantName)))
+                        .filter(tenantName -> writeAccessOrReadAccessToExistingTenant.test(tenantName))
                         .findFirst()
                 );
     }

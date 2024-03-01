@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -35,6 +36,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.SearchGuardModulesRegistry;
+import com.floragunn.searchguard.TenantSelector;
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
@@ -170,10 +173,12 @@ public class SessionService {
     private volatile ClientAddressAscertainer clientAddressAscertainer;
     private List<AuthFailureListener> ipAuthFailureListeners = ImmutableList.empty();
 
+    private final SearchGuardModulesRegistry modulesRegistry;
+
     public SessionService(ConfigurationRepository configurationRepository, PrivilegedConfigClient privilegedConfigClient, StaticSettings settings,
             PrivilegesEvaluator privilegesEvaluator, AuditLog auditLog, ThreadPool threadPool, ClusterService clusterService,
             ProtectedConfigIndexService protectedConfigIndexService, SessionServiceConfig config, BlockedIpRegistry blockedIpRegistry,
-            BlockedUserRegistry blockedUserRegistry, ComponentState componentState) {
+            BlockedUserRegistry blockedUserRegistry, ComponentState componentState, SearchGuardModulesRegistry modulesRegistry) {
         this.indexName = settings.get(INDEX_NAME);
         this.privilegedConfigClient = privilegedConfigClient;
         this.threadPool = threadPool;
@@ -210,6 +215,7 @@ public class SessionService {
             this.indexCleanupAgent = new IndexCleanupAgent(indexName, SessionToken.EXPIRES_AT, settings.get(CLEANUP_INTERVAL), privilegedConfigClient,
                     clusterService, threadPool);
         }
+        this.modulesRegistry = modulesRegistry;
         
         componentState.addPart(this.indexCleanupAgent.getComponentState());        
         
@@ -449,7 +455,10 @@ public class SessionService {
             throw new SessionCreationException("Error while creating JWT. Possibly the key configuration is not valid.",
                     RestStatus.INTERNAL_SERVER_ERROR, e);
         }
-        return new StartSessionResponse(encodedJwt, redirectUri);
+        Optional<TenantSelector> tenantSelector = modulesRegistry.getTenantSelector();
+        log.debug("Tenant selector '{}'", tenantSelector);
+        String selectedTenant = tenantSelector.flatMap(selector -> selector.selectTenant(user)).orElse(null);
+        return new StartSessionResponse(encodedJwt, redirectUri, selectedTenant);
     }
 
     public SessionToken getById(String id, Meter meter) throws NoSuchSessionException {

@@ -174,6 +174,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
         var tenantAvailabilityRepository = new TenantAvailabilityRepository(PrivilegedConfigClient.adapt(baseDependencies.getLocalClient()));
         var availableTenantService = new AvailableTenantService(new FeMultiTenancyConfigurationProvider(this),
             baseDependencies.getAuthorizationService(), threadPool, tenantAvailabilityRepository);
+        log.info("Available tenant service created as component '{}'", availableTenantService);
         return Arrays.asList(new FeMultiTenancyConfigurationProvider(this), tenantAccessMapper, availableTenantService);
     }
 
